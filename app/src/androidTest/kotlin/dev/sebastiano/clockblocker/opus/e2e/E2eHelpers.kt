@@ -1,16 +1,24 @@
 package dev.sebastiano.clockblocker.opus.e2e
 
+import android.os.SystemClock
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.StaleObjectException
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import dev.sebastiano.clockblocker.opus.AppGraph
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.feature.plan.activeAdviceAt
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -42,13 +50,17 @@ fun SemanticsNodeInteraction.scrollToIfScrollable(): SemanticsNodeInteraction = 
     runCatching { performScrollTo() }
 }
 
-/** A demo trip (SFO → LHR) together with the advice its plan has active right now. */
+/** A demo trip (SFO → LHR) together with the advice its plan's Now card shows right now. */
 data class ActiveTrip(val trip: Trip, val plan: JetLagPlan, val advice: Advice)
 
 /**
  * Saves a SFO → LHR trip departing on whichever nearby day gives its plan a block of advice that is active now
  * and stays active for at least [minRemaining] (so a test has time to act on it), and returns it. Trips that
  * don't qualify are deleted again. The profile must be seeded first (plans need it).
+ *
+ * The block must be the Now card's headline ([activeAdviceAt]'s first, the same pick as the plan screen), not
+ * just any active block: otherwise a higher-priority block that ends within the minute (e.g. "See some light"
+ * until 18:00 over a long "Avoid caffeine") would swap the card's content, and its height, mid-test.
  */
 fun AppGraph.seedTripWithActiveAdvice(minRemaining: Duration = Duration.ofMinutes(10)): ActiveTrip = runBlocking {
     val today = LocalDate.now(ZoneId.systemDefault())
@@ -57,11 +69,56 @@ fun AppGraph.seedTripWithActiveAdvice(minRemaining: Duration = Duration.ofMinute
         tripRepository.upsert(trip)
         val plan = withTimeout(15_000) { planRepository.plan(trip.id).filterNotNull().first() }
         val now = Instant.now()
-        val active = plan.activeAt(now)
+        val active = plan.activeAdviceAt(now)
         val inFlight = active.any { it.type == AdviceType.Flight }
-        val advice = active.firstOrNull { !it.type.isMoment && it.end.isAfter(now.plus(minRemaining)) }
+        val advice = active.firstOrNull()?.takeIf { !it.type.isMoment && it.end.isAfter(now.plus(minRemaining)) }
         if (advice != null && !inFlight) return@runBlocking ActiveTrip(trip, plan, advice)
         tripRepository.delete(trip.id)
     }
     error("No demo trip within ±6 days has advice active now")
 }
+
+/**
+ * Brings [this] into its scrolling container's viewport and taps it.
+ *
+ * A node inside a lazy-list item that is only partly on screen still exists, so `awaitTag` finds it, but when
+ * the node itself lies entirely below the visible part of the list its clipped bounds are empty and
+ * `performClick` taps nothing. Where the Now card's Done button ends up at rest depends on the card's text (a
+ * 12-hour clock and a long secondary zone wrap the "until" line onto a second line) and on the device's system
+ * bars and navigation bar, so always scroll first rather than relying on the layout at rest.
+ */
+fun SemanticsNodeInteraction.scrollIntoViewAndClick(): SemanticsNodeInteraction =
+    scrollToIfScrollable().assertIsDisplayed().performClick()
+
+/**
+ * Finds an object with [find] and clicks it, retrying for up to [timeoutMillis] while nothing is found or the
+ * found object goes stale before the click lands. Returns whether a click was delivered.
+ *
+ * System UI (the notification shade above all) rebuilds its views while it settles, e.g. right after a group is
+ * expanded, so an object found a moment ago can throw [StaleObjectException] on `click()` (or on a nested
+ * `findObject`). Each attempt therefore looks everything up again from the device.
+ */
+fun UiDevice.clickWhenFound(timeoutMillis: Long, find: UiDevice.() -> UiObject2?): Boolean {
+    val deadline = SystemClock.uptimeMillis() + timeoutMillis
+    while (true) {
+        try {
+            val target = find()
+            if (target != null) {
+                target.click()
+                return true
+            }
+        } catch (ignored: StaleObjectException) {
+            // The view behind it was replaced: look it up again.
+        }
+        if (SystemClock.uptimeMillis() >= deadline) return false
+        waitForIdle(ShadePollMillis)
+        SystemClock.sleep(ShadePollMillis)
+    }
+}
+
+/** [clickWhenFound] for a single [selector]. */
+fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean =
+    clickWhenFound(timeoutMillis) { findObject(selector) }
+
+private const val ShadePollMillis = 250L
+
