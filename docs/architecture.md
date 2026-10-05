@@ -66,9 +66,18 @@ because "Replay setup" reuses the onboarding screens. This is the only dependenc
 
 ## How data flows
 
-All persistent state is in four JSON files. Repositories expose that state as `Flow`s. The plan is never
-stored: [`DefaultPlanRepository`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/DefaultPlanRepository.kt)
+All user and domain data (profile, settings, trips and advice logs) lives in four DataStore JSON files.
+Repositories expose that state as `Flow`s. The plan is never stored:
+[`DefaultPlanRepository`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/DefaultPlanRepository.kt)
 computes it from the trip and the profile when something asks for it, and keeps recent results in memory.
+
+Three small SharedPreferences files hold bookkeeping state. They aren't user data and aren't part of backups:
+
+| Store | What it keeps |
+|---|---|
+| [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt) | The running "Snooze 15 min" (end time and advice id), so it survives process death |
+| [`PreferencesCelebrationStore`](../feature/plan/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/plan/PlanStores.kt) | Ids of trips whose plan celebration has already played, so it plays once |
+| [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) | The app version that last published the widget-picker previews |
 
 ```mermaid
 flowchart LR
@@ -214,9 +223,19 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 | Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "opus-clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
 | Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from stable advice ids, so a second import updates events instead of duplicating them. |
 
-Import can replace all data or merge it with what is already there. The whole file is decoded before anything
-is written, so a bad file changes nothing. Files from a newer app version are refused. Exported files are named
-`opus-clockblock-backup-YYYY-MM-DD.json`.
+Import has two modes, implemented in `BackupManager.restore`:
+
+- **Replace** deletes trips that aren't in the backup. It then writes the backup's profile (if the file has one),
+  its settings, its trips and its advice-log entries.
+- **Merge** deletes nothing and keeps the device's settings. It writes the backup's profile (if present), upserts
+  its trips by id and adds its advice-log entries.
+
+In both modes, advice-log entries are written on top of the existing logs, so entries already on the device for
+a trip that is kept are not removed. Issue [#5](https://github.com/rock3r/clockblock/issues/5) tracks whether
+the code or the in-app copy should change.
+
+The whole file is decoded before anything is written, so a bad file changes nothing. Files from a newer app
+version are refused. Exported files are named `opus-clockblock-backup-YYYY-MM-DD.json`.
 
 ## Offline airport data
 

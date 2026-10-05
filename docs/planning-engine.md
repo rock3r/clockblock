@@ -94,9 +94,18 @@ assembly steps.
 | Calendar days | [`DayBuilder.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/DayBuilder.kt) | Splits the plan into days, each in the zone the user is in that day | [§4](algorithm.md#4-decision-procedure-adapt-mode) |
 | Phase track | [`PhaseTrack.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/PhaseTrack.kt) | The body-clock curve that the dial and the "body 3½ h behind" header read | [§4.2](algorithm.md#42-phase-trajectory) |
 
-Each piece of advice gets an id derived from a SHA-256 hash of its content. The id stays the same when the plan
-is computed again, which matters in three places: advice logs stay attached to the right card, notifications
-replace each other instead of piling up, and calendar export updates existing events.
+Each piece of advice gets an id from `PlanBuilder.stableId`: the first 8 bytes of a SHA-256 hash of the trip id,
+the advice type, the day index and the card's position among cards of the same type that day. The id is
+positional, not a hash of the content. So:
+
+- If the plan is computed again with the same inputs, every card gets the same id. That keeps notifications
+  replacing each other instead of piling up, and lets a second calendar export update events instead of
+  duplicating them.
+- If only a card's time or reason changes, it keeps its id, along with its advice log and its calendar event, as
+  long as it stays on the same day and in the same order among same-type cards (cards are counted in start-time
+  order).
+- If a re-plan adds or removes a card of the same type earlier that day, the later cards of that type shift
+  position. Their ids, and the logs attached to them, then belong to a different card.
 
 ## Body clock choice
 

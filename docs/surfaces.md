@@ -111,7 +111,16 @@ picks the headline:
 
 Melatonin is never the headline. It gets its own reminder.
 
-The notification and the reminders have three actions: Done, "Can't do this" and "Snooze 15 min".
+The Now notification has three actions: Done, "Can't do this" and "Snooze 15 min". It shows them only while the
+headline isn't a flight and hasn't been answered yet. Reminders get a set of actions that depends on their kind
+(`NotificationFactory.reminder`):
+
+| `ReminderKind` | Actions |
+|---|---|
+| `Upcoming`, `Snoozed` | "Can't do this", "Snooze 15 min" |
+| `Moment` (melatonin) | Done, "Snooze 15 min" |
+| `WakeUp` | none |
+
 `AdviceActionReceiver` logs the action and refreshes the surfaces. Snoozing hides the Now notification for 15
 minutes, then reminds the user again. The snooze state is kept in
 [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt).

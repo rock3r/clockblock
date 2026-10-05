@@ -49,8 +49,8 @@ asks how to import it:
 
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
 
-- **Replace** makes this phone match the backup exactly: profile, settings and trips. Trips that aren't in the
-  backup are deleted.
+- **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
+  trips and check-ins. Check-ins already on this phone for trips that are in the backup stay.
 - **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
   trips that aren't in the backup. Two things are overwritten: a trip that is in both places takes the backup's
   version, and your profile (home time zone, usual sleep, chronotype) is replaced by the backup's profile. Plans

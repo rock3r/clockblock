@@ -21,8 +21,8 @@ The buttons on a reminder depend on what it's for:
 | A melatonin dose, if you turned melatonin on | **Done** and **Snooze 15 min** |
 | The wake-up reminder | none. Tap it to open the plan |
 
-Your answer is saved, just as if you'd tapped it in the app. The Now notification (below) has all three buttons:
-**Done**, **Can't do this** and **Snooze 15 min**.
+Your answer is saved, just as if you'd tapped it in the app. The Now notification (below) has all three buttons,
+**Done**, **Can't do this** and **Snooze 15 min**, until you answer. During a flight it has none.
 
 ## The Now notification
 
