@@ -49,8 +49,12 @@ asks how to import it:
 
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
 
-- **Replace** makes this phone match the backup exactly. Trips that aren't in the backup are deleted.
-- **Merge** adds the backup's trips and keeps everything else.
+- **Replace** makes this phone match the backup exactly: profile, settings and trips. Trips that aren't in the
+  backup are deleted.
+- **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
+  trips that aren't in the backup. Two things are overwritten: a trip that is in both places takes the backup's
+  version, and your profile (home time zone, usual sleep, chronotype) is replaced by the backup's profile. Plans
+  are then worked out again from that profile.
 
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.

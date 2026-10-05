@@ -13,8 +13,16 @@ minutes before. The default is 15 minutes.
 Reminders respect your sleep. Nothing arrives while the plan says you should be asleep, except the one reminder
 that wakes you up. Only one reminder shows at a time. If two blocks start together, they share one reminder.
 
-Each reminder has three buttons: **Done**, **Can't do this** and **Snooze 15 min**. Your answer is saved, just
-as if you'd tapped it in the app.
+The buttons on a reminder depend on what it's for:
+
+| Reminder | Buttons |
+|---|---|
+| A block that's about to start | **Can't do this** and **Snooze 15 min** |
+| A melatonin dose, if you turned melatonin on | **Done** and **Snooze 15 min** |
+| The wake-up reminder | none. Tap it to open the plan |
+
+Your answer is saved, just as if you'd tapped it in the app. The Now notification (below) has all three buttons:
+**Done**, **Can't do this** and **Snooze 15 min**.
 
 ## The Now notification
 

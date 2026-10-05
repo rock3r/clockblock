@@ -8,7 +8,9 @@ Application id: **`dev.sebastiano.clockblocker.opus`**. Never hardcode it in cod
 
 ## Build & test
 
-Always use `build-brief` in front of Gradle (see user rules):
+Agents: always put `build-brief` in front of Gradle (see user rules). This rule covers commands that agents run.
+Human-facing docs (README, `docs/`, `user-guide/`, tool READMEs) show plain `./gradlew`, because contributors may
+not have `build-brief` installed.
 
 | What | Command |
 |---|---|
