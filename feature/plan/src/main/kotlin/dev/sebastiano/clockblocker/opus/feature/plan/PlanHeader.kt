@@ -56,6 +56,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -108,7 +110,13 @@ internal fun PlanHeader(
 ) {
     val gradient = OpusTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
-    Box(modifier.testTag(PlanTags.Header)) {
+    var atStartEdge by remember { mutableStateOf(false) }
+    SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
+    Box(
+        modifier
+            .testTag(PlanTags.Header)
+            .onGloballyPositioned { atStartEdge = it.positionInWindow().x < 1f && it.positionInWindow().y < 1f },
+    ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
         BodyClockSky(bodyTime = moment.bodyTime, modifier = Modifier.matchParentSize(), showCelestial = false)
