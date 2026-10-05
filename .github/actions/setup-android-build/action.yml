@@ -1,0 +1,22 @@
+name: Set up Android build
+description: JDK 21, the Android SDK packages this project compiles against, and Gradle with caching.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 21
+
+    # The runner image ships an Android SDK; install only what the build needs on top of it.
+    # (android-actions/setup-android@v3 fails on the image's newer cmdline-tools while installing legacy 'tools'.)
+    - name: Install Android SDK packages
+      shell: bash
+      run: |
+        SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin | sort -V | tail -1)/sdkmanager"
+        yes | "$SDKMANAGER" --licenses > /dev/null || true
+        "$SDKMANAGER" --install "platforms;android-37.1" "build-tools;37.0.0" "platform-tools" > /dev/null
+        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+    - uses: gradle/actions/setup-gradle@v4

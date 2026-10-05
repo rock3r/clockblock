@@ -31,12 +31,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-android-build
       - name: JVM + Robolectric tests
         run: ./gradlew test --continue
       - name: Upload test reports
@@ -49,16 +44,14 @@ jobs:
 
   screenshots:
     name: Screenshots
-    runs-on: ubuntu-latest
+    # Goldens are recorded on Apple-silicon Macs. Robolectric's native graphics anti-alias thin strokes
+    # (the dial's hatched arcs) slightly differently on Linux, so verify on the same platform rather than
+    # loosening the comparison, which would also hide one-glyph regressions like a flipped "+"/"−".
+    runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-android-build
       - name: Verify Roborazzi goldens
         run: ./gradlew verifyRoborazziDebug --continue
       - name: Upload screenshot diffs
@@ -75,12 +68,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-android-build
       - name: Build debug, release and test APKs
         run: ./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest
       - name: Upload debug APK
@@ -101,12 +89,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: android-actions/setup-android@v3
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-android-build
       - name: Build APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Connected tests
