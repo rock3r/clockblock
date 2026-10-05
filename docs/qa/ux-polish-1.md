@@ -66,5 +66,6 @@ one-shot glyph ambient). Both new rows are in `MOTION.md`, tagged OBSERVED.
 
 - TDD for the logic: `SuiteTypeTest` (landscape rail), `PlanMomentTest` (band ends, flight line, first-light
   window including the minute-resolution plan clock), `ContrastAuditTest`.
-- `build-brief ./gradlew test :app:assembleDebug`, `recordRoborazziDebug` + `verifyRoborazziDebug` (all
-  modules), `:app:connectedDebugAndroidTest` on the Pixel. Counts are in the hand-off message.
+- `build-brief ./gradlew test :app:assembleDebug`: 733 tests passed. `recordRoborazziDebug` +
+  `verifyRoborazziDebug` (all modules): 503 passed, 62 goldens re-recorded. `:app:connectedDebugAndroidTest` on
+  the Pixel: 22 tests, 0 failures.
