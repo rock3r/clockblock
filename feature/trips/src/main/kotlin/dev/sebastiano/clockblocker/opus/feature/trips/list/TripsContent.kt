@@ -199,8 +199,12 @@ private fun summaryLine(state: TripsUiState): String? {
         if (state.upcoming.isNotEmpty()) add(stringResource(R.string.trips_summary_upcoming, state.upcoming.size))
         if (state.past.isNotEmpty()) add(stringResource(R.string.trips_summary_past, state.past.size))
     }
-    return parts.joinToString(stringResource(R.string.trips_summary_separator))
+    // Wrap only between parts ("2 in progress · 1 upcoming ·" / "1 past"), never inside one ("1" / "past").
+    val separator = stringResource(R.string.trips_summary_separator).replaceFirst(' ', NoBreakSpace)
+    return parts.joinToString(separator) { it.replace(' ', NoBreakSpace) }
 }
+
+private const val NoBreakSpace = '\u00A0'
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

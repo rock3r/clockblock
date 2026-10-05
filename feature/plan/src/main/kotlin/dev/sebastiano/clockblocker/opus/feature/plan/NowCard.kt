@@ -12,7 +12,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -166,26 +165,17 @@ internal fun NowCard(
                 )
             }
             Spacer(Modifier.height(14.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                itemVerticalAlignment = Alignment.Bottom,
+            // "until 21:00" stays one unit; the secondary zone wraps below it as a whole at large font.
+            DualTimeText(
+                instant = if (advice.type.isMoment) advice.start else advice.end,
+                zone = moment.zone,
+                secondaryZone = moment.secondaryZone,
+                style = OpusTheme.textStyles.timeHeadline,
+                secondaryColor = role.onContainer.copy(alpha = 0.8f),
+                inline = true,
+                prefix = stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
                 modifier = Modifier.padding(end = 8.dp),
-            ) {
-                Text(
-                    stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.alignByBaseline(),
-                )
-                DualTimeText(
-                    instant = if (advice.type.isMoment) advice.start else advice.end,
-                    zone = moment.zone,
-                    secondaryZone = moment.secondaryZone,
-                    style = OpusTheme.textStyles.timeHeadline,
-                    secondaryColor = role.onContainer.copy(alpha = 0.8f),
-                    inline = true,
-                    modifier = Modifier.alignByBaseline(),
-                )
-            }
+            )
             if (moment.concurrent.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
