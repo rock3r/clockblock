@@ -54,7 +54,7 @@ has no Undo: reminders stay quiet for 15 minutes, then this one comes back if it
 <img src="images/timeline.png" alt="The Your plan timeline: Day 3, arrival in Tokyo, with Sleep 23:30 to 07:30; Day 4, Adapted, with See bright light 07:30 to 10:30 and See some light 10:30 to 14:30. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
-adapted. Each block shows its local time and the time back home. Earlier days are folded away; tap **Show N
+adapted. Each block shows its local time and, underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
 earlier days** to see them. Tap any block to read why it's there.
 
 The toolbar at the bottom jumps to **Now**, lets you pick any day of the plan (**Day**), or opens **Why?** for the

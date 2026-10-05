@@ -1,40 +1,40 @@
 # Testing and CI
 
-The project is built test-first. There are 822 JVM tests (plain JUnit and Robolectric), 158 committed screenshot
-goldens and 22 end-to-end tests that run on an emulator. Every pull request runs all of them in GitHub Actions,
-and Codex reviews the change.
+The project is built test-first. There are about 840 JVM tests (plain JUnit and Robolectric), 158 committed
+screenshot goldens and 22 end-to-end tests that run on an emulator. Every pull request runs them in GitHub
+Actions, except one e2e test that the API 36 emulator skips (see [CI](#ci)), and Codex reviews the change.
 
 This page explains what each kind of test covers, how to run it, and how a pull request gets from "opened" to
 "ready to merge".
 
 ## Test layers
 
-| Layer | Framework | Runs on | Count | Command |
-|---|---|---|---|---|
-| Pure logic: planner, models, mappers, schedulers | JUnit 6 Jupiter, Kotest assertions, kotest-property | JVM | 389 tests | `./gradlew test` |
-| Android and Compose: UI tests, ViewModels, repositories | JUnit 4 on Robolectric (run through the Vintage engine) | JVM | 433 tests | `./gradlew test` |
-| Screenshots | Roborazzi on Robolectric | JVM | 158 goldens | `./gradlew verifyRoborazziDebug` |
-| End to end | Compose test and UiAutomator 2.4 | Emulator or device | 22 tests | `./gradlew :app:connectedDebugAndroidTest` |
+| Layer | Framework | Runs on | Command |
+|---|---|---|---|
+| Pure logic: planner, models, mappers, schedulers | JUnit 6 Jupiter, Kotest assertions, kotest-property | JVM | `./gradlew test` |
+| Android and Compose: UI tests, ViewModels, repositories | JUnit 4 on Robolectric (run through the Vintage engine) | JVM | `./gradlew test` |
+| Screenshots | Roborazzi on Robolectric | JVM | `./gradlew verifyRoborazziDebug` |
+| End to end | Compose test and UiAutomator 2.4 | Emulator or device | `./gradlew :app:connectedDebugAndroidTest` |
 
-The screenshot tests are JUnit 4 tests too, so they are part of the 433. `./gradlew test` runs them without
-comparing images. `verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
+The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`, without comparing images.
+`verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
 
 ### Tests per module
 
-| Module | Total | Jupiter | JUnit 4 | Screenshot goldens |
-|---|---|---|---|---|
-| `:app` | 86 | 42 | 44 | 12 |
-| `:core:circadian` | 67 | 67 | 0 | 0 |
-| `:core:data` | 154 | 106 | 48 | 0 |
-| `:core:designsystem` | 80 | 38 | 42 | 42 |
-| `:core:model` | 9 | 9 | 0 | 0 |
-| `:core:notifications` | 105 | 62 | 43 | 0 |
-| `:feature:onboarding` | 65 | 15 | 50 | 30 |
-| `:feature:plan` | 74 | 24 | 50 | 21 |
-| `:feature:settings` | 56 | 0 | 56 | 26 |
-| `:feature:trips` | 70 | 11 | 59 | 21 |
-| `:widget` | 56 | 15 | 41 | 6 |
-| **Total** | **822** | **389** | **433** | **158** |
+| Module | JVM tests | Screenshot goldens |
+|---|---|---|
+| `:app` | 88 | 12 |
+| `:core:circadian` | 67 | 0 |
+| `:core:data` | 154 | 0 |
+| `:core:designsystem` | 86 | 42 |
+| `:core:model` | 9 | 0 |
+| `:core:notifications` | 108 | 0 |
+| `:feature:onboarding` | 65 | 30 |
+| `:feature:plan` | 82 | 21 |
+| `:feature:settings` | 56 | 26 |
+| `:feature:trips` | 71 | 21 |
+| `:widget` | 56 | 6 |
+| **Total** | **842** | **158** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 

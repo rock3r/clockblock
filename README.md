@@ -115,8 +115,9 @@ You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties
 
 The debug build needs no API keys, no backend and no signing setup. The app runs on Android 10 (API 29) and later.
 
-The project is built test-first: 822 JVM tests, 158 screenshot goldens and 22 end-to-end tests at the time of
-writing. CI runs all of them on every pull request. See [docs/testing.md](docs/testing.md).
+The project is built test-first: about 840 JVM tests, 158 screenshot goldens and 22 end-to-end tests at the time
+of writing. CI runs them on every pull request; one widget e2e test is skipped on the CI emulator's API level
+([#2](https://github.com/rock3r/clockblock/issues/2)). See [docs/testing.md](docs/testing.md).
 
 ## Architecture
 
