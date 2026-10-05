@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.e2e
 
+import android.os.SystemClock
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -7,6 +8,10 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.StaleObjectException
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import dev.sebastiano.clockblocker.opus.AppGraph
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -84,3 +89,36 @@ fun AppGraph.seedTripWithActiveAdvice(minRemaining: Duration = Duration.ofMinute
  */
 fun SemanticsNodeInteraction.scrollIntoViewAndClick(): SemanticsNodeInteraction =
     scrollToIfScrollable().assertIsDisplayed().performClick()
+
+/**
+ * Finds an object with [find] and clicks it, retrying for up to [timeoutMillis] while nothing is found or the
+ * found object goes stale before the click lands. Returns whether a click was delivered.
+ *
+ * System UI (the notification shade above all) rebuilds its views while it settles, e.g. right after a group is
+ * expanded, so an object found a moment ago can throw [StaleObjectException] on `click()` (or on a nested
+ * `findObject`). Each attempt therefore looks everything up again from the device.
+ */
+fun UiDevice.clickWhenFound(timeoutMillis: Long, find: UiDevice.() -> UiObject2?): Boolean {
+    val deadline = SystemClock.uptimeMillis() + timeoutMillis
+    while (true) {
+        try {
+            val target = find()
+            if (target != null) {
+                target.click()
+                return true
+            }
+        } catch (ignored: StaleObjectException) {
+            // The view behind it was replaced: look it up again.
+        }
+        if (SystemClock.uptimeMillis() >= deadline) return false
+        waitForIdle(ShadePollMillis)
+        SystemClock.sleep(ShadePollMillis)
+    }
+}
+
+/** [clickWhenFound] for a single [selector]. */
+fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean =
+    clickWhenFound(timeoutMillis) { findObject(selector) }
+
+private const val ShadePollMillis = 250L
+
