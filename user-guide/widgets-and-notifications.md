@@ -1,8 +1,9 @@
 # Widgets and notifications
 
 You don't have to open the app to follow your plan. A quiet notification shows what to do right now, a short
-reminder arrives just before each change, and two home-screen widgets show your plan at a glance. They all show
-the same thing as the app, at the same time.
+reminder arrives just before each change, and two home-screen widgets show your plan at a glance. They update at
+each change in your plan, so they normally show the same thing as the app. If you haven't allowed exact alarms,
+Android can delay an update while your phone is idle, and the widgets and notification may lag for a while.
 
 ## Reminders
 

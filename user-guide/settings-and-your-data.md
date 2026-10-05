@@ -35,8 +35,8 @@ how to back it up.
 
 All your data stays on your phone: your profile, settings, trips and the blocks you marked as done or skipped.
 The app has no internet access, so it can't send your data anywhere itself. Your data leaves the phone only when
-you export it, or when Android's own device backup copies app data to your backup account (if you have that turned
-on in your phone's settings).
+you export it, when you share a plan summary to another app, or when Android's own device backup copies app data to
+your backup account (if you have that turned on in your phone's settings).
 
 ### Back up and restore
 

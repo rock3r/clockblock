@@ -63,6 +63,9 @@ Below the flights, **Trip details** has three more settings:
 | Adapt | Moves your body clock to destination time, even for a short stay. |
 | Home time | Keeps your body clock at home. Best for quick trips. |
 
+If every time zone change on the trip is under two hours, Auto and Adapt don't make a body clock plan: you only
+get flight advice and a few nights of sleep times.
+
 For a short trip, staying on home time is usually easier: you're back before your body could settle anyway.
 
 ## Return trips

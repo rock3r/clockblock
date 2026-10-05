@@ -104,7 +104,8 @@ flowchart LR
 
 In words: the profile and trip repositories feed the plan repository, which asks the planner for a plan. The
 ViewModels and the alarm scheduler both read the plan from that repository. The scheduler then refreshes every
-`PlanSurface`, so the notification and the widgets always show the same advice as the app.
+`PlanSurface`, so the notification and the widgets show the same advice as the app. They lag only when the
+scheduler's alarm is delayed (no exact-alarm access and the device in Doze; see [surfaces](surfaces.md#the-scheduler)).
 
 ### Repositories
 
