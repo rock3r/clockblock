@@ -56,8 +56,9 @@ asks how to import it:
   import restores the same trip.
 - **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
   trips that aren't in the backup. Three things are overwritten: a trip in both places takes the backup's
-  version, a block checked in both places takes the backup's answer, and your profile (home time zone, usual
-  sleep, chronotype) is replaced by the backup's profile. Plans are then worked out again from that profile.
+  version, a block checked in both places takes the backup's answer, and your whole profile is replaced by the
+  backup's: home time zone, usual sleep, chronotype, tools (including melatonin) and how hard the plan pushes.
+  Plans are then worked out again from that profile.
 
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.
