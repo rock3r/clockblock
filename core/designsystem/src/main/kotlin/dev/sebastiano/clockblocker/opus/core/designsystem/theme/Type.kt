@@ -8,6 +8,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -117,8 +118,17 @@ private val LabelL = Slot(14f, 20f, 0.1f)
 private val LabelM = Slot(12f, 16f, 0.5f)
 private val LabelS = Slot(11f, 16f, 0.5f)
 
-private fun Slot.flex(weight: Int, round: Float = 0f) = flex(size, line, tracking, weight, round)
-private fun Slot.serif(weight: Int) = serif(size, line, tracking, weight)
+/**
+ * Display, headline and title-large lines are headings: balanced breaking so a wrap never leaves a lone
+ * orphan word ("Your plan starts Mon 19 / Oct"). Body and labels keep the default (paragraph) strategy.
+ */
+private const val HEADING_MIN_SIZE = 22f
+
+private fun TextStyle.headingBreaks(size: Float): TextStyle =
+    if (size >= HEADING_MIN_SIZE) copy(lineBreak = LineBreak.Heading) else this
+
+private fun Slot.flex(weight: Int, round: Float = 0f) = flex(size, line, tracking, weight, round).headingBreaks(size)
+private fun Slot.serif(weight: Int) = serif(size, line, tracking, weight).headingBreaks(size)
 
 /**
  * The M3 type scale on Google Sans Flex.
@@ -216,9 +226,9 @@ internal val DefaultOpusTextStyles = OpusTextStyles(
     bodyClockDisplay = flex(45f, 52f, 0f, 380, round = 100f, slant = -10f, features = TABULAR),
     bodyClockTitle = flex(22f, 28f, 0f, 450, round = 100f, slant = -10f, features = TABULAR),
     bodyClockLabel = flex(14f, 20f, 0.1f, 500, round = 100f, slant = -10f, features = TABULAR),
-    editorialDisplay = serif(52f, 58f, -0.5f, 600, opsz = 144f),
-    editorialHeadline = serif(32f, 38f, -0.25f, 600, opsz = 144f),
-    editorialTitle = serif(22f, 28f, 0f, 600, opsz = 72f),
+    editorialDisplay = serif(52f, 58f, -0.5f, 600, opsz = 144f).headingBreaks(52f),
+    editorialHeadline = serif(32f, 38f, -0.25f, 600, opsz = 144f).headingBreaks(32f),
+    editorialTitle = serif(22f, 28f, 0f, 600, opsz = 72f).headingBreaks(22f),
     editorialBody = serif(17f, 26f, 0.1f, 400, opsz = 18f),
 )
 

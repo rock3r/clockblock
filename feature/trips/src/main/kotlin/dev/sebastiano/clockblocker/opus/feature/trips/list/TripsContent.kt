@@ -44,6 +44,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -227,6 +228,13 @@ private fun TripsFabMenu(
             ToggleFloatingActionButton(
                 checked = expanded,
                 onCheckedChange = onExpandedChange,
+                // In-progress trip cards are primaryContainer; a primaryContainer FAB vanished over them (dark
+                // dynamic especially). Primary in both states keeps the FAB its own layer, and the menu items
+                // (primaryContainer) still read as its children.
+                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
+                    initialColor = MaterialTheme.colorScheme.primary,
+                    finalColor = MaterialTheme.colorScheme.primary,
+                ),
                 modifier = Modifier
                     .testTag(TripsTestTags.Fab)
                     .semantics {
@@ -238,7 +246,13 @@ private fun TripsFabMenu(
                 Icon(
                     painterResource(icon),
                     contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress }),
+                    modifier = Modifier.animateIcon(
+                        checkedProgress = { checkedProgress },
+                        color = ToggleFloatingActionButtonDefaults.iconColor(
+                            initialColor = MaterialTheme.colorScheme.onPrimary,
+                            finalColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ),
                 )
             }
         },
