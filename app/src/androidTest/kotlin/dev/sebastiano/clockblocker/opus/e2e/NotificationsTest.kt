@@ -38,9 +38,21 @@ class NotificationsTest : OpusE2eTest() {
         val choices = walkOnboardingToReminders()
 
         awaitTag(OnboardingTags.Finish).performClick()
-        val allow = device.wait(Until.findObject(By.res(Pattern.compile(".*:id/permission_allow_button"))), LongTimeoutMillis)
-        assertNotNull("system notification permission dialog", allow)
-        allow.click()
+        val allowButton = By.res(Pattern.compile(".*:id/permission_allow_button"))
+        assertNotNull("system notification permission dialog", device.wait(Until.findObject(allowButton), LongTimeoutMillis))
+        // On a cold CI emulator a tap that lands while the dialog is still settling can be dropped, leaving the
+        // dialog up. Tap until it's really gone, then wait for our window before looking for Compose nodes.
+        var taps = 0
+        while (device.hasObject(allowButton) && taps++ < MaxAllowTaps) {
+            device.waitForIdle()
+            device.findObject(allowButton)?.click()
+            device.wait(Until.gone(allowButton), DefaultTimeoutMillis)
+        }
+        assertTrue("permission dialog still showing after $taps taps", device.wait(Until.gone(allowButton), DefaultTimeoutMillis))
+        assertTrue(
+            "our app back in front (foreground: ${device.currentPackageName})",
+            device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), LongTimeoutMillis),
+        )
 
         awaitTag("route_trips", LongTimeoutMillis).assertIsDisplayed()
         assertTrue(notificationsGranted)
@@ -92,3 +104,5 @@ class NotificationsTest : OpusE2eTest() {
         }
     }
 }
+
+private const val MaxAllowTaps = 3
