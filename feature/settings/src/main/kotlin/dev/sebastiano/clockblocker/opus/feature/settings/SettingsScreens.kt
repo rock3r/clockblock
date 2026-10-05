@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,6 +98,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeHelperDialog
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSky
@@ -809,11 +811,19 @@ internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, on
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
         Spacer(Modifier.size(16.dp))
-        SleepDial(draft, { draft = it }, Modifier.fillMaxWidth())
+        // Landscape phones: a full-width dial pushed Save below the fold (and dragging the dial fought the scroll),
+        // so the dial shrinks to what the window height leaves after the title, times and buttons.
+        val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+        val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
+        SleepDial(draft, { draft = it }, Modifier.fillMaxWidth(), maxDialSize = maxDial)
         Spacer(Modifier.size(16.dp))
         EditorButtons(onCancel = onCancel, onSave = { onSave(draft) })
     }
 }
+
+/** Title, bedtime/wake times, buttons, paddings and the dialog's own margins. */
+private val SleepEditorChrome = 290.dp
+private val SleepDialMinSize = 150.dp
 
 private val SleepWindowSaver = androidx.compose.runtime.saveable.Saver<SleepWindow, IntArray>(
     save = { intArrayOf(it.bedtime.toSecondOfDay(), it.wake.toSecondOfDay()) },

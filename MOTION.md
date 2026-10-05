@@ -37,7 +37,8 @@ Unlisted motion → `OpusTheme.motion.containerSpatial()` for movement, `colour(
 | Celebration sequence | navigation settles (450 ms) → rings turn into alignment on `dialDayRotation()` + `CONFIRM` → overlay fades in on `colour()` → Bloom scales on `glyphMorph()` → check + confetti together; predictive back seeks the overlay fade | OBSERVED |
 | Wavy adaptation line | still by default (`travel = false`); travel is opt-in for rare surfaces | OBSERVED |
 | Plan loading | nothing for 150 ms (fast loads never flash a loader), then M3 `LoadingIndicator`; ready state cross-fades in (`colour()` / `fade()`) only if the loader was shown | OBSERVED |
-| Plan floating toolbar show/hide | one owner: `AnimatedVisibility` fade (`fade()`) + half-height slide on `navigationSpatial()`; no scroll-driven exit-always | OBSERVED |
+| Plan floating toolbar show/hide | one owner: `AnimatedVisibility` fade (`fade()`) + half-height slide on `navigationSpatial()`; no scroll-driven exit-always. Its surface-gradient scrim lives inside the same `AnimatedVisibility` and only fades (one event, nothing slides separately) | OBSERVED |
+| "First light" (plan of a trip saved ≤ 90 s ago) | header sun/moon rises from below the header's bottom edge to its resting place with an alpha ramp, `artEntrance()` (scheme slowSpatial), once per plan entry (saveable); clipped to the header. Reduce motion: already in place (static carrier; the rise carries no meaning) | OBSERVED |
 | Header moon egg (7 taps) | `CLOCK_TICK` on taps 1–6; crescent waxes to full, then Circle → Cookie12 → Clover8 → Ghostish → Heart → Cookie9 → bite as one continuous `eggChain(steps)` progress | OBSERVED |
 | Sleep dial 24.2 egg | wake handle pushed past 24 h peeks "24:12" + Czeisler line, then rubber-bands back; inline note under reduce motion | OBSERVED |
 | Konami 8-bit egg (↑↑↓↓←→←→ swipes on the plan rail) | glyphs morph to `PixelCircle` / `PixelTriangle` on `glyphMorph()` and straighten; sky quantises to 6 bands; times monospace; session-only, snackbar Exit; off under reduce motion and sleep windows | OBSERVED |
@@ -61,6 +62,7 @@ on-screen time, not opens, is what gates its motion.
 | Plan timeline, cards, chips, buttons | 100+/day interactions | Platform state layer + `containerSpatial` only |
 | Plan screen at rest (glyphs, wave, sky, dial) | continuous on-screen time | Nothing loops; one ambient cycle on change, then still |
 | Plan screen open | 5–15/day | Navigation transition only; no entrance choreography |
+| New trip saved → its plan opens | a few/month | `CONFIRM` haptic on save + "first light" rise (the only plan entrance choreography) |
 | Advice glyph morph | a few/day (advice boundaries) | `glyphMorph` (Expressive) + one ambient cycle |
 | Dial scrub / back to now | daily | `dataSpatial`, hour haptics |
 | Body-clock sky | continuous | Repaint only; no animation of its own |
@@ -74,6 +76,7 @@ on-screen time, not opens, is what gates its motion.
 - Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
 - Moon egg taps 1–6 → `CLOCK_TICK`.
+- Trip editor Save succeeds → `CONFIRM` (once, on the `Saved` event; validation failures stay silent).
 
 ## Reduced motion
 - Trigger: system "Remove animations" (`ANIMATOR_DURATION_SCALE == 0`) or the in-app toggle → `LocalReduceMotion`.

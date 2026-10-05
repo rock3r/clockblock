@@ -75,6 +75,22 @@ class SkyPalette internal constructor(private val skies: Map<SkyPhase, SkyGradie
         skies.mapValues { (_, g) -> SkyGradient(ColorMath.dim(g.top, 0.34f, 0.4f), ColorMath.dim(g.bottom, 0.34f, 0.4f)) },
     )
 
+    /**
+     * Dark theme: the same skies with their highlights compressed (Oklab lightness above [DarkKnee] scaled by
+     * [DarkRatio], chroma eased), so a daytime body sky sits among dark surfaces instead of glaring above them.
+     * Night skies are already below the knee and stay as they are; hues are kept, so the meaning (what time it is
+     * inside you) survives.
+     */
+    fun forDarkTheme(): SkyPalette = SkyPalette(
+        skies.mapValues { (_, g) -> SkyGradient(g.top.compressedForDark(), g.bottom.compressedForDark()) },
+    )
+
+    private fun Color.compressedForDark(): Color {
+        val l = ColorMath.lightness(this)
+        if (l <= DarkKnee) return this
+        return ColorMath.withLightness(this, DarkKnee + (l - DarkKnee) * DarkRatio, chromaFactor = 0.85f)
+    }
+
     /** Per-sky blend towards [to] (theme cross-fade). */
     internal fun lerp(to: SkyPalette, t: Float): SkyPalette = SkyPalette(
         skies.mapValues { (phase, g) ->
@@ -89,6 +105,10 @@ class SkyPalette internal constructor(private val skies: Map<SkyPhase, SkyGradie
     companion object {
         const val DefaultSunrise = 6.5f
         const val DefaultSunset = 19.0f
+
+        /** Oklab lightness above which dark-theme skies are compressed, and by how much. */
+        private const val DarkKnee = 0.30f
+        private const val DarkRatio = 0.45f
 
         val Default: SkyPalette = SkyPalette(
             mapOf(

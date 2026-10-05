@@ -44,6 +44,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -94,7 +95,12 @@ class TripsCallbacks(
 internal val TwoColumnMinWidth: Dp = 720.dp
 private val SingleColumnMaxWidth: Dp = 640.dp
 
-/** Stateless trips list: large flexible app bar, sectioned card grid (or the empty state) and the FAB menu. */
+/**
+ * Stateless trips list: large flexible app bar, sectioned card grid (or the empty state) and the FAB menu.
+ *
+ * @param showSettingsAction show a settings gear in the app bar. Off by default: the shell's navigation suite
+ *   always carries a Settings destination, and a second route to it read as two different places.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TripsContent(
@@ -103,6 +109,7 @@ fun TripsContent(
     modifier: Modifier = Modifier,
     selectedTripId: String? = null,
     snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    showSettingsAction: Boolean = false,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
@@ -115,8 +122,10 @@ fun TripsContent(
                 title = { Text(stringResource(R.string.trips_app_title)) },
                 subtitle = summaryLine(state)?.let { line -> { Text(line) } },
                 actions = {
-                    IconButton(onClick = callbacks.onOpenSettings, modifier = Modifier.testTag(TripsTestTags.Settings)) {
-                        Icon(painterResource(R.drawable.ic_trips_settings), contentDescription = stringResource(R.string.trips_settings))
+                    if (showSettingsAction) {
+                        IconButton(onClick = callbacks.onOpenSettings, modifier = Modifier.testTag(TripsTestTags.Settings)) {
+                            Icon(painterResource(R.drawable.ic_trips_settings), contentDescription = stringResource(R.string.trips_settings))
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -190,8 +199,12 @@ private fun summaryLine(state: TripsUiState): String? {
         if (state.upcoming.isNotEmpty()) add(stringResource(R.string.trips_summary_upcoming, state.upcoming.size))
         if (state.past.isNotEmpty()) add(stringResource(R.string.trips_summary_past, state.past.size))
     }
-    return parts.joinToString(stringResource(R.string.trips_summary_separator))
+    // Wrap only between parts ("2 in progress · 1 upcoming ·" / "1 past"), never inside one ("1" / "past").
+    val separator = stringResource(R.string.trips_summary_separator).replaceFirst(' ', NoBreakSpace)
+    return parts.joinToString(separator) { it.replace(' ', NoBreakSpace) }
 }
+
+private const val NoBreakSpace = '\u00A0'
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -219,6 +232,13 @@ private fun TripsFabMenu(
             ToggleFloatingActionButton(
                 checked = expanded,
                 onCheckedChange = onExpandedChange,
+                // In-progress trip cards are primaryContainer; a primaryContainer FAB vanished over them (dark
+                // dynamic especially). Primary in both states keeps the FAB its own layer, and the menu items
+                // (primaryContainer) still read as its children.
+                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
+                    initialColor = MaterialTheme.colorScheme.primary,
+                    finalColor = MaterialTheme.colorScheme.primary,
+                ),
                 modifier = Modifier
                     .testTag(TripsTestTags.Fab)
                     .semantics {
@@ -230,7 +250,13 @@ private fun TripsFabMenu(
                 Icon(
                     painterResource(icon),
                     contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress }),
+                    modifier = Modifier.animateIcon(
+                        checkedProgress = { checkedProgress },
+                        color = ToggleFloatingActionButtonDefaults.iconColor(
+                            initialColor = MaterialTheme.colorScheme.onPrimary,
+                            finalColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ),
                 )
             }
         },

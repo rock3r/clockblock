@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -94,6 +96,7 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -282,6 +285,28 @@ internal fun PlanEmptyState(
     }
 }
 
+/**
+ * The parts of a flight's detail line: the route, then the planner's detail unless it is just the same route
+ * again (without a flight number the planner falls back to "MXP→SIN").
+ */
+internal fun flightDetails(route: String?, detail: String?): List<String> {
+    fun String.squashed() = filterNot { it.isWhitespace() }
+    val extra = detail?.takeUnless { route != null && it.squashed() == route.squashed() }
+    return listOfNotNull(route, extra)
+}
+
+/**
+ * A trip saved moments ago: its plan opens with "first light" (see `HeaderCelestial`). [now] is the plan's
+ * minute-resolution clock, so a trip saved during the current minute reads as up to a minute "in the future".
+ */
+internal fun isFreshTrip(createdAt: Instant, now: Instant): Boolean {
+    val age = Duration.between(createdAt, now)
+    return age >= NowResolution.negated() && age <= FreshTripWindow
+}
+
+private val FreshTripWindow: Duration = Duration.ofSeconds(90)
+private val NowResolution: Duration = Duration.ofMinutes(1)
+
 /** "SFO → LHR" for each flight block, matched to the trip's legs by departure (or id suffix). */
 internal fun flightRoutes(plan: JetLagPlan, trip: Trip?, resources: Resources): Map<String, String> {
     if (trip == null) return emptyMap()
@@ -355,7 +380,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     }
     val railGestures = Modifier.konamiCode(enabled = state.easterEggs, onCode = onKonami)
 
-    Box(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val shortWindow = maxHeight < ShortWindowMaxHeight
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -369,17 +395,21 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     actions = actions,
                     onMoonTip = { showSnack(resources.getString(R.string.plan_moon_tip)) },
                     scrollBehavior = scrollBehavior,
+                    shortWindow = shortWindow,
+                    firstLight = state.trip?.let { isFreshTrip(it.createdAt, state.now) } == true,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
             containerColor = MaterialTheme.colorScheme.surface,
         ) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val expanded = maxWidth >= TwoPaneMinWidth
+                // Short windows always split when there is room: one pane there leaves the plan a sliver under
+                // the dial.
+                val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
                 val heroKeys = sections.heroKeys
                 val railList = if (expanded) screen.rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
-                val bottomPadding = padding.calculateBottomPadding() + 104.dp
+                val bottomPadding = padding.calculateBottomPadding() + if (shortWindow) 80.dp else 104.dp
 
                 suspend fun scrollRail(rowIndex: Int, offset: Int) {
                     val index = railStart + rowIndex
@@ -394,37 +424,61 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     derivedStateOf { expanded || screen.list.firstVisibleItemIndex > heroKeys.indexOf(PlanSections.KeyNow) }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
+                    val scrim = MaterialTheme.colorScheme.surface
                     AnimatedVisibility(
                         visible = toolbarVisible,
-                        enter = fadeIn(motion.fade()) + slideInVertically(motion.navigationSpatial()) { it / 2 },
-                        exit = fadeOut(motion.fade()) + slideOutVertically(motion.navigationSpatial()) { it / 2 },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = padding.calculateBottomPadding() + 16.dp),
+                        enter = fadeIn(motion.fade()),
+                        exit = fadeOut(motion.fade()),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                     ) {
-                        PlanToolbar(
-                            days = railDays,
-                            canWhy = shown.active != null || shown.upNext.isNotEmpty(),
-                            onNow = {
-                                screen.preview = null
-                                scope.launch {
-                                    val now = rows.nowRowIndex()
-                                    if (now >= 0) {
-                                        scrollRail(now, nowOffsetPx)
-                                    } else if (reduce) {
-                                        railList.scrollToItem(0)
-                                    } else {
-                                        railList.animateScrollToItem(0)
-                                    }
+                        // The scrim fades with the toolbar (one event): rows passing underneath read as behind it,
+                        // and at rest the last visible row is veiled rather than cut by a floating pill.
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .drawBehind {
+                                    drawRect(
+                                        Brush.verticalGradient(
+                                            0f to scrim.copy(alpha = 0f),
+                                            0.5f to scrim.copy(alpha = 0.82f),
+                                            1f to scrim.copy(alpha = 0.94f),
+                                        ),
+                                    )
                                 }
-                            },
-                            onDay = { day ->
-                                val key = RailRow.Header(day, isToday = false).key
-                                if (rows.none { it.key == key }) screen.showEarlier = true
-                                screen.pendingScrollKey = key
-                            },
-                            onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
-                        )
+                                .padding(
+                                    top = if (shortWindow) 12.dp else 28.dp,
+                                    bottom = padding.calculateBottomPadding() + if (shortWindow) 8.dp else 16.dp,
+                                ),
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            PlanToolbar(
+                                days = railDays,
+                                canWhy = shown.active != null || shown.upNext.isNotEmpty(),
+                                onNow = {
+                                    screen.preview = null
+                                    scope.launch {
+                                        val now = rows.nowRowIndex()
+                                        if (now >= 0) {
+                                            scrollRail(now, nowOffsetPx)
+                                        } else if (reduce) {
+                                            railList.scrollToItem(0)
+                                        } else {
+                                            railList.animateScrollToItem(0)
+                                        }
+                                    }
+                                },
+                                onDay = { day ->
+                                    val key = RailRow.Header(day, isToday = false).key
+                                    if (rows.none { it.key == key }) screen.showEarlier = true
+                                    screen.pendingScrollKey = key
+                                },
+                                onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
+                                modifier = Modifier.animateEnterExit(
+                                    enter = slideInVertically(motion.navigationSpatial()) { it / 2 },
+                                    exit = slideOutVertically(motion.navigationSpatial()) { it / 2 },
+                                ),
+                            )
+                        }
                     }
                 }
 
@@ -731,3 +785,7 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
+private val ShortWindowMaxHeight = 480.dp
+private val ShortTwoPaneMinWidth = 600.dp

@@ -64,8 +64,8 @@ class NotificationsTest : OpusE2eTest() {
             assertNotNull("'$title' in the notification shade", notification)
             assertNotNull(device.wait(Until.findObject(By.text(text)), DefaultTimeoutMillis))
 
-            // With the Now notification also showing, the system bundles both into an autogroup. Tapping a line of
-            // the collapsed bundle opens the summary (a plain launcher intent), so expand it first, as a user would.
+            // With the Now notification also showing, both sit in our group under a summary (which opens the current
+            // plan too). Expand the bundle first, as a user would, and tap the reminder itself.
             val bundle = device.findObject(
                 By.res(Pattern.compile(".*:id/expandableNotificationRow"))
                     .hasDescendant(By.text(title))
