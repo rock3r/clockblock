@@ -284,7 +284,6 @@ internal fun PlanEmptyState(
     }
 }
 
-/** "SFO → LHR" for each flight block, matched to the trip's legs by departure (or id suffix). */
 /**
  * The parts of a flight's detail line: the route, then the planner's detail unless it is just the same route
  * again (without a flight number the planner falls back to "MXP→SIN").
@@ -295,6 +294,7 @@ internal fun flightDetails(route: String?, detail: String?): List<String> {
     return listOfNotNull(route, extra)
 }
 
+/** "SFO → LHR" for each flight block, matched to the trip's legs by departure (or id suffix). */
 internal fun flightRoutes(plan: JetLagPlan, trip: Trip?, resources: Resources): Map<String, String> {
     if (trip == null) return emptyMap()
     return plan.allAdvice.filter { it.type == AdviceType.Flight }.mapNotNull { advice ->
