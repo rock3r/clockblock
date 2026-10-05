@@ -87,8 +87,8 @@ The research is cited, the rules are written down, and the known limitations are
 
 Opus Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
 accounts, no analytics, no ads, no crash reporters and no third-party SDKs. Your trips and profile live in the
-app's private storage. They leave the device only when you export a backup or calendar file, or when Android's own
-device backup copies app data (if you have it turned on).
+app's private storage. They leave the device only when you export a backup or calendar file, share a plan
+summary to another app, or when Android's own device backup copies app data (if you have it turned on).
 
 ## Not medical advice
 
