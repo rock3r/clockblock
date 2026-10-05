@@ -210,7 +210,8 @@ city, destination) with 100 lux in flight.
 
 * Tier-2 direction choice applies to the first segment only; later segments use the threshold rule.
 * The chronotype → phase mapping is population-level (±1.5 h individual error, §8). There is no re-estimation
-  from logged light yet ("couldn't do" re-planning is a UI feature that re-runs the planner).
+  from logged light yet: Done / Skipped / Can't do this are recorded per card but are not planner inputs. A plan
+  is recomputed only when its trip (for example a delay entered with "I'm delayed") or the profile changes.
 * Hannay19 adapts faster when advancing; for large westward shifts that the threshold rule delays (e.g.
   NRT → JFK neutral) the model can estimate the plan as *slower* than doing nothing. The plan still follows the
   literature default; Max intensity lets the model choose for 8–12 h.
