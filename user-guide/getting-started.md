@@ -67,7 +67,8 @@ Then choose how hard the plan should push:
 - **Gentle**: smaller daily shifts and fewer early starts. It takes a little longer.
 - **Balanced**: the pace the research supports. A good default for most trips.
 - **Max**: the Balanced pace, plus a smarter choice of direction. For eastward shifts of 8 to 12 hours, it
-  simulates both shifting earlier and shifting later, and picks the one that adapts you faster.
+  simulates both shifting earlier and shifting later. If one adapts you more than a day faster, it picks that one.
+  Otherwise it keeps the usual direction.
 
 #### Melatonin
 
