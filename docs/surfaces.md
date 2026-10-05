@@ -122,7 +122,9 @@ headline isn't a flight and hasn't been answered yet. Reminders get a set of act
 | `WakeUp` | none |
 
 `AdviceActionReceiver` logs the action and refreshes the surfaces. Snoozing hides the Now notification for 15
-minutes, then reminds the user again. The snooze state is kept in
+minutes, then posts a `Snoozed` reminder, but only if the advice is still running then
+(`ReminderSelector.snoozed` returns `null` once the block has ended; for melatonin, once its reminder window has
+passed). The snooze state is kept in
 [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt).
 
 ### Live Update on travel days

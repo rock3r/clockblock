@@ -34,7 +34,7 @@ While a plan is in progress, one quiet notification stays in your notification s
 until when, and what comes next, for example "See some light until 20:00 · then Avoid caffeine". It updates by
 itself and never makes a sound. Tap it to open the plan.
 
-**Snooze 15 min** hides it for 15 minutes, then reminds you again.
+**Snooze 15 min** hides it for 15 minutes, then reminds you again if the block is still going.
 
 ### On the travel day
 

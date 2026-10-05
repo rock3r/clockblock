@@ -47,7 +47,7 @@ The card shows:
 
 When you've done it, tap **Done**. The small arrow next to Done offers **Skipped**, **Can't do this** and
 **Snooze 15 min**. After Done, Skipped or Can't do this, a message appears at the bottom with **Undo**. Snooze
-has no Undo: reminders stay quiet for 15 minutes, then this one comes back.
+has no Undo: reminders stay quiet for 15 minutes, then this one comes back if its block is still going.
 
 ### The timeline
 
