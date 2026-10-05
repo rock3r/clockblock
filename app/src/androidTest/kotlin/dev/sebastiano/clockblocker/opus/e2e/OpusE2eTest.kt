@@ -95,16 +95,14 @@ abstract class OpusE2eTest {
         Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(context.packageName)
 
     /** Waits until a node with [tag] exists (e.g. after the splash screen or a navigation). */
-    @OptIn(ExperimentalTestApi::class)
     fun awaitTag(tag: String, timeoutMillis: Long = DefaultTimeoutMillis): SemanticsNodeInteraction {
-        compose.waitUntilAtLeastOneExists(hasTestTag(tag), timeoutMillis)
+        awaitAny(hasTestTag(tag), timeoutMillis)
         return compose.onNodeWithTag(tag)
     }
 
     /** Waits until a node matching [matcher] exists. */
-    @OptIn(ExperimentalTestApi::class)
     fun await(matcher: SemanticsMatcher, timeoutMillis: Long = DefaultTimeoutMillis): SemanticsNodeInteraction {
-        compose.waitUntilAtLeastOneExists(matcher, timeoutMillis)
+        awaitAny(matcher, timeoutMillis)
         return compose.onAllNodes(matcher).onFirst()
     }
 
@@ -122,7 +120,7 @@ abstract class OpusE2eTest {
     fun awaitAnyTag(vararg tags: String, timeoutMillis: Long = DefaultTimeoutMillis): String {
         var found: String? = null
         compose.waitUntil(timeoutMillis) {
-            found = tags.firstOrNull { compose.onAllNodesWithTag(it).fetchSemanticsNodes().isNotEmpty() }
+            found = tags.firstOrNull { nodesExist(hasTestTag(it)) }
             found != null
         }
         return checkNotNull(found)
@@ -130,6 +128,21 @@ abstract class OpusE2eTest {
 
     /** True when a node with [tag] is currently in the tree. */
     fun exists(tag: String): Boolean = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+
+    private fun awaitAny(matcher: SemanticsMatcher, timeoutMillis: Long) {
+        compose.waitUntil("a node matching ${matcher.description}", timeoutMillis) { nodesExist(matcher) }
+    }
+
+    /**
+     * Like `waitUntilAtLeastOneExists`, but "no Compose hierarchy yet" counts as "not found" instead of failing
+     * at once. That state is normal for a moment after a system dialog (e.g. the notification permission prompt)
+     * closes and before our activity resumes; on a cold CI emulator the gap is long enough to be hit.
+     */
+    private fun nodesExist(matcher: SemanticsMatcher): Boolean = try {
+        compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+    } catch (e: IllegalStateException) {
+        if (e.message?.contains("No compose hierarchies found") == true) false else throw e
+    }
 
     /** Runs [command] as the shell user (UiAutomation) and returns its output. */
     fun shell(command: String): String =
