@@ -163,7 +163,7 @@ internal fun NowCard(
                     zone = moment.zone,
                     secondaryZone = moment.secondaryZone,
                     style = OpusTheme.textStyles.timeHeadline,
-                    secondaryColor = role.onContainer.copy(alpha = 0.75f),
+                    secondaryColor = role.onContainer.copy(alpha = 0.8f),
                     inline = true,
                     modifier = Modifier.alignByBaseline(),
                 )
