@@ -2,10 +2,12 @@ package dev.sebastiano.clockblocker.opus.core.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import androidx.compose.ui.graphics.luminance
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -75,6 +77,35 @@ object ColorMath {
             alpha = x.alpha + (y.alpha - x.alpha) * f,
             colorSpace = ColorSpaces.Oklab,
         ).convert(ColorSpaces.Srgb).clampSrgb()
+    }
+
+    /** Sets Oklab lightness to [lightness] and scales chroma by [chromaFactor], keeping the hue. */
+    fun withLightness(color: Color, lightness: Float, chromaFactor: Float = 1f): Color {
+        val lab = color.convert(ColorSpaces.Oklab)
+        return Color(
+            red = lightness.coerceIn(0f, 1f),
+            green = lab.green * chromaFactor,
+            blue = lab.blue * chromaFactor,
+            alpha = color.alpha,
+            colorSpace = ColorSpaces.Oklab,
+        ).convert(ColorSpaces.Srgb).clampSrgb()
+    }
+
+    /** [foreground] (possibly translucent) composited over an opaque [background]. */
+    fun over(foreground: Color, background: Color): Color {
+        val a = foreground.alpha
+        return Color(
+            red = foreground.red * a + background.red * (1f - a),
+            green = foreground.green * a + background.green * (1f - a),
+            blue = foreground.blue * a + background.blue * (1f - a),
+        )
+    }
+
+    /** WCAG 2 contrast ratio (1..21) between two opaque colours. */
+    fun contrast(a: Color, b: Color): Float {
+        val la = a.luminance()
+        val lb = b.luminance()
+        return (max(la, lb) + 0.05f) / (min(la, lb) + 0.05f)
     }
 
     private fun withLch(color: Color, hue: Float): Color {

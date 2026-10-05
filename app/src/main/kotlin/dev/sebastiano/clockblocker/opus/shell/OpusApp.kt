@@ -103,7 +103,12 @@ fun OpusShell(
     val adaptiveInfo = currentWindowAdaptiveInfoV2()
     val directive = calculatePaneScaffoldDirective(adaptiveInfo)
     val isTwoPane = directive.maxHorizontalPartitions > 1
-    val suiteType = NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo)
+    val suiteType = suiteTypeFor(
+        default = NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo),
+        minWidthDp = adaptiveInfo.windowSizeClass.minWidthDp,
+        minHeightDp = adaptiveInfo.windowSizeClass.minHeightDp,
+        tabletop = adaptiveInfo.windowPosture.isTabletop,
+    )
 
     val route = navigator.currentRoute
     val showSuite = route !is OnboardingRoute && route !is TripEditorRoute

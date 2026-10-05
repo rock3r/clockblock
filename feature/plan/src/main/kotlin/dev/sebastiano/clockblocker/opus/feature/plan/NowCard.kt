@@ -12,7 +12,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -103,18 +102,36 @@ internal fun NowCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AdviceGlyph(advice.type, active = true, size = 28.dp)
                 Spacer(Modifier.width(10.dp))
-                FlowRow(Modifier.weight(1f), itemVerticalAlignment = Alignment.CenterVertically) {
+                val headingText: @Composable () -> Unit = {
                     Text(
                         heading.uppercase(),
                         style = MaterialTheme.typography.labelLargeEmphasized,
                         modifier = Modifier.semantics { this.heading() },
                     )
+                }
+                Box(Modifier.weight(1f)) {
                     if (!advice.type.isMoment && !moment.remaining.isZero) {
-                        Text(
-                            " · " + stringResource(R.string.plan_left, formatDuration(moment.remaining)),
-                            style = OpusTheme.textStyles.timeLabel,
-                            color = role.onContainer.copy(alpha = 0.8f),
+                        val faint = role.onContainer.copy(alpha = 0.8f)
+                        InlineOrStacked(
+                            first = headingText,
+                            second = {
+                                Text(
+                                    stringResource(R.string.plan_left, formatDuration(moment.remaining)),
+                                    style = OpusTheme.textStyles.timeLabel,
+                                    color = faint,
+                                )
+                            },
+                            separator = {
+                                Text(
+                                    Separator,
+                                    style = OpusTheme.textStyles.timeLabel,
+                                    color = faint,
+                                    modifier = Modifier.testTag(InlineSeparatorTag).clearAndSetSemantics {},
+                                )
+                            },
                         )
+                    } else {
+                        headingText()
                     }
                 }
                 TextButton(
@@ -130,7 +147,7 @@ internal fun NowCard(
                         style = MaterialTheme.typography.headlineMediumEmphasized,
                     )
                     val detail = when {
-                        advice.type == AdviceType.Flight -> listOfNotNull(flightRoute, advice.detail).joinToString(" · ")
+                        advice.type == AdviceType.Flight -> flightDetails(flightRoute, advice.detail).joinToString(" · ")
                         advice.detail != null -> advice.detail
                         else -> null
                     }
@@ -148,26 +165,17 @@ internal fun NowCard(
                 )
             }
             Spacer(Modifier.height(14.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                itemVerticalAlignment = Alignment.Bottom,
+            // "until 21:00" stays one unit; the secondary zone wraps below it as a whole at large font.
+            DualTimeText(
+                instant = if (advice.type.isMoment) advice.start else advice.end,
+                zone = moment.zone,
+                secondaryZone = moment.secondaryZone,
+                style = OpusTheme.textStyles.timeHeadline,
+                secondaryColor = role.onContainer.copy(alpha = 0.8f),
+                inline = true,
+                prefix = stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
                 modifier = Modifier.padding(end = 8.dp),
-            ) {
-                Text(
-                    stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.alignByBaseline(),
-                )
-                DualTimeText(
-                    instant = if (advice.type.isMoment) advice.start else advice.end,
-                    zone = moment.zone,
-                    secondaryZone = moment.secondaryZone,
-                    style = OpusTheme.textStyles.timeHeadline,
-                    secondaryColor = role.onContainer.copy(alpha = 0.75f),
-                    inline = true,
-                    modifier = Modifier.alignByBaseline(),
-                )
-            }
+            )
             if (moment.concurrent.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
                 Text(

@@ -154,7 +154,7 @@ internal fun TripCard(
                     Text(
                         routeLine(summary),
                         style = MaterialTheme.typography.labelLarge,
-                        color = LocalContentColor.current.copy(alpha = 0.78f),
+                        color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
                     )
                 }
                 Spacer(Modifier.width(12.dp))
@@ -300,7 +300,7 @@ private fun EndpointLine(icon: Int, local: LocalDateTime, place: Place, departs:
             Text(
                 place.cityLabel,
                 style = MaterialTheme.typography.bodyMedium,
-                color = LocalContentColor.current.copy(alpha = 0.72f),
+                color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -363,3 +363,9 @@ private fun rememberActionLabels(): ActionLabels = ActionLabels(
     createReturn = stringResource(R.string.trip_action_return),
     delete = stringResource(R.string.trip_action_delete),
 )
+
+/**
+ * Secondary lines (route codes, endpoint cities) on every card colour. 0.86 keeps them at WCAG AA (4.5:1) on the
+ * in-progress `primaryContainer`, where 0.72 fell to 4:1 (see `ContrastAuditTest` in :core:designsystem).
+ */
+private const val SecondaryContentAlpha = 0.86f

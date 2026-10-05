@@ -29,8 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -76,7 +80,14 @@ internal sealed interface RailRow {
     }
 
     /** [nowFraction]: where "now" falls inside this block (0 top … 1 bottom), or null. */
-    data class Block(val day: RailDay, val item: RailItem, val first: Boolean, val nowFraction: Float?) : RailRow {
+    /** [first]/[last]: this block opens/closes its day's body-sky band (the band's ends are rounded). */
+    data class Block(
+        val day: RailDay,
+        val item: RailItem,
+        val first: Boolean,
+        val nowFraction: Float?,
+        val last: Boolean = false,
+    ) : RailRow {
         override val key: String get() = "rail-block-${day.day.index}-${item.advice.id}"
     }
 
@@ -104,7 +115,7 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
             } else {
                 null
             }
-            add(RailRow.Block(day, item, first = i == 0, nowFraction = fraction))
+            add(RailRow.Block(day, item, first = i == 0, nowFraction = fraction, last = i == day.items.lastIndex))
         }
         if (day.nowIndex == day.items.size) add(RailRow.NowMarker(day, now))
     }
@@ -276,7 +287,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     val range = formatter.range(advice.start, advice.end, day.zone, resources)
     val secondaryRange = formatter.range(advice.start, advice.end, day.secondaryZone, resources) + " " + day.secondaryZone.cityName()
     val detail = when {
-        advice.type == AdviceType.Flight -> listOfNotNull(renderer.flightRoute(advice.id), advice.detail, formatDuration(advice.duration)).joinToString(" · ")
+        advice.type == AdviceType.Flight -> (flightDetails(renderer.flightRoute(advice.id), advice.detail) + formatDuration(advice.duration)).joinToString(" · ")
         advice.type.isMoment -> advice.detail
         else -> formatDuration(advice.duration) + (advice.detail?.let { " · $it" } ?: "")
     }
@@ -337,7 +348,21 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                 .width(CapsuleWidth + 12.dp)
                 .fillMaxHeight()
                 .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(bodyTop, bodyBottom)), alpha = 0.16f)
+                    // The band's day ends are pill-rounded: square ends read as stray grey rectangles behind
+                    // the first and last capsules, especially in dark theme.
+                    val end = CornerRadius(size.width / 2f)
+                    val band = Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                rect = Rect(Offset.Zero, size),
+                                topLeft = if (row.first) end else CornerRadius.Zero,
+                                topRight = if (row.first) end else CornerRadius.Zero,
+                                bottomRight = if (row.last) end else CornerRadius.Zero,
+                                bottomLeft = if (row.last) end else CornerRadius.Zero,
+                            ),
+                        )
+                    }
+                    drawPath(band, Brush.verticalGradient(listOf(bodyTop, bodyBottom)), alpha = 0.16f)
                     if (!row.first) {
                         drawLine(connector, Offset(size.width / 2f, 0f), Offset(size.width / 2f, RowGap.toPx()), 2.dp.toPx(), StrokeCap.Round)
                     }

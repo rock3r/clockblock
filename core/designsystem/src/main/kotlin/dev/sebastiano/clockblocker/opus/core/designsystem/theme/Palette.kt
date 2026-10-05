@@ -76,7 +76,7 @@ internal object DuskPalette {
     val NightAmberContainer = Color(0xFF2E1C06)
     val NightOnAmberContainer = Color(0xFFD9A76A)
     val NightInk = Color(0xFFB7A48D)
-    val NightInkVariant = Color(0xFF85776A)
+    val NightInkVariant = Color(0xFF8E7F71)
     val NightOutline = Color(0xFF4A3E33)
 
     // Opus concert hall: black + gold.

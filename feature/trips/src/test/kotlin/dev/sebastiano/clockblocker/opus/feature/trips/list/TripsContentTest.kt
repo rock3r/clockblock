@@ -88,8 +88,15 @@ class TripsContentTest : TripsScreenshotTest() {
     }
 
     @Test
-    fun settingsIsReachableFromTheAppBar() {
+    fun settingsGearOnlyShowsWhereThereIsNoSettingsDestination() {
+        // The navigation suite always carries Settings, so by default the app bar doesn't duplicate it.
         show()
+        compose.onNodeWithTag(TripsTestTags.Settings).assertDoesNotExist()
+    }
+
+    @Test
+    fun settingsIsReachableFromTheAppBarWhenAsked() {
+        setContent { TripsContent(TripsSamples.state(), callbacks, showSettingsAction = true) }
         compose.onNodeWithTag(TripsTestTags.Settings).performClick()
         calls shouldContainExactly listOf("settings")
     }

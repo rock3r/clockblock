@@ -294,8 +294,9 @@ fun SleepDial(
                 painter.handle(bed + sweep, Handle.Sun, activeHandle == SleepHandle.Wake || activeHandle == SleepHandle.Both, focusedHandle == SleepHandle.Wake, colors.surfaceContainerLowest, sunColor, colors.primary, art.shadow, sunPath)
             }
 
-            // Centre readout: duration, or the 24:12 peek.
-            Box(Modifier.align(Alignment.Center).width(with(density) { (sidePx * 0.36f).toDp() })) {
+            // Centre readout: duration, or the 24:12 peek. Both lines step down in size on small dials (the
+            // settings editor on a landscape phone) instead of clipping to "7 h 35 / of".
+            Box(Modifier.align(Alignment.Center).width(with(density) { (sidePx * 0.48f).toDp() })) {
                 AnimatedContent(
                     targetState = egg == EggState.Peek,
                     transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
@@ -308,17 +309,17 @@ fun SleepDial(
                             style = (if (peek) textStyles.bodyClockDisplay else textStyles.timeHeadline)
                                 .copy(color = if (peek) colors.primary else colors.onSurface, textAlign = TextAlign.Center),
                             maxLines = 1,
-                            autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = if (peek) 38.sp else 30.sp),
+                            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = if (peek) 38.sp else 30.sp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(if (peek) Modifier.testTag(SleepDialTags.Egg) else Modifier),
                         )
-                        Text(
+                        val caption = MaterialTheme.typography.labelLarge
+                        BasicText(
                             text = stringResource(if (peek) R.string.sleep_egg_caption else R.string.sleep_duration_caption),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = colors.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
+                            style = caption.copy(color = colors.onSurfaceVariant, textAlign = TextAlign.Center),
                             maxLines = 1,
+                            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = caption.fontSize),
                         )
                     }
                 }

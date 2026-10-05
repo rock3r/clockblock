@@ -14,6 +14,7 @@ object NotificationIds {
     const val NOW: Int = 1001
     const val REMINDER: Int = 1002
     const val TEST: Int = 1003
+    const val SUMMARY: Int = 1004
 }
 
 /** Buttons on Now / reminder notifications, handled by [AdviceActionReceiver]. */

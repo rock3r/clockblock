@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
+import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +55,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -94,10 +96,15 @@ internal fun TripEditorRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val currentOnDone by rememberUpdatedState(onDone)
+    val view = LocalView.current
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event ->
             when (event) {
-                is TripEditorEvent.Saved -> currentOnDone(event.tripId)
+                is TripEditorEvent.Saved -> {
+                    // A saved trip is a rare, completed task: one confirm tick (the plan then opens with first light).
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    currentOnDone(event.tripId)
+                }
             }
         }
     }

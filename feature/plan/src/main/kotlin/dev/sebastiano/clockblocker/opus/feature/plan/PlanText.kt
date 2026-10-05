@@ -158,3 +158,15 @@ internal fun roundDays(days: Double): Int = days.roundToInt().coerceAtLeast(1)
 @ReadOnlyComposable
 internal fun daysToGoLabel(days: Double): String =
     if (days < 0.75) stringResource(R.string.plan_less_than_a_day) else roundDays(days).let { pluralStringResource(R.plurals.plan_days_to_go, it, it) }
+
+/**
+ * The time left to adapt as a bare duration ("2 days", "14 h") for phrases that add their own "about … to go",
+ * such as [dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator]'s description.
+ */
+@Composable
+internal fun remainingBareLabel(days: Double): String =
+    if (days < 0.75) {
+        stringResource(R.string.plan_duration_h, (days * 24).roundToInt().coerceAtLeast(1))
+    } else {
+        roundDays(days).let { pluralStringResource(R.plurals.plan_days_bare, it, it) }
+    }

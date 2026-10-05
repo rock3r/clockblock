@@ -33,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,10 +43,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -54,6 +58,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -102,51 +108,72 @@ internal fun PlanHeader(
     onMoonTip: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
+    shortWindow: Boolean = false,
+    firstLight: Boolean = false,
 ) {
     val gradient = OpusTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
-    Box(modifier.testTag(PlanTags.Header)) {
+    var atStartEdge by remember { mutableStateOf(false) }
+    SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
+    Box(
+        modifier
+            .testTag(PlanTags.Header)
+            .onGloballyPositioned { atStartEdge = it.positionInWindow().x < 1f && it.positionInWindow().y < 1f },
+    ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
         BodyClockSky(bodyTime = moment.bodyTime, modifier = Modifier.matchParentSize(), showCelestial = false)
-        LargeFlexibleTopAppBar(
-            title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-            subtitle = {
-                Text(
-                    stageLabel(moment, firstDay) + " · " + bodyShiftLabel(moment.bodyAheadHours),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            navigationIcon = {
-                val onBack = actions.onBack
-                if (onBack != null) {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
-                        Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
-                    }
+        val subtitle: @Composable () -> Unit = {
+            PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
+        }
+        val navigationIcon: @Composable () -> Unit = {
+            val onBack = actions.onBack
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
+                    Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
                 }
-            },
-            actions = {
-                if (nightSafe) NightSafeChip()
-                OverflowMenu(canEdit, actions)
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent,
-                navigationIconContentColor = ink,
-                titleContentColor = ink,
-                actionIconContentColor = ink,
-                subtitleContentColor = ink.copy(alpha = 0.82f),
-            ),
-            scrollBehavior = scrollBehavior,
+            }
+        }
+        val barActions: @Composable RowScope.() -> Unit = {
+            if (nightSafe) NightSafeChip()
+            OverflowMenu(canEdit, actions)
+        }
+        val colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+            navigationIconContentColor = ink,
+            titleContentColor = ink,
+            actionIconContentColor = ink,
+            subtitleContentColor = ink.copy(alpha = 0.82f),
         )
+        if (shortWindow) {
+            // Short windows (landscape phones): the large sky header took a third of the height and left the
+            // plan a sliver, so it is a single row there (pinned; nothing to collapse).
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                subtitle = subtitle,
+                navigationIcon = navigationIcon,
+                actions = barActions,
+                colors = colors,
+            )
+        } else {
+            LargeFlexibleTopAppBar(
+                title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                subtitle = subtitle,
+                navigationIcon = navigationIcon,
+                actions = barActions,
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+        }
         // Above the app bar: its Surface would swallow the moon's taps otherwise.
         HeaderCelestial(
             bodyTime = moment.bodyTime,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 184.dp else 72.dp,
-            collapsedFraction = { scrollBehavior.state.collapsedFraction },
+            collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
             onTip = onMoonTip,
+            firstLight = firstLight,
             modifier = Modifier.matchParentSize(),
         )
     }
@@ -258,6 +285,7 @@ private fun HeaderCelestial(
     collapsedFraction: () -> Float,
     onTip: () -> Unit,
     modifier: Modifier = Modifier,
+    firstLight: Boolean = false,
 ) {
     val hour = bodyTime.toHourFloat()
     val isSun = celestialPosition(hour).isSun
@@ -277,6 +305,16 @@ private fun HeaderCelestial(
     val currentOnTip by rememberUpdatedState(onTip)
     val hatched = taps >= MoonTaps
     val expanded by remember { derivedStateOf { collapsedFraction() < 0.5f } }
+    // "First light": the plan of a trip saved moments ago opens with its sun or moon rising into place over the
+    // horizon, once (rare: a few times a month). Under reduce motion it is simply there (the static carrier;
+    // the rise adds no meaning).
+    val reduce = OpusTheme.reduceMotion
+    var risen by rememberSaveable { mutableStateOf(!firstLight) }
+    val rise = remember { Animatable(if (risen || reduce) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!risen && !reduce) rise.animateTo(1f, motion.artEntrance())
+        risen = true
+    }
     // Phases: crescent waxes to full (1) → the shape chain (morphs) → the bite. One continuous progress.
     val totalSteps = morphs.size + 2
     LaunchedEffect(hatched) {
@@ -306,12 +344,15 @@ private fun HeaderCelestial(
                 )
             }
         },
-        modifier = modifier.drawBehind {
-            val alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f)
+        modifier = modifier.clipToBounds().drawBehind {
+            val risen = rise.value
+            val alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f) * risen.coerceIn(0f, 1f)
             if (alpha <= 0f) return@drawBehind
             val top = topInset.toPx()
-            val c = celestialCenter(size.width, top, hour, reserveEnd)
             val r = CelestialRadius.toPx()
+            val rest = celestialCenter(size.width, top, hour, reserveEnd)
+            // Rising: from just below the header's bottom edge (the horizon) up to its resting place.
+            val c = rest.copy(y = rest.y + (1f - risen) * (size.height - rest.y + r * 1.2f))
             if (!isSun) {
                 val star = 1.3.dp.toPx()
                 HeaderStars.forEachIndexed { i, (x, y) ->

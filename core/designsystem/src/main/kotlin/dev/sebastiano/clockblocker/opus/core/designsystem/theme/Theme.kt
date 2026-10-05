@@ -169,7 +169,7 @@ fun OpusTheme(
         val colorScheme = when {
             variant == OpusThemeVariant.NightSafe -> NightSafeColors
             variant == OpusThemeVariant.Opus -> OpusConcertColors
-            useDynamic && dark -> dynamicDarkColorScheme(context)
+            useDynamic && dark -> dynamicDarkColorScheme(context).withQuietDarkContainers()
             useDynamic -> dynamicLightColorScheme(context)
             dark -> OpusDarkColors
             else -> OpusLightColors
@@ -182,7 +182,9 @@ fun OpusTheme(
         }
         val sky = when {
             variant == OpusThemeVariant.NightSafe -> SkyPalette.Default.dimmed()
-            useDynamic || variant == OpusThemeVariant.Opus -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f)
+            variant == OpusThemeVariant.Opus -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f).forDarkTheme()
+            useDynamic -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f).let { if (dark) it.forDarkTheme() else it }
+            dark -> SkyPalette.Default.forDarkTheme()
             else -> SkyPalette.Default
         }
         ThemePalette(colorScheme, advice, sky, artColorsFor(colorScheme, variant, dark))

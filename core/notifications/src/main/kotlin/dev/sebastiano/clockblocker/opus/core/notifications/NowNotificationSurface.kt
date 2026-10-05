@@ -57,6 +57,11 @@ class NowNotificationSurface(
     /** Posts, updates or removes the Now notification; returns what is showing now. */
     @SuppressLint("MissingPermission") // Guarded by areNotificationsEnabled(); SecurityException is caught.
     suspend fun render(): NowRendering = mutex.withLock {
+        renderLocked().also { NotificationGroup.sync(application, factory) }
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun renderLocked(): NowRendering {
         val manager = NotificationManagerCompat.from(application)
         val settings = settingsRepository.settings.first()
         val plan = planRepository.currentPlan.first()
@@ -65,13 +70,13 @@ class NowNotificationSurface(
             snoozeStore.active(now) != null
         ) {
             manager.cancel(NotificationIds.NOW)
-            return@withLock NowRendering.Hidden
+            return NowRendering.Hidden
         }
         val logs = adviceLogRepository.logs(plan.tripId).first()
         val lead = Duration.ofMinutes(settings.reminderLeadMinutes.coerceAtLeast(0).toLong())
         val state = NowStateCalculator.compute(plan, now, logs, lead) ?: run {
             manager.cancel(NotificationIds.NOW)
-            return@withLock NowRendering.Hidden
+            return NowRendering.Hidden
         }
         val progress = TravelPlanner.progress(plan, now)
         val live = progress != null && TravelPlanner.isLiveUpdateActive(plan, now)
@@ -80,9 +85,9 @@ class NowNotificationSurface(
         try {
             manager.notify(NotificationIds.NOW, notification)
         } catch (_: SecurityException) {
-            return@withLock NowRendering.Hidden
+            return NowRendering.Hidden
         }
-        if (live) NowRendering.LiveUpdate else NowRendering.Ongoing
+        return if (live) NowRendering.LiveUpdate else NowRendering.Ongoing
     }
 }
 
@@ -102,7 +107,10 @@ class ReminderNotifier(
     @SuppressLint("MissingPermission")
     fun postTest(): Boolean = notify(NotificationIds.TEST) { factory.test() }
 
-    fun cancel() = NotificationManagerCompat.from(application).cancel(NotificationIds.REMINDER)
+    fun cancel() {
+        NotificationManagerCompat.from(application).cancel(NotificationIds.REMINDER)
+        NotificationGroup.sync(application, factory)
+    }
 
     @SuppressLint("MissingPermission")
     private fun notify(id: Int, build: () -> android.app.Notification): Boolean {
@@ -110,6 +118,7 @@ class ReminderNotifier(
         NotificationChannels.ensureCreated(application)
         return try {
             NotificationManagerCompat.from(application).notify(id, build())
+            NotificationGroup.sync(application, factory)
             true
         } catch (_: SecurityException) {
             false
