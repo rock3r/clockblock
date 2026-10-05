@@ -44,7 +44,10 @@ jobs:
 
   screenshots:
     name: Screenshots
-    runs-on: ubuntu-latest
+    # Goldens are recorded on Apple-silicon Macs. Robolectric's native graphics anti-alias thin strokes
+    # (the dial's hatched arcs) slightly differently on Linux, so verify on the same platform rather than
+    # loosening the comparison, which would also hide one-glyph regressions like a flipped "+"/"−".
+    runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
