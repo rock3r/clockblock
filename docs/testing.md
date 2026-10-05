@@ -1,0 +1,179 @@
+# Testing and CI
+
+The project is built test-first. There are 822 JVM tests (plain JUnit and Robolectric), 158 committed screenshot
+goldens and 22 end-to-end tests that run on an emulator. Every pull request runs all of them in GitHub Actions,
+and Codex reviews the change.
+
+This page explains what each kind of test covers, how to run it, and how a pull request gets from "opened" to
+"ready to merge".
+
+## Test layers
+
+| Layer | Framework | Runs on | Count | Command |
+|---|---|---|---|---|
+| Pure logic: planner, models, mappers, schedulers | JUnit 6 Jupiter, Kotest assertions, kotest-property | JVM | 389 tests | `./gradlew test` |
+| Android and Compose: UI tests, ViewModels, repositories | JUnit 4 on Robolectric (run through the Vintage engine) | JVM | 433 tests | `./gradlew test` |
+| Screenshots | Roborazzi on Robolectric | JVM | 158 goldens | `./gradlew verifyRoborazziDebug` |
+| End to end | Compose test and UiAutomator 2.4 | Emulator or device | 22 tests | `./gradlew :app:connectedDebugAndroidTest` |
+
+The screenshot tests are JUnit 4 tests too, so they are part of the 433. `./gradlew test` runs them without
+comparing images. `verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
+
+### Tests per module
+
+| Module | Total | Jupiter | JUnit 4 | Screenshot goldens |
+|---|---|---|---|---|
+| `:app` | 86 | 42 | 44 | 12 |
+| `:core:circadian` | 67 | 67 | 0 | 0 |
+| `:core:data` | 154 | 106 | 48 | 0 |
+| `:core:designsystem` | 80 | 38 | 42 | 42 |
+| `:core:model` | 9 | 9 | 0 | 0 |
+| `:core:notifications` | 105 | 62 | 43 | 0 |
+| `:feature:onboarding` | 65 | 15 | 50 | 30 |
+| `:feature:plan` | 74 | 24 | 50 | 21 |
+| `:feature:settings` | 56 | 0 | 56 | 26 |
+| `:feature:trips` | 70 | 11 | 59 | 21 |
+| `:widget` | 56 | 15 | 41 | 6 |
+| **Total** | **822** | **389** | **433** | **158** |
+
+The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
+
+## Conventions
+
+These rules come from [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+- Write the failing test first, then the code.
+- Pure logic uses JUnit Jupiter (`org.junit.jupiter.api.Test`) with Kotest matchers (`io.kotest.matchers.*`).
+  Where an invariant exists, add a property test with `kotest-property`.
+- Android and Compose tests use JUnit 4 with `@RunWith(RobolectricTestRunner::class)`,
+  `@GraphicsMode(GraphicsMode.Mode.NATIVE)` and `@Config(sdk = [36])`.
+- ViewModel tests use
+  [`MainDispatcherRule`](../core/testing/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/testing/MainDispatcherRule.kt)
+  from `:core:testing` and Turbine for flows. `:core:testing` also has fakes such as
+  [`FakeJetLagPlanner`](../core/testing/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/testing/FakeJetLagPlanner.kt).
+- Unit tests run with `user.timezone=UTC`, so a test never depends on the machine's zone. Tests that need a zone
+  set it explicitly.
+- Test forks run in parallel, using half the CPU cores.
+
+## Screenshot tests
+
+Screenshot tests call `captureRoboImage()` and write to `<module>/src/test/screenshots/`. The goldens are committed,
+so a pull request shows every pixel it changes. The base class in `:core:designsystem`,
+[`ScreenshotTest`](../core/designsystem/src/test/kotlin/dev/sebastiano/clockblocker/opus/core/designsystem/ScreenshotTest.kt),
+can render a component in light or dark, in Night-safe or Opus mode, at a custom font scale, and on the 12-hour
+or 24-hour clock. Goldens render with reduced motion on. This makes them stable, and it also proves that every
+component has a readable still state when animations are off (see [MOTION.md](../MOTION.md)).
+
+```sh
+./gradlew :feature:plan:verifyRoborazziDebug   # compare one module with its goldens
+./gradlew :feature:plan:recordRoborazziDebug   # re-record after an intended UI change
+./gradlew verifyRoborazziDebug                 # compare every module
+```
+
+When a comparison fails, Roborazzi writes comparison images that show the old image, the new image and the
+difference under `<module>/build/outputs/roborazzi/`. CI uploads that folder as the `screenshot-diffs` artefact.
+
+## End-to-end tests
+
+The e2e tests are in [`app/src/androidTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e).
+They drive the real app, with real DataStore files and real notifications.
+
+| Test class | Tests | What it covers |
+|---|---|---|
+| `SmokeTest` | 2 | The app starts on the right first screen, and shows the navigation after onboarding |
+| `FirstRunTest` | 2 | All onboarding steps with "Maybe later"; skipping ahead and stepping back |
+| `NotificationsTest` | 2 | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan |
+| `TripsTest` | 3 | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
+| `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |
+| `PlanInteractionsTest` | 2 | A timeline block opens the Why sheet and the toolbar jumps back to now; calendar export opens the file picker |
+| `DeepLinkTest` | 5 | Every `opusclockblock://` link, including one sent to an already running app |
+| `WidgetTest` | 2 | *Two Clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
+| `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
+
+[`OpusE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/OpusE2eTest.kt) is the base
+class. It provides a Compose test rule and a UiAutomator `UiDevice`. Tests check which screen is showing through
+the navigation shell's route tags (for example `route_now`).
+
+Each test starts from a clean state without restarting the process.
+[`AppDataReset`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/AppDataReset.kt) does this
+because `pm clear` would also kill the test instrumentation. It closes every activity, resets each repository's
+DataStore to its default document through the `AppGraph`, clears all SharedPreferences files and cancels all
+notifications. Runtime permissions stay granted between tests.
+
+```sh
+./gradlew :app:connectedDebugAndroidTest   # needs a running emulator or a connected device
+```
+
+## CI
+
+The workflow is `.github/workflows/ci.yml`. It runs on every pull request, on every push to `main`, and on demand.
+A new push to a pull request cancels the run that is still in progress.
+
+```mermaid
+flowchart LR
+    pr["Push or pull request"] --> wrapper["Gradle wrapper"]
+    pr --> unit["Unit tests"]
+    pr --> shots["Screenshots"]
+    pr --> assemble["Assemble"]
+    pr --> e2e["e2e (emulator)"]
+    pr --> babysit["babysit-pr watcher tests"]
+```
+
+All six jobs run in parallel. Each one reports its own check on the pull request.
+
+| Job | What it runs | Artefacts |
+|---|---|---|
+| Gradle wrapper | Validates `gradle-wrapper.jar` against the official checksums | none |
+| Unit tests | `./gradlew test --continue` | `unit-test-reports`, on failure |
+| Screenshots | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
+| Assemble | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`opus-clockblock-debug`), kept 14 days |
+| e2e (emulator) | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
+| babysit-pr watcher tests | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
+
+## Pull requests and review
+
+All changes reach `main` through pull requests. Before you push, run the same local gate that the PR tooling
+expects:
+
+```sh
+./gradlew test :app:assembleDebug verifyRoborazziDebug
+```
+
+```mermaid
+flowchart TD
+    open["Open a pull request"] --> ci["CI runs the six jobs"]
+    open --> codex["Codex reviews the change"]
+    ci --> watch{"babysit-pr watcher"}
+    codex --> watch
+    watch -->|"A check failed"| diagnose["Diagnose and fix,<br/>or retry if it is an e2e flake"]
+    watch -->|"Review comments"| triage["Fix or answer each comment"]
+    diagnose --> push["Push"]
+    triage --> push
+    push --> ci
+    watch -->|"Green, no open threads,<br/>no conflicts"| ready["Ready to merge"]
+    watch -->|"Needs a human decision"| owner["Hand back to the owner"]
+```
+
+In words: CI and Codex both start when a pull request opens. A watcher script then follows the pull request. It
+reports failed checks and new review comments, and someone (a person or a coding agent) fixes them and pushes
+again. The loop ends when the pull request is ready, or when it needs the owner to decide.
+
+The watcher is part of the babysit-pr skill (v2.2.1), vendored in `.agents/skills/babysit-pr/` from
+[rock3r/babysit-pr-skill](https://github.com/rock3r/babysit-pr-skill). Its `SKILL.md` explains how to use it. The
+project settings are in its `config.json`:
+
+| Setting | Value | Meaning |
+|---|---|---|
+| `local_gate` | `./gradlew test :app:assembleDebug verifyRoborazziDebug` | Run this before every push |
+| `required_checks` | Gradle wrapper, Unit tests, Screenshots, Assemble, babysit-pr watcher tests | These must pass before the PR counts as ready |
+| `retry_eligible_workflow_keywords` | `e2e` | A failed emulator job may be retried without a diagnosis, because emulators can be flaky. Any other failure needs a diagnosis first. |
+| `review_bot_login_keywords` | `codex` | Comments from the Codex bot count as review items |
+| `codex.required` | `false` | If Codex hasn't started a review 10 minutes after the checks finish, the PR doesn't wait for it |
+
+```sh
+python3 .agents/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --once      # wait until something needs attention
+python3 .agents/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --snapshot  # current state, no waiting
+```
+
+The watcher needs an authenticated `gh` CLI. Don't edit the vendored skill by hand. Update it with its `sync.py`
+script (the source is recorded in `.agents/skills/babysit-pr/VERSION`).
