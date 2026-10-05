@@ -40,7 +40,8 @@ on in your phone's settings).
 
 ### Back up and restore
 
-**Export a backup** saves everything (profile, settings, trips and check-ins) as a JSON file. You choose where
+**Export a backup** saves your profile, settings, trips and their check-ins as a JSON file. Check-ins of trips
+you have deleted are not included. You choose where
 to save it, for example your Downloads folder or a cloud drive app. The file is named like
 `opus-clockblock-backup-2026-06-01.json`.
 
