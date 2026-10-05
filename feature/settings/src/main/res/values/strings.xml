@@ -131,7 +131,7 @@
     <string name="about_disclaimer_drive">Don\'t drive when you\'re short on sleep, whatever the plan says.</string>
 
     <string name="about_source">Source code</string>
-    <string name="about_source_description">github.com/rock3r/opus-clockblock</string>
+    <string name="about_source_description">github.com/rock3r/clockblock</string>
     <string name="about_licenses">Licences</string>
     <string name="about_licenses_description">The app, fonts, data and libraries.</string>
     <string name="about_privacy">No servers, no analytics, no account. Your trips never leave this phone unless you export them.</string>
