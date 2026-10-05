@@ -163,6 +163,28 @@ class PlanMomentTest {
     }
 
     @Test
+    fun `the flight line never repeats the route`() {
+        // Without a flight number the planner's detail falls back to "MXP→SIN", the same route the UI prints.
+        flightDetails("MXP → SIN", "MXP→SIN") shouldBe listOf("MXP → SIN")
+        flightDetails("MXP → SIN", "SQ 355") shouldBe listOf("MXP → SIN", "SQ 355")
+        flightDetails(null, "MXP→SIN") shouldBe listOf("MXP→SIN")
+        flightDetails("MXP → SIN", null) shouldBe listOf("MXP → SIN")
+    }
+
+    @Test
+    fun `each day's body-sky band has exactly one start and one end`() {
+        val noon = Instant.parse("2026-06-17T11:00:00Z")
+        val rows = buildRailRows(fakePlan.railDays(noon, emptyMap()), noon, showEarlier = true)
+        val blocksByDay = rows.filterIsInstance<RailRow.Block>().groupBy { it.day.day.index }
+        blocksByDay.values.forEach { blocks ->
+            blocks.count { it.first } shouldBe 1
+            blocks.count { it.last } shouldBe 1
+            blocks.first().first.shouldBeTrue()
+            blocks.last().last.shouldBeTrue()
+        }
+    }
+
+    @Test
     fun `after the trip nothing is folded and there is no now row`() {
         val later = fakePlan.daySpans().last().end.plus(Duration.ofDays(1))
         val rows = buildRailRows(fakePlan.railDays(later, emptyMap()), later, showEarlier = false)

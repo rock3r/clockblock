@@ -92,9 +92,8 @@ internal fun WhySheetContent(
         )
         val subtitle = listOfNotNull(
             formatter.range(advice.start, advice.end, zone, resources) + " " + zone.cityName(),
-            if (advice.type == AdviceType.Flight) flightRoute else null,
-            advice.detail,
-        ).joinToString(" · ")
+        ).plus(if (advice.type == AdviceType.Flight) flightDetails(flightRoute, advice.detail) else listOfNotNull(advice.detail))
+            .joinToString(" · ")
         Text(subtitle, style = OpusTheme.textStyles.timeLabel, color = MaterialTheme.colorScheme.onSurface)
         Text(
             formatter.range(advice.start, advice.end, secondaryZone, resources) + " " + secondaryZone.cityName(),

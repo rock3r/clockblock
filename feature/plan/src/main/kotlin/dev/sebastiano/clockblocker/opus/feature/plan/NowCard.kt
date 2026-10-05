@@ -148,7 +148,7 @@ internal fun NowCard(
                         style = MaterialTheme.typography.headlineMediumEmphasized,
                     )
                     val detail = when {
-                        advice.type == AdviceType.Flight -> listOfNotNull(flightRoute, advice.detail).joinToString(" · ")
+                        advice.type == AdviceType.Flight -> flightDetails(flightRoute, advice.detail).joinToString(" · ")
                         advice.detail != null -> advice.detail
                         else -> null
                     }

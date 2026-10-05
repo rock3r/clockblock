@@ -285,6 +285,16 @@ internal fun PlanEmptyState(
 }
 
 /** "SFO → LHR" for each flight block, matched to the trip's legs by departure (or id suffix). */
+/**
+ * The parts of a flight's detail line: the route, then the planner's detail unless it is just the same route
+ * again (without a flight number the planner falls back to "MXP→SIN").
+ */
+internal fun flightDetails(route: String?, detail: String?): List<String> {
+    fun String.squashed() = filterNot { it.isWhitespace() }
+    val extra = detail?.takeUnless { route != null && it.squashed() == route.squashed() }
+    return listOfNotNull(route, extra)
+}
+
 internal fun flightRoutes(plan: JetLagPlan, trip: Trip?, resources: Resources): Map<String, String> {
     if (trip == null) return emptyMap()
     return plan.allAdvice.filter { it.type == AdviceType.Flight }.mapNotNull { advice ->
@@ -357,7 +367,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     }
     val railGestures = Modifier.konamiCode(enabled = state.easterEggs, onCode = onKonami)
 
-    Box(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val shortWindow = maxHeight < ShortWindowMaxHeight
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -371,17 +382,20 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     actions = actions,
                     onMoonTip = { showSnack(resources.getString(R.string.plan_moon_tip)) },
                     scrollBehavior = scrollBehavior,
+                    shortWindow = shortWindow,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
             containerColor = MaterialTheme.colorScheme.surface,
         ) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val expanded = maxWidth >= TwoPaneMinWidth
+                // Short windows always split when there is room: one pane there leaves the plan a sliver under
+                // the dial.
+                val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
                 val heroKeys = sections.heroKeys
                 val railList = if (expanded) screen.rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
-                val bottomPadding = padding.calculateBottomPadding() + 104.dp
+                val bottomPadding = padding.calculateBottomPadding() + if (shortWindow) 80.dp else 104.dp
 
                 suspend fun scrollRail(rowIndex: Int, offset: Int) {
                     val index = railStart + rowIndex
@@ -417,7 +431,10 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                         ),
                                     )
                                 }
-                                .padding(top = 28.dp, bottom = padding.calculateBottomPadding() + 16.dp),
+                                .padding(
+                                    top = if (shortWindow) 12.dp else 28.dp,
+                                    bottom = padding.calculateBottomPadding() + if (shortWindow) 8.dp else 16.dp,
+                                ),
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             PlanToolbar(
@@ -754,3 +771,7 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
+private val ShortWindowMaxHeight = 480.dp
+private val ShortTwoPaneMinWidth = 600.dp

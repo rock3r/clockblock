@@ -33,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -102,6 +104,7 @@ internal fun PlanHeader(
     onMoonTip: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
+    shortWindow: Boolean = false,
 ) {
     val gradient = OpusTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
@@ -109,39 +112,55 @@ internal fun PlanHeader(
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
         BodyClockSky(bodyTime = moment.bodyTime, modifier = Modifier.matchParentSize(), showCelestial = false)
-        LargeFlexibleTopAppBar(
-            title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-            subtitle = {
-                PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
-            },
-            navigationIcon = {
-                val onBack = actions.onBack
-                if (onBack != null) {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
-                        Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
-                    }
+        val subtitle: @Composable () -> Unit = {
+            PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
+        }
+        val navigationIcon: @Composable () -> Unit = {
+            val onBack = actions.onBack
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
+                    Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
                 }
-            },
-            actions = {
-                if (nightSafe) NightSafeChip()
-                OverflowMenu(canEdit, actions)
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent,
-                navigationIconContentColor = ink,
-                titleContentColor = ink,
-                actionIconContentColor = ink,
-                subtitleContentColor = ink.copy(alpha = 0.82f),
-            ),
-            scrollBehavior = scrollBehavior,
+            }
+        }
+        val barActions: @Composable RowScope.() -> Unit = {
+            if (nightSafe) NightSafeChip()
+            OverflowMenu(canEdit, actions)
+        }
+        val colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+            navigationIconContentColor = ink,
+            titleContentColor = ink,
+            actionIconContentColor = ink,
+            subtitleContentColor = ink.copy(alpha = 0.82f),
         )
+        if (shortWindow) {
+            // Short windows (landscape phones): the large sky header took a third of the height and left the
+            // plan a sliver, so it is a single row there (pinned; nothing to collapse).
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                subtitle = subtitle,
+                navigationIcon = navigationIcon,
+                actions = barActions,
+                colors = colors,
+            )
+        } else {
+            LargeFlexibleTopAppBar(
+                title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                subtitle = subtitle,
+                navigationIcon = navigationIcon,
+                actions = barActions,
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+        }
         // Above the app bar: its Surface would swallow the moon's taps otherwise.
         HeaderCelestial(
             bodyTime = moment.bodyTime,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 184.dp else 72.dp,
-            collapsedFraction = { scrollBehavior.state.collapsedFraction },
+            collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
             onTip = onMoonTip,
             modifier = Modifier.matchParentSize(),
         )
