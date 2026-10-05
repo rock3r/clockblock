@@ -3,6 +3,12 @@
 > Scope: (1) Timeshifter teardown + MVP/"beyond" feature lists, (2) Material 3 Expressive visual & motion direction + a full visual identity, (3) widgets / glanceable surfaces.
 > Research date: 2026-10-04. Facts marked **[verified]** were read directly from the cited source during this session; **[reported]** = from user reviews/press; **[inferred]** = my reading of screenshots/marketing copy or general knowledge, so check it before relying on it.
 
+> [!NOTE]
+> This document was written before the app was built. The visual identity in it is current, but some technical
+> plans changed during implementation: widgets use Remote Compose (with a RemoteViews fallback) instead of Glance,
+> data lives in DataStore instead of Room, and `AdviceAlarmScheduler` plays the role described here as
+> `PlanTicker`. For how the app works today, read [architecture.md](architecture.md) and [surfaces.md](surfaces.md).
+
 ---
 
 ## TL;DR (opinionated)

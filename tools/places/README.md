@@ -18,7 +18,7 @@ to Python's `zoneinfo` and prints a warning.
 Then run the dataset tests and commit the asset:
 
 ```sh
-build-brief ./gradlew :core:data:testDebugUnitTest
+./gradlew :core:data:testDebugUnitTest
 ```
 
 ## Sources (see `licenses/DATA_ATTRIBUTION.md`)

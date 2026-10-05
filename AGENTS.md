@@ -8,7 +8,9 @@ Application id: **`dev.sebastiano.clockblocker.opus`**. Never hardcode it in cod
 
 ## Build & test
 
-Always use `build-brief` in front of Gradle (see user rules):
+Agents: always put `build-brief` in front of Gradle (see user rules). This rule covers commands that agents run.
+Human-facing docs (README, `docs/`, `user-guide/`, tool READMEs) show plain `./gradlew`, because contributors may
+not have `build-brief` installed.
 
 | What | Command |
 |---|---|
@@ -24,7 +26,8 @@ Always use `build-brief` in front of Gradle (see user rules):
 ## Pull requests & CI
 
 - All changes land on `main` through pull requests. CI (`.github/workflows/ci.yml`) runs wrapper validation, unit
-  tests, Roborazzi verification, APK assembly, emulator e2e and the babysit watcher tests on every PR.
+  tests, Roborazzi verification, APK assembly and the babysit watcher tests on every PR; emulator e2e runs in its
+  own workflow (`.github/workflows/e2e.yml`) so the watcher can retry emulator flakes.
 - Codex reviews PRs. After opening a PR, babysit it with the vendored skill in `.agents/skills/babysit-pr/`
   (read its `SKILL.md`; project settings in `config.json`) until it is ready or needs the owner.
 - Run the local gate from that config before every push.

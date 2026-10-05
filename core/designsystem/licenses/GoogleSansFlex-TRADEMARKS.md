@@ -2,7 +2,7 @@ Google Sans Flex Trademarks
 ===========================
 
 Google commissioned the Google Sans fonts collection, including Google Sans Flex, as 'work for hire' and owns all rights to these works.
-However, Google also does not include within the Open Font License ([OFL.txt](OFL.txt)) any Reserved Font Names (RFNs) within the copyright statement. 
+However, Google also does not include within the Open Font License ([OFL.txt](GoogleSansFlex-OFL.txt)) any Reserved Font Names (RFNs) within the copyright statement. 
 
 “Google”, “Google Sans” and “Google Sans Flex” are trademarks of Google LLC.
 

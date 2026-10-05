@@ -29,7 +29,7 @@ There's no backend, no API key and no signing config to set up: the debug build 
 
 ## Project layout
 
-See the module table in the [README](README.md#architecture). Rules of thumb:
+See [docs/architecture.md](docs/architecture.md) for the module graph and how data flows. Rules of thumb:
 
 - `:core:model` and `:core:circadian` are pure JVM. Keep Android out of them.
 - Features depend on `:core:*` and talk to data through its interfaces. Avoid feature-to-feature dependencies
@@ -120,5 +120,9 @@ Edit the script, not the XML, and check `app/src/test/screenshots/launcher_icon*
 ## Pull requests
 
 - Keep them focused, with a clear description and screenshots for UI changes.
-- `./gradlew test` and the relevant `verifyRoborazziDebug` tasks must pass.
+- Before you push, run `./gradlew test :app:assembleDebug verifyRoborazziDebug`.
+- On every pull request, the CI workflow validates the Gradle wrapper, runs the unit tests, verifies the
+  screenshots, assembles the APKs and tests the babysit-pr watcher. A separate e2e workflow runs the emulator
+  tests. Codex reviews the change. [docs/testing.md](docs/testing.md#pull-requests-and-review) describes the
+  checks and the review loop.
 - By contributing you agree that your contribution is licensed under the [Apache License 2.0](LICENSE).

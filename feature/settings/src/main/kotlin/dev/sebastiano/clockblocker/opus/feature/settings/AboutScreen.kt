@@ -83,7 +83,7 @@ object AboutTags {
 }
 
 /** Where the source lives (also shown as the row's supporting text). */
-const val SourceUrl: String = "https://github.com/rock3r/opus-clockblock"
+const val SourceUrl: String = "https://github.com/rock3r/clockblock"
 
 /**
  * About: version (7 taps → Opus mode), the science, disclaimers, links.

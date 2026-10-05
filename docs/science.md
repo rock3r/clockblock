@@ -5,7 +5,7 @@
 > [!CAUTION]
 > **Not medical advice.** The app gives general information about circadian timing, not a diagnosis or treatment. Melatonin is a drug, and how it is regulated varies by country (US: dietary supplement sold over the counter; UK: prescription only; EU: varies, with low doses sometimes sold as food supplements and higher doses classed as medicines; Australia: prescription, except one pharmacist-only 2 mg prolonged-release product for people aged 55+; Canada: natural health product; Japan: not approved). People who are pregnant or breastfeeding, have epilepsy, take anticoagulants (warfarin), take fluvoxamine or other CYP1A2 inhibitors, take immunosuppressants, have an autoimmune disease, or are children should not take melatonin unless a clinician says so. Do not drive or operate machinery for several hours after taking melatonin or after short sleep. The app must say all this clearly and let users switch melatonin and caffeine advice off.
 
-Companion reference code (pure Python, used to produce every number in this report): `scratch/research/reference/` (`sim.py` = Forger99 and Hannay19 RK4 with CBTmin detection; `planner.py` = rule-based reference planner; `validate.py` = turns a plan into lux(t) and simulates it with both ODEs; `examples.py` = the 4 worked itineraries; `jl.py` and `sweep.py` = no-intervention and advance-vs-delay sweeps; `ex_*.txt` = planner outputs for each chronotype).
+Companion reference code (pure Python, used to produce every number in this report): [`research/reference/`](research/reference/) (`sim.py` = Forger99 and Hannay19 RK4 with CBTmin detection; `planner.py` = rule-based reference planner; `validate.py` = turns a plan into lux(t) and simulates it with both ODEs; `examples.py` = the 4 worked itineraries; `jl.py` and `sweep.py` = no-intervention and advance-vs-delay sweeps; `ex_*.txt` = planner outputs for each chronotype).
 
 ---
 
@@ -739,7 +739,7 @@ function PLAN(homeZone, legs, habOnset, habWake, chrono, opts):
     return Plan(direction, φ*, cycles)
 ```
 
-**UI mapping and practicality filter** (must not change the science):
+**UI mapping and feasibility filter** (must not change the science):
 - Clip seek windows to ≥30 min (show as "at least 30 min, ideally the whole window").
 - During a seek window at local night, suggest a light box or bright indoor light; during an avoid window in daylight, suggest dark sunglasses.
 - Merge windows < 15 min apart.

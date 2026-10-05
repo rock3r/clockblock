@@ -6,7 +6,7 @@ the **implemented** behaviour, including every place where the code deliberately
 reference scripts in `docs/research/reference/`.
 
 > Not medical advice. The planner produces a schedule of light, sleep, caffeine, nap and (opt-in) melatonin
-> suggestions from published human phase-response data and two published mathematical models. It does not
+> suggestions from published human phase-response data and a published mathematical model of the body clock. It does not
 > measure anything about the user.
 
 ## 1. Public API
@@ -97,13 +97,13 @@ days before its first departure; the previous segment stops shifting when those 
 **Can't sleep on planes.** In-flight sleep is replaced by *avoid light* with reason `RestInFlight` ("rest in the
 dark with an eye mask"); the ODE treats it as dim (5 lux) instead of dark.
 
-### 4.1 Card assembly and the practicality filter
+### 4.1 Card assembly and the feasibility filter
 
 1. **Resolve** cross-cycle overlaps with the validator's precedence: sleep > rest-in-flight > avoid light >
    naps > seek bright light > see light; avoid caffeine > caffeine; everything loses to sleep. After this step
    no two conflicting cards overlap (property-tested).
 2. **Clip** at the return departure (if any); flight markers are kept whole.
-3. **Practicality filter** (§12.3 UI mapping): merge same-type windows < 15 min apart (unless a conflicting card
+3. **Feasibility filter** (§12.3 UI mapping): merge same-type windows < 15 min apart (unless a conflicting card
    sits in the gap), round to 15 min, drop light windows < 30 min. The ODE always sees the raw windows.
 4. **Calendar days** (§10.5): pre-trip days are home-zone calendar days; a *Travel* day runs from local midnight
    of the departure date to the arrival (or to the next local midnight when landing at/after 18:00); later days
@@ -153,7 +153,7 @@ reviews/modelling, **D** opinion; "eng." = engineering choice.
 | `lightBox` | false | night seek at 5000 lux, faster pre-delay | B/C |
 | `tier2DirectionChoice`, `tier2Min/Max`, `tier2TieDays` | false (Max: true), 8–12 h, 1 day | model-chosen direction | C (modelling) |
 | `estimateModel`, `estimateHorizonDays` | Hannay19, 21 days | estimates | C (modelling) |
-| `roundingMinutes`, `mergeGapMinutes`, `minSeekMinutes` | 15, 15, 30 | practicality filter | C / eng. |
+| `roundingMinutes`, `mergeGapMinutes`, `minSeekMinutes` | 15, 15, 30 | feasibility filter | C / eng. |
 | `naturalDriftPerDay`, `noPlanSleepNights` | 1 h/day, 3 | no-plan mode | C |
 
 ### 5.1 Intensity and preferences (`PlannerConfig.forProfile`)
@@ -210,7 +210,8 @@ city, destination) with 100 lux in flight.
 
 * Tier-2 direction choice applies to the first segment only; later segments use the threshold rule.
 * The chronotype → phase mapping is population-level (±1.5 h individual error, §8). There is no re-estimation
-  from logged light yet ("couldn't do" re-planning is a UI feature that re-runs the planner).
+  from logged light yet: Done / Skipped / Can't do this are recorded per card but are not planner inputs. A plan
+  is recomputed only when its trip (for example a delay entered with "I'm delayed") or the profile changes.
 * Hannay19 adapts faster when advancing; for large westward shifts that the threshold rule delays (e.g.
   NRT → JFK neutral) the model can estimate the plan as *slower* than doing nothing. The plan still follows the
   literature default; Max intensity lets the model choose for 8–12 h.
