@@ -94,7 +94,12 @@ class TripsCallbacks(
 internal val TwoColumnMinWidth: Dp = 720.dp
 private val SingleColumnMaxWidth: Dp = 640.dp
 
-/** Stateless trips list: large flexible app bar, sectioned card grid (or the empty state) and the FAB menu. */
+/**
+ * Stateless trips list: large flexible app bar, sectioned card grid (or the empty state) and the FAB menu.
+ *
+ * @param showSettingsAction show a settings gear in the app bar. Off by default: the shell's navigation suite
+ *   always carries a Settings destination, and a second route to it read as two different places.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TripsContent(
@@ -103,6 +108,7 @@ fun TripsContent(
     modifier: Modifier = Modifier,
     selectedTripId: String? = null,
     snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    showSettingsAction: Boolean = false,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
@@ -115,8 +121,10 @@ fun TripsContent(
                 title = { Text(stringResource(R.string.trips_app_title)) },
                 subtitle = summaryLine(state)?.let { line -> { Text(line) } },
                 actions = {
-                    IconButton(onClick = callbacks.onOpenSettings, modifier = Modifier.testTag(TripsTestTags.Settings)) {
-                        Icon(painterResource(R.drawable.ic_trips_settings), contentDescription = stringResource(R.string.trips_settings))
+                    if (showSettingsAction) {
+                        IconButton(onClick = callbacks.onOpenSettings, modifier = Modifier.testTag(TripsTestTags.Settings)) {
+                            Icon(painterResource(R.drawable.ic_trips_settings), contentDescription = stringResource(R.string.trips_settings))
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,

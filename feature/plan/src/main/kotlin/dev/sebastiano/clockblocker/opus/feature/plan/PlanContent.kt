@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -394,37 +396,58 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     derivedStateOf { expanded || screen.list.firstVisibleItemIndex > heroKeys.indexOf(PlanSections.KeyNow) }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
+                    val scrim = MaterialTheme.colorScheme.surface
                     AnimatedVisibility(
                         visible = toolbarVisible,
-                        enter = fadeIn(motion.fade()) + slideInVertically(motion.navigationSpatial()) { it / 2 },
-                        exit = fadeOut(motion.fade()) + slideOutVertically(motion.navigationSpatial()) { it / 2 },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = padding.calculateBottomPadding() + 16.dp),
+                        enter = fadeIn(motion.fade()),
+                        exit = fadeOut(motion.fade()),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                     ) {
-                        PlanToolbar(
-                            days = railDays,
-                            canWhy = shown.active != null || shown.upNext.isNotEmpty(),
-                            onNow = {
-                                screen.preview = null
-                                scope.launch {
-                                    val now = rows.nowRowIndex()
-                                    if (now >= 0) {
-                                        scrollRail(now, nowOffsetPx)
-                                    } else if (reduce) {
-                                        railList.scrollToItem(0)
-                                    } else {
-                                        railList.animateScrollToItem(0)
-                                    }
+                        // The scrim fades with the toolbar (one event): rows passing underneath read as behind it,
+                        // and at rest the last visible row is veiled rather than cut by a floating pill.
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .drawBehind {
+                                    drawRect(
+                                        Brush.verticalGradient(
+                                            0f to scrim.copy(alpha = 0f),
+                                            0.5f to scrim.copy(alpha = 0.82f),
+                                            1f to scrim.copy(alpha = 0.94f),
+                                        ),
+                                    )
                                 }
-                            },
-                            onDay = { day ->
-                                val key = RailRow.Header(day, isToday = false).key
-                                if (rows.none { it.key == key }) screen.showEarlier = true
-                                screen.pendingScrollKey = key
-                            },
-                            onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
-                        )
+                                .padding(top = 28.dp, bottom = padding.calculateBottomPadding() + 16.dp),
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            PlanToolbar(
+                                days = railDays,
+                                canWhy = shown.active != null || shown.upNext.isNotEmpty(),
+                                onNow = {
+                                    screen.preview = null
+                                    scope.launch {
+                                        val now = rows.nowRowIndex()
+                                        if (now >= 0) {
+                                            scrollRail(now, nowOffsetPx)
+                                        } else if (reduce) {
+                                            railList.scrollToItem(0)
+                                        } else {
+                                            railList.animateScrollToItem(0)
+                                        }
+                                    }
+                                },
+                                onDay = { day ->
+                                    val key = RailRow.Header(day, isToday = false).key
+                                    if (rows.none { it.key == key }) screen.showEarlier = true
+                                    screen.pendingScrollKey = key
+                                },
+                                onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
+                                modifier = Modifier.animateEnterExit(
+                                    enter = slideInVertically(motion.navigationSpatial()) { it / 2 },
+                                    exit = slideOutVertically(motion.navigationSpatial()) { it / 2 },
+                                ),
+                            )
+                        }
                     }
                 }
 

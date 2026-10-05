@@ -73,6 +73,10 @@
         <item quantity="one">about %d day to go</item>
         <item quantity="other">about %d days to go</item>
     </plurals>
+    <plurals name="plan_days_bare">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
     <string name="plan_less_than_a_day">less than a day to go</string>
     <plurals name="plan_without_plan">
         <item quantity="one">Without a plan it would take about %d day.</item>

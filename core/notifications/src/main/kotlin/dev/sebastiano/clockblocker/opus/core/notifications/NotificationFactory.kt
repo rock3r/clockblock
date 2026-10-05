@@ -105,6 +105,7 @@ class NotificationFactory(
             .setShowWhen(true)
             .setTimeoutAfter(Duration.between(now, spec.expiresAt).toMillis().coerceAtLeast(MIN_TIMEOUT_MS))
             .setContentIntent(NotificationIntents.openPlan(context, plan.tripId))
+            .setGroup(NotificationGroup.KEY)
         val actions = when (spec.kind) {
             ReminderKind.Upcoming, ReminderKind.Snoozed -> listOf(AdviceAction.CantDo, AdviceAction.Snooze)
             ReminderKind.Moment -> listOf(AdviceAction.Done, AdviceAction.Snooze)
@@ -127,7 +128,32 @@ class NotificationFactory(
             .setAutoCancel(true)
             .setTimeoutAfter(Duration.ofMinutes(10).toMillis())
             .setContentIntent(NotificationIntents.openCurrentPlan(context))
+            .setGroup(NotificationGroup.KEY)
             .build()
+    }
+
+    /**
+     * The summary of our explicit group: while more than one of our notifications shows, the shade bundles them
+     * under this, and tapping the bundle opens the current plan (not the launcher, which is what the system's
+     * own autogroup did). Silent; only the children alert.
+     *
+     * @param timeoutMillis when every child expires by itself, the summary expires with the last of them.
+     */
+    fun summary(timeoutMillis: Long?): Notification {
+        val builder = NotificationCompat.Builder(context, OpusChannel.Now.id)
+            .setSmallIcon(R.drawable.ic_notif_clock)
+            .setColor(BRAND_COLOR)
+            .setContentTitle(context.getString(R.string.notif_summary_title))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setGroup(NotificationGroup.KEY)
+            .setGroupSummary(true)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setContentIntent(NotificationIntents.openCurrentPlan(context))
+        timeoutMillis?.let { builder.setTimeoutAfter(it.coerceAtLeast(MIN_TIMEOUT_MS)) }
+        return builder.build()
     }
 
     private fun ongoingBuilder(channel: OpusChannel, state: NowState, text: NotificationText): NotificationCompat.Builder {
@@ -144,6 +170,9 @@ class NotificationFactory(
             .setSilent(true)
             .setShowWhen(false)
             .setContentIntent(NotificationIntents.openPlan(context, state.tripId))
+            // Our own group (setSilent would otherwise file it under a summary-less "silent" group, which the
+            // system force-regroups with the reminders into a bundle that opens the launcher).
+            .setGroup(NotificationGroup.KEY)
         if (headline != null && headline.type != AdviceType.Flight && state.outcome == null) {
             listOf(AdviceAction.Done, AdviceAction.CantDo, AdviceAction.Snooze).forEach {
                 builder.addAction(action(it, ActionSource.Now, state.tripId, headline.id))

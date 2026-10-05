@@ -103,18 +103,36 @@ internal fun NowCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AdviceGlyph(advice.type, active = true, size = 28.dp)
                 Spacer(Modifier.width(10.dp))
-                FlowRow(Modifier.weight(1f), itemVerticalAlignment = Alignment.CenterVertically) {
+                val headingText: @Composable () -> Unit = {
                     Text(
                         heading.uppercase(),
                         style = MaterialTheme.typography.labelLargeEmphasized,
                         modifier = Modifier.semantics { this.heading() },
                     )
+                }
+                Box(Modifier.weight(1f)) {
                     if (!advice.type.isMoment && !moment.remaining.isZero) {
-                        Text(
-                            " · " + stringResource(R.string.plan_left, formatDuration(moment.remaining)),
-                            style = OpusTheme.textStyles.timeLabel,
-                            color = role.onContainer.copy(alpha = 0.8f),
+                        val faint = role.onContainer.copy(alpha = 0.8f)
+                        InlineOrStacked(
+                            first = headingText,
+                            second = {
+                                Text(
+                                    stringResource(R.string.plan_left, formatDuration(moment.remaining)),
+                                    style = OpusTheme.textStyles.timeLabel,
+                                    color = faint,
+                                )
+                            },
+                            separator = {
+                                Text(
+                                    Separator,
+                                    style = OpusTheme.textStyles.timeLabel,
+                                    color = faint,
+                                    modifier = Modifier.testTag(InlineSeparatorTag).clearAndSetSemantics {},
+                                )
+                            },
                         )
+                    } else {
+                        headingText()
                     }
                 }
                 TextButton(

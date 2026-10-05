@@ -112,11 +112,7 @@ internal fun PlanHeader(
         LargeFlexibleTopAppBar(
             title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
             subtitle = {
-                Text(
-                    stageLabel(moment, firstDay) + " · " + bodyShiftLabel(moment.bodyAheadHours),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
             },
             navigationIcon = {
                 val onBack = actions.onBack

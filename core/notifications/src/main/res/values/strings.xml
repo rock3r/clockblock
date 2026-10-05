@@ -2,6 +2,7 @@
 <resources>
     <!-- Channel groups -->
     <string name="notif_group_reminders">Reminders</string>
+    <string name="notif_summary_title">Your plan</string>
     <string name="notif_group_ongoing">Ongoing</string>
 
     <!-- Channels -->

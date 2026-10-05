@@ -61,6 +61,27 @@ class NowNotificationSurfaceTest {
     fun setUp() = snooze.clear()
 
     @Test
+    fun `our notifications bundle under our own summary, which opens the current plan`() = runTest {
+        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities, clock), capabilities)
+        surface.render() shouldBe NowRendering.Ongoing
+        // One notification: no summary (a lone summary would show as an empty notification).
+        shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldBeNull()
+
+        reminders.postTest() shouldBe true
+        val summary = shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldNotBeNull()
+        (summary.flags and Notification.FLAG_GROUP_SUMMARY) shouldBe Notification.FLAG_GROUP_SUMMARY
+        summary.group shouldBe NotificationGroup.KEY
+        posted.shouldNotBeNull().group shouldBe NotificationGroup.KEY
+        shadowOf(manager).getNotification(NotificationIds.TEST).group shouldBe NotificationGroup.KEY
+        shadowOf(summary.contentIntent).savedIntent.data shouldBe Uri.parse(DeepLinks.CURRENT_PLAN)
+
+        // Back to one child: the summary goes with the group.
+        plans.current.value = null
+        surface.render() shouldBe NowRendering.Hidden
+        shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldBeNull()
+    }
+
+    @Test
     fun `ongoing Now notification shows label, until and then in the current zone`() = runTest {
         surface.render() shouldBe NowRendering.Ongoing
 

@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -63,7 +64,7 @@ internal fun UpNextCard(moment: PlanMoment, onClick: (Advice) -> Unit, modifier:
         Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Column {
                 moment.upNext.forEachIndexed { index, advice ->
-                    if (index > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    if (index > 0) HorizontalDivider(Modifier.padding(start = 72.dp, end = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                     Surface(
                         onClick = { onClick(advice) },
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -115,24 +116,36 @@ internal fun AdaptationCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modi
         modifier = modifier.fillMaxWidth().testTag(PlanTags.Adaptation),
     ) {
         Column(Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
+            val headline: @Composable () -> Unit = {
                 Text(
                     stringResource(R.string.plan_adapted_percent, percent),
                     style = MaterialTheme.typography.titleLargeEmphasized,
                 )
-                if (toGo != null) {
-                    Text(
-                        " · $toGo",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            }
+            if (toGo != null) {
+                InlineOrStacked(
+                    first = headline,
+                    second = {
+                        Text(toGo, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    separator = {
+                        Text(
+                            Separator,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag(InlineSeparatorTag).clearAndSetSemantics {},
+                        )
+                    },
+                )
+            } else {
+                headline()
             }
             Spacer(Modifier.height(14.dp))
             WavyAdaptationIndicator(
                 progress = moment.progress,
                 misalignment = moment.misalignment,
-                remaining = toGo,
+                // The indicator wraps this in "about … to go", so it takes the bare duration.
+                remaining = if (adapted) null else remainingBareLabel(moment.daysToGo),
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(14.dp))
