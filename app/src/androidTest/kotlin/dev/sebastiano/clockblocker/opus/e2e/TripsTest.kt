@@ -76,7 +76,8 @@ class TripsTest : OpusE2eTest() {
         launch(deepLink = "opusclockblock://plan/${active.trip.id}")
 
         awaitTag(PlanTags.NowCard, LongTimeoutMillis).assertIsDisplayed()
-        awaitTag(PlanTags.Done).performClick()
+        // At rest Done can sit below the fold (under the navigation bar), depending on the card's text.
+        awaitTag(PlanTags.Done).scrollIntoViewAndClick()
 
         // The UI confirms it (snackbar) and the outcome is stored for this trip's advice.
         awaitText(context.getString(PlanR.string.plan_logged_done)).assertIsDisplayed()
