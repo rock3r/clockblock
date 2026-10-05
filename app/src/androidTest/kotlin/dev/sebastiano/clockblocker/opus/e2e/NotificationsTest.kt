@@ -45,7 +45,7 @@ class NotificationsTest : OpusE2eTest() {
         var taps = 0
         while (device.hasObject(allowButton) && taps++ < MaxAllowTaps) {
             device.waitForIdle()
-            device.findObject(allowButton)?.click()
+            device.clickWhenFound(allowButton, DefaultTimeoutMillis)
             device.wait(Until.gone(allowButton), DefaultTimeoutMillis)
         }
         assertTrue("permission dialog still showing after $taps taps", device.wait(Until.gone(allowButton), DefaultTimeoutMillis))
@@ -77,18 +77,18 @@ class NotificationsTest : OpusE2eTest() {
             assertNotNull(device.wait(Until.findObject(By.text(text)), DefaultTimeoutMillis))
 
             // With the Now notification also showing, both sit in our group under a summary (which opens the current
-            // plan too). Expand the bundle first, as a user would, and tap the reminder itself.
-            val bundle = device.findObject(
-                By.res(Pattern.compile(".*:id/expandableNotificationRow"))
-                    .hasDescendant(By.text(title))
-                    .hasDescendant(By.res(Pattern.compile(".*:id/expand_button_number"))),
-            )
-            bundle?.findObject(By.res(Pattern.compile(".*:id/expand_button")).desc(Pattern.compile("(?i)expand")))?.let {
-                it.click()
+            // plan too). Expand the bundle first, as a user would, and tap the reminder itself. The shade rebuilds
+            // its rows as the group expands, so both taps re-find their target instead of holding on to a stale one.
+            val bundle = By.res(Pattern.compile(".*:id/expandableNotificationRow"))
+                .hasDescendant(By.text(title))
+                .hasDescendant(By.res(Pattern.compile(".*:id/expand_button_number")))
+            val expand = By.res(Pattern.compile(".*:id/expand_button")).desc(Pattern.compile("(?i)expand"))
+            if (device.hasObject(bundle)) {
+                device.clickWhenFound(BundleExpandTimeoutMillis) { findObject(bundle)?.findObject(expand) }
                 device.waitForIdle()
             }
 
-            device.wait(Until.findObject(By.text(title)), DefaultTimeoutMillis).click()
+            assertTrue("tapped '$title' in the notification shade", device.clickWhenFound(By.text(title), DefaultTimeoutMillis))
 
             // The tap opens the current plan (opusclockblock://plan/current → Now) in the running app.
             assertNotNull(device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), LongTimeoutMillis))
@@ -106,3 +106,6 @@ class NotificationsTest : OpusE2eTest() {
 }
 
 private const val MaxAllowTaps = 3
+
+/** The bundle may already be expanded (no "expand" button): don't spend long looking for one. */
+private const val BundleExpandTimeoutMillis = 3_000L
