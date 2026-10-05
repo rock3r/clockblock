@@ -43,10 +43,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -107,6 +109,7 @@ internal fun PlanHeader(
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
+    firstLight: Boolean = false,
 ) {
     val gradient = OpusTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
@@ -170,6 +173,7 @@ internal fun PlanHeader(
             reserveEnd = if (nightSafe) 184.dp else 72.dp,
             collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
             onTip = onMoonTip,
+            firstLight = firstLight,
             modifier = Modifier.matchParentSize(),
         )
     }
@@ -281,6 +285,7 @@ private fun HeaderCelestial(
     collapsedFraction: () -> Float,
     onTip: () -> Unit,
     modifier: Modifier = Modifier,
+    firstLight: Boolean = false,
 ) {
     val hour = bodyTime.toHourFloat()
     val isSun = celestialPosition(hour).isSun
@@ -300,6 +305,16 @@ private fun HeaderCelestial(
     val currentOnTip by rememberUpdatedState(onTip)
     val hatched = taps >= MoonTaps
     val expanded by remember { derivedStateOf { collapsedFraction() < 0.5f } }
+    // "First light": the plan of a trip saved moments ago opens with its sun or moon rising into place over the
+    // horizon, once (rare: a few times a month). Under reduce motion it is simply there (the static carrier;
+    // the rise adds no meaning).
+    val reduce = OpusTheme.reduceMotion
+    var risen by rememberSaveable { mutableStateOf(!firstLight) }
+    val rise = remember { Animatable(if (risen || reduce) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!risen && !reduce) rise.animateTo(1f, motion.artEntrance())
+        risen = true
+    }
     // Phases: crescent waxes to full (1) → the shape chain (morphs) → the bite. One continuous progress.
     val totalSteps = morphs.size + 2
     LaunchedEffect(hatched) {
@@ -329,12 +344,15 @@ private fun HeaderCelestial(
                 )
             }
         },
-        modifier = modifier.drawBehind {
-            val alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f)
+        modifier = modifier.clipToBounds().drawBehind {
+            val risen = rise.value
+            val alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f) * risen.coerceIn(0f, 1f)
             if (alpha <= 0f) return@drawBehind
             val top = topInset.toPx()
-            val c = celestialCenter(size.width, top, hour, reserveEnd)
             val r = CelestialRadius.toPx()
+            val rest = celestialCenter(size.width, top, hour, reserveEnd)
+            // Rising: from just below the header's bottom edge (the horizon) up to its resting place.
+            val c = rest.copy(y = rest.y + (1f - risen) * (size.height - rest.y + r * 1.2f))
             if (!isSun) {
                 val star = 1.3.dp.toPx()
                 HeaderStars.forEachIndexed { i, (x, y) ->

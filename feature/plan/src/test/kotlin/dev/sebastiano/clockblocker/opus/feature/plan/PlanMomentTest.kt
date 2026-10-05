@@ -163,6 +163,17 @@ class PlanMomentTest {
     }
 
     @Test
+    fun `first light only plays for a trip saved moments ago`() {
+        val now = Instant.parse("2026-06-17T11:00:00Z")
+        isFreshTrip(now.minusSeconds(5), now).shouldBeTrue()
+        isFreshTrip(now.minusSeconds(90), now).shouldBeTrue()
+        isFreshTrip(now.minusSeconds(91), now) shouldBe false
+        // The plan's "now" is truncated to the minute: a trip saved at 11:00:42 is seen at "11:00".
+        isFreshTrip(now.plusSeconds(42), now).shouldBeTrue()
+        isFreshTrip(now.plusSeconds(61), now) shouldBe false
+    }
+
+    @Test
     fun `the flight line never repeats the route`() {
         // Without a flight number the planner's detail falls back to "MXP→SIN", the same route the UI prints.
         flightDetails("MXP → SIN", "MXP→SIN") shouldBe listOf("MXP → SIN")

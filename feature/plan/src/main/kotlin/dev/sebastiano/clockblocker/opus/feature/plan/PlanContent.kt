@@ -96,6 +96,7 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -294,6 +295,18 @@ internal fun flightDetails(route: String?, detail: String?): List<String> {
     return listOfNotNull(route, extra)
 }
 
+/**
+ * A trip saved moments ago: its plan opens with "first light" (see `HeaderCelestial`). [now] is the plan's
+ * minute-resolution clock, so a trip saved during the current minute reads as up to a minute "in the future".
+ */
+internal fun isFreshTrip(createdAt: Instant, now: Instant): Boolean {
+    val age = Duration.between(createdAt, now)
+    return age >= NowResolution.negated() && age <= FreshTripWindow
+}
+
+private val FreshTripWindow: Duration = Duration.ofSeconds(90)
+private val NowResolution: Duration = Duration.ofMinutes(1)
+
 /** "SFO → LHR" for each flight block, matched to the trip's legs by departure (or id suffix). */
 internal fun flightRoutes(plan: JetLagPlan, trip: Trip?, resources: Resources): Map<String, String> {
     if (trip == null) return emptyMap()
@@ -383,6 +396,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     onMoonTip = { showSnack(resources.getString(R.string.plan_moon_tip)) },
                     scrollBehavior = scrollBehavior,
                     shortWindow = shortWindow,
+                    firstLight = state.trip?.let { isFreshTrip(it.createdAt, state.now) } == true,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
