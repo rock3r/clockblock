@@ -85,8 +85,8 @@ The app can remind you just before each change in your plan. It never sends a re
 asleep, except the one that wakes you.
 
 - **Notifications** lets the app show reminders at all.
-- **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them up to 10 minutes
-  late.
+- **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them several minutes
+  late, and much later while the phone is idle (Doze).
 
 Tap **Allow and finish** (or **Finish** if notifications are already allowed), or **Maybe later**. You can grant
 the permissions any time from Settings → **What Android allows**.

@@ -45,7 +45,8 @@ A few details matter:
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze and a
   15-minute progress tick while a Live Update is showing.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
-  permission, it uses a 10-minute `setWindow`, which is a little less punctual.
+  permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
+  next maintenance window, well past 10 minutes.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.
   [`ReminderSelector`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/schedule/ReminderSelector.kt)
   drops any reminder that is no longer true when it fires.

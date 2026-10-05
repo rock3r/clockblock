@@ -1,6 +1,6 @@
 # Settings and your data
 
-Open **Settings** from the navigation bar (or the gear icon on the Trips screen). Every answer from setup can be
+Open **Settings** from the navigation bar. Every answer from setup can be
 changed here, and any change updates your plans straight away. This page also explains where your data lives and
 how to back it up.
 
@@ -50,8 +50,9 @@ asks how to import it:
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
 
 - **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
-  trips and check-ins. Check-ins already on this phone for trips that are in the backup stay, unless the backup
-  has a check-in for the same block.
+  trips and check-ins. Check-ins already on this phone stay, unless the backup has a check-in for the same block.
+  That includes check-ins of the trips Replace deletes: they stay stored, hidden, and come back if a later
+  import restores the same trip.
 - **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
   trips that aren't in the backup. Three things are overwritten: a trip in both places takes the backup's
   version, a block checked in both places takes the backup's answer, and your profile (home time zone, usual

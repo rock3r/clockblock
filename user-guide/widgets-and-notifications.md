@@ -77,7 +77,7 @@ short label. It says "Free time" when there's nothing to do, and "Clockblocked" 
 
 1. Open **Settings** and look at **What Android allows**.
 2. Make sure **Notifications** says "Allowed". If not, tap **Allow**.
-3. Make sure **Exact timing** says "Allowed". Without it, reminders may arrive up to 10 minutes late.
+3. Make sure **Exact timing** says "Allowed". Without it, reminders may arrive several minutes late, or much later while the phone is idle.
 4. On some phones, turning off **Battery optimisation** for the app helps too.
 5. Tap **Send a test reminder** to check.
 
