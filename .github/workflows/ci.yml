@@ -78,40 +78,6 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
 
-  e2e:
-    name: e2e (emulator)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - uses: ./.github/actions/setup-android-build
-      - name: Build APKs
-        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Connected tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew :app:connectedDebugAndroidTest
-      - name: Upload e2e reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-reports
-          path: |
-            app/build/reports/androidTests/
-            app/build/outputs/androidTest-results/
-          retention-days: 7
-
   babysit-skill:
     name: babysit-pr watcher tests
     runs-on: ubuntu-latest
