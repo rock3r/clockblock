@@ -28,9 +28,11 @@ body. Tap **Get started**.
 
 <img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and shows Lisbon Humberto Delgado as a result." width="280" />
 
-Every plan starts from your home clock. The app picks your phone's time zone and marks it "Phone's time zone". If
-your body lives somewhere else (for example, you're already travelling), search for a city or a three-letter
-airport code and pick the right place.
+The app picks your phone's time zone and marks it "Phone's time zone". If home is somewhere else, search for a
+city or a three-letter airport code and pick the right place. You can change it later in Settings.
+
+Plans don't use this setting yet: each plan assumes your body clock starts in the time zone of the trip's first
+departure airport. If you're already away from home, enter the trip from where your body clock is now.
 
 ### 3. When do you usually sleep?
 

@@ -10,7 +10,7 @@ how to back it up.
 
 | Setting | What it does |
 |---|---|
-| Home time zone | The clock your body starts from. Search for a city or airport. |
+| Home time zone | Where home is. Search for a city or airport. Plans don't use it yet: they start from the trip's first departure airport. |
 | Usual sleep | Your normal bedtime and wake-up time. |
 | Chronotype | Lark, owl or in between. |
 | Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#5-your-tools). |

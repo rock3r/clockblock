@@ -739,7 +739,7 @@ function PLAN(homeZone, legs, habOnset, habWake, chrono, opts):
     return Plan(direction, φ*, cycles)
 ```
 
-**UI mapping and practicality filter** (must not change the science):
+**UI mapping and feasibility filter** (must not change the science):
 - Clip seek windows to ≥30 min (show as "at least 30 min, ideally the whole window").
 - During a seek window at local night, suggest a light box or bright indoor light; during an avoid window in daylight, suggest dark sunglasses.
 - Merge windows < 15 min apart.

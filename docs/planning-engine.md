@@ -72,7 +72,7 @@ flowchart TD
     home --> estimate["PlanValidator:<br/>simulate without a plan, for the explanation"]
     none --> estimate
     estimate --> assemble
-    validate --> assemble["AdviceAssembler:<br/>merge overlaps, practicality filter"]
+    validate --> assemble["AdviceAssembler:<br/>merge overlaps, feasibility filter"]
     assemble --> days["DayBuilder:<br/>calendar days in the right zone"]
     days --> track["PhaseTrack:<br/>body-clock curve for the dial"]
     track --> plan["JetLagPlan with stable advice ids"]
@@ -90,7 +90,7 @@ Every other trip goes through the cycle planner. All three modes end in the same
 | Mode selection | `PlanBuilder.build()` | Home time, no plan, or adapt | [§3](algorithm.md#3-mode-selection) |
 | Cycle planning | [`CyclePlanner.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/CyclePlanner.kt) | Picks advance or delay, shifts sleep and light windows day by day around the body-clock low point | [§4](algorithm.md#4-decision-procedure-adapt-mode) |
 | Validation | [`PlanValidator.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/PlanValidator.kt), [`ode/`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/ode) | Simulates the light schedule with a published model to estimate days to adapt, with and without the plan | [§6](algorithm.md#6-estimates-and-validation-13) |
-| Card assembly | [`AdviceAssembler.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/AdviceAssembler.kt) | Merges overlapping advice, resolves conflicts, drops or trims advice that is impractical | [§4.1](algorithm.md#41-card-assembly-and-the-practicality-filter) |
+| Card assembly | [`AdviceAssembler.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/AdviceAssembler.kt) | Merges overlapping advice, resolves conflicts, drops or trims advice that is impractical | [§4.1](algorithm.md#41-card-assembly-and-the-feasibility-filter) |
 | Calendar days | [`DayBuilder.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/DayBuilder.kt) | Splits the plan into days, each in the zone the user is in that day | [§4](algorithm.md#4-decision-procedure-adapt-mode) |
 | Phase track | [`PhaseTrack.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/PhaseTrack.kt) | The body-clock curve that the dial and the "body 3½ h behind" header read | [§4.2](algorithm.md#42-phase-trajectory) |
 
