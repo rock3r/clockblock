@@ -2,9 +2,11 @@
 
 Outside the app, the plan appears in three places: one ongoing "Now" notification, short reminders before advice
 starts, and two home-screen widgets (*Two Clocks* and *Next up*). One scheduler controls all of them. It wakes up
-at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface. All
-surfaces read the same plan at the same moment, so they agree with each other. They can lag behind the app only
-when the scheduler's wake-up is delayed (see [The scheduler](#the-scheduler) on exact and inexact alarms).
+at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface from the
+same plan at the same moment, so right after each refresh they all agree. Between
+refreshes they can drift: a delayed scheduler wake-up (see [The scheduler](#the-scheduler)) leaves them behind
+the app, and the fallback widget's own redraw (see [How widgets render](#how-widgets-render)) updates only the
+*Two Clocks* widget.
 
 The code is in `:core:notifications` and `:widget`. The shared contract,
 [`PlanSurface`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/PlanSurface.kt), is in
