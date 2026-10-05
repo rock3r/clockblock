@@ -17,6 +17,8 @@ import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.longs.shouldBeGreaterThan
+import io.kotest.matchers.longs.shouldBeLessThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -79,6 +81,28 @@ class NowNotificationSurfaceTest {
         plans.current.value = null
         surface.render() shouldBe NowRendering.Hidden
         shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldBeNull()
+    }
+
+    @Test
+    fun `with the ongoing Now and an expiring reminder, the summary expires with the reminder`() = runTest {
+        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities, clock), capabilities)
+        surface.render() shouldBe NowRendering.Ongoing
+        reminders.postTest() shouldBe true
+
+        val test = shadowOf(manager).getNotification(NotificationIds.TEST).shouldNotBeNull()
+        val summary = shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldNotBeNull()
+        // The group falls below two children when the test reminder times out, even though Now never expires.
+        summary.timeoutAfter shouldBeGreaterThan 0L
+        summary.timeoutAfter shouldBeLessThanOrEqual test.timeoutAfter
+    }
+
+    @Test
+    fun `summary lifetime is the second-longest child lifetime`() {
+        // null = never expires (ongoing).
+        NotificationGroup.summaryLifetime(listOf(null, 600_000L)) shouldBe 600_000L
+        NotificationGroup.summaryLifetime(listOf(300_000L, 600_000L)) shouldBe 300_000L
+        NotificationGroup.summaryLifetime(listOf(600_000L, null, 300_000L)) shouldBe 600_000L
+        NotificationGroup.summaryLifetime(listOf(null, null)) shouldBe null
     }
 
     @Test

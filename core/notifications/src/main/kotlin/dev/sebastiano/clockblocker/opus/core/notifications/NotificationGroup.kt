@@ -26,17 +26,23 @@ internal object NotificationGroup {
             manager.cancel(NotificationIds.SUMMARY)
             return
         }
-        // Ongoing children never expire; otherwise the summary leaves with the last child.
+        // The summary is only useful while two or more children show, so it expires when the group would drop
+        // below two by timeouts alone. An ongoing Now never expires, but an expiring reminder next to it does.
         val now = System.currentTimeMillis()
-        val timeout = if (active.any { it.notification.timeoutAfter <= 0L }) {
-            null
-        } else {
-            active.maxOf { it.postTime + it.notification.timeoutAfter - now }
-        }
+        val timeout = summaryLifetime(
+            active.map { n -> n.notification.timeoutAfter.takeIf { it > 0L }?.let { n.postTime + it - now } },
+        )
         try {
             manager.notify(NotificationIds.SUMMARY, factory.summary(timeout))
         } catch (_: SecurityException) {
             // Permission revoked between checks: nothing to group.
         }
     }
+
+    /**
+     * How long the summary should live, given each child's remaining lifetime (`null` = never expires): the
+     * second-longest one, which is when fewer than two children remain. `null` if two children never expire.
+     */
+    fun summaryLifetime(childLifetimes: List<Long?>): Long? =
+        childLifetimes.sortedWith(compareByDescending<Long?> { it ?: Long.MAX_VALUE }).getOrNull(1)
 }
