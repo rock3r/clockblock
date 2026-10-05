@@ -5,77 +5,89 @@
 <h1 align="center">Opus Clockblock</h1>
 
 <p align="center">
-  <strong>Open-source, fully offline jet lag planner for Android.</strong><br />
-  Light, sleep and caffeine, timed to the minute, from published circadian science. No account, no network, no tracking.
+  <strong>A free, open-source jet lag planner for Android that works entirely offline.</strong><br />
+  It tells you when to see light, avoid light, sleep and drink coffee, timed to the minute from published
+  circadian science. No account, no network, no tracking.
 </p>
 
 <p align="center">
+  <a href="https://github.com/rock3r/clockblock/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/rock3r/clockblock/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="LICENSE"><img alt="Licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-4F46E5" /></a>
   <img alt="minSdk 29" src="https://img.shields.io/badge/minSdk-29-4F46E5" />
   <img alt="targetSdk 37" src="https://img.shields.io/badge/targetSdk-37-4F46E5" />
-  <img alt="Offline" src="https://img.shields.io/badge/network-none-FFB000" />
+  <img alt="Network: none" src="https://img.shields.io/badge/network-none-FFB000" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/onboarding-welcome.png" alt="Welcome screen: Jet lag is two clocks disagreeing" width="19%" />
-  <img src="docs/screenshots/plan-now.png" alt="Plan screen: the Two Clocks dial and the Now card saying See bright light until 13:30" width="19%" />
-  <img src="docs/screenshots/trips-list.png" alt="Trips list with the trip in progress, upcoming trips and adaptation progress" width="19%" />
-  <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet explaining a light window, with the science behind it" width="19%" />
-  <img src="docs/screenshots/widgets-on-device.png" alt="Two Clocks home-screen widgets on an Android 17 device, light and dark" width="23%" />
+  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 15:59 local and 18:35 body time, and the Now card says Avoid caffeine until 20:00" width="19%" />
+  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 with Sleep 23:30 to 07:30, then Day 4, Adapted, with See bright light and See some light, each also shown in Lisbon time" width="19%" />
+  <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo with departure and arrival in each airport's local time" width="19%" />
+  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 33% adapted" width="19%" />
+  <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
----
-
 Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Opus Clockblock builds a plan
-that nudges your body clock towards your destination, then tells you, minute by minute, what to do about light,
-sleep, naps and caffeine. It's a free, transparent alternative to commercial jet lag apps such as Timeshifter,
-and everything runs on your phone.
+that moves your body clock towards your destination, then tells you what to do and until when: light, sleep, naps
+and caffeine. Each piece of advice explains why it's there. Everything runs on your phone. It's a free,
+transparent alternative to commercial jet lag apps.
+
+To use the app, read the [user guide](user-guide/README.md). To understand or change the code, start with the
+[documentation index](docs/README.md).
 
 ## Features
 
-- **A plan for every trip.** Multi-leg trips with layovers, typed in by hand with an offline airport and time
-  zone search (no network, ever). Short trips can stay on home time instead of adapting.
-- **The Two Clocks dial.** Local time and your body clock on one instrument: light windows, sleep, the jet lag
-  wedge between the two clocks, and a body-clock readout ("07:44 body") that makes the invisible visible.
-- **A Now card that always says until when.** The current advice, how long it lasts, what's next, in local time
-  with the other zone underneath. "Done", "Can't do this" and a re-plan when reality gets in the way.
-- **"Why?" on every card.** Each piece of advice explains itself in plain language and cites the research.
-- **Personal.** Usual sleep window, chronotype (from lark to night owl), effort level, caffeine, sleeping on
-  planes, adjusting before you leave. Melatonin is off unless you opt in.
-- **Reminders that respect sleep.** Exact alarms at advice boundaries, an ongoing Now notification (a Live Update
-  on travel days), and nothing inside a sleep block except the alarm that wakes you.
-- **Widgets.** *Two Clocks* and *Next up*, built with Remote Compose, with a RemoteViews fallback for older
-  launchers.
-- **Night-safe UI.** During avoid-light and sleep windows the app turns dark and dim, with calmer motion, so
-  checking your plan doesn't sabotage it.
-- **Adaptive and accessible.** Phones, foldables and tablets (two-pane plan), landscape, large fonts, TalkBack
-  labels, text labels on every piece of advice (never an icon alone), and motion that keeps its meaning with
-  "Remove animations" on.
-- **Yours to keep.** JSON backup export and import, and calendar (ICS) export of a plan.
+- Plans for multi-leg trips with connections. You type the flights in by hand, with an offline search for
+  airports and time zones.
+- The Two Clocks dial shows local time and your body clock together, with the gap between them and the blocks of
+  your plan. Drag the hand to look ahead.
+- The Now card always says what to do and until when, in local time with the other zone underneath. Mark advice
+  as Done, Skipped or "Can't do this", with Undo.
+- Every piece of advice has a "Why?" that explains it in plain language and cites the research.
+- The plan adapts to you: your usual sleep, your chronotype (from early bird to night owl), how hard you want to
+  push, whether you drink caffeine or sleep on planes, and whether to start adjusting before you leave. Melatonin
+  stays off unless you opt in.
+- Short trips can stay on home time instead of adapting. An "I'm delayed" button moves a late flight and rebuilds
+  the plan.
+- Reminders arrive just before each change, never while you should be asleep except to wake you. One quiet
+  ongoing notification shows the current advice, and becomes a Live Update on travel days (Android 16+).
+- Two home-screen widgets, *Two Clocks* and *Next up*, built with Remote Compose, with a RemoteViews fallback for
+  older launchers.
+- Night-safe mode: when the plan says avoid light or sleep, the plan screen and widgets turn dark and dim, so
+  checking your plan doesn't work against it.
+- Works on phones, foldables and tablets (with a two-pane layout), in landscape and with large fonts. Every piece
+  of advice has a text label, never an icon alone, and motion keeps its meaning with "Remove animations" on.
+- JSON backup and restore, and calendar (ICS) export of any plan.
 
 <p align="center">
-  <img src="docs/screenshots/plan-tablet.png" alt="Plan on a tablet: dial and Now card beside the day timeline" width="72%" />
+  <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two Clocks widgets in light and dark, small and wide: the dial shows 15:20 local, body 08:20, −7 h, with Avoid light until 16:30; the bottom row shows the empty state, No trip, Plan one" width="48%" />
+  <img src="docs/screenshots/plan-tablet.png" alt="The plan on a tablet in landscape: the dial and a See bright light Now card on the left, the Day 2 timeline on the right" width="48%" />
 </p>
 
-## How it works
+The *Two Clocks* widget (left) shows the dial from the app on your home screen. On a tablet (right), the plan
+uses two columns: the dial and the Now card beside the day's timeline.
 
-The planner (`:core:circadian`) estimates when your body clock's low point (the core body temperature minimum)
-falls, then places light exposure and avoidance on the right side of it using human phase-response curves:
-light after the low point moves the clock earlier, light before it moves it later. It picks a direction
-(advance or delay) based on how far you're going and your chronotype, caps the daily shift at rates that human
-studies show are achievable, and fits sleep, naps and caffeine around it. Two published mathematical models of
-the human circadian pacemaker (Forger 1999 and Hannay 2019) simulate the result to estimate how long adapting
-will take.
+## The science
 
-- [docs/algorithm.md](docs/algorithm.md): what the planner computes, every parameter, and its known limitations.
-- [docs/science.md](docs/science.md): the research review behind it (PRCs, melatonin, caffeine, models), with
-  references.
+The planner estimates when your body clock's low point (the core body temperature minimum) falls. Light in the
+hours after that point moves the clock earlier, and light in the hours before it moves the clock later. The plan
+places light and darkness on the correct side, picks a direction (earlier or later) from the distance and your
+chronotype, and limits the daily shift to rates that human studies show people can manage. Sleep, naps and
+caffeine are fitted around it. Two published mathematical models of the human body clock (Forger 1999 and Hannay
+2019) then simulate the plan, to check that it moves you the right way and to estimate how long adapting will
+take.
+
+The research is cited, the rules are written down, and the known limitations are listed. Nothing is hidden.
+
+- [docs/science.md](docs/science.md): the research review, with references.
+- [docs/algorithm.md](docs/algorithm.md): the exact rules, every parameter and the known limitations.
+- [docs/planning-engine.md](docs/planning-engine.md): how the planner is wired into the app.
 
 ## Privacy
 
 Opus Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
 accounts, no analytics, no ads, no crash reporters and no third-party SDKs. Your trips and profile live in the
-app's private storage and leave the device only when you export them yourself.
+app's private storage. They leave the device only when you export a backup or calendar file, or when Android's own
+device backup copies app data (if you have it turned on).
 
 ## Not medical advice
 
@@ -83,79 +95,61 @@ Opus Clockblock gives general information for healthy adults, based on published
 advice, it doesn't measure anything about you, and it isn't meant for flight crew on duty. If you have a health
 condition, are pregnant, or take medication, talk to a doctor before changing your sleep.
 
-**Melatonin** suggestions are off by default. Turning them on shows a safety note first; melatonin is a
-prescription medicine in some countries, and you should check with a pharmacist or doctor before taking it.
-
-## Gallery
-
-| | | |
-|---|---|---|
-| <img src="docs/screenshots/onboarding-chronotype.png" alt="Onboarding: lark, owl, or in between?" width="260" /> | <img src="docs/screenshots/plan-now-dark.png" alt="Plan screen in dark theme" width="260" /> | <img src="docs/screenshots/two-clocks-dial.png" alt="The Two Clocks dial mid-adaptation" width="260" /> |
-| Onboarding: chronotype | Plan, dark theme | The Two Clocks dial |
-
-More: widget renders in [docs/screenshots/widgets](docs/screenshots/widgets); every screen's screenshot test
-golden lives next to its module in `src/test/screenshots/`.
-
-## Architecture
-
-A multi-module Gradle build. Domain and science are plain JVM modules with no Android dependency; everything
-else is Android.
-
-| Module | Kind | Purpose |
-|---|---|---|
-| `:core:model` | JVM | Domain types (`Trip`, `UserProfile`, `JetLagPlan`, `Advice`…) |
-| `:core:circadian` | JVM | Jet lag planner + Forger99/Hannay19 ODE validator |
-| `:core:data` | Android | Repositories (DataStore), offline airport search, plan cache, backup, ICS export |
-| `:core:designsystem` | Android + Compose | Theme, type, colour, motion tokens, shapes, illustrations, the dial |
-| `:core:notifications` | Android | Exact-alarm scheduler, Now notification / Live Update |
-| `:core:testing` | Android | Test rules, fakes, screenshot helpers |
-| `:feature:onboarding`, `:feature:trips`, `:feature:plan`, `:feature:settings` | Android + Compose | The screens |
-| `:widget` | Android + Compose | Remote Compose widgets (+ RemoteViews fallback) |
-| `:app` | Application | Navigation 3 shell, adaptive layouts, Metro DI graph |
-
-**Stack:** AGP 9 with built-in Kotlin · Kotlin 2.4 · JDK 21 · Jetpack Compose (alpha BOM) with Material 3
-Expressive · Navigation 3 · [Metro](https://github.com/ZacSweers/metro) DI · Remote Compose widgets · DataStore +
-kotlinx-serialization · `java.time` with IANA zone ids (offsets are never stored) · Gradle convention plugins in
-`build-logic`, versions in `gradle/libs.versions.toml`.
-
-Widgets and the Now notification implement a shared `PlanSurface` contract, and the notification scheduler
-refreshes all of them at every advice boundary and whenever a plan changes. Deep links:
-`opusclockblock://trips`, `opusclockblock://trips/new`, `opusclockblock://plan/{tripId}`,
-`opusclockblock://plan/current`.
+Melatonin suggestions are off by default. Turning them on shows a safety note first. Melatonin is a prescription
+medicine in some countries, and you should check with a pharmacist or doctor before taking it.
 
 ## Build and test
 
-Requirements: JDK 21 and the Android SDK with platform 37.1. Create `local.properties` with your SDK path
+You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties` with your SDK path
 (`sdk.dir=/path/to/Android/sdk`), then:
 
 ```sh
 ./gradlew :app:assembleDebug                 # debug APK
-./gradlew test                               # all JVM + Robolectric unit tests
+./gradlew test                               # all JVM and Robolectric unit tests
 ./gradlew :core:circadian:test               # one module
-./gradlew :feature:plan:verifyRoborazziDebug # check screenshots against the goldens
+./gradlew verifyRoborazziDebug               # compare screenshots with the committed goldens
 ./gradlew :feature:plan:recordRoborazziDebug # re-record goldens after an intended UI change
 ./gradlew :app:connectedDebugAndroidTest     # end-to-end tests on a device or emulator
 ```
 
-### Testing approach
+The debug build needs no API keys, no backend and no signing setup. The app runs on Android 10 (API 29) and later.
 
-The project is built test-first.
+The project is built test-first: 822 JVM tests, 158 screenshot goldens and 22 end-to-end tests at the time of
+writing. CI runs all of them on every pull request. See [docs/testing.md](docs/testing.md).
 
-- **Logic** (planner, models, repositories, ViewModels): JUnit 6 Jupiter with Kotest assertions, property tests
-  where an invariant exists, Turbine for flows. The planner is checked byte for byte against reference printouts,
-  and the ODE ports against published model fixtures.
-- **UI**: Compose tests on Robolectric, plus [Roborazzi](https://github.com/takahirom/roborazzi) screenshot tests
-  in light, dark, font scale 1.5 and compact/expanded widths. Goldens are committed, so a pull request shows every
-  pixel it changes.
-- **End to end**: Compose test + UiAutomator on an emulator.
+## Architecture
+
+A multi-module Gradle build. The domain types and the planner are plain JVM modules with no Android dependency;
+everything else is Android.
+
+| Module | Kind | Purpose |
+|---|---|---|
+| `:core:model` | JVM | Domain types (`Trip`, `UserProfile`, `JetLagPlan`, `Advice`…) |
+| `:core:circadian` | JVM | The jet lag planner and the Forger99 and Hannay19 model ports |
+| `:core:data` | Android | Repositories (DataStore), offline airport search, plan cache, backup, ICS export |
+| `:core:designsystem` | Android + Compose | Theme, type, colour, motion tokens, shapes, illustrations, the dial |
+| `:core:notifications` | Android | Alarm scheduler, reminders, the Now notification and Live Update |
+| `:core:testing` | Android | Test rules, fakes, screenshot helpers |
+| `:feature:onboarding`, `:feature:trips`, `:feature:plan`, `:feature:settings` | Android + Compose | The screens |
+| `:widget` | Android + Compose | Remote Compose widgets with a RemoteViews fallback |
+| `:app` | Application | Navigation 3 shell, adaptive layouts, Metro DI graph |
+
+The stack: AGP 9 with built-in Kotlin, Kotlin 2.4, JDK 21, Jetpack Compose (alpha BOM) with Material 3
+Expressive, Navigation 3, [Metro](https://github.com/ZacSweers/metro) for dependency injection, Remote Compose,
+DataStore with kotlinx-serialization, and `java.time` with IANA zone ids (offsets are never stored).
+
+Read more:
+
+- [docs/architecture.md](docs/architecture.md): modules, data flow, DI, navigation and the time-zone rules.
+- [docs/surfaces.md](docs/surfaces.md): how reminders, the Now notification and the widgets stay in step.
 
 ## Design
 
-- [docs/design.md](docs/design.md): product research and the visual identity ("Dusk Instrument"): colour,
-  type (Google Sans Flex and Fraunces), shape language, illustrations, copy voice.
+- [docs/design.md](docs/design.md): product research and the visual identity ("Dusk Instrument"): colour, type
+  (Google Sans Flex and Fraunces), shape language, illustrations and copy voice.
 - [MOTION.md](MOTION.md): the motion language, in the format of
   [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills). Entries are agent-drafted and tagged
-  `OBSERVED`; they're awaiting human ratification before they become policy.
+  `OBSERVED` until a human ratifies them.
 - [docs/motion-review-1.md](docs/motion-review-1.md): the first motion review.
 - The launcher icon is generated by [`tools/icon/gen_launcher_icon.py`](tools/icon/gen_launcher_icon.py).
 
@@ -167,18 +161,18 @@ on, and none of them get in the way.
 
 ## Contributing
 
-Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions and how to
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions and how to
 refresh the bundled airport dataset.
 
 ## Credits
 
-- **Science:** the phase-response, melatonin and model literature cited in [docs/science.md](docs/science.md).
-- **Fonts:** [Google Sans Flex](https://fonts.google.com/specimen/Google+Sans+Flex) and
-  [Fraunces](https://github.com/undercasetype/Fraunces), both SIL Open Font License 1.1.
-- **Airport data:** [OurAirports](https://ourairports.com/data/) (public domain) and
+- Science: the phase-response, melatonin and model literature cited in [docs/science.md](docs/science.md).
+- Fonts: [Google Sans Flex](https://fonts.google.com/specimen/Google+Sans+Flex) and
+  [Fraunces](https://github.com/undercasetype/Fraunces), both under the SIL Open Font License 1.1.
+- Airport data: [OurAirports](https://ourairports.com/data/) (public domain) and
   [mwgg/Airports](https://github.com/mwgg/Airports) (MIT).
-- **Time zones:** the [IANA tz database](https://www.iana.org/time-zones) (public domain), through `java.time`.
-- **Motion review process:** [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills) (Apache-2.0).
+- Time zones: the [IANA tz database](https://www.iana.org/time-zones) (public domain), through `java.time`.
+- Motion review process: [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills) (Apache-2.0).
 
 Full attributions are in [NOTICE](NOTICE) and in the app under About → Open-source licences.
 
