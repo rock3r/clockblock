@@ -42,8 +42,8 @@ current plan again, decides whether a reminder is still correct, redraws everyth
 
 A few details matter:
 
-- It keeps at most 8 plan transitions armed at a time, plus a pending snooze and a 15-minute progress tick while
-  a Live Update is showing.
+- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze and a
+  15-minute progress tick while a Live Update is showing.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`, which is a little less punctual.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.
@@ -63,7 +63,7 @@ tests.
 | End | A window ends | No |
 | WakeUp | A Sleep or Nap window ends | Yes |
 | Moment | A one-off advice is due (melatonin) | Yes |
-| Flight take-off or landing | The flight times | No, it only drives the travel-day Live Update |
+| Flight take-off or landing | The flight times | No, they refresh the surfaces silently (and drive the travel-day Live Update) |
 
 The rules that protect sleep and keep things quiet:
 
@@ -73,7 +73,7 @@ The rules that protect sleep and keep things quiet:
 - With reminders turned off, only the silent transitions remain, so widgets still update.
 - Duplicate advice and transitions at the same instant are merged into one alarm.
 - Only one reminder is visible at a time. It reuses one notification id. If several reminders are due at once,
-  the most important one leads and the others are listed as "also starting".
+  the most important one leads and the others are listed on an extra line ("Also: …").
 
 ### What resets the schedule
 

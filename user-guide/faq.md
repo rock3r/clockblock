@@ -20,9 +20,9 @@ for where your data is kept.
 
 Your body clock follows light. Light at the right time of your body's day moves the clock earlier, and light at
 another time moves it later. The plan works out where your body clock is, then tells you when to look for light
-and when to avoid it so the clock moves the right way, at a pace the body can manage (about an hour a day earlier,
-or up to two hours a day later). Sleep, naps and caffeine are fitted around that. In the app, **About Opus
-Clockblock** explains this in more detail, and every block has a **Why?**.
+and when to avoid it so the clock moves the right way, at a pace the body can manage (about 1 to 1.5 hours a day
+earlier, or up to two hours a day later). Sleep, naps and caffeine are fitted around that. In the app, **About
+Opus Clockblock** explains this in more detail, and every block has a **Why?**.
 
 For the full science, see the [research review](../docs/science.md).
 
@@ -77,4 +77,4 @@ Yes. It's free and open source under the Apache License 2.0. The code is on
 
 ### Are there any surprises hidden in the app?
 
-A few. They never appear during your sleep window or when motion is reduced.
+A few. The ones on the plan screen stay hidden while your plan says sleep or when Reduce motion is on.

@@ -8,7 +8,8 @@ the same thing as the app, at the same time.
 
 A reminder arrives a few minutes before each block starts, so you have time to find a window or put your
 sunglasses on. You choose how early in Settings, under **Reminders** → **How early**: on time, or 5, 10, 15 or 30
-minutes before. The default is 15 minutes.
+minutes before. The default is 15 minutes. A melatonin reminder comes at the dose time itself, and flights never
+get a reminder.
 
 Reminders respect your sleep. Nothing arrives while the plan says you should be asleep, except the one reminder
 that wakes you up. Only one reminder shows at a time. If two blocks start together, they share one reminder.
@@ -22,7 +23,8 @@ The buttons on a reminder depend on what it's for:
 | The wake-up reminder | none. Tap it to open the plan |
 
 Your answer is saved, just as if you'd tapped it in the app. The Now notification (below) has all three buttons,
-**Done**, **Can't do this** and **Snooze 15 min**, until you answer. During a flight it has none.
+**Done**, **Can't do this** and **Snooze 15 min**, until you answer. When the only thing happening is the flight
+itself, it has none.
 
 ## The Now notification
 
@@ -38,8 +40,9 @@ itself and never makes a sound. Tap it to open the plan.
 
 On Android 16 and later, the notification becomes a **Live Update** on your travel day: a progress bar from
 about 3 hours before your first flight until about 2 hours after you land, with your plan's blocks and the
-take-off and landing times on it. It also appears as a small chip in the status bar. It only shows while a block
-of your plan is active; otherwise you see the normal notification.
+take-off and landing times on it. It also appears as a small chip in the status bar, if Android allows it. It
+only shows while a light, sleep or other plan block (not just the flight) is active; otherwise you see the normal
+notification.
 
 ## Widgets
 

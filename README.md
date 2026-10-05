@@ -52,8 +52,9 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
   ongoing notification shows the current advice, and becomes a Live Update on travel days (Android 16+).
 - Two home-screen widgets, *Two Clocks* and *Next up*, built with Remote Compose, with a RemoteViews fallback for
   older launchers.
-- Night-safe mode: when the plan says avoid light or sleep, the plan screen and widgets turn dark and dim, so
-  checking your plan doesn't work against it.
+- Night-safe mode, so checking your plan doesn't work against it: the plan screen turns dark and dim when the
+  plan says avoid light or sleep, or during your body's night when no light is planned. The widgets switch to
+  dark while the plan says avoid light or sleep.
 - Works on phones, foldables and tablets (with a two-pane layout), in landscape and with large fonts. Every piece
   of advice has a text label, never an icon alone, and motion keeps its meaning with "Remove animations" on.
 - JSON backup and restore, and calendar (ICS) export of any plan.
@@ -72,9 +73,9 @@ The planner estimates when your body clock's low point (the core body temperatur
 hours after that point moves the clock earlier, and light in the hours before it moves the clock later. The plan
 places light and darkness on the correct side, picks a direction (earlier or later) from the distance and your
 chronotype, and limits the daily shift to rates that human studies show people can manage. Sleep, naps and
-caffeine are fitted around it. Two published mathematical models of the human body clock (Forger 1999 and Hannay
-2019) then simulate the plan, to check that it moves you the right way and to estimate how long adapting will
-take.
+caffeine are fitted around it. A published mathematical model of the human body clock (Hannay 2019) then
+simulates the plan to estimate how long adapting takes, with and without it. The tests also check plans against
+that model and a second one (Forger 1999).
 
 The research is cited, the rules are written down, and the known limitations are listed. Nothing is hidden.
 
@@ -156,8 +157,8 @@ Read more:
 ## Easter eggs
 
 There are a few. A dial that doesn't like being told what time it is. A version number that rewards persistence
-with a performance. We won't spoil the rest. They never show up during your sleep window or with reduced motion
-on, and none of them get in the way.
+with a performance. We won't spoil the rest. The ones on the plan screen stay hidden while your plan says sleep or
+when Reduce motion is on, and none of them get in the way.
 
 ## Contributing
 
@@ -174,7 +175,7 @@ refresh the bundled airport dataset.
 - Time zones: the [IANA tz database](https://www.iana.org/time-zones) (public domain), through `java.time`.
 - Motion review process: [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills) (Apache-2.0).
 
-Full attributions are in [NOTICE](NOTICE) and in the app under About → Open-source licences.
+Full attributions are in [NOTICE](NOTICE) and in the app under About → Licences.
 
 ## Licence
 

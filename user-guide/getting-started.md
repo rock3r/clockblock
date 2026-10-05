@@ -14,8 +14,8 @@ Opus Clockblock isn't in an app store yet. To install it, build it from the sour
 
 ## The six setup steps
 
-Each step shows "Step N of 6" at the top. Use **Back** to go to the previous step. **Skip** keeps the default
-answers for the remaining questions and jumps to the last step.
+From step 2 on, the top shows "Step N of 6". Use **Back** to go to the previous step. **Skip** (not on the last
+step) keeps your answers so far and the defaults for the rest, and jumps to the last step.
 
 ### 1. Welcome
 
@@ -64,7 +64,8 @@ Then choose how hard the plan should push:
 
 - **Gentle**: smaller daily shifts and fewer early starts. It takes a little longer.
 - **Balanced**: the pace the research supports. A good default for most trips.
-- **Max**: every useful light window, so you adapt as fast as the science allows.
+- **Max**: the Balanced pace, plus a smarter choice of direction. For eastward shifts of 8 to 12 hours, it
+  simulates both shifting earlier and shifting later, and picks the one that adapts you faster.
 
 #### Melatonin
 
@@ -85,8 +86,8 @@ asleep, except the one that wakes you.
 - **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them up to 10 minutes
   late.
 
-Tap **Allow and finish**, or **Maybe later** if you want to decide later. You can turn reminders on any time in
-Settings.
+Tap **Allow and finish** (or **Finish** if notifications are already allowed), or **Maybe later**. You can grant
+the permissions any time from Settings → **What Android allows**.
 
 ## What's next
 

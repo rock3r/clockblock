@@ -77,9 +77,9 @@ ticket before you save.
 
 <img src="images/trip-menu.png" alt="A trip card's menu with Edit, Duplicate, Create return trip and Delete." width="280" />
 
-Tap a trip card to open its plan. The three-dot menu on the card has:
+Tap a trip card to open its plan. (With TalkBack, "Open plan" is also offered as an action on the card.) The
+three-dot menu on the card has:
 
-- **Open plan**
 - **Edit**: change flights, times or trip details.
 - **Duplicate**: copy the trip, for example for a similar trip later.
 - **Create return trip**

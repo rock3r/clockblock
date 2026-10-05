@@ -106,29 +106,33 @@ notifications. Runtime permissions stay granted between tests.
 
 ## CI
 
-The workflow is `.github/workflows/ci.yml`. It runs on every pull request, on every push to `main`, and on demand.
-A new push to a pull request cancels the run that is still in progress.
+There are two workflows. `.github/workflows/ci.yml` (CI) has five jobs, and `.github/workflows/e2e.yml` (e2e)
+has the emulator job. Both run on every pull request, on every push to `main`, and on demand. A new push to a pull request
+cancels the run that is still in progress. The emulator job has its own workflow so the babysit-pr watcher, which
+retries failed workflows by name, can rerun an emulator flake automatically without rerunning the rest of CI.
 
 ```mermaid
 flowchart LR
-    pr["Push or pull request"] --> wrapper["Gradle wrapper"]
-    pr --> unit["Unit tests"]
-    pr --> shots["Screenshots"]
-    pr --> assemble["Assemble"]
-    pr --> e2e["e2e (emulator)"]
-    pr --> babysit["babysit-pr watcher tests"]
+    pr["Push or pull request"] --> ci["CI workflow"]
+    pr --> e2ewf["e2e workflow"]
+    ci --> wrapper["Gradle wrapper"]
+    ci --> unit["Unit tests"]
+    ci --> shots["Screenshots"]
+    ci --> assemble["Assemble"]
+    ci --> babysit["babysit-pr watcher tests"]
+    e2ewf --> e2e["e2e (emulator)"]
 ```
 
 All six jobs run in parallel. Each one reports its own check on the pull request.
 
-| Job | What it runs | Artefacts |
-|---|---|---|
-| Gradle wrapper | Validates `gradle-wrapper.jar` against the official checksums | none |
-| Unit tests | `./gradlew test --continue` | `unit-test-reports`, on failure |
-| Screenshots | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
-| Assemble | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`opus-clockblock-debug`), kept 14 days |
-| e2e (emulator) | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
-| babysit-pr watcher tests | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
+| Job | Workflow | What it runs | Artefacts |
+|---|---|---|---|
+| Gradle wrapper | CI | Validates `gradle-wrapper.jar` against the official checksums | none |
+| Unit tests | CI | `./gradlew test --continue` | `unit-test-reports`, on failure |
+| Screenshots | CI | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
+| Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`opus-clockblock-debug`), kept 14 days |
+| babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
+| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
@@ -153,7 +157,7 @@ expects:
 
 ```mermaid
 flowchart TD
-    open["Open a pull request"] --> ci["CI runs the six jobs"]
+    open["Open a pull request"] --> ci["CI and e2e workflows run the six jobs"]
     open --> codex["Codex reviews the change"]
     ci --> watch{"babysit-pr watcher"}
     codex --> watch
@@ -178,7 +182,7 @@ project settings are in its `config.json`:
 |---|---|---|
 | `local_gate` | `./gradlew test :app:assembleDebug verifyRoborazziDebug` | Run this before every push |
 | `required_checks` | Gradle wrapper, Unit tests, Screenshots, Assemble, babysit-pr watcher tests | These must pass before the PR counts as ready |
-| `retry_eligible_workflow_keywords` | `e2e` | A failed emulator job may be retried without a diagnosis, because emulators can be flaky. Any other failure needs a diagnosis first. |
+| `retry_eligible_workflow_keywords` | `e2e` | A failed run of the e2e workflow may be retried without a diagnosis, because emulators can be flaky. Any other failure needs a diagnosis first. |
 | `review_bot_login_keywords` | `codex` | Comments from the Codex bot count as review items |
 | `codex.required` | `false` | If Codex hasn't started a review 10 minutes after the checks finish, the PR doesn't wait for it |
 

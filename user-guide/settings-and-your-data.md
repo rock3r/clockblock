@@ -25,7 +25,7 @@ how to back it up.
 | Theme | System (follows your phone), Light or Dark. |
 | Dynamic colour | Takes the app's colours from your wallpaper. The colours of the advice stay the same. |
 | Reduce motion | Calmer transitions and still pictures, on top of your phone's own setting. |
-| Night-safe automatically | Makes the plan screen and widgets dim and dark while your plan says avoid light or sleep. |
+| Night-safe automatically | Makes the plan screen dark and dim while your plan says avoid light or sleep, or during your body's night when no light is planned. The widgets turn dark while your plan says avoid light or sleep. |
 | Reminders | Turns all reminders and the Now notification on or off. Widgets keep working. |
 | How early | When reminders arrive: on time, or 5, 10, 15 or 30 minutes before a block starts. |
 | What Android allows | Shows whether the app may send notifications, use exact timing, show Live Updates, and run without battery optimisation. Tap **Allow** or **Open settings** to change it. |
@@ -50,11 +50,12 @@ asks how to import it:
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
 
 - **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
-  trips and check-ins. Check-ins already on this phone for trips that are in the backup stay.
+  trips and check-ins. Check-ins already on this phone for trips that are in the backup stay, unless the backup
+  has a check-in for the same block.
 - **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
-  trips that aren't in the backup. Two things are overwritten: a trip that is in both places takes the backup's
-  version, and your profile (home time zone, usual sleep, chronotype) is replaced by the backup's profile. Plans
-  are then worked out again from that profile.
+  trips that aren't in the backup. Three things are overwritten: a trip in both places takes the backup's
+  version, a block checked in both places takes the backup's answer, and your profile (home time zone, usual
+  sleep, chronotype) is replaced by the backup's profile. Plans are then worked out again from that profile.
 
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.
@@ -64,8 +65,9 @@ To move to a new phone, export a backup on the old phone, copy the file across, 
 ### Export a plan to your calendar
 
 In a plan, open the three-dot menu and choose **Export to calendar**. The app saves a calendar file (`.ics`) with
-every block of the plan, in the right time zones. Open it with your calendar app to add the events. If you export
-the same plan again after a change, most calendar apps update the events instead of adding copies.
+every block of the plan, in the right time zones. Open it with your calendar app to add the events. In most
+calendar apps, exporting again updates the events whose block kept its place in the plan. Blocks that were
+removed may stay in your calendar, so delete the old events after a big change.
 
 ## More
 

@@ -46,7 +46,8 @@ The card shows:
 - Other blocks that are also active, such as "Also now: Avoid caffeine".
 
 When you've done it, tap **Done**. The small arrow next to Done offers **Skipped**, **Can't do this** and
-**Snooze 15 min**. After each one, a message appears at the bottom with **Undo**.
+**Snooze 15 min**. After Done, Skipped or Can't do this, a message appears at the bottom with **Undo**. Snooze
+has no Undo: reminders stay quiet for 15 minutes, then this one comes back.
 
 ### The timeline
 
@@ -56,7 +57,8 @@ The timeline lists every day of the plan: pre-trip days, the travel day, the day
 adapted. Each block shows its local time and the time back home. Earlier days are folded away; tap **Show N
 earlier days** to see them. Tap any block to read why it's there.
 
-The toolbar at the bottom jumps to **Now**, to today (**Day**), or opens **Why?** for the current block.
+The toolbar at the bottom jumps to **Now**, lets you pick any day of the plan (**Day**), or opens **Why?** for the
+current block.
 
 ## Why is this in my plan?
 
@@ -100,8 +102,8 @@ plan is rebuilt around the new times.
 <img src="images/night-safe.png" alt="The plan screen in Night-safe mode: dark and dim, a Night-safe chip at the top, and the Now card saying Avoid light until 01:00." width="300" />
 
 Looking at a bright phone screen can undo an "Avoid light" block. So when your plan says to avoid light or sleep,
-the plan screen turns dark and dim and shows a **Night-safe** chip. You can turn this off in Settings
-("Night-safe automatically").
+or during your body's night when no light is planned, the plan screen turns dark and dim and shows a
+**Night-safe** chip. You can turn this off in Settings ("Night-safe automatically").
 
 ## Other things you may see
 

@@ -44,10 +44,12 @@ flowchart TD
     data --> model
 ```
 
-The diagram shows production dependencies only. Every feature module also gets `:core:model`,
-`:core:designsystem`, `:core:data` and Metro from the `opus.android.feature` convention plugin. `:core:testing`
-is a test-only dependency of the features and `:app`. `:feature:settings` depends on `:feature:onboarding`
-because "Replay setup" reuses the onboarding screens. This is the only dependency between two features.
+The diagram shows production dependencies only, and leaves out the direct dependencies of `:app` on the core
+modules. Every feature module also gets `:core:model`, `:core:designsystem`, `:core:data` and Metro from the
+`opus.android.feature` convention plugin. `:core:testing` is a test-only dependency of the features, `:widget`,
+`:core:data` and `:app`. `:feature:settings` depends on `:feature:onboarding` because the Settings editors reuse
+the onboarding profile pickers (sleep dial, chronotype, tools, effort). This is the only dependency between two
+features.
 
 | Module | Kind | What lives there |
 |---|---|---|
@@ -200,7 +202,8 @@ navigation is hidden during onboarding and in the trip editor. When the window h
 
 During the user's body night (by the plan, or by the usual sleep window when there is no plan), the shell
 switches the whole app to calmer motion. Separately, the plan screen switches to the dark, dim Night-safe theme
-when "Night-safe automatically" is on and the plan says to rest or avoid light
+when "Night-safe automatically" is on and the plan says to rest or avoid light, or it is body night and no light
+advice is running
 ([`PlanMoment.kt`](../feature/plan/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/plan/PlanMoment.kt)).
 
 ## Time rules
@@ -221,7 +224,7 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 | Feature | Code | Format |
 |---|---|---|
 | Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "opus-clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
-| Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from stable advice ids, so a second import updates events instead of duplicating them. |
+| Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from the positional advice ids, so a second import of an unchanged or lightly changed plan updates events. Re-plans that shift card positions can remap or orphan events. |
 
 Import has two modes, implemented in `BackupManager.restore`:
 
@@ -231,8 +234,8 @@ Import has two modes, implemented in `BackupManager.restore`:
   its trips by id and adds its advice-log entries.
 
 In both modes, advice-log entries are written on top of the existing logs, so entries already on the device for
-a trip that is kept are not removed. Issue [#5](https://github.com/rock3r/clockblock/issues/5) tracks whether
-the code or the in-app copy should change.
+a trip that is kept are not removed. An entry for the same advice id is replaced by the backup's. Issue
+[#5](https://github.com/rock3r/clockblock/issues/5) tracks whether the code or the in-app copy should change.
 
 The whole file is decoded before anything is written, so a bad file changes nothing. Files from a newer app
 version are refused. Exported files are named `opus-clockblock-backup-YYYY-MM-DD.json`.

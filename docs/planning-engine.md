@@ -79,10 +79,10 @@ flowchart TD
 ```
 
 In words: the builder first converts the trip into hours and splits long stopovers into separate segments. It
-then picks a mode. A trip set to "Home time", or a short trip with a return flight within 72 hours, gets a
-home-time plan. A trip where no segment shifts the clock by 2 hours or more gets no real plan, only flight
-markers and a few sleep nights. Every other trip goes through the cycle planner. All three modes end in the same
-assembly steps.
+then picks a mode, checking in this order. A trip set to "Home time" gets a home-time plan. Otherwise, a trip
+where no segment shifts the clock by 2 hours or more gets no real plan, only flight markers and a few sleep
+nights. Otherwise, a short trip with a return flight within 72 hours (body clock on Auto) gets a home-time plan.
+Every other trip goes through the cycle planner. All three modes end in the same assembly steps.
 
 | Stage | Code | What it does | Rules in algorithm.md |
 |---|---|---|---|
@@ -98,9 +98,9 @@ Each piece of advice gets an id from `PlanBuilder.stableId`: the first 8 bytes o
 the advice type, the day index and the card's position among cards of the same type that day. The id is
 positional, not a hash of the content. So:
 
-- If the plan is computed again with the same inputs, every card gets the same id. That keeps notifications
-  replacing each other instead of piling up, and lets a second calendar export update events instead of
-  duplicating them.
+- If the plan is computed again with the same inputs, every card gets the same id. That keeps check-ins, snoozes
+  and reminder de-duplication attached to the right card, and lets a second calendar export update events
+  instead of duplicating them.
 - If only a card's time or reason changes, it keeps its id, along with its advice log and its calendar event, as
   long as it stays on the same day and in the same order among same-type cards (cards are counted in start-time
   order).

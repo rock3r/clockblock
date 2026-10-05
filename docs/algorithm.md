@@ -6,7 +6,7 @@ the **implemented** behaviour, including every place where the code deliberately
 reference scripts in `docs/research/reference/`.
 
 > Not medical advice. The planner produces a schedule of light, sleep, caffeine, nap and (opt-in) melatonin
-> suggestions from published human phase-response data and two published mathematical models. It does not
+> suggestions from published human phase-response data and a published mathematical model of the body clock. It does not
 > measure anything about the user.
 
 ## 1. Public API

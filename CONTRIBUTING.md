@@ -121,7 +121,8 @@ Edit the script, not the XML, and check `app/src/test/screenshots/launcher_icon*
 
 - Keep them focused, with a clear description and screenshots for UI changes.
 - Before you push, run `./gradlew test :app:assembleDebug verifyRoborazziDebug`.
-- CI runs unit tests, screenshot verification, APK assembly and the emulator e2e tests on every pull request,
-  and Codex reviews it. [docs/testing.md](docs/testing.md#pull-requests-and-review) describes the checks and the
-  review loop.
+- On every pull request, the CI workflow validates the Gradle wrapper, runs the unit tests, verifies the
+  screenshots, assembles the APKs and tests the babysit-pr watcher. A separate e2e workflow runs the emulator
+  tests. Codex reviews the change. [docs/testing.md](docs/testing.md#pull-requests-and-review) describes the
+  checks and the review loop.
 - By contributing you agree that your contribution is licensed under the [Apache License 2.0](LICENSE).
