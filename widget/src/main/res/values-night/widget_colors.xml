@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_surface">#FF131318</color>
+    <color name="widget_on_surface">#FFE5E1EA</color>
+    <color name="widget_on_surface_variant">#FFC8C5D0</color>
+    <color name="widget_primary">#FFC3C0FF</color>
+    <color name="widget_track">#FF24232B</color>
+    <color name="widget_body_ring">#FF2C2A4A</color>
+    <color name="widget_plum_container">#FF362B5E</color>
+    <color name="widget_plum">#FFB9A7F0</color>
+    <color name="widget_midnight">#FF4A5BD0</color>
+</resources>

@@ -1,0 +1,35 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+/captures
+.externalNativeBuild
+.cxx
+*.hprof
+
+# Local configuration (SDK path, signing, secrets)
+local.properties
+*.keystore
+*.jks
+
+# Build artefacts
+*.apk
+*.aab
+
+# IDEs
+*.iml
+/.idea/
+.vscode/
+.fleet/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Agent worktrees & plans
+.worktrees/
+.plans/
+
+# Python
+__pycache__/
+*.pyc

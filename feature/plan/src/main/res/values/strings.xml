@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- States -->
+    <string name="plan_loading">Working out your plan</string>
+    <string name="plan_empty_title">No trip on the horizon</string>
+    <string name="plan_empty_body">Add a flight and Opus Clockblock works out when to see light, sleep and nap so you land on local time.</string>
+    <string name="plan_new_trip">Plan a trip</string>
+    <string name="plan_missing_title">This trip is gone</string>
+    <string name="plan_missing_body">It may have been deleted. Your other trips are safe.</string>
+    <string name="plan_pane_title">Pick a trip or plan a new one</string>
+    <string name="plan_pane_body">Its plan appears here: what to do now, and the days ahead.</string>
+
+    <!-- Header -->
+    <string name="plan_navigate_up">Back</string>
+    <string name="plan_more">More options</string>
+    <string name="plan_menu_edit">Edit trip</string>
+    <string name="plan_menu_return">Create return trip</string>
+    <string name="plan_menu_export">Export to calendar</string>
+    <string name="plan_menu_share">Share summary</string>
+    <string name="plan_export_done">Saved. Open it with your calendar app.</string>
+    <string name="plan_export_failed">Couldn\'t save the calendar file</string>
+    <string name="plan_share_chooser">Share plan</string>
+    <string name="plan_day_pre_trip">Pre-trip day %1$s</string>
+    <string name="plan_day_travel">Travel day</string>
+    <string name="plan_day_adapting">Day %1$d · Adapting</string>
+    <string name="plan_day_adapted">Day %1$d · Adapted</string>
+    <string name="plan_day_upcoming">Starts %1$s</string>
+    <string name="plan_day_complete">Trip complete</string>
+    <string name="plan_body_behind">body %1$s behind</string>
+    <string name="plan_body_ahead">body %1$s ahead</string>
+    <string name="plan_body_in_sync">body in sync</string>
+    <string name="plan_body_thinks">Your body thinks it\'s %1$s</string>
+    <string name="plan_night_safe_chip">Night-safe</string>
+    <string name="plan_night_safe_description">Night-safe mode: the screen is dimmed because your plan says rest</string>
+
+    <!-- Now card -->
+    <string name="plan_now">Now</string>
+    <string name="plan_previewing">At %1$s</string>
+    <string name="plan_until">until %1$s</string>
+    <string name="plan_at">at %1$s</string>
+    <string name="plan_until_label">until</string>
+    <string name="plan_at_label">at</string>
+    <string name="plan_left">%1$s left</string>
+    <string name="plan_done">Done</string>
+    <string name="plan_more_outcomes">More choices</string>
+    <string name="plan_skipped">Skipped</string>
+    <string name="plan_cant_do">Can\'t do this</string>
+    <string name="plan_snooze">Snooze 15 min</string>
+    <string name="plan_logged_done">Marked done. Nicely done.</string>
+    <string name="plan_logged_skipped">Marked skipped. No guilt: the plan carries on.</string>
+    <string name="plan_logged_cant">Noted. Missing one block costs a little time; the rest still works.</string>
+    <string name="plan_snoozed">Quiet for 15 minutes</string>
+    <!-- Konami-code easter egg (swipe ↑↑↓↓←→←→ on the plan). -->
+    <string name="plan_eight_bit_on">8-bit mode. Insert coin to continue.</string>
+    <string name="plan_eight_bit_exit">Exit</string>
+    <string name="plan_undo">Undo</string>
+    <string name="plan_free_time">Free time</string>
+    <string name="plan_free_time_body">Nothing to do right now. Live your life.</string>
+    <string name="plan_next_at">Next: %1$s at %2$s</string>
+    <string name="plan_flight_lands">lands %1$s</string>
+    <string name="plan_outcome_done">Done</string>
+    <string name="plan_outcome_skipped">Skipped</string>
+    <string name="plan_outcome_cant">Couldn\'t</string>
+    <string name="plan_duration_h_m">%1$d h %2$d min</string>
+    <string name="plan_duration_h">%1$d h</string>
+    <string name="plan_duration_m">%1$d min</string>
+    <string name="plan_up_next">Up next</string>
+    <string name="plan_also_now">Also now: %1$s</string>
+
+    <!-- Adaptation -->
+    <string name="plan_adapted_percent">%1$d%% adapted</string>
+    <plurals name="plan_days_to_go">
+        <item quantity="one">about %d day to go</item>
+        <item quantity="other">about %d days to go</item>
+    </plurals>
+    <string name="plan_less_than_a_day">less than a day to go</string>
+    <plurals name="plan_without_plan">
+        <item quantity="one">Without a plan it would take about %d day.</item>
+        <item quantity="other">Without a plan it would take about %d days.</item>
+    </plurals>
+    <string name="plan_adapted_line">Your body clock is on %1$s time.</string>
+    <string name="plan_adaptation_upcoming">Adapting starts with your first pre-trip day.</string>
+    <string name="plan_no_shift_title">No jet lag expected. Enjoy the trip.</string>
+    <string name="plan_no_shift_body">%1$s and %2$s keep nearly the same hours. Keep your usual sleep, %3$s to %4$s local time, and get some daylight in the morning.</string>
+    <string name="plan_stay_home_title">Short trip: staying on home time</string>
+    <string name="plan_stay_home_body">You\'re back before your body could settle, so the plan keeps your clock on %1$s time. Sleep on home hours where you can, and use light to stay sharp.</string>
+    <string name="plan_upcoming_title">Your plan starts %1$s</string>
+    <string name="plan_upcoming_body">Nothing to do yet. First up: %1$s, %2$s at %3$s.</string>
+    <string name="plan_complete_title">Trip complete</string>
+    <string name="plan_complete_body">Done\u00A0%1$d · Skipped\u00A0%2$d · Couldn\'t\u00A0do\u00A0%3$d</string>
+    <string name="plan_complete_adapted">You landed on %1$s time. Safe travels home.</string>
+
+    <!-- Rail -->
+    <string name="plan_rail_title">Your plan</string>
+    <plurals name="plan_earlier_days">
+        <item quantity="one">Show %d earlier day</item>
+        <item quantity="other">Show %d earlier days</item>
+    </plurals>
+    <string name="plan_hide_earlier">Hide earlier days</string>
+    <string name="plan_rail_now">Now · %1$s</string>
+    <string name="plan_day_kind_pre">Pre-trip</string>
+    <string name="plan_day_kind_travel">Travel</string>
+    <string name="plan_day_kind_arrival">Arrival</string>
+    <string name="plan_day_kind_adapted">Adapted</string>
+    <string name="plan_day_header_pre">Pre-trip %1$s</string>
+    <string name="plan_day_header_travel">Travel day</string>
+    <string name="plan_day_header_day">Day %1$d</string>
+    <string name="plan_day_header_adapted">Day %1$d · Adapted</string>
+    <string name="plan_today">Today</string>
+    <string name="plan_flight_route">%1$s → %2$s</string>
+    <string name="plan_time_range">%1$s – %2$s</string>
+    <string name="plan_block_description">%1$s, %2$s to %3$s</string>
+    <string name="plan_moment_description">%1$s at %2$s</string>
+    <string name="plan_open_why">Why?</string>
+    <string name="plan_footer">Not medical advice. Healthy adults only; not for flight crew on duty.</string>
+
+    <!-- Toolbar -->
+    <string name="plan_toolbar_now">Now</string>
+    <string name="plan_toolbar_day">Day</string>
+    <string name="plan_toolbar_why">Why?</string>
+    <string name="plan_toolbar_label">Plan tools</string>
+
+    <!-- Why sheet -->
+    <string name="plan_why_heading">Why</string>
+    <string name="plan_why_how">How</string>
+    <string name="plan_why_skip">If you skip it</string>
+    <string name="plan_why_skip_body">One missed block is fine: adapting just takes a little longer. Pick it back up at the next one.</string>
+    <string name="plan_why_evidence">The science</string>
+    <string name="plan_not_medical">Not medical advice. If you have a health condition, are pregnant or take medication, talk to a doctor before changing your sleep or using melatonin.</string>
+    <string name="plan_why_free">Nothing is scheduled right now, so there\'s nothing to explain. Enjoy it.</string>
+
+    <string name="plan_reason_light_advances">Light now lands just after your body clock\'s low point, which nudges the clock earlier. That\'s exactly the direction you need to go.</string>
+    <string name="plan_reason_light_delays">Light now lands just before your body clock\'s low point, which nudges the clock later. That\'s exactly the direction you need to go.</string>
+    <string name="plan_reason_avoid_counter">Light now would push your body clock the wrong way and undo some progress. A little darkness here protects the shift.</string>
+    <string name="plan_reason_melatonin_advances">A small dose of melatonin in the afternoon or evening tells your body night is coming sooner, which moves the clock earlier.</string>
+    <string name="plan_reason_melatonin_delays">Melatonin in the morning nudges your clock later. Keep the dose small.</string>
+    <string name="plan_reason_shifted_sleep">This sleep is timed to your shifting body clock, halfway between your old schedule and the new one. Meeting it in the middle makes the move smoother.</string>
+    <string name="plan_reason_destination_sleep">Sleeping during your destination\'s night anchors your body clock to local time.</string>
+    <string name="plan_reason_stay_home">Your trip is short, so the plan keeps your body clock on home time instead of moving it twice.</string>
+    <string name="plan_reason_alertness">Caffeine helps you stay sharp now and wears off before your next sleep.</string>
+    <string name="plan_reason_protect_sleep">Caffeine lingers for hours. Skipping it now protects your next sleep.</string>
+    <string name="plan_reason_circadian_low">This is your body clock\'s low point while you\'re awake: reactions slow down and focus drifts. Avoid driving if you can.</string>
+    <string name="plan_reason_sleep_pressure">A short nap takes the edge off without anchoring you to the old time zone. Keep it short so tonight\'s sleep stays deep.</string>
+    <string name="plan_reason_travel">Your flight. The cards around it make the time in the air work for you.</string>
+    <string name="plan_reason_rest_in_flight">It\'s night for your body. If you can\'t sleep on planes, rest in the dark with an eye mask: darkness still helps the shift.</string>
+
+    <string name="plan_how_bright_light">Go outside if you can; even a cloudy sky beats indoor light. No sunglasses. Stuck indoors? Sit by a window with every light on.</string>
+    <string name="plan_how_light">Avoid dim rooms. Ordinary daylight or bright indoor light is enough. No sunglasses.</string>
+    <string name="plan_how_avoid_light">Dark sunglasses on, even indoors, even if it feels silly. Especially if it feels silly. Dim your screens and keep away from windows.</string>
+    <string name="plan_how_sleep">Cool, dark and quiet. An eye mask and earplugs help. If you can\'t sleep, just stay in the dark.</string>
+    <string name="plan_how_nap">Set an alarm. A short nap refreshes; a long one steals from tonight.</string>
+    <string name="plan_how_optional_nap">Only if you\'re tired. Keep it short and set an alarm.</string>
+    <string name="plan_how_melatonin">Take the type and dose you\'ve agreed with your doctor. Don\'t drive for a few hours afterwards.</string>
+    <string name="plan_how_caffeine">Little and often: a small coffee or tea every couple of hours works better than one big cup.</string>
+    <string name="plan_how_avoid_caffeine">Switch to water, herbal tea or decaf until your next sleep.</string>
+    <string name="plan_how_peak_fatigue">Take it easy. Avoid driving and big decisions if you can; a short walk helps.</string>
+    <string name="plan_how_flight">Follow the cards that run during the flight: they say when to sleep and when to keep the window shade up.</string>
+
+    <string name="plan_evidence_light">Based on the human phase response curve to light (Khalsa et al. 2003; St Hilaire et al. 2012).</string>
+    <string name="plan_evidence_avoid">Light on the wrong side of the phase response curve moves the clock the wrong way (Khalsa et al. 2003).</string>
+    <string name="plan_evidence_melatonin">Based on the phase response curve to melatonin (Burgess et al. 2010).</string>
+    <string name="plan_evidence_sleep">Shifting sleep gradually around travel speeds up adaptation (Eastman &amp; Burgess 2009).</string>
+    <string name="plan_evidence_stay_home">For trips of a few days, staying on home time avoids two rounds of jet lag (Waterhouse et al. 2007).</string>
+    <string name="plan_evidence_caffeine">Caffeine\'s half-life is 3–5 hours; caffeine even 6 hours before bed shortens sleep (Drake et al. 2013).</string>
+    <string name="plan_evidence_low">Alertness bottoms out near the body temperature minimum (Dijk &amp; Czeisler 1995).</string>
+    <string name="plan_evidence_nap">Short naps relieve sleep pressure with little effect on the body clock (Lovato &amp; Lack 2010).</string>
+    <string name="plan_evidence_travel">Times come from your flight details, in each airport\'s local time.</string>
+    <string name="plan_evidence_rest">Darkness at the right time protects the shift even without sleep (Eastman &amp; Burgess 2009).</string>
+
+    <!-- Celebration -->
+    <string name="plan_celebration_title">Clockblocked.</string>
+    <string name="plan_celebration_body">Your body is on %1$s time.</string>
+    <plurals name="plan_celebration_saved">
+        <item quantity="one">About %d day faster than going it alone.</item>
+        <item quantity="other">About %d days faster than going it alone.</item>
+    </plurals>
+    <string name="plan_celebration_dismiss">Lovely</string>
+
+    <!-- Easter eggs -->
+    <string name="plan_rewind">Clockblocked. If only it were that easy.</string>
+    <string name="plan_moon_tip">Midnight snack? Your gut has a clock too.</string>
+    <string name="plan_moon_target">The moon</string>
+
+    <!-- Share summary -->
+    <string name="plan_share_header">%1$s: jet lag plan</string>
+    <string name="plan_share_shift">Body clock shift: %1$s. Estimated %2$s days to adapt with the plan.</string>
+    <string name="plan_share_footer">Made with Opus Clockblock. Not medical advice.</string>
+</resources>

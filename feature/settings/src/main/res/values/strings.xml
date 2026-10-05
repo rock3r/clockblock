@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+
+    <string name="settings_section_profile">Your profile</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_reminders">Reminders</string>
+    <string name="settings_section_data">Your data</string>
+    <string name="settings_section_more">More</string>
+
+    <string name="settings_home">Home time zone</string>
+    <string name="settings_home_value">%1$s · %2$s</string>
+    <string name="settings_home_dialog_title">Where\'s home?</string>
+    <string name="settings_home_dialog_body">Your plans start from this clock. Search for a city or airport.</string>
+    <string name="settings_home_search">Search a city or airport</string>
+    <string name="settings_home_no_results">Nothing matches “%1$s”.</string>
+    <string name="settings_home_result_description">%1$s, %2$s, time zone %3$s</string>
+    <string name="settings_sleep">Usual sleep</string>
+    <string name="settings_sleep_value">%1$s–%2$s · %3$s</string>
+    <string name="settings_sleep_dialog_title">When do you usually sleep?</string>
+    <string name="settings_chronotype">Chronotype</string>
+    <string name="settings_chronotype_dialog_title">Lark, owl, or in between?</string>
+    <string name="settings_tools">Tools</string>
+    <string name="settings_effort">How hard the plan pushes</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_close">Close</string>
+
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic colour</string>
+    <string name="settings_dynamic_color_description">Take colours from your wallpaper. Advice colours stay the same.</string>
+    <string name="settings_reduce_motion">Reduce motion</string>
+    <string name="settings_reduce_motion_description">Calmer transitions and still illustrations, on top of the system setting.</string>
+    <string name="settings_night_safe">Night-safe automatically</string>
+    <string name="settings_night_safe_description">Dim, dark and calm while the plan says avoid light or sleep.</string>
+    <string name="settings_opus_mode">Opus mode</string>
+    <string name="settings_opus_mode_description">Concert hall theme: black, gold and serifs. You earned it.</string>
+
+    <string name="settings_reminders_enabled">Reminders</string>
+    <string name="settings_reminders_enabled_description">A quiet nudge before each change in your plan.</string>
+    <string name="settings_lead">How early</string>
+    <string name="settings_lead_option">%1$d min</string>
+    <string name="settings_lead_at_start">On time</string>
+    <string name="settings_lead_description_zero">Right when each window starts.</string>
+    <string name="settings_lead_description">%1$d minutes before each window starts.</string>
+    <string name="settings_permissions">What Android allows</string>
+    <string name="settings_perm_notifications">Notifications</string>
+    <string name="settings_perm_notifications_description">Without this, reminders can\'t show at all.</string>
+    <string name="settings_perm_exact">Exact timing</string>
+    <string name="settings_perm_exact_description">Without it, reminders may arrive up to 10 minutes late.</string>
+    <string name="settings_perm_live">Live Updates</string>
+    <string name="settings_perm_live_description">Travel-day progress in the status bar. Otherwise a normal notification.</string>
+    <string name="settings_perm_battery">Battery optimisation</string>
+    <string name="settings_perm_battery_description">Optional. Helps on phones that are strict about background work.</string>
+    <string name="settings_perm_allowed">Allowed</string>
+    <string name="settings_perm_allow">Allow</string>
+    <string name="settings_perm_fix">Open settings</string>
+    <string name="settings_test_reminder">Send a test reminder</string>
+    <string name="settings_send">Send</string>
+    <string name="settings_test_reminder_description">See what a nudge looks like, and check it arrives.</string>
+
+    <string name="settings_export">Export a backup</string>
+    <string name="settings_export_description">Profile, settings, trips and check-ins, as a JSON file you keep.</string>
+    <string name="settings_import">Import a backup</string>
+    <string name="settings_import_description">Restore from a file made by this app.</string>
+    <string name="settings_import_dialog_title">Import this backup?</string>
+    <plurals name="settings_import_dialog_trips">
+        <item quantity="one">%1$d trip, exported %2$s.</item>
+        <item quantity="other">%1$d trips, exported %2$s.</item>
+    </plurals>
+    <string name="settings_import_dialog_body">Replace makes this phone match the backup exactly: trips that aren\'t in it are deleted. Merge adds the backup\'s trips and keeps everything else.</string>
+    <string name="settings_import_replace">Replace</string>
+    <string name="settings_import_merge">Merge</string>
+
+    <string name="settings_replay">Replay setup</string>
+    <string name="settings_replay_description">Walk through the first-run questions again.</string>
+    <string name="settings_about">About Opus Clockblock</string>
+    <string name="settings_about_description">How it works, the science, licences.</string>
+
+    <string name="settings_event_exported">Backup saved.</string>
+    <string name="settings_event_export_failed">Couldn\'t save the backup. Try another location.</string>
+    <plurals name="settings_event_imported">
+        <item quantity="one">Imported %1$d trip.</item>
+        <item quantity="other">Imported %1$d trips.</item>
+    </plurals>
+    <string name="settings_event_not_backup">That file isn\'t an Opus Clockblock backup.</string>
+    <string name="settings_event_newer">That backup is from a newer version. Update the app, then try again.</string>
+    <string name="settings_event_unreadable">Couldn\'t read that file.</string>
+    <string name="settings_event_test_sent">Test reminder sent. Check your notifications.</string>
+    <string name="settings_event_test_blocked">Notifications are off, so nothing can show. Allow them first.</string>
+
+    <!-- About -->
+    <string name="about_title">About</string>
+    <string name="about_app_name">Opus Clockblock</string>
+    <string name="about_tagline">A jet lag planner that lives entirely on your phone. Free, open source, no account.</string>
+    <string name="about_version">Version</string>
+    <string name="about_version_unknown">Development build</string>
+    <plurals name="about_taps_away">
+        <item quantity="one">You are %1$d tap away from a concert.</item>
+        <item quantity="other">You are %1$d taps away from a concert.</item>
+    </plurals>
+    <string name="about_already_unlocked">The concert is already on. Find Opus mode in Settings › Appearance.</string>
+
+    <string name="about_how_title">How it works</string>
+    <string name="about_how_clock_title">One clock to track</string>
+    <string name="about_how_clock_body">The plan follows your body clock as a single time: the low point of your core temperature, a few hours before you usually wake. Your sleep times and chronotype set where it starts.</string>
+    <string name="about_how_light_title">Light does the heavy lifting</string>
+    <string name="about_how_light_body">Light in the hours after that low point moves your clock earlier; light in the hours before it moves it later. That\'s why the plan sometimes asks for sunglasses at noon.</string>
+    <string name="about_how_pace_title">A realistic pace</string>
+    <string name="about_how_pace_body">Clocks shift about an hour a day earlier and up to two hours a day later, so the plan never asks for more. Going east, it may choose the long way round if that\'s kinder.</string>
+    <string name="about_how_extras_title">Sleep, caffeine and melatonin</string>
+    <string name="about_how_extras_body">Sleep moves with your clock. Caffeine keeps you sharp in the body\'s night, with a cut-off well before bed. Melatonin, if you switch it on, is a small 0.5 mg dose, and only for shifting earlier.</string>
+    <string name="about_how_check_title">Checked against models</string>
+    <string name="about_how_check_body">Every plan is tested against two published mathematical models of the human body clock, to make sure it shifts you the right way, faster than doing nothing.</string>
+    <string name="about_refs_title">Built on</string>
+    <string name="about_ref_1">Eastman &amp; Burgess (2009). How to travel the world without jet lag.</string>
+    <string name="about_ref_2">Khalsa et al. (2003); St Hilaire et al. (2012). Human phase response curves to light.</string>
+    <string name="about_ref_3">Burgess et al. (2008, 2010). Phase response curves to melatonin.</string>
+    <string name="about_ref_4">Roenneberg et al. (2003, 2007). Chronotype and mid-sleep on free days.</string>
+    <string name="about_ref_5">Forger, Jewett &amp; Kronauer (1999); Hannay, Booth &amp; Forger (2019). Models of the circadian pacemaker.</string>
+    <string name="about_ref_6">Czeisler et al. (1999). The human body clock runs at about 24.2 hours.</string>
+
+    <string name="about_disclaimer_title">Not medical advice</string>
+    <string name="about_disclaimer_body">Opus Clockblock gives general information about timing light, sleep and caffeine. It isn\'t a diagnosis or treatment, and it\'s meant for healthy adults, not flight crew on duty.</string>
+    <string name="about_disclaimer_melatonin">Melatonin is a medicine in many countries. Talk to a doctor or pharmacist first, especially if you are pregnant, take other medicines or have a long-term condition.</string>
+    <string name="about_disclaimer_drive">Don\'t drive when you\'re short on sleep, whatever the plan says.</string>
+
+    <string name="about_source">Source code</string>
+    <string name="about_source_description">github.com/rock3r/opus-clockblock</string>
+    <string name="about_licenses">Licences</string>
+    <string name="about_licenses_description">The app, fonts, data and libraries.</string>
+    <string name="about_privacy">No servers, no analytics, no account. Your trips never leave this phone unless you export them.</string>
+
+    <string name="opus_title_kicker">Now performing</string>
+    <string name="opus_title_card">Opus No. 1 in Jet-Lag Minor.</string>
+    <string name="opus_title_body">Concert mode is on. Switch it off any time in Settings › Appearance.</string>
+    <string name="opus_title_dismiss">Bravo</string>
+
+    <!-- Licences -->
+    <string name="licenses_title">Licences</string>
+    <string name="licenses_intro">Opus Clockblock stands on other people\'s generous work. Thank you.</string>
+    <string name="licenses_section_app">The app</string>
+    <string name="licenses_section_fonts">Fonts</string>
+    <string name="licenses_section_icons">Icons</string>
+    <string name="licenses_section_data">Data</string>
+    <string name="licenses_section_libraries">Libraries</string>
+    <string name="licenses_app_name">Opus Clockblock</string>
+    <string name="licenses_app_detail">Source code, illustrations and docs.</string>
+    <string name="licenses_google_sans_flex">Google Sans Flex</string>
+    <string name="licenses_google_sans_flex_detail">The interface typeface. © Google LLC.</string>
+    <string name="licenses_fraunces">Fraunces</string>
+    <string name="licenses_fraunces_detail">The editorial serif. © The Fraunces Project Authors (Undercase Type).</string>
+    <string name="licenses_material_symbols">Material Symbols Rounded</string>
+    <string name="licenses_material_symbols_detail">A handful of interface icons. © Google LLC.</string>
+    <string name="licenses_ourairports">OurAirports</string>
+    <string name="licenses_ourairports_detail">Airport names, codes and locations.</string>
+    <string name="licenses_mwgg">mwgg/Airports</string>
+    <string name="licenses_mwgg_detail">Airport time zones. © mwgg and contributors.</string>
+    <string name="licenses_tzdb">IANA Time Zone Database</string>
+    <string name="licenses_tzdb_detail">Every time zone rule, via java.time.</string>
+    <string name="licenses_androidx">AndroidX and Jetpack Compose</string>
+    <string name="licenses_androidx_detail">Compose, Material 3, Navigation 3, DataStore, Lifecycle. © The Android Open Source Project.</string>
+    <string name="licenses_kotlin">Kotlin and kotlinx</string>
+    <string name="licenses_kotlin_detail">The language, coroutines, serialization and immutable collections. © JetBrains s.r.o. and contributors.</string>
+    <string name="licenses_metro">Metro</string>
+    <string name="licenses_metro_detail">Compile-time dependency injection. © Zac Sweers.</string>
+    <string name="license_apache2">Apache License 2.0</string>
+    <string name="license_ofl">SIL Open Font License 1.1</string>
+    <string name="license_mit">MIT License</string>
+    <string name="license_public_domain">Public domain</string>
+</resources>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static "Two Clocks" dial for initial / preview layouts (24 h, noon at the top). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Local ring -->
+    <path
+        android:pathData="M3,50 a47,47 0 1,0 94,0 a47,47 0 1,0 -94,0"
+        android:strokeWidth="5"
+        android:strokeColor="@color/widget_track" />
+    <!-- Advice track -->
+    <path
+        android:pathData="M11,50 a39,39 0 1,0 78,0 a39,39 0 1,0 -78,0"
+        android:strokeWidth="6.5"
+        android:strokeColor="@color/widget_track" />
+    <!-- Body ring -->
+    <path
+        android:pathData="M20,50 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0"
+        android:strokeWidth="3.5"
+        android:strokeColor="@color/widget_body_ring" />
+    <!-- See bright light 09-12 -->
+    <path
+        android:pathData="M22.42,22.42 A39,39 0 0,1 50,11"
+        android:strokeWidth="6.5"
+        android:strokeColor="@color/widget_marigold" />
+    <!-- Avoid light 15-18 -->
+    <path
+        android:pathData="M77.58,22.42 A39,39 0 0,1 89,50"
+        android:strokeWidth="6.5"
+        android:strokeColor="@color/widget_plum_container" />
+    <path
+        android:pathData="M78.2,26.5 L82.5,23.6 M81.9,31.5 L86.1,29 M84.6,37 L88.7,35.1 M86.4,43 L90.3,41.7"
+        android:strokeWidth="1"
+        android:strokeLineCap="round"
+        android:strokeColor="@color/widget_plum" />
+    <!-- Sleep 22-06 -->
+    <path
+        android:pathData="M69.5,83.77 A39,39 0 0,1 11,50"
+        android:strokeWidth="6.5"
+        android:strokeColor="@color/widget_midnight" />
+    <!-- Body night -->
+    <path
+        android:pathData="M21.02,57.76 A30,30 0 0,1 57.76,21.02"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:strokeColor="@color/widget_midnight" />
+    <!-- Hand -->
+    <path
+        android:pathData="M80.49,37.37 L89.73,33.54"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:strokeColor="@color/widget_on_surface" />
+    <path
+        android:pathData="M88.6,32.01 a4.8,4.8 0 1,0 9.6,0 a4.8,4.8 0 1,0 -9.6,0"
+        android:fillColor="@color/widget_on_surface" />
+    <path
+        android:pathData="M89.8,32.01 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0"
+        android:fillColor="@color/widget_marigold" />
+</vector>

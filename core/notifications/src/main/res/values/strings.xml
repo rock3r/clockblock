@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Channel groups -->
+    <string name="notif_group_reminders">Reminders</string>
+    <string name="notif_group_ongoing">Ongoing</string>
+
+    <!-- Channels -->
+    <string name="notif_channel_light">Light</string>
+    <string name="notif_channel_light_desc">When to seek bright light and when to avoid it.</string>
+    <string name="notif_channel_sleep">Sleep &amp; energy</string>
+    <string name="notif_channel_sleep_desc">Bedtime, naps, wake-ups and low-energy warnings. Never rings while you should be asleep, except to wake you.</string>
+    <string name="notif_channel_supplements">Supplements &amp; caffeine</string>
+    <string name="notif_channel_supplements_desc">Melatonin (only if you turned it on) and when coffee helps or hurts.</string>
+    <string name="notif_channel_travel_live">Travel day (live)</string>
+    <string name="notif_channel_travel_live_desc">A live progress bar through your travel day while a step of the plan is active. Silent.</string>
+    <string name="notif_channel_now">Now</string>
+    <string name="notif_channel_now_desc">One quiet, ongoing notification with what to do right now. Updates silently.</string>
+
+    <!-- Advice labels (always shown next to icons) -->
+    <string name="advice_label_see_bright_light">See bright light</string>
+    <string name="advice_label_see_light">See some light</string>
+    <string name="advice_label_avoid_light">Avoid light</string>
+    <string name="advice_label_sleep">Sleep</string>
+    <string name="advice_label_nap">Nap</string>
+    <string name="advice_label_optional_nap">Optional nap</string>
+    <string name="advice_label_melatonin">Melatonin</string>
+    <string name="advice_label_caffeine">Caffeine OK</string>
+    <string name="advice_label_avoid_caffeine">Avoid caffeine</string>
+    <string name="advice_label_peak_fatigue">Peak fatigue</string>
+    <string name="advice_label_flight">In flight</string>
+
+    <!-- Tips: short, precise, kind, occasionally dry -->
+    <string name="advice_tip_see_bright_light">Outside is best. A window seat counts.</string>
+    <string name="advice_tip_see_light">Daylight or a bright room. Don\'t hide in the dark.</string>
+    <string name="advice_tip_avoid_light">Sunglasses on, even if it feels silly. Especially if it feels silly.</string>
+    <string name="advice_tip_sleep">Dark, cool, screens away.</string>
+    <string name="advice_tip_nap">Keep it short. Set an alarm.</string>
+    <string name="advice_tip_optional_nap">Only if you need it. Short beats long.</string>
+    <string name="advice_tip_melatonin">As planned, then keep the lights low.</string>
+    <string name="advice_tip_caffeine">A small coffee helps now. Little and often.</string>
+    <string name="advice_tip_avoid_caffeine">Coffee now would cost you sleep later.</string>
+    <string name="advice_tip_peak_fatigue">Your body clock is at its low. Take care, especially driving.</string>
+    <string name="advice_tip_flight">Settle in. The plan knows you\'re in the air.</string>
+
+    <!-- Now notification -->
+    <string name="now_until">until %1$s</string>
+    <string name="now_then">then %1$s %2$s</string>
+    <string name="now_next">Next: %1$s %2$s</string>
+    <string name="now_nothing">Nothing right now</string>
+    <string name="now_join">%1$s · %2$s</string>
+    <string name="now_in_zone">%1$s: %2$s</string>
+    <string name="now_prefix">Now: %1$s</string>
+    <string name="outcome_done">Done</string>
+    <string name="outcome_skipped">Skipped</string>
+    <string name="outcome_cant_do">Noted, skip it</string>
+
+    <!-- Reminders -->
+    <string name="reminder_upcoming_title">%1$s at %2$s</string>
+    <string name="reminder_now_title">%1$s now</string>
+    <string name="reminder_wake_sleep_title">Sleep window over</string>
+    <string name="reminder_wake_nap_title">Nap over</string>
+    <string name="reminder_wake_fallback">Time to get up.</string>
+    <string name="reminder_snoozed_title">Reminder: %1$s</string>
+    <string name="reminder_also">Also: %1$s</string>
+    <string name="reminder_test_title">Test reminder</string>
+    <string name="reminder_test_text">If you can read this, reminders work.</string>
+
+    <!-- Actions -->
+    <string name="action_done">Done</string>
+    <string name="action_cant_do">Can\'t do this</string>
+    <string name="action_snooze">Snooze 15 min</string>
+</resources>

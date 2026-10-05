@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug-only widget gallery (see WidgetGalleryActivity KDoc). -->
+        <activity
+            android:name=".debug.WidgetGalleryActivity"
+            android:exported="true"
+            android:label="Widget gallery"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+    </application>
+</manifest>

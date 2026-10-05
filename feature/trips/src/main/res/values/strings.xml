@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Trips list. Voice: precise, kind, occasionally dry (design.md §2.6). -->
+    <string name="trips_app_title">Opus Clockblock</string>
+    <string name="trips_summary_in_progress">%1$d in progress</string>
+    <string name="trips_summary_upcoming">%1$d upcoming</string>
+    <string name="trips_summary_past">%1$d past</string>
+    <string name="trips_summary_separator">" · "</string>
+    <string name="trips_settings">Settings</string>
+    <string name="trips_section_in_progress">In progress</string>
+    <string name="trips_section_upcoming">Upcoming</string>
+    <string name="trips_section_past">Past</string>
+    <plurals name="trips_section_count">
+        <item quantity="one">%1$s, %2$d trip</item>
+        <item quantity="other">%1$s, %2$d trips</item>
+    </plurals>
+    <string name="trips_section_expanded">Expanded</string>
+    <string name="trips_section_collapsed">Collapsed</string>
+    <string name="trips_section_expand">Show</string>
+    <string name="trips_section_collapse">Hide</string>
+
+    <!-- FAB menu. -->
+    <string name="trips_fab_open">Add a trip</string>
+    <string name="trips_fab_close">Close menu</string>
+    <string name="trips_new_trip">New trip</string>
+    <string name="trips_return_trip">Return from %1$s</string>
+    <string name="trips_demo_trip">Try a demo trip</string>
+
+    <!-- Empty state. -->
+    <string name="trips_empty_headline">Where to next?</string>
+    <string name="trips_empty_body">Add your flights and we\'ll time your light, sleep and caffeine around them. Everything stays on this phone.</string>
+    <string name="trips_empty_plan">Plan a trip</string>
+    <string name="trips_empty_demo">Try a demo trip</string>
+    <string name="trips_empty_art">A suitcase with a clock on its side</string>
+
+    <!-- Trip card. -->
+    <string name="trip_status_today">Starts today</string>
+    <string name="trip_status_tomorrow">Starts tomorrow</string>
+    <plurals name="trip_status_starts_in">
+        <item quantity="one">Starts in %1$d day</item>
+        <item quantity="other">Starts in %1$d days</item>
+    </plurals>
+    <string name="trip_status_adjusting_today">Adjusting · leaves today</string>
+    <string name="trip_status_adjusting_tomorrow">Adjusting · leaves tomorrow</string>
+    <plurals name="trip_status_adjusting">
+        <item quantity="one">Adjusting · leaves in %1$d day</item>
+        <item quantity="other">Adjusting · leaves in %1$d days</item>
+    </plurals>
+    <string name="trip_status_in_the_air">In the air</string>
+    <string name="trip_status_day_of">Day %1$d of %2$d</string>
+    <string name="trip_status_day">Day %1$d</string>
+    <string name="trip_status_adapted">Adapted</string>
+    <string name="trip_status_home_time">Stayed on home time</string>
+    <string name="trip_status_finished">Done</string>
+    <string name="trip_shift_east">%1$s east</string>
+    <string name="trip_shift_west">%1$s west</string>
+    <string name="trip_shift_none">Same time zone</string>
+    <string name="trip_nonstop">nonstop</string>
+    <plurals name="trip_stops">
+        <item quantity="one">%1$d\u00A0stop</item>
+        <item quantity="other">%1$d\u00A0stops</item>
+    </plurals>
+    <string name="trip_time_at">%1$s · %2$s</string>
+    <string name="trip_departs_description">Departs %1$s, %2$s local time in %3$s</string>
+    <string name="trip_arrives_description">Arrives %1$s, %2$s local time in %3$s</string>
+    <string name="trip_adapted_percent">%1$d%% adapted</string>
+    <string name="trip_route_art">Flight path from %1$s to %2$s</string>
+    <string name="trip_more_actions">More actions for %1$s</string>
+    <string name="trip_action_open">Open plan</string>
+    <string name="trip_action_edit">Edit</string>
+    <string name="trip_action_duplicate">Duplicate</string>
+    <string name="trip_action_return">Create return trip</string>
+    <string name="trip_action_delete">Delete</string>
+    <string name="trip_deleted">Trip deleted</string>
+    <string name="trip_undo">Undo</string>
+    <string name="trip_duplicated">Trip duplicated</string>
+    <string name="trip_swipe_delete">Delete</string>
+
+    <!-- Durations. -->
+    <string name="duration_hours_minutes">%1$d h %2$d m</string>
+    <string name="duration_hours">%1$d h</string>
+    <string name="duration_minutes">%1$d m</string>
+    <string name="duration_days_hours">%1$d d %2$d h</string>
+
+    <!-- Editor. -->
+    <string name="editor_title_new">New trip</string>
+    <string name="editor_title_edit">Edit trip</string>
+    <string name="editor_title_return">Return trip</string>
+    <string name="editor_close">Close</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_save_hint">Add airports and times for every flight to save.</string>
+    <string name="editor_save_blocked">Fix the issues marked in red to save.</string>
+    <string name="editor_not_found">This trip no longer exists.</string>
+    <string name="editor_back">Back</string>
+    <string name="editor_leg_title">Flight %1$d</string>
+    <string name="editor_leg_remove">Remove flight %1$d</string>
+    <string name="editor_from">From</string>
+    <string name="editor_to">To</string>
+    <string name="editor_place_placeholder">City, airport or code</string>
+    <string name="editor_place_supporting">%1$s · %2$s · %3$s</string>
+    <string name="editor_place_pick_hint">Pick a match below, or press Enter for the top one</string>
+    <string name="editor_place_no_results">No airport or city matches “%1$s”.</string>
+    <string name="editor_place_result_description">%1$s, %2$s, %3$s, %4$s, %5$s</string>
+    <string name="editor_departs">Departs</string>
+    <string name="editor_arrives">Arrives</string>
+    <string name="editor_local_time_in">local time in %1$s</string>
+    <string name="editor_local_time_origin">local time at departure airport</string>
+    <string name="editor_local_time_destination">local time at arrival airport</string>
+    <string name="editor_date">Date</string>
+    <string name="editor_time">Time</string>
+    <string name="editor_pick_date">Pick date</string>
+    <string name="editor_pick_time">Pick time</string>
+    <string name="editor_field_value">%1$s: %2$s</string>
+    <string name="editor_flight_number">Flight number (optional)</string>
+    <string name="editor_flight_duration">%1$s in the air</string>
+    <string name="editor_day_next">Lands the next day</string>
+    <string name="editor_day_previous">Lands the day before</string>
+    <plurals name="editor_day_later">
+        <item quantity="one">Lands %1$d day later</item>
+        <item quantity="other">Lands %1$d days later</item>
+    </plurals>
+    <string name="editor_add_leg">Add connecting flight</string>
+    <string name="editor_layover">%1$s layover in %2$s</string>
+    <string name="editor_layover_overlap">Overlaps the previous flight</string>
+    <string name="editor_ok">OK</string>
+    <string name="editor_cancel">Cancel</string>
+
+    <!-- Trip details. -->
+    <string name="editor_details">Trip details</string>
+    <string name="editor_trip_title">Title</string>
+    <string name="editor_trip_title_hint">Suggested from your route. Change it if you like.</string>
+    <string name="editor_return">Flying back (optional)</string>
+    <string name="editor_return_hint">Lets us spot short trips. %1$s.</string>
+    <string name="editor_return_clear">Clear return flight</string>
+    <string name="editor_strategy">Body clock</string>
+    <string name="editor_strategy_auto">Auto</string>
+    <string name="editor_strategy_adapt">Adapt</string>
+    <string name="editor_strategy_home">Home time</string>
+    <string name="editor_strategy_auto_explanation">Adapts to your destination, unless you fly back within 72 hours: then you stay on home time.</string>
+    <string name="editor_strategy_adapt_explanation">Moves your body clock to destination time, even for a short stay.</string>
+    <string name="editor_strategy_home_explanation">Keeps your body clock at home. Best for quick trips.</string>
+
+    <!-- I'm delayed. -->
+    <string name="editor_delay_title">I\'m delayed</string>
+    <string name="editor_delay_body">Moves %1$s later. Save and your plan follows.</string>
+    <string name="editor_delay_leg_label">%1$s → %2$s</string>
+    <string name="editor_delay_plus">+%1$s</string>
+    <string name="editor_delay_custom">Custom</string>
+    <string name="editor_delay_custom_title">Delayed by how long?</string>
+    <string name="editor_delay_minutes">Minutes</string>
+    <string name="editor_delay_applied">Moved %1$s by %2$s. Save to update your plan.</string>
+    <string name="editor_delay_flight">this flight</string>
+
+    <!-- Discard. -->
+    <string name="editor_discard_title">Discard changes?</string>
+    <string name="editor_discard_body">Your edits to this trip won\'t be saved.</string>
+    <string name="editor_discard_confirm">Discard</string>
+    <string name="editor_discard_keep">Keep editing</string>
+
+    <!-- Validation. -->
+    <string name="issue_error">Error</string>
+    <string name="issue_warning">Check this</string>
+    <string name="issue_info">Note</string>
+    <string name="issue_same_place">Departs and lands at the same airport.</string>
+    <string name="issue_arrival_before_departure">Lands before it takes off, once both local times are in their own time zones.</string>
+    <string name="issue_too_short">%1$s for %2$s km is faster than any airliner.</string>
+    <string name="issue_too_long">%1$s for %2$s km is unusually long. A stopover? Add it as a connecting flight.</string>
+    <string name="issue_overlap">Departs %1$s before the previous flight lands.</string>
+    <string name="issue_not_connected">The previous flight lands at %1$s, this one leaves from %2$s.</string>
+    <string name="issue_layover_short">Only %1$s to connect. Tight, but possible.</string>
+    <string name="issue_layover_long">A %1$s stopover. That long, it may plan better as two trips.</string>
+    <string name="issue_date_line_back">Crosses the date line: lands the day before it leaves (local dates). That\'s right.</string>
+    <string name="issue_date_line_forward">Crosses the date line: the calendar jumps a day ahead.</string>
+    <string name="issue_date_line_same">Crosses the date line: lands on the same calendar day.</string>
+    <string name="issue_no_flights">Add at least one flight.</string>
+    <string name="fix_next_day">Arrives next day?</string>
+    <string name="fix_previous_day">Arrives the day before?</string>
+    <string name="fix_arrival_at">Arrives %1$s?</string>
+    <string name="fix_depart_from">Depart from %1$s</string>
+</resources>

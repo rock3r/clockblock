@@ -1,0 +1,78 @@
+Opus Clockblock
+Copyright 2026 Sebastiano Poggi and contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It bundles, or is derived from, the third-party works listed below. Each keeps its own licence; the full
+licence texts are in the files referenced here and are shown in the app under About -> Open-source licences.
+
+-------------------------------------------------------------------------------------------------------------
+Fonts (core/designsystem/src/main/res/font)
+-------------------------------------------------------------------------------------------------------------
+
+Google Sans Flex (variable, subset)
+  Copyright 2015 The Google Sans Flex Authors (https://github.com/googlefonts/googlesans-flex)
+  Licensed under the SIL Open Font License, Version 1.1:
+  core/designsystem/licenses/GoogleSansFlex-OFL.txt
+  "Google", "Google Sans" and "Google Sans Flex" are trademarks of Google LLC; see
+  core/designsystem/licenses/GoogleSansFlex-TRADEMARKS.md. Opus Clockblock is not affiliated with or
+  endorsed by Google LLC.
+
+Fraunces (variable, subset)
+  Copyright 2018 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)
+  Licensed under the SIL Open Font License, Version 1.1:
+  core/designsystem/licenses/Fraunces-OFL.txt
+
+How the subsets were made: core/designsystem/licenses/README.md
+
+-------------------------------------------------------------------------------------------------------------
+Icons
+-------------------------------------------------------------------------------------------------------------
+
+Material Symbols (Rounded), by Google
+  A small number of glyphs imported as vector drawables / ImageVectors.
+  Licensed under the Apache License, Version 2.0 (https://github.com/google/material-design-icons).
+
+-------------------------------------------------------------------------------------------------------------
+Data (core/data/src/main/assets/places.tsv, built by tools/places/build_places.py)
+-------------------------------------------------------------------------------------------------------------
+
+OurAirports (https://ourairports.com/data/)
+  Airport codes, names, municipalities, countries, coordinates and types.
+  Released to the Public Domain. Airport data from OurAirports (David Megginson and contributors).
+
+mwgg/Airports (https://github.com/mwgg/Airports)
+  The IANA time zone of each airport.
+  Copyright (c) 2014 mwgg. Licensed under the MIT License; full text in licenses/DATA_ATTRIBUTION.md.
+
+IANA Time Zone Database (https://www.iana.org/time-zones)
+  Time zone rules are read at run time from the device's tz database through java.time. Public domain.
+
+Details: licenses/DATA_ATTRIBUTION.md
+
+-------------------------------------------------------------------------------------------------------------
+Process credits
+-------------------------------------------------------------------------------------------------------------
+
+rock3r/android-ux-skills (https://github.com/rock3r/android-ux-skills)
+  The motion standards and review process behind MOTION.md and docs/motion-review-*.md.
+  Licensed under the Apache License, Version 2.0. No code from it is included in the app.
+
+Circadian science
+  The planner implements published phase-response curves and the Forger, Jewett & Kronauer (1999) and
+  Hannay, Booth & Forger (2019) models of the human circadian pacemaker. Sources are cited in docs/science.md
+  and docs/algorithm.md.
+
+-------------------------------------------------------------------------------------------------------------
+Libraries
+-------------------------------------------------------------------------------------------------------------
+
+The app is built on open-source libraries (AndroidX / Jetpack Compose, Kotlin and kotlinx, Metro, and others),
+each under its own licence, as declared in gradle/libs.versions.toml and listed in the app's licences screen.
+
+-------------------------------------------------------------------------------------------------------------
+Trademarks
+-------------------------------------------------------------------------------------------------------------
+
+"Timeshifter" is a trademark of its owner. Opus Clockblock is an independent project and is not affiliated
+with or endorsed by Timeshifter.

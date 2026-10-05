@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Advice labels: always shown next to glyphs (never an icon alone). -->
+    <string name="advice_label_see_bright_light">See bright light</string>
+    <string name="advice_label_see_light">See some light</string>
+    <string name="advice_label_avoid_light">Avoid light</string>
+    <string name="advice_label_sleep">Sleep</string>
+    <string name="advice_label_nap">Nap</string>
+    <string name="advice_label_optional_nap">Nap if you\'re tired</string>
+    <string name="advice_label_melatonin">Take melatonin</string>
+    <string name="advice_label_caffeine">Caffeine OK</string>
+    <string name="advice_label_avoid_caffeine">Avoid caffeine</string>
+    <string name="advice_label_peak_fatigue">Peak fatigue</string>
+    <string name="advice_label_flight">Flight</string>
+
+    <!-- Short instructions. Voice: precise, kind, occasionally dry (design.md §2.6). -->
+    <string name="advice_instruction_see_bright_light">Outside is best. A window seat counts.</string>
+    <string name="advice_instruction_see_light">Stay out of the dark. Lights on, no sunglasses.</string>
+    <string name="advice_instruction_avoid_light">Sunglasses on, even if it feels silly. Especially if it feels silly.</string>
+    <string name="advice_instruction_sleep">Cool, dark and quiet. If sleep won\'t come, just stay in the dark.</string>
+    <string name="advice_instruction_nap">Keep it short and set an alarm.</string>
+    <string name="advice_instruction_optional_nap">Only if you need it. Twenty minutes is plenty.</string>
+    <string name="advice_instruction_melatonin">The type and dose you chose. No driving afterwards.</string>
+    <string name="advice_instruction_caffeine">Little and often beats one big cup.</string>
+    <string name="advice_instruction_avoid_caffeine">It would still be with you at bedtime.</string>
+    <string name="advice_instruction_peak_fatigue">Your body\'s low point. Take extra care, especially driving.</string>
+    <string name="advice_instruction_flight">Follow the light and sleep cards on board.</string>
+
+    <!-- Two Clocks dial (TalkBack). -->
+    <string name="dial_description_clocks">%1$s local. Your body clock is %2$s.</string>
+    <string name="dial_description_now">Now: %1$s until %2$s.</string>
+    <string name="dial_description_next">Next: %1$s %2$s to %3$s.</string>
+    <string name="dial_description_aligned">Your body clock matches local time.</string>
+    <string name="dial_description_body_behind">Your body clock is %1$s behind local time.</string>
+    <string name="dial_description_body_ahead">Your body clock is %1$s ahead of local time.</string>
+    <string name="dial_action_next_block">Next block</string>
+    <string name="dial_action_previous_block">Previous block</string>
+    <string name="dial_action_back_to_now">Back to now</string>
+    <string name="dial_body_suffix">body</string>
+
+    <!-- Adaptation indicator. -->
+    <string name="adaptation_description">%1$d%% adapted</string>
+    <string name="adaptation_description_remaining">%1$d%% adapted, about %2$s to go</string>
+
+    <!-- Dual time. -->
+    <string name="dual_time_description">%1$s, %2$s in %3$s</string>
+    <string name="day_delta_next">next day</string>
+    <string name="day_delta_previous">previous day</string>
+
+    <!-- Loading. -->
+    <string name="loading_plan">Working out your plan</string>
+</resources>

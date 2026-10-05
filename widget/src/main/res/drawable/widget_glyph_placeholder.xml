@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Avoid light" glyph (sun below the horizon) for initial / preview layouts. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M0,24 a24,24 0 1,0 48,0 a24,24 0 1,0 -48,0"
+        android:fillColor="@color/widget_plum_container" />
+    <path
+        android:pathData="M15.36,27.84 A8.64,8.64 0 0,1 32.64,27.84 Z"
+        android:fillColor="@color/widget_plum" />
+    <path
+        android:pathData="M10.08,29.76 L37.92,29.76 M15.84,34.56 L32.16,34.56"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:strokeColor="@color/widget_plum" />
+</vector>

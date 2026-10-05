@@ -1,0 +1,45 @@
+===== SFO-LHR (2026-06-15, +8h) late
+delta=+8.0h mode=plan direction=advance target_phi=+8.0 T0(home clock)=04:30
+ k= 0 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['07:00-10:30'] avoid=['20:30-23:00'] mel=19:30 caf_ok=07:00-14:00
+ k= 1 home               phi= +1.0 CBTmin=03:30 sleep=22:00-06:00 seek=['06:00-09:30'] avoid=['19:30-22:00'] mel=18:30 caf_ok=06:00-13:00
+ k= 2 home               phi= +2.0 CBTmin=02:30 sleep=21:00-05:00 seek=['05:00-08:30'] avoid=['18:30-21:00'] mel=17:30 caf_ok=05:00-12:00
+ k= 3 home               phi= +3.0 CBTmin=01:30 sleep=20:00-04:00 seek=['04:00-07:30'] avoid=['17:30-20:00'] mel=16:30 caf_ok=04:00-12:00
+ k= 4 flight(dest clock) phi= +3.0 CBTmin=09:30 sleep=04:00-10:00 seek=['10:00-15:30'] avoid=['01:30-04:00'] mel=00:30 caf_ok=10:00-18:00 sleep split/truncated by travel: 27.00-33.00
+ k= 5 dest               phi= +4.5 CBTmin=08:00 sleep=02:00-10:00 seek=['10:00-14:00'] avoid=['00:00-02:00'] mel=23:00 caf_ok=10:00-17:00 sleep clamped by +0.5h
+ k= 6 dest               phi= +6.0 CBTmin=06:30 sleep=01:00-09:00 seek=['09:00-12:30'] avoid=['22:30-01:00'] mel=21:30 caf_ok=09:00-15:30
+ k= 7 dest               phi= +7.5 CBTmin=05:00 sleep=23:30-07:30 seek=['07:30-11:00'] avoid=['21:00-23:30']
+===== LHR-SIN-SYD (2026-11-10, +11h) late
+delta=+11.0h mode=plan direction=delay target_phi=-13.0 T0(home clock)=04:30
+ k= 0 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30'] caf_ok=07:00-18:30 nap=08:00
+ k= 1 home               phi= -1.5 CBTmin=06:00 sleep=00:30-08:30 seek=['00:00-00:30'] avoid=['08:30-14:00'] caf_ok=08:30-20:00 nap=09:30
+ k= 2 home               phi= -3.0 CBTmin=07:30 sleep=02:00-10:00 seek=['01:30-02:00'] avoid=['10:00-15:30'] caf_ok=10:00-20:00 nap=11:00
+ k= 3 home               phi= -3.0 CBTmin=07:30 sleep=02:00-10:00 seek=['01:30-02:00'] avoid=['10:00-15:30'] caf_ok=10:00-20:00 nap=11:00
+ k= 4 flight(dest clock) phi= -3.0 CBTmin=18:30 sleep=13:00-21:00 seek=['12:30-13:00'] avoid=['21:00-02:30'] caf_ok=21:00-14:00 nap=22:00
+ k= 5 dest               phi= -5.0 CBTmin=20:30 sleep=20:00-04:00 seek=['14:30-20:00'] avoid=['04:00-04:30'] caf_ok=04:00-14:00 nap=11:00 sleep clamped by -5.0h
+ k= 6 dest               phi= -7.0 CBTmin=22:30 sleep=20:00-04:00 seek=['16:30-20:00'] avoid=['04:00-06:30'] caf_ok=04:00-14:00 nap=05:00 sleep clamped by -3.0h
+ k= 7 dest               phi= -9.0 CBTmin=00:30 sleep=20:00-04:00 seek=['18:30-20:00'] avoid=['04:00-08:30'] caf_ok=04:00-15:00 nap=05:00 sleep clamped by -1.0h
+ k= 8 dest               phi=-11.0 CBTmin=02:30 sleep=21:00-05:00 seek=['20:30-21:00'] avoid=['05:00-10:30'] caf_ok=05:00-17:00 nap=06:00
+ k= 9 dest               phi=-13.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30']
+===== JFK-LAX (2026-03-20, -3h) late
+delta=-3.0h mode=plan direction=delay target_phi=-3.0 T0(home clock)=04:30
+ k= 0 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30'] caf_ok=07:00-17:00 nap=08:00
+ k= 1 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30'] caf_ok=07:00-17:00 nap=08:00
+ k= 2 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30'] caf_ok=07:00-17:00 nap=08:00
+ k= 3 home               phi= +0.0 CBTmin=04:30 sleep=23:00-05:00 seek=['22:30-23:00'] avoid=['05:00-12:30'] caf_ok=05:00-17:00 nap=06:00 sleep split/truncated by travel: 3.00-9.00
+ k= 4 dest               phi= +0.0 CBTmin=01:30 sleep=20:00-04:00 seek=['19:30-20:00'] avoid=['04:00-09:30'] caf_ok=04:00-16:00 nap=05:00
+ k= 5 dest               phi= -2.0 CBTmin=03:30 sleep=22:00-06:00 seek=['21:30-22:00'] avoid=['06:00-11:30'] caf_ok=06:00-17:00 nap=07:00
+ k= 6 dest               phi= -3.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30']
+===== NRT-JFK (2026-01-15, -14h) late
+delta=+10.0h mode=plan direction=delay target_phi=-14.0 T0(home clock)=04:30
+ k= 0 home               phi= +0.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30'] caf_ok=07:00-18:00 nap=08:00
+ k= 1 home               phi= -1.0 CBTmin=05:30 sleep=00:00-08:00 seek=['23:30-00:00'] avoid=['08:00-13:30'] caf_ok=08:00-18:00 nap=09:00
+ k= 2 home               phi= -1.0 CBTmin=05:30 sleep=00:00-08:00 seek=['23:30-00:00'] avoid=['08:00-13:30'] caf_ok=08:00-18:00 nap=09:00
+ k= 3 home               phi= -1.0 CBTmin=05:30 sleep=00:00-08:00 seek=['23:30-00:00'] avoid=['08:00-13:30'] caf_ok=08:00-10:00 nap=09:00
+ k= 4 dest               phi= -1.0 CBTmin=15:30 sleep=02:00-09:45 seek=['09:45-15:30'] avoid=['15:30-23:30'] caf_ok=09:45-14:00 nap=15:30 sleep clamped by +8.0h;sleep split/truncated by travel: 7.00-14.75
+ k= 5 dest               phi= -3.0 CBTmin=17:30 sleep=20:00-04:00 seek=['11:30-17:30'] avoid=['17:30-20:00'] caf_ok=04:00-14:00 nap=11:00 sleep clamped by -8.0h
+ k= 6 dest               phi= -5.0 CBTmin=19:30 sleep=20:00-04:00 seek=['13:30-19:30'] avoid=['19:30-20:00'] caf_ok=04:00-14:00 nap=11:00 sleep clamped by -6.0h
+ k= 7 dest               phi= -7.0 CBTmin=21:30 sleep=20:00-04:00 seek=['15:30-20:00'] avoid=['04:00-05:30'] caf_ok=04:00-14:00 nap=05:00 sleep clamped by -4.0h
+ k= 8 dest               phi= -9.0 CBTmin=23:30 sleep=20:00-04:00 seek=['17:30-20:00'] avoid=['04:00-07:30'] caf_ok=04:00-14:00 nap=05:00 sleep clamped by -2.0h
+ k= 9 dest               phi=-11.0 CBTmin=01:30 sleep=20:00-04:00 seek=['19:30-20:00'] avoid=['04:00-09:30'] caf_ok=04:00-16:00 nap=05:00
+ k=10 dest               phi=-13.0 CBTmin=03:30 sleep=22:00-06:00 seek=['21:30-22:00'] avoid=['06:00-11:30'] caf_ok=06:00-17:00 nap=07:00
+ k=11 dest               phi=-14.0 CBTmin=04:30 sleep=23:00-07:00 seek=['22:30-23:00'] avoid=['07:00-12:30']

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chrome. -->
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_progress">Step %1$d of %2$d</string>
+    <string name="onboarding_finish">Finish</string>
+
+    <!-- 1. Welcome. -->
+    <string name="welcome_kicker">Opus Clockblock</string>
+    <string name="welcome_headline">Jet lag is two clocks disagreeing.</string>
+    <string name="welcome_body">We help your body clock catch up with the one on the wall: light, sleep and caffeine, timed to the minute.</string>
+    <string name="welcome_badge_offline">Works offline</string>
+    <string name="welcome_badge_free">Free and open source</string>
+    <string name="welcome_badge_private">No account</string>
+    <string name="welcome_disclaimer">General information, not medical advice. For healthy adults; not for flight crew on duty.</string>
+    <string name="welcome_get_started">Get started</string>
+    <string name="welcome_art_description">Two clocks, a sun and a moon, sliding into line</string>
+
+    <!-- 2. Home time zone. -->
+    <string name="home_headline">Where\'s home?</string>
+    <string name="home_body">Every plan starts from your home clock. We picked your phone\'s time zone; change it if that\'s not where your body lives.</string>
+    <string name="home_current_label">Home time zone</string>
+    <string name="home_device_chip">Phone\'s time zone</string>
+    <string name="home_use_device">Use phone\'s time zone</string>
+    <string name="home_search_label">Search a city or airport</string>
+    <string name="home_search_clear">Clear search</string>
+    <string name="home_no_results">Nothing matches \u201c%1$s\u201d. Try a city or a three-letter airport code.</string>
+    <string name="home_result_description">%1$s, %2$s, time zone %3$s</string>
+    <string name="home_local_time">%1$s now · %2$s</string>
+
+    <!-- 3. Sleep. -->
+    <string name="sleep_headline">When do you usually sleep?</string>
+    <string name="sleep_body">Drag the moon to bedtime and the sun to wake-up. Your usual nights, not your best ones.</string>
+    <string name="sleep_bedtime">Bedtime</string>
+    <string name="sleep_wake">Wake</string>
+    <string name="sleep_duration_hours_minutes">%1$d h %2$02d m</string>
+    <string name="sleep_duration_hours">%1$d h</string>
+    <string name="sleep_duration_caption">of sleep</string>
+    <string name="sleep_dial_description">Sleep from %1$s to %2$s, %3$s.</string>
+    <string name="sleep_handle_bedtime_description">Bedtime, %1$s</string>
+    <string name="sleep_handle_wake_description">Wake-up, %1$s</string>
+    <string name="sleep_action_later">15 minutes later</string>
+    <string name="sleep_action_earlier">15 minutes earlier</string>
+    <string name="sleep_noon">Noon</string>
+    <string name="sleep_midnight">Midnight</string>
+    <string name="sleep_hint_short">That\'s a short night. The plan works best with your real, usual sleep.</string>
+    <string name="sleep_hint_long">That\'s a lot of sleep. Lucky you.</string>
+    <string name="sleep_egg_time">24:12</string>
+    <string name="sleep_egg_caption">your body\'s day</string>
+    <string name="sleep_egg_line">Your body\'s day is about 24.2 hours (Czeisler 1999). That\'s why flying west feels easier.</string>
+
+    <!-- 4. Chronotype. -->
+    <string name="chronotype_headline">Lark, owl, or in between?</string>
+    <string name="chronotype_body">On a free day with nothing planned, when would you naturally get going?</string>
+    <string name="chronotype_definite_morning">Early bird</string>
+    <string name="chronotype_definite_morning_description">Up with the sun, fading by 10 pm.</string>
+    <string name="chronotype_moderate_morning">Morning person</string>
+    <string name="chronotype_moderate_morning_description">Mornings are your best hours.</string>
+    <string name="chronotype_intermediate">Somewhere in between</string>
+    <string name="chronotype_intermediate_description">Neither a lark nor an owl. Most people are here.</string>
+    <string name="chronotype_moderate_evening">Evening person</string>
+    <string name="chronotype_moderate_evening_description">Slow mornings, sharp evenings.</string>
+    <string name="chronotype_definite_evening">Night owl</string>
+    <string name="chronotype_definite_evening_description">Midnight is early. Alarms are the enemy.</string>
+    <string name="chronotype_not_sure">Not sure? Work it out from your free days</string>
+    <string name="chronotype_helper_title">Your free days</string>
+    <string name="chronotype_helper_body">With no alarm and nothing planned, when do you fall asleep and wake up?</string>
+    <string name="chronotype_helper_result">Mid-sleep around %1$s. That makes you: %2$s.</string>
+    <string name="chronotype_helper_use">Use this</string>
+    <string name="chronotype_helper_cancel">Cancel</string>
+    <string name="chronotype_helper_source">Based on the Munich ChronoType Questionnaire (Roenneberg 2004), corrected for weekend lie-ins.</string>
+
+    <!-- 5. Tools. -->
+    <string name="tools_headline">Your tools</string>
+    <string name="tools_body">Pick what you\'re happy to use. You can change any of this later in Settings.</string>
+    <string name="tool_caffeine">Caffeine</string>
+    <string name="tool_caffeine_description">Little-and-often coffee to stay sharp, and a cut-off before sleep. If you don\'t drink it, no need to start now.</string>
+    <string name="tool_planes">I can sleep on planes</string>
+    <string name="tool_planes_description">Off means in-flight sleep becomes rest in the dark.</string>
+    <string name="tool_adjust_before">Start adjusting before I leave</string>
+    <string name="tool_adjust_before_description">Shift a little on the days before departure, so you land partly adapted.</string>
+    <string name="tool_melatonin">Melatonin</string>
+    <string name="tool_melatonin_description">Off by default. Read the safety note to switch it on.</string>
+    <string name="tool_melatonin_on_description">A low dose at a precise time, only when it helps shift you earlier.</string>
+    <string name="melatonin_note_title">Before you use melatonin</string>
+    <string name="melatonin_note_show">Read the safety note</string>
+    <string name="melatonin_note_hide">Hide the safety note</string>
+    <string name="melatonin_note_dose">The plan suggests 0.5 mg of fast-release melatonin. More is not better.</string>
+    <string name="melatonin_note_doctor">Check with a doctor or pharmacist first, especially if you are pregnant or breastfeeding, have epilepsy or an autoimmune condition, or take blood thinners, fluvoxamine or immunosuppressants.</string>
+    <string name="melatonin_note_driving">Don\'t drive or operate machinery for several hours after taking it.</string>
+    <string name="melatonin_note_legal">Rules differ by country: over the counter in the US, prescription-only in the UK and Australia, not approved in Japan.</string>
+    <string name="melatonin_note_ack">I\'ve read this and I\'ll check what applies to me</string>
+    <string name="effort_title">How hard should the plan push?</string>
+    <string name="effort_gentle">Gentle</string>
+    <string name="effort_balanced">Balanced</string>
+    <string name="effort_max">Max</string>
+    <string name="effort_gentle_description">Smaller daily shifts and fewer early starts. Takes a little longer.</string>
+    <string name="effort_balanced_description">The research-backed pace. A good default for most trips.</string>
+    <string name="effort_max_description">Every useful light window, so you adapt as fast as the science allows.</string>
+
+    <!-- 6. Reminders. -->
+    <string name="reminders_headline">Reminders that actually arrive</string>
+    <string name="reminders_body">One quiet nudge before each change, timed to the minute. Never while you\'re meant to be asleep, except to wake you.</string>
+    <string name="reminders_notifications">Notifications</string>
+    <string name="reminders_notifications_description">So the plan can tell you when to see light, avoid it or sleep.</string>
+    <string name="reminders_exact">Exact timing</string>
+    <string name="reminders_exact_description">Without it, Android may deliver reminders up to 10 minutes late.</string>
+    <string name="reminders_allow">Allow</string>
+    <string name="reminders_open_settings">Open settings</string>
+    <string name="reminders_granted">On</string>
+    <string name="reminders_allow_finish">Allow and finish</string>
+    <string name="reminders_maybe_later">Maybe later</string>
+    <string name="reminders_later_note">You can turn reminders on any time in Settings.</string>
+    <string name="reminders_art_description">A suitcase with a clock on its side</string>
+</resources>

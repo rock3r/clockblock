@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget picker -->
+    <string name="widget_two_clocks_label">Two Clocks</string>
+    <string name="widget_two_clocks_description">Your local time and your body clock on one 24-hour dial, with today\'s light and sleep windows.</string>
+    <string name="widget_next_up_label">Next up</string>
+    <string name="widget_next_up_description">What to do now for your jet lag plan, until when, and what comes next.</string>
+
+    <!-- Advice labels (always shown next to glyphs) -->
+    <string name="widget_advice_see_bright_light">See bright light</string>
+    <string name="widget_advice_see_light">See some light</string>
+    <string name="widget_advice_avoid_light">Avoid light</string>
+    <string name="widget_advice_sleep">Sleep</string>
+    <string name="widget_advice_nap">Nap</string>
+    <string name="widget_advice_optional_nap">Optional nap</string>
+    <string name="widget_advice_melatonin">Melatonin</string>
+    <string name="widget_advice_caffeine">Caffeine OK</string>
+    <string name="widget_advice_avoid_caffeine">No caffeine</string>
+    <string name="widget_advice_peak_fatigue">Take it easy</string>
+    <string name="widget_advice_flight">Flight</string>
+
+    <!-- States -->
+    <string name="widget_free_time">Free time</string>
+    <string name="widget_no_trip_title">No trip</string>
+    <string name="widget_no_trip_action">Plan one</string>
+    <string name="widget_no_trip_full">No trip — plan one</string>
+    <string name="widget_adapted_title">Clockblocked</string>
+    <string name="widget_adapted_subtitle">Your body is on %1$s time</string>
+    <string name="widget_until">until %1$s</string>
+    <string name="widget_until_then">until %1$s · then %2$s</string>
+    <string name="widget_then">then %1$s</string>
+    <string name="widget_starts_at">%1$s at %2$s</string>
+    <string name="widget_secondary_time">%1$s in %2$s</string>
+    <string name="widget_body_prefix">body</string>
+    <string name="widget_in_sync">in sync</string>
+    <string name="widget_loading">Opus Clockblock</string>
+    <string name="widget_preview_dial_title">Avoid light</string>
+    <string name="widget_preview_dial_detail">until 18:00</string>
+    <string name="widget_preview_subtitle">until 18:00 · then Sleep</string>
+
+    <!-- Accessibility -->
+    <string name="widget_a11y_two_clocks">%1$s local, %2$s for your body. %3$s %4$s</string>
+    <string name="widget_a11y_body_behind">Your body clock is %1$s behind local time.</string>
+    <string name="widget_a11y_body_ahead">Your body clock is %1$s ahead of local time.</string>
+    <string name="widget_a11y_body_in_sync">Your body clock is in sync with local time.</string>
+    <string name="widget_a11y_now">Now: %1$s %2$s.</string>
+</resources>

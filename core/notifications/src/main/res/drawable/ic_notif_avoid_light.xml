@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome notification glyph (24dp grid, white on transparent; the system tints it). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M1,7.5h22V9H1zM3,9.5h7.5v3c0,2.07 -1.68,3.75 -3.75,3.75S3,14.57 3,12.5zM13.5,9.5H21v3c0,2.07 -1.68,3.75 -3.75,3.75S13.5,14.57 13.5,12.5zM10.5,10h3v1.5h-3z" />
+</vector>
