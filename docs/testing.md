@@ -130,6 +130,18 @@ All six jobs run in parallel. Each one reports its own check on the pull request
 | e2e (emulator) | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
 | babysit-pr watcher tests | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
 
+Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
+`.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
+with the runner's own `sdkmanager`.
+
+The Screenshots job runs on macOS, unlike the others, which run on Linux. The goldens are recorded on macOS. On
+Linux, the hatched arcs on the plan dial anti-alias slightly differently, which is enough to fail a pixel-exact
+comparison. A shared runner OS keeps the comparison exact, so a one-glyph regression still fails.
+
+On the API 36 emulator, the e2e test that taps the Two Clocks widget is skipped. Tapping that widget does nothing on
+the API 36 Remote Compose player
+([#2](https://github.com/rock3r/clockblock/issues/2)). It works on API 37.
+
 ## Pull requests and review
 
 All changes reach `main` through pull requests. Before you push, run the same local gate that the PR tooling
