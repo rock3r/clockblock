@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 
+import android.content.res.Resources
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
@@ -11,6 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -20,19 +22,29 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDialog
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,9 +53,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -64,12 +78,16 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -77,14 +95,24 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.toPath
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingMetricText
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
@@ -94,6 +122,7 @@ import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalTime
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.min
@@ -106,6 +135,10 @@ object SleepDialTags {
     const val Bedtime = "sleep_dial_bedtime"
     const val Wake = "sleep_dial_wake"
     const val Egg = "sleep_dial_egg"
+    const val Duration = "sleep_dial_duration"
+    const val BedtimePill = "sleep_dial_bedtime_pill"
+    const val WakePill = "sleep_dial_wake_pill"
+    const val PickerConfirm = "sleep_dial_picker_confirm"
 }
 
 private enum class EggState { Hidden, Peek, Note }
@@ -115,15 +148,20 @@ private enum class EggState { Hidden, Peek, Note }
  * a moon handle for bedtime and a sun handle for wake-up. Drag a handle to move it, or the arc to slide the whole
  * window. Values snap to 5 minutes with a `CLOCK_TICK` haptic every 15.
  *
+ * Under the dial, a bedtime pill and a wake pill show the two times (with AM/PM in 12-hour mode). They follow the
+ * dial live while dragging (no roll, the value changes every frame) and roll their changed digits on discrete
+ * changes (TalkBack, keyboard, the egg's rubber band). Tapping a pill opens a time picker for an exact minute.
+ *
  * Accessibility: each handle is its own adjustable node (TalkBack swipe up/down or the custom actions move it by
- * 15 minutes) and is keyboard-focusable (arrow keys ±15 minutes).
+ * 15 minutes) and is keyboard-focusable (arrow keys ±15 minutes); the pills are buttons that open the picker.
  *
  * Easter egg **24.2** (design.md §2.7 #4, when [easterEggEnabled]): push the wake handle past a full day and
  * "24:12" peeks out with the Czeisler line before the arc rubber-bands back. Under reduce motion the peek and the
  * rubber band are skipped and the line shows as a brief inline note instead (the static carrier).
  *
- * [maxDialSize] caps the ring's diameter (it otherwise fills the width up to 360 dp); pass a smaller value where
- * height is scarce, such as a phone in landscape.
+ * [maxDialSize] caps the ring's diameter (it otherwise fills the width up to 360 dp). [maxHeight], when finite,
+ * shrinks the ring further so the ring plus the time pills fit that height (the pills are measured, so this holds
+ * at any font scale); the ring never goes below 140 dp for it, and the hint line under the pills may scroll.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -133,6 +171,7 @@ fun SleepDial(
     modifier: Modifier = Modifier,
     easterEggEnabled: Boolean = true,
     maxDialSize: Dp = DefaultMaxDialSize,
+    maxHeight: Dp = Dp.Infinity,
 ) {
     val colors = MaterialTheme.colorScheme
     val advice = OpusTheme.adviceColors
@@ -144,6 +183,7 @@ fun SleepDial(
     val formatter = rememberTimeFormatter()
     val view = LocalView.current
     val density = LocalDensity.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val measurer = rememberTextMeasurer(cacheSize = 8)
 
@@ -158,6 +198,7 @@ fun SleepDial(
     val wakeReturn = remember { Animatable(0f) }
     var activeHandle by remember { mutableStateOf<SleepHandle?>(null) }
     var focusedHandle by remember { mutableStateOf<SleepHandle?>(null) }
+    var picking by rememberSaveable { mutableStateOf<SleepHandle?>(null) }
     var egg by remember { mutableStateOf(EggState.Hidden) }
     var eggToken by remember { mutableIntStateOf(0) }
     LaunchedEffect(eggToken) {
@@ -182,14 +223,13 @@ fun SleepDial(
     val description = stringResource(R.string.sleep_dial_description, bedText, wakeText, durationText)
     val laterLabel = stringResource(R.string.sleep_action_later)
     val earlierLabel = stringResource(R.string.sleep_action_earlier)
+    // Readouts follow a drag live; they only roll for discrete changes (MOTION.md: never per-frame values).
+    val rollReadouts = activeHandle == null
+    val durationFormat: (Float) -> String = remember(resources) { { formatDuration(resources, it.roundToInt()) } }
+    val durationTemplate = remember(resources) { formatDuration(resources, DurationTemplateMinutes) }
 
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        BoxWithConstraints(
-            Modifier
-                .widthIn(max = maxDialSize)
-                .fillMaxWidth()
-                .aspectRatio(1f),
-        ) {
+    val dialContent = @Composable {
+        BoxWithConstraints(Modifier) {
             val sidePx = constraints.maxWidth.toFloat()
             Canvas(
                 Modifier
@@ -295,8 +335,13 @@ fun SleepDial(
             }
 
             // Centre readout: duration, or the 24:12 peek. Both lines step down in size on small dials (the
-            // settings editor on a landscape phone) instead of clipping to "7 h 35 / of".
-            Box(Modifier.align(Alignment.Center).width(with(density) { (sidePx * 0.48f).toDp() })) {
+            // settings editor on a landscape phone) instead of clipping to "7 h 35 / of". The duration is sized
+            // for the widest value ("22 h 55 m"), not the current one, so dragging never makes it grow and shrink.
+            val centreWidthPx = (sidePx * 0.48f).roundToInt()
+            val durationStyle = remember(measurer, textStyles.timeHeadline, durationTemplate, centreWidthPx, density) {
+                measurer.fitted(textStyles.timeHeadline.copy(fontSize = 30.sp), listOf(durationTemplate), centreWidthPx, 12.sp)
+            }
+            Box(Modifier.align(Alignment.Center).width(with(density) { centreWidthPx.toDp() })) {
                 AnimatedContent(
                     targetState = egg == EggState.Peek,
                     transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
@@ -304,16 +349,24 @@ fun SleepDial(
                     modifier = Modifier.align(Alignment.Center),
                 ) { peek ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        BasicText(
-                            text = if (peek) stringResource(R.string.sleep_egg_time) else durationText,
-                            style = (if (peek) textStyles.bodyClockDisplay else textStyles.timeHeadline)
-                                .copy(color = if (peek) colors.primary else colors.onSurface, textAlign = TextAlign.Center),
-                            maxLines = 1,
-                            autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = if (peek) 38.sp else 30.sp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(if (peek) Modifier.testTag(SleepDialTags.Egg) else Modifier),
-                        )
+                        if (peek) {
+                            BasicText(
+                                text = stringResource(R.string.sleep_egg_time),
+                                style = textStyles.bodyClockDisplay.copy(color = colors.primary, textAlign = TextAlign.Center),
+                                maxLines = 1,
+                                autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 38.sp),
+                                modifier = Modifier.fillMaxWidth().testTag(SleepDialTags.Egg),
+                            )
+                        } else {
+                            RollingMetricText(
+                                value = durationMinutes.toFloat(),
+                                style = durationStyle,
+                                color = colors.onSurface,
+                                format = durationFormat,
+                                animateChanges = rollReadouts,
+                                modifier = Modifier.testTag(SleepDialTags.Duration),
+                            )
+                        }
                         val caption = MaterialTheme.typography.labelLarge
                         BasicText(
                             text = stringResource(if (peek) R.string.sleep_egg_caption else R.string.sleep_duration_caption),
@@ -380,22 +433,49 @@ fun SleepDial(
                 )
             }
         }
+    }
 
-        Spacer(Modifier.size(12.dp))
-        Row(
-            Modifier.fillMaxWidth().widthIn(max = 360.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            SleepReadout(label = stringResource(R.string.sleep_bedtime), time = bedText, moon = true, glyphColor = sleepRole.color, sunPath = sunPath)
-            SleepReadout(label = stringResource(R.string.sleep_wake), time = wakeText, moon = false, glyphColor = sunColor, sunPath = sunPath)
+    val pillsContent = @Composable {
+        BoxWithConstraints(Modifier) {
+            // Both pills share one fitted style, sized for the widest time this format can show ("10:55 PM"), so
+            // the times never resize while the dial is dragged, at any font scale.
+            val pillInnerPx = with(density) { ((maxWidth - PillGap) / 2 - PillPadding * 2).roundToPx() }
+            val timeTemplates = remember(formatter) { TimeTemplates.map { formatter.formatFull(it) } }
+            val timeStyle = remember(measurer, textStyles.timeTitle, timeTemplates, pillInnerPx, density) {
+                measurer.fitted(textStyles.timeTitle, timeTemplates, pillInnerPx, 12.sp)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PillGap)) {
+                SleepTimePill(
+                    label = stringResource(R.string.sleep_bedtime),
+                    time = window.bedtime,
+                    timeStyle = timeStyle,
+                    animateChanges = rollReadouts,
+                    onClickLabel = stringResource(R.string.sleep_pick_bedtime),
+                    onClick = { picking = SleepHandle.Bedtime },
+                    tag = SleepDialTags.BedtimePill,
+                    modifier = Modifier.weight(1f),
+                ) { drawPath(crescent(size.minDimension / 2f, center), sleepRole.color) }
+                SleepTimePill(
+                    label = stringResource(R.string.sleep_wake),
+                    time = window.wake,
+                    timeStyle = timeStyle,
+                    animateChanges = rollReadouts,
+                    onClickLabel = stringResource(R.string.sleep_pick_wake),
+                    onClick = { picking = SleepHandle.Wake },
+                    tag = SleepDialTags.WakePill,
+                    modifier = Modifier.weight(1f),
+                ) { drawSun(sunPath, center, size.minDimension, sunColor) }
+            }
         }
+    }
 
-        val hint = when {
-            egg != EggState.Hidden -> stringResource(R.string.sleep_egg_line)
-            durationMinutes < ShortSleepMinutes -> stringResource(R.string.sleep_hint_short)
-            durationMinutes > LongSleepMinutes -> stringResource(R.string.sleep_hint_long)
-            else -> null
-        }
+    val hint = when {
+        egg != EggState.Hidden -> stringResource(R.string.sleep_egg_line)
+        durationMinutes < ShortSleepMinutes -> stringResource(R.string.sleep_hint_short)
+        durationMinutes > LongSleepMinutes -> stringResource(R.string.sleep_hint_long)
+        else -> null
+    }
+    val hintContent = @Composable {
         AnimatedVisibility(
             visible = hint != null,
             // One tier: the hint line grows in place, so its fade rides the same container spring as its height.
@@ -407,9 +487,39 @@ fun SleepDial(
                 style = if (egg != EggState.Hidden) textStyles.editorialBody else MaterialTheme.typography.bodyMedium,
                 color = if (egg != EggState.Hidden) colors.primary else colors.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp).widthIn(max = 360.dp),
+                modifier = Modifier.padding(top = 12.dp).widthIn(max = PillsMaxWidth),
             )
         }
+    }
+
+    // Dial, pills, hint. The pills are measured first so the ring takes what [maxHeight] leaves (never less than
+    // MinFitDialSize); the hint is left out of the fit, it appears only for unusual nights and may scroll.
+    Layout(contents = listOf(dialContent, pillsContent, hintContent), modifier = modifier) { (dialM, pillsM, hintM), constraints ->
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else maxDialSize.roundToPx()
+        val pillsWidth = min(width, PillsMaxWidth.roundToPx())
+        val pills = pillsM.map { it.measure(Constraints.fixedWidth(pillsWidth)) }
+        val pillsHeight = pills.maxOfOrNull { it.height } ?: 0
+        val gap = PillsTopGap.roundToPx()
+        val byHeight = if (maxHeight.isFinite) maxHeight.roundToPx() - gap - pillsHeight else Int.MAX_VALUE
+        val side = minOf(width, maxDialSize.roundToPx(), maxOf(byHeight, MinFitDialSize.roundToPx()))
+        val dial = dialM.map { it.measure(Constraints.fixed(side, side)) }
+        val hints = hintM.map { it.measure(Constraints(maxWidth = width)) }
+        val hintHeight = hints.maxOfOrNull { it.height } ?: 0
+        val layoutWidth = constraints.constrainWidth(width)
+        layout(layoutWidth, constraints.constrainHeight(side + gap + pillsHeight + hintHeight)) {
+            dial.forEach { it.place((layoutWidth - it.width) / 2, 0) }
+            pills.forEach { it.place((layoutWidth - it.width) / 2, side + gap) }
+            hints.forEach { it.place((layoutWidth - it.width) / 2, side + gap + pillsHeight) }
+        }
+    }
+
+    picking?.let { handle ->
+        SleepTimePickerDialog(
+            title = stringResource(if (handle == SleepHandle.Bedtime) R.string.sleep_picker_bedtime_title else R.string.sleep_picker_wake_title),
+            initial = if (handle == SleepHandle.Bedtime) window.bedtime else window.wake,
+            onDismiss = { picking = null },
+            onConfirm = { time -> currentOnChange(SleepDialMath.withTime(currentWindow, handle, time)) },
+        )
     }
 }
 
@@ -421,26 +531,105 @@ val DefaultMaxDialSize: Dp = 360.dp
 
 /** A sleep duration as "8 h" / "7 h 30 m". */
 @Composable
-fun formatDuration(minutes: Int): String =
+fun formatDuration(minutes: Int): String = formatDuration(LocalResources.current, minutes)
+
+/** A sleep duration as "8 h" / "7 h 30 m", outside composition (rolling readouts format on the fly). */
+internal fun formatDuration(resources: Resources, minutes: Int): String =
     if (minutes % 60 == 0) {
-        stringResource(R.string.sleep_duration_hours, minutes / 60)
+        resources.getString(R.string.sleep_duration_hours, minutes / 60)
     } else {
-        stringResource(R.string.sleep_duration_hours_minutes, minutes / 60, minutes % 60)
+        resources.getString(R.string.sleep_duration_hours_minutes, minutes / 60, minutes % 60)
     }
 
+/**
+ * A bedtime or wake readout under the dial: glyph and label over the time, as one button that opens the time
+ * picker. TalkBack reads it as "Bedtime, 23:00, button, double-tap to set bedtime".
+ */
 @Composable
-private fun SleepReadout(label: String, time: String, moon: Boolean, glyphColor: Color, sunPath: Path) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Canvas(Modifier.size(14.dp)) {
-                if (moon) drawPath(crescent(size.minDimension / 2f, center), glyphColor) else drawSun(sunPath, center, size.minDimension, glyphColor)
+private fun SleepTimePill(
+    label: String,
+    time: LocalTime,
+    timeStyle: TextStyle,
+    animateChanges: Boolean,
+    onClickLabel: String,
+    onClick: () -> Unit,
+    tag: String,
+    modifier: Modifier = Modifier,
+    glyph: DrawScope.() -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(shape = CircleShape, color = colors.surfaceContainerHigh, modifier = modifier) {
+        Column(
+            Modifier
+                .clip(CircleShape)
+                .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = PillPadding, vertical = 8.dp)
+                .testTag(tag),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(14.dp), onDraw = glyph)
+                Spacer(Modifier.width(6.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Spacer(Modifier.width(6.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            RollingTimeText(time, style = timeStyle, color = colors.onSurface, animateChanges = animateChanges)
         }
-        Text(time, style = OpusTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurface)
     }
 }
+
+/**
+ * M3 time picker in a dialog for one end of the window; 12/24 h follows the system setting. The mode toggle
+ * switches to keyboard entry (TimeInput), the quickest way to type an exact minute.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepTimePickerDialog(title: String, initial: LocalTime, onDismiss: () -> Unit, onConfirm: (LocalTime) -> Unit) {
+    val formatter = rememberTimeFormatter()
+    val state = rememberTimePickerState(initial.hour, initial.minute, is24Hour = formatter.is24Hour)
+    var keyboard by rememberSaveable { mutableStateOf(false) }
+    TimePickerDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(LocalTime.of(state.hour, state.minute))
+                    onDismiss()
+                },
+                modifier = Modifier.testTag(SleepDialTags.PickerConfirm),
+            ) { Text(stringResource(R.string.sleep_picker_ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.sleep_picker_cancel)) } },
+        modeToggleButton = {
+            IconButton(onClick = { keyboard = !keyboard }) {
+                Icon(
+                    painterResource(if (keyboard) R.drawable.onboarding_ic_schedule else R.drawable.onboarding_ic_keyboard),
+                    contentDescription = stringResource(if (keyboard) R.string.sleep_picker_mode_dial else R.string.sleep_picker_mode_keyboard),
+                )
+            }
+        },
+    ) {
+        if (keyboard) TimeInput(state = state) else TimePicker(state = state)
+    }
+}
+
+/** [style] scaled down (never up) so the widest of [templates] fits [maxWidthPx] on one line. */
+private fun TextMeasurer.fitted(style: TextStyle, templates: List<String>, maxWidthPx: Int, minFontSize: TextUnit): TextStyle {
+    val widest = templates.maxOf { measure(it, style, maxLines = 1, softWrap = false).size.width }
+    if (maxWidthPx <= 0 || widest <= maxWidthPx) return style
+    val k = maxWidthPx.toFloat() / widest
+    val fontSize = (style.fontSize.value * k).coerceAtLeast(minFontSize.value)
+    val lineHeight = if (style.lineHeight.isSp) (style.lineHeight.value * fontSize / style.fontSize.value).sp else style.lineHeight
+    return style.copy(fontSize = fontSize.sp, lineHeight = lineHeight)
+}
+
+/** The widest value the duration readout can show (two-digit hours and minutes). */
+private const val DurationTemplateMinutes = 22 * 60 + 55
+
+/** Two-digit hours, morning and evening: the widest times either clock format can show. */
+private val TimeTemplates = listOf(LocalTime.of(10, 55), LocalTime.of(22, 55))
 
 private enum class Handle { Moon, Sun }
 
@@ -594,3 +783,10 @@ private const val ShortSleepMinutes = 5 * 60
 private const val LongSleepMinutes = 12 * 60
 private const val EggHoldMillis = 4_500L
 private val HandleTouchSize = 48.dp
+
+/** The ring never shrinks below this to make room for [SleepDial]'s `maxHeight`. */
+private val MinFitDialSize = 140.dp
+private val PillsTopGap = 12.dp
+private val PillGap = 12.dp
+private val PillPadding = 16.dp
+private val PillsMaxWidth = 360.dp

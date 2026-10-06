@@ -97,6 +97,28 @@ class OnboardingScreenshotTest : OpusScreenshotTest() {
 
     @Test fun remindersLargeFont() =
         step("onboarding_6_reminders_fontscale_1_5", onboardingState(OnboardingStep.Reminders), fontScale = 1.5f)
+
+    @Test fun sleepLargeFont() = step("onboarding_3_sleep_fontscale_1_5", onboardingState(OnboardingStep.Sleep), fontScale = 1.5f)
+
+    @Test fun toolsLargeFont() = step("onboarding_5_tools_fontscale_1_5", onboardingState(OnboardingStep.Tools), fontScale = 1.5f)
+
+    @Test fun toolsAllOn() = step("onboarding_5_tools_all_on", allToolsOn())
+
+    @Test fun toolsAllOnDark() = step("onboarding_5_tools_all_on_dark", allToolsOn(), dark = true)
+
+    private fun allToolsOn() = onboardingState(
+        OnboardingStep.Tools,
+        profile = UserProfile(
+            homeZoneId = "Europe/London",
+            chronotype = Chronotype.ModerateMorning,
+            intensity = Intensity.Balanced,
+            useCaffeine = true,
+            canSleepOnPlanes = true,
+            adjustBeforeDeparture = true,
+            useMelatonin = true,
+        ),
+        melatoninAcknowledged = true,
+    )
 }
 
 /** Expanded window: two panes, art and words on the left, controls on the right. */

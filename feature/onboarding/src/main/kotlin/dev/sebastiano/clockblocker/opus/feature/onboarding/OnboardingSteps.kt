@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -52,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,7 +69,6 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeForma
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeHelperDialog
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
@@ -111,14 +112,14 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
             art = { PillowMoonArt(it, animated = animated) },
             headline = stringResource(R.string.sleep_headline),
             body = stringResource(R.string.sleep_body),
-            compactArt = false,
-        ) {
+        ) { availableHeight ->
+            // The dial takes the height left under the header (measured, so it holds at any font scale), down to a
+            // floor where scrolling is the better trade.
             SleepDial(
                 state.profile.sleep,
                 actions::sleepChange,
                 Modifier.fillMaxWidth().padding(top = 8.dp),
-                // Leave room for the readouts so the whole dial fits without scrolling (phones in landscape).
-                maxDialSize = (it - SleepReadoutAllowance).coerceIn(MinDialSize, DefaultMaxDialSize),
+                maxHeight = (availableHeight - 8.dp).coerceAtLeast(if (wide) 0.dp else CompactMinSleepControls),
             )
         }
         OnboardingStep.Chronotype -> StepLayout(
@@ -174,8 +175,9 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
 }
 
 /**
- * Shared step layout. Compact: one scrolling column (small art, headline, body, controls). Wide: art and words in
- * the left pane, controls in a scrolling right pane.
+ * Shared step layout. Compact: one scrolling column (small art, headline, body, controls); every step has the same
+ * header so the headline never jumps between steps. Wide: art and words in the left pane, controls in a scrolling
+ * right pane. Either way, [controls] gets the height it can use without scrolling.
  */
 @Composable
 private fun StepLayout(
@@ -183,7 +185,6 @@ private fun StepLayout(
     art: @Composable (Modifier) -> Unit,
     headline: String,
     body: String,
-    compactArt: Boolean = true,
     controls: @Composable ColumnScope.(availableHeight: Dp) -> Unit,
 ) {
     if (wide) BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -211,22 +212,53 @@ private fun StepLayout(
                 Column(Modifier.widthIn(max = 560.dp)) { controls(controlsHeight) }
             }
         }
-    } else {
+    } else BoxWithConstraints(Modifier.fillMaxSize()) {
+        val viewport = maxHeight - CompactVerticalPadding * 2
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = CompactVerticalPadding),
         ) {
-            if (compactArt) {
-                art(Modifier.size(88.dp))
-                Spacer(Modifier.size(8.dp))
-            }
-            StepHeadline(headline)
-            Spacer(Modifier.size(8.dp))
-            StepBody(body)
-            Spacer(Modifier.size(24.dp))
-            controls(DefaultMaxDialSize + SleepReadoutAllowance)
+            HeaderThenControls(
+                viewportHeight = viewport,
+                header = {
+                    art(Modifier.size(88.dp))
+                    Spacer(Modifier.size(8.dp))
+                    StepHeadline(headline)
+                    Spacer(Modifier.size(8.dp))
+                    StepBody(body)
+                    Spacer(Modifier.size(24.dp))
+                },
+                controls = controls,
+            )
         }
     }
 }
+
+/**
+ * [header] then [controls], stacked. The header is measured first, so [controls] learns how much of
+ * [viewportHeight] is left under it (at the current font scale and text wrap) before it composes.
+ */
+@Composable
+private fun HeaderThenControls(
+    viewportHeight: Dp,
+    header: @Composable ColumnScope.() -> Unit,
+    controls: @Composable ColumnScope.(availableHeight: Dp) -> Unit,
+) {
+    SubcomposeLayout { constraints ->
+        val loose = constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+        val top = subcompose(HeaderSlot) { Column(Modifier.fillMaxWidth(), content = header) }.map { it.measure(loose) }
+        val topHeight = top.sumOf { it.height }
+        val available = (viewportHeight - topHeight.toDp()).coerceAtLeast(0.dp)
+        val bottom = subcompose(ControlsSlot) { Column(Modifier.fillMaxWidth()) { controls(available) } }.map { it.measure(loose) }
+        val width = (top + bottom).maxOfOrNull { it.width } ?: constraints.minWidth
+        layout(width, topHeight + bottom.sumOf { it.height }) {
+            var y = 0
+            (top + bottom).forEach { it.place(0, y); y += it.height }
+        }
+    }
+}
+
+private const val HeaderSlot = "header"
+private const val ControlsSlot = "controls"
 
 @Composable
 private fun StepHeadline(text: String, style: TextStyle = OpusTheme.textStyles.editorialHeadline) {
@@ -536,5 +568,7 @@ private fun PermissionRow(
 
 private const val WelcomeArtDelayMillis = 450L
 private val ShortPaneHeight: Dp = 480.dp
-private val SleepReadoutAllowance: Dp = 96.dp
-private val MinDialSize: Dp = 140.dp
+private val CompactVerticalPadding: Dp = 16.dp
+
+/** On phones in portrait the dial may scroll rather than shrink below this (dial plus time pills). */
+private val CompactMinSleepControls: Dp = 320.dp
