@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The current block's progress (now → until), as a rounded track with a rounded fill. Both layers are white and
+  tinted at runtime (progressBackgroundTintList / progressTintList) with the advice's container and mark colours.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="3dp" />
+            <solid android:color="@android:color/white" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <scale android:scaleWidth="100%">
+            <shape android:shape="rectangle">
+                <corners android:radius="3dp" />
+                <solid android:color="@android:color/white" />
+            </shape>
+        </scale>
+    </item>
+</layer-list>

@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType.AvoidCaffeine
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.AvoidLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Flight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Melatonin
@@ -21,7 +22,9 @@ import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.longs.shouldBeLessThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -131,14 +134,12 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
-    fun `ongoing Now notification shows label, until and then in the current zone`() = runTest {
+    fun `ongoing Now notification shows label and until, with the other zone as a tail`() = runTest {
         surface.render() shouldBe NowRendering.Ongoing
 
         val n = posted.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light"
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
-        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain
-            "Tokyo: until 02:00 · then Sleep 02:00–10:00"
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · 02:00 Tokyo"
         n.channelId shouldBe OpusChannel.Now.id
         n.category shouldBe Notification.CATEGORY_REMINDER
         (n.flags and Notification.FLAG_ONGOING_EVENT) shouldBe Notification.FLAG_ONGOING_EVENT
@@ -147,6 +148,89 @@ class NowNotificationSurfaceTest {
         n.groupAlertBehavior shouldBe Notification.GROUP_ALERT_SUMMARY
         n.smallIcon.resId shouldBe R.drawable.ic_notif_avoid_light
         n.visibility shouldBe Notification.VISIBILITY_PUBLIC
+    }
+
+    @Test
+    fun `on API 31+ the Now notification is a decorated custom view with chip, until, progress and next`() = runTest {
+        surface.render() shouldBe NowRendering.Ongoing
+
+        val n = posted.shouldNotBeNull()
+        n.extras.getString(Notification.EXTRA_TEMPLATE) shouldBe Notification.DecoratedCustomViewStyle::class.java.name
+        val collapsed = n.contentView.shouldNotBeNull()
+        collapsed.texts(context) shouldContainExactly listOf("Avoid light", "until 18:00")
+        val expanded = n.bigContentView.shouldNotBeNull().texts(context)
+        expanded shouldContain "until 18:00 · 02:00 Tokyo"
+        expanded shouldContain "Next: Sleep at 18:00"
+        // 15:00 is a third of the way through 14:00–17:00.
+        collapsed.inflate(context).findViewById<android.widget.ProgressBar>(R.id.now_progress).progress shouldBe 333
+    }
+
+    /** Issue #43: "until" is the headline's own end; an overlapping block is listed on its own line. */
+    @Test
+    fun `an overlapping block shows as Also now with its own end, never as the headline's until`() = runTest {
+        val caffeine = advice(AvoidCaffeine, "2026-10-10T13:00", "2026-10-10T19:00")
+        plans.current.value = planOf(avoid, caffeine, sleep)
+
+        surface.render()
+
+        val n = posted.shouldNotBeNull()
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · 02:00 Tokyo"
+        val expanded = n.bigContentView.shouldNotBeNull().texts(context)
+        expanded shouldContain "Also now: Avoid caffeine until 20:00"
+        expanded shouldNotContain "until 20:00"
+    }
+
+    @Test
+    fun `a gap says what is next, without a bar`() = runTest {
+        clock.instant = utc("2026-10-10T13:50")
+
+        surface.render() shouldBe NowRendering.Ongoing
+
+        val n = posted.shouldNotBeNull()
+        n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Nothing right now"
+        val views = n.contentView.shouldNotBeNull().inflate(context)
+        views.findViewById<android.view.View>(R.id.now_progress).visibility shouldBe android.view.View.GONE
+        n.contentView.texts(context) shouldContain "Next: Avoid light at 15:00"
+        n.bigContentView.texts(context) shouldContain "Next: Avoid light at 15:00 · 23:00 Tokyo"
+    }
+
+    @Test
+    fun `the bar is kept current by a non-wakeup tick that stops when the notification goes`() = runTest {
+        val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
+
+        surface.render() shouldBe NowRendering.Ongoing
+
+        val tick = alarms.scheduledAlarms.single()
+        tick.type shouldBe android.app.AlarmManager.RTC
+        tick.triggerAtMs shouldBe clock.instant.plus(NowNotificationSurface.PROGRESS_TICK).toEpochMilli()
+        shadowOf(tick.operation).savedIntent.action shouldBe NotificationIntents.progressTickAction(context)
+
+        settings.current.value = AppSettings(remindersEnabled = false)
+        surface.render() shouldBe NowRendering.Hidden
+        alarms.scheduledAlarms.shouldBeEmpty()
+    }
+
+    @Test
+    fun `the travel-day Live Update has no progress tick of its own`() = runTest {
+        val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
+        surface.render() shouldBe NowRendering.Ongoing
+
+        plans.current.value = planOf(flight, avoid, sleep)
+        clock.instant = utc("2026-10-10T14:30")
+        surface.render() shouldBe NowRendering.LiveUpdate
+
+        alarms.scheduledAlarms.shouldBeEmpty()
+    }
+
+    @Test
+    @Config(sdk = [30])
+    fun `below API 31 the Now notification falls back to the standard big-text template`() = runTest {
+        surface.render() shouldBe NowRendering.Ongoing
+
+        val n = posted.shouldNotBeNull()
+        n.extras.getString(Notification.EXTRA_TEMPLATE) shouldBe Notification.BigTextStyle::class.java.name
+        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain "Next: Sleep at 18:00"
+        n.getLargeIcon().shouldNotBeNull()
     }
 
     @Test
@@ -179,7 +263,7 @@ class NowNotificationSurfaceTest {
 
         surface.render()
 
-        posted!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 02:00 · then Sleep 02:00–10:00"
+        posted!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 02:00 · 18:00 London"
     }
 
     @Test
@@ -189,7 +273,7 @@ class NowNotificationSurfaceTest {
         surface.render()
 
         val n = posted.shouldNotBeNull()
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Done · until 18:00 · then Sleep 18:00–02:00"
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Done · until 18:00 · 02:00 Tokyo"
         n.actions.map { it.title.toString() } shouldContainExactly listOf("Undo")
         val undo = shadowOf(n.actions[0].actionIntent).savedIntent
         undo.action shouldBe NotificationIntents.adviceAction(context, AdviceAction.Undo)
@@ -221,9 +305,8 @@ class NowNotificationSurfaceTest {
         withDeviceZone("Europe/Rome") { surface.render() }
 
         val n = posted.shouldNotBeNull()
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 07:00 · then See bright light 07:00–09:00"
-        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain
-            "London: until 15:00 · then See bright light 15:00–17:00"
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 07:00 · 15:00 London"
+        n.bigContentView.texts(context) shouldContain "Next: See bright light at 07:00"
         // No trajectory: the body is on home (Los Angeles) time, like the plan day.
         n.extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString() shouldBe "Body clock in sync"
     }
@@ -239,8 +322,8 @@ class NowNotificationSurfaceTest {
         }
 
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "See bright light at 07:00"
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "07:00–09:00"
-        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain "London: 15:00–17:00"
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "07:00–09:00 · 15:00–17:00 London"
+        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain "15:00–17:00 London"
     }
 
     @Test
@@ -288,8 +371,12 @@ class NowNotificationSurfaceTest {
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight · BA7"
         val public = n.publicVersion.shouldNotBeNull()
         public.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight"
-        public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
-        public.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldNotContain "Tokyo"
+        public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until Sun 00:00"
+        public.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldBe "until Sun 00:00\nNext: Sleep at 18:00"
+        // A plain template: no custom views (they would carry the private text), the flight chip as large icon.
+        public.contentView.shouldBeNull()
+        public.bigContentView.shouldBeNull()
+        public.getLargeIcon().shouldNotBeNull()
         (public.actions ?: emptyArray()).toList().shouldBeEmpty()
     }
 

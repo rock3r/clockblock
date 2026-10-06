@@ -101,10 +101,47 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded: header "Body 2½ h ahead", title "Avoid caffeine", "until 17:00 · then Avoid light 17:00–20:00", the same times in Tokyo, a tip, and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded, in the shade: header "Opus Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00" and "Next: Avoid light at 23:30", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
-The screenshot shows the Now notification expanded in the shade: the current advice, when it stops being the
-headline, what comes next, the same times at the other end of the trip, and the action buttons.
+On Android 12 (API 31) and later, the notification is a `DecoratedCustomViewStyle` with our own content
+([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
+layouts `notif_now_collapsed` / `notif_now_expanded`). The system still draws the icon, the header with the
+body clock, the expand button and the actions. Our part reads top to bottom:
+
+| | Collapsed (48 dp) | Expanded |
+|---|---|---|
+| Glyph | — (the label needs the room at large font sizes) | The headline's glyph on its colour chip |
+| Label and time | "See some light" … "until 19:00" | "See some light", then "until 19:00 · 11:00 Los Angeles" |
+| Progress | A bar from the block's start to its end | Same |
+| Alongside | — | "Also now: Avoid caffeine until Wed 02:00", up to two blocks, each with its own end |
+| Next | — | "Next: Avoid light at 23:30" |
+| Tip | — | The headline's tip, in italics |
+
+"until" is always the headline's **own** end, the same time the app's Now card and the widgets show (#43).
+Blocks that overlap it are never folded into that time: ones already running are listed under "Also now" with
+their own end, and the one that starts next gets the "Next" line, even when it starts before the headline ends.
+In a gap, the title is "Nothing right now" and the line says what's next; the expanded view shows a neutral clock
+chip and neither view has a bar. The collapsed view shows local times only; the expanded one adds the other zone
+as a short tail, kept on one line with no-break spaces.
+
+Newer shades show the app icon where the small icon used to be, so in the shade the expanded chip is what names
+the advice; the small icon (status bar, AOD) is still the advice glyph. Chips and bars use the design system's advice
+colours, light and dark (copied into
+[`NotificationPalette`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationPalette.kt),
+kept in step by `NotificationPaletteTest`), and the shade picks the pair for its theme. Text uses the shade's own
+notification text appearances, so it follows dark mode and the font size. Every glyph sits next to its text
+label and is hidden from TalkBack, which reads the labels; the bar is hidden too, since "until" says the same.
+
+The bar only moves when the notification is rebuilt. Plan boundaries rebuild it anyway; in between, an inexact,
+**non-wakeup** alarm (`AlarmManager.RTC`, every 5 minutes, `NotificationIntents.progressTick`) re-renders it. A
+sleeping phone isn't woken for it: the alarm is delivered the next time the phone wakes up, so the bar (and an
+"Also now" line that changed inside a sleep window) is current when you look. The tick is cancelled whenever the
+Now notification is hidden or becomes the travel-day Live Update. There is no countdown or `setWhen` time: the
+shade would show the device's zone, not the plan's, and a ticking chronometer is noise on a surface you see all
+day.
+
+Below Android 12 the notification falls back to the standard big-text template with the same text (headline,
+"until" line, "Also now", "Next", tip) and the advice chip as its large icon.
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)
@@ -156,7 +193,9 @@ step, so moving to the next plan day's zone counts as a change) and re-renders t
 Every Now notification and reminder carries a public version, built by the same formatter with `redact = true`:
 no flight number, no route, no secondary-zone line, tips or "also", melatonin shown as "Plan step" with a neutral
 icon, and moments as "Unlock to see details". Times and the kind of block stay. The public version has no
-actions, because their set alone can name the advice (Done with Snooze is melatonin). When the user turns on
+actions, because their set alone can name the advice (Done with Snooze is melatonin). It is always the plain
+big-text template, never the custom views (they would carry the private text), with the advice chip as its large
+icon. When the user turns on
 `AppSettings.hideLockScreenDetails` ("Hide details on the lock screen"), the notification's visibility becomes
 `VISIBILITY_PRIVATE`, so Android shows the public version on a secure lock screen whenever the user's system
 setting hides sensitive content. With the setting off (the default), visibility stays public and the full text

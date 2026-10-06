@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.core.notifications
 import android.app.Application
 import android.app.Notification
 import android.content.Context
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -41,14 +42,28 @@ class NotificationFactory(
     /**
      * The standard ongoing "Now" notification. Its header carries the body clock ("Body 3½ h behind").
      *
+     * On API 31+ the content is custom ([NowNotificationViews], inside `DecoratedCustomViewStyle` so the system keeps
+     * its header, expand button and actions): glyph, label, until with the other zone as a tail, a progress bar, and,
+     * expanded, what runs alongside, what's next and a tip. Older APIs, and the redacted lock-screen version, use the
+     * standard template with the same text. Title and text are set either way (accessibility, wearables).
+     *
      * @param redact hide details on the lock screen: the notification becomes `VISIBILITY_PRIVATE` with a public
      *   version that keeps labels and times but drops places, flight numbers and supplements.
      */
     fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val text = formatter(publicText).now(state, plan, now)
-            return ongoingBuilder(OpusChannel.Now, state, text, redacted = redact)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
+            val builder = ongoingBuilder(OpusChannel.Now, state, text, redacted = redact)
+            if (!publicText && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                    .setCustomContentView(NowNotificationViews.collapsed(context, state, text, now))
+                    .setCustomBigContentView(NowNotificationViews.expanded(context, state, text, now))
+            } else {
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
+                    // Melatonin is never the headline (moments get reminders), so the chip never names it.
+                    .setLargeIcon(AdviceChip.bitmap(context, state.headline?.type))
+            }
+            return builder
         }
         return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
@@ -104,6 +119,7 @@ class NotificationFactory(
 
         val builder = ongoingBuilder(OpusChannel.TravelLive, state, text, redacted)
             .setStyle(style)
+            .setLargeIcon(AdviceChip.bitmap(context, state.headline?.type))
             .setRequestPromotedOngoing(capabilities.canPostPromotedNotifications())
         state.until?.let { until ->
             when (val chip = TravelPlanner.chip(until, now)) {
@@ -148,9 +164,10 @@ class NotificationFactory(
         val style = advice.type.style
         val builder = NotificationCompat.Builder(context, style.channel.id)
             .setSmallIcon(iconOf(advice.type, redacted))
+            .setLargeIcon(AdviceChip.bitmap(context, advice.type.takeUnless { redacted && it == AdviceType.Melatonin }))
             .setColor(style.color)
             .setContentTitle(text.title)
-            .setContentText(text.text)
+            .setContentText(text.line)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -222,7 +239,7 @@ class NotificationFactory(
             .setSmallIcon(headline?.type?.let { iconOf(it, redacted) } ?: R.drawable.ic_notif_clock)
             .setColor(headline?.type?.style?.color ?: BRAND_COLOR)
             .setContentTitle(text.title)
-            .setContentText(text.text)
+            .setContentText(text.line)
             .setSubText(text.subText)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

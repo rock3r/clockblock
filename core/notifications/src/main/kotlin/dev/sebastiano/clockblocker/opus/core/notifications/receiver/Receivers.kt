@@ -11,6 +11,7 @@ import dev.sebastiano.clockblocker.opus.core.notifications.AdviceAlarmScheduler
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationChannels
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationIntents
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationWorkScope
+import dev.sebastiano.clockblocker.opus.core.notifications.NowNotificationSurface
 import dev.sebastiano.clockblocker.opus.core.notifications.ReminderNotifier
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -35,13 +36,17 @@ internal fun BroadcastReceiver.launchAsync(workScope: NotificationWorkScope, blo
     }
 }
 
-/** Fired by the alarms [AdviceAlarmScheduler] arms (and by the delayed test reminder). Not exported. */
+/**
+ * Fired by the alarms [AdviceAlarmScheduler] arms, by the delayed test reminder, and by the Now notification's
+ * progress tick ([NowNotificationSurface]). Not exported.
+ */
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey
 @Inject
 class AdviceAlarmReceiver(
     private val scheduler: AdviceAlarmScheduler,
     private val reminders: ReminderNotifier,
+    private val nowSurface: NowNotificationSurface,
     private val workScope: NotificationWorkScope,
 ) : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -51,6 +56,7 @@ class AdviceAlarmReceiver(
                 launchAsync(workScope) { scheduler.onAlarm(at) }
             }
             NotificationIntents.testAction(context) -> launchAsync(workScope) { reminders.postTest() }
+            NotificationIntents.progressTickAction(context) -> launchAsync(workScope) { nowSurface.render() }
         }
     }
 }

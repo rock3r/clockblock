@@ -24,13 +24,17 @@ data class NotificationText(
     val tip: String? = null,
     /** Header line next to the app name: the body clock, plus route and phase on travel day. */
     val subText: String? = null,
-    /** Expanded-only lines between the main line and the tip: "Also now: …", "Next: …". */
+    /** Now notification, expanded only: other blocks running alongside, "Also now: Avoid caffeine until 20:00". */
+    val also: String? = null,
+    /** Now notification, expanded only: "Next: Avoid light at 17:00" (in a gap that is [text] itself). */
+    val next: String? = null,
+    /** Other expanded-only lines before the tip (a melatonin reminder's time in the other zone). */
     val details: List<String> = emptyList(),
     /** [text] with its [secondary] tail: "until 20:00 · 04:00 Tokyo". */
     val line: String = text,
 ) {
-    /** Expanded (BigText) body: the main line with its zone tail, the details, then the tip. */
-    val bigText: String get() = (listOf(line) + details + listOfNotNull(tip)).joinToString("\n")
+    /** Expanded (BigText) body: the main line with its zone tail, also-now, next, other details, then the tip. */
+    val bigText: String get() = (listOf(line) + listOfNotNull(also, next) + details + listOfNotNull(tip)).joinToString("\n")
 }
 
 /**
@@ -75,12 +79,6 @@ class NotificationTextFormatter(
                 ),
             )
         }
-        val details = listOfNotNull(
-            state.alongside.takeIf { it.isNotEmpty() }?.let { list ->
-                strings.alsoNow(list.take(MAX_ALONGSIDE).joinToString(", ") { strings.labelUntil(titleOf(it), clock.time(it.end, now)) })
-            },
-            state.next?.let { strings.next(titleOf(it), clock.time(it.start, now)) },
-        )
         return withLine(
             NotificationText(
                 title = titleOf(headline),
@@ -88,7 +86,10 @@ class NotificationTextFormatter(
                 secondary = secondary?.let { zoneTail(it, until) },
                 tip = tipOf(headline),
                 subText = bodyClock(plan, now),
-                details = details,
+                also = state.alongside.takeIf { it.isNotEmpty() }?.let { list ->
+                    strings.alsoNow(list.take(MAX_ALONGSIDE).joinToString(", ") { strings.labelUntil(titleOf(it), clock.time(it.end, now)) })
+                },
+                next = state.next?.let { strings.next(titleOf(it), clock.time(it.start, now)) },
             ),
         )
     }

@@ -414,7 +414,7 @@ Inspiration for these: Flighty's Live Activity (countdown + plane-on-track), Pix
 
 ## 3.3 Lock screen, status bar & AOD
 - **Phones have no general third-party lock-screen widget surface** (keyguard widgets returned on tablets / the communal "hub"; check phone status per Android version before promising anything). **The lock-screen story is the notification**:
-  - **Ongoing "Now" notification** (category `CATEGORY_REMINDER`, `setOnlyAlertOnce`, silent updates): title "Avoid light", text "until 18:00 · then Sleep 18:00–02:00". Actions: *Done*, *Can't now*, *Snooze 15*. Monochrome glyph small icon per advice type (AOD-legible).
+  - **Ongoing "Now" notification** (category `CATEGORY_REMINDER`, `setOnlyAlertOnce`, silent updates), a `DecoratedCustomViewStyle` on API 31+: the advice glyph on its colour chip, **"Avoid light"** with "until 18:00" (the block's own end) and a progress bar for the block; expanded adds the other zone ("· 02:00 Tokyo"), "Also now: …" for overlapping blocks, "Next: Sleep at 18:00" and the tip. Actions: *Done*, *Can't do this*, *Snooze 15 min*. Monochrome glyph small icon per advice type (AOD-legible). Details in [surfaces.md](surfaces.md#the-now-notification).
   - **Android 16 Live Update on travel day** via `Notification.ProgressStyle` ([feature page](https://developer.android.com/about/versions/16/features/progress-centric-notifications), [guide](https://developer.android.com/develop/ui/compose/notifications/progress-centric)):
     - progress = minutes elapsed in the travel window (leave home → hotel)
     - **segments** = advice blocks, coloured by advice colour

@@ -16,8 +16,6 @@ import dev.sebastiano.clockblocker.opus.core.notifications.planOfDays
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import dev.sebastiano.clockblocker.opus.core.notifications.utc
-import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveMaxLength
@@ -66,11 +64,11 @@ class NotificationTextFormatterTest {
 
         @Test
         fun `what starts next is a detail line of its own`() {
-            nowText("Europe/London").details shouldContainExactly listOf("Next: Sleep at 18:00")
+            nowText("Europe/London").next shouldBe "Next: Sleep at 18:00"
         }
 
         @Test
-        fun `expanded text reads top to bottom - until, details, tip`() {
+        fun `expanded text reads top to bottom - until, next, tip`() {
             nowText("Europe/London").bigText shouldBe "until 18:00 · 02:00 Tokyo\nNext: Sleep at 18:00\ntip:AvoidLight"
         }
 
@@ -79,7 +77,7 @@ class NotificationTextFormatterTest {
             val text = nowText("Asia/Tokyo")
 
             text.line shouldBe "until 02:00 · 18:00 London"
-            text.details shouldContainExactly listOf("Next: Sleep at 02:00")
+            text.next shouldBe "Next: Sleep at 02:00"
         }
 
         @Test
@@ -98,7 +96,7 @@ class NotificationTextFormatterTest {
             val text = nowText("America/New_York", use24Hour = false)
 
             text.text shouldBe "until 1:00 pm"
-            text.details shouldContainExactly listOf("Next: Sleep at 1:00 pm")
+            text.next shouldBe "Next: Sleep at 1:00 pm"
         }
 
         @Test
@@ -122,7 +120,7 @@ class NotificationTextFormatterTest {
 
             text.title shouldBe "Nothing right now"
             text.line shouldBe "Next: Sleep at 18:00 · 02:00 Tokyo"
-            text.details.shouldBeEmpty()
+            text.next.shouldBeNull()
             text.tip.shouldBeNull()
         }
 
@@ -143,7 +141,7 @@ class NotificationTextFormatterTest {
 
             nowText("Europe/London", utc("2026-10-25T00:45"), p = dst).let {
                 it.text shouldBe "until 02:30"
-                it.details shouldContainExactly listOf("Next: See bright light at 02:30")
+                it.next shouldBe "Next: See bright light at 02:30"
             }
             ClockFormat(ZoneId.of("Europe/London"), Locale.UK)
                 .range(utc("2026-10-25T00:30"), utc("2026-10-25T02:30"), utc("2026-10-25T00:30")) shouldBe "01:30–02:30"
@@ -163,7 +161,8 @@ class NotificationTextFormatterTest {
 
                 text.title shouldBe "Avoid caffeine"
                 text.line shouldBe "until 20:00 · 04:00 Tokyo"
-                text.details shouldContainExactly listOf("Next: Avoid light at 17:00")
+                text.also.shouldBeNull()
+                text.next shouldBe "Next: Avoid light at 17:00"
             }
 
             @Test
@@ -172,7 +171,8 @@ class NotificationTextFormatterTest {
 
                 text.title shouldBe "Avoid light"
                 text.line shouldBe "until 20:00 · 04:00 Tokyo"
-                text.details shouldContainExactly listOf("Also now: Avoid caffeine until 20:00", "Next: Sleep at 21:00")
+                text.also shouldBe "Also now: Avoid caffeine until 20:00"
+                text.next shouldBe "Next: Sleep at 21:00"
             }
         }
     }
@@ -364,7 +364,7 @@ class NotificationTextFormatterTest {
 
             text.title shouldBe "In flight"
             text.text shouldBe "until Sun 00:00"
-            text.details shouldContainExactly listOf("Next: Sleep at 18:00")
+            text.next shouldBe "Next: Sleep at 18:00"
             text.secondary.shouldBeNull()
             text.tip.shouldBeNull()
             text.subText shouldBe "Body clock in sync"
