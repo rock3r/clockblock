@@ -17,10 +17,13 @@ sealed interface GlyphKind {
 }
 
 /**
- * Advice glyphs as display lists in a unit box: a container disc of radius 1 in the advice container colour
- * with a simple mark in the on-container colour. Shapes follow design.md's "shapes carry meaning" table
- * (sun = light, sun below the horizon = avoid light, crescent = sleep, pill = nap, sparkle = melatonin,
- * cup = caffeine, low battery = peak fatigue, arrow = flight). Always paired with a text label.
+ * Advice glyphs as display lists in a unit box: a container in the advice container colour with a simple mark in
+ * the on-container colour. The container is the advice's signature `MaterialShapes` silhouette (design.md §2.4
+ * "shapes carry meaning": VerySunny = bright light, Sunny = some light, SemiCircle = avoid light, Pill = sleep,
+ * Bun = nap, PuffyDiamond = melatonin, Cookie4Sided = caffeine, SoftBurst = peak fatigue, Arrow = flight; Flower =
+ * adapted), so the shape alone tells advice apart even without colour. The mark inside keeps the older icon
+ * vocabulary (sun, sun below the horizon, crescent, pill, sparkle, cup, low battery, arrow). Always paired with a
+ * text label.
  */
 object Glyphs {
 
@@ -32,7 +35,33 @@ object Glyphs {
 
     fun build(kind: GlyphKind, p: WidgetPalette): List<DrawOp> {
         val (container, on) = colors(kind, p)
-        return listOf<DrawOp>(DrawOp.Circle(0f, 0f, 1f, container)) + mark(kind, on, container)
+        val shape: DrawOp = when (kind) {
+            is GlyphKind.Advice -> WidgetShapes.advice(kind.type, container)
+            GlyphKind.Adapted -> WidgetShapes.flower(container)
+            GlyphKind.Free, GlyphKind.NoTrip -> DrawOp.Circle(0f, 0f, 1f, container)
+        }
+        val (scale, dy) = markFit(kind)
+        return listOf(shape) + mark(kind, on, container).map { it.scaled(scale, dy) }
+    }
+
+    /**
+     * How much to shrink (and nudge down) the mark so it sits inside the silhouette's inscribed area: the circle
+     * container fit marks at full size, the irregular shapes are smaller inside.
+     */
+    private fun markFit(kind: GlyphKind): Pair<Float, Float> = when (kind) {
+        is GlyphKind.Advice -> when (kind.type) {
+            AdviceType.SeeBrightLight -> 0.78f to 0f
+            AdviceType.SeeLight -> 0.82f to 0f
+            AdviceType.AvoidLight -> 0.78f to 0.12f
+            AdviceType.Sleep -> 0.72f to 0f
+            AdviceType.Nap, AdviceType.OptionalNap -> 0.8f to 0f
+            AdviceType.Melatonin -> 0.66f to 0f
+            AdviceType.Caffeine, AdviceType.AvoidCaffeine -> 0.82f to 0f
+            AdviceType.PeakFatigue -> 0.8f to 0f
+            AdviceType.Flight -> 0.5f to 0.08f
+        }
+        GlyphKind.Adapted -> 0.82f to 0f
+        GlyphKind.Free, GlyphKind.NoTrip -> 1f to 0f
     }
 
     private fun mark(kind: GlyphKind, on: Int, bg: Int): List<DrawOp> = when (kind) {
