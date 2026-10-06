@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.core.notifications.text
 
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType.AvoidCaffeine
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.AvoidLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Flight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Melatonin
@@ -15,6 +16,8 @@ import dev.sebastiano.clockblocker.opus.core.notifications.planOfDays
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import dev.sebastiano.clockblocker.opus.core.notifications.utc
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldHaveMaxLength
@@ -46,37 +49,56 @@ class NotificationTextFormatterTest {
     @Nested
     inner class Now {
         @Test
-        fun `title is the advice label, text says until and then in the plan's local zone`() {
+        fun `title is the advice label, text says until in the plan's local zone`() {
             val text = nowText("Europe/London")
 
             text.title shouldBe "Avoid light"
-            text.text shouldBe "until 18:00 · then Sleep 18:00–02:00"
+            text.text shouldBe "until 18:00"
         }
 
         @Test
-        fun `secondary line repeats it in the destination zone`() {
-            nowText("Europe/London").secondary shouldBe "Tokyo: until 02:00 · then Sleep 02:00–10:00"
+        fun `the other zone is a short tail, not a second copy of every line`() {
+            val text = nowText("Europe/London")
+
+            text.secondary shouldBe "02:00 Tokyo"
+            text.line shouldBe "until 18:00 · 02:00 Tokyo"
+        }
+
+        @Test
+        fun `what starts next is a detail line of its own`() {
+            nowText("Europe/London").details shouldContainExactly listOf("Next: Sleep at 18:00")
+        }
+
+        @Test
+        fun `expanded text reads top to bottom - until, details, tip`() {
+            nowText("Europe/London").bigText shouldBe "until 18:00 · 02:00 Tokyo\nNext: Sleep at 18:00\ntip:AvoidLight"
         }
 
         @Test
         fun `at the destination the secondary zone is home`() {
             val text = nowText("Asia/Tokyo")
 
-            text.text shouldBe "until 02:00 · then Sleep 02:00–10:00"
-            text.secondary shouldBe "London: until 18:00 · then Sleep 18:00–02:00"
+            text.line shouldBe "until 02:00 · 18:00 London"
+            text.details shouldContainExactly listOf("Next: Sleep at 02:00")
         }
 
         @Test
-        fun `no secondary line when every zone agrees`() {
+        fun `no secondary tail when every zone agrees`() {
             val sameZones = planOf(avoid, sleep, origin = "Asia/Seoul", destination = "Asia/Tokyo")
 
-            nowText("Asia/Tokyo", p = sameZones).secondary.shouldBeNull()
+            nowText("Asia/Tokyo", p = sameZones).let {
+                it.secondary.shouldBeNull()
+                it.line shouldBe "until 02:00"
+            }
         }
 
         @Test
         fun `12-hour clocks are respected`() {
             // en-GB writes "pm" in lower case; the day period comes from the locale.
-            nowText("America/New_York", use24Hour = false).text shouldBe "until 1:00 pm · then Sleep 1:00 pm–9:00 pm"
+            val text = nowText("America/New_York", use24Hour = false)
+
+            text.text shouldBe "until 1:00 pm"
+            text.details shouldContainExactly listOf("Next: Sleep at 1:00 pm")
         }
 
         @Test
@@ -87,19 +109,20 @@ class NotificationTextFormatterTest {
         }
 
         @Test
-        fun `a logged outcome leads the sentence`() {
+        fun `a logged outcome leads the line`() {
             val state = NowStateCalculator.compute(plan, now)!!.copy(outcome = AdviceOutcome.Done)
 
-            formatter().now(state, plan, now).text shouldBe "Done · until 18:00 · then Sleep 18:00–02:00"
+            formatter().now(state, plan, now).line shouldBe "Done · until 18:00 · 02:00 Tokyo"
         }
 
         @Test
-        fun `in a gap the next window is named`() {
+        fun `in a gap the next window is named, with its start in the other zone`() {
             val gappy = planOf(advice(SeeBrightLight, "2026-10-10T08:00", "2026-10-10T10:00"), sleep)
             val text = nowText("Europe/London", utc("2026-10-10T12:00"), p = gappy)
 
             text.title shouldBe "Nothing right now"
-            text.text shouldBe "Next: Sleep 18:00–02:00"
+            text.line shouldBe "Next: Sleep at 18:00 · 02:00 Tokyo"
+            text.details.shouldBeEmpty()
             text.tip.shouldBeNull()
         }
 
@@ -118,10 +141,39 @@ class NotificationTextFormatterTest {
                 advice(SeeBrightLight, "2026-10-25T02:30", "2026-10-25T04:00"),
             )
 
-            nowText("Europe/London", utc("2026-10-25T00:45"), p = dst).text shouldBe
-                "until 02:30 · then See bright light 02:30–04:00"
+            nowText("Europe/London", utc("2026-10-25T00:45"), p = dst).let {
+                it.text shouldBe "until 02:30"
+                it.details shouldContainExactly listOf("Next: See bright light at 02:30")
+            }
             ClockFormat(ZoneId.of("Europe/London"), Locale.UK)
                 .range(utc("2026-10-25T00:30"), utc("2026-10-25T02:30"), utc("2026-10-25T00:30")) shouldBe "01:30–02:30"
+        }
+
+        /** Issue #43, with the plan from the user guide's screenshot (London → Tokyo, evening of day 1). */
+        @Nested
+        inner class Overlapping {
+            private val noCaffeine = advice(AvoidCaffeine, "2026-10-10T12:00", "2026-10-10T19:00")
+            private val avoidLight = advice(AvoidLight, "2026-10-10T16:00", "2026-10-10T19:00")
+            private val bed = advice(Sleep, "2026-10-10T20:00", "2026-10-11T04:00")
+            private val evening = planOf(noCaffeine, avoidLight, bed)
+
+            @Test
+            fun `until is the advice's own end, like the Now card, and the overlapping block is next`() {
+                val text = nowText("Europe/London", utc("2026-10-10T14:00"), p = evening)
+
+                text.title shouldBe "Avoid caffeine"
+                text.line shouldBe "until 20:00 · 04:00 Tokyo"
+                text.details shouldContainExactly listOf("Next: Avoid light at 17:00")
+            }
+
+            @Test
+            fun `once Avoid light leads, the caffeine block still running is mentioned with its own end`() {
+                val text = nowText("Europe/London", utc("2026-10-10T16:30"), p = evening)
+
+                text.title shouldBe "Avoid light"
+                text.line shouldBe "until 20:00 · 04:00 Tokyo"
+                text.details shouldContainExactly listOf("Also now: Avoid caffeine until 20:00", "Next: Sleep at 21:00")
+            }
         }
     }
 
@@ -136,7 +188,8 @@ class NotificationTextFormatterTest {
 
             early.title shouldBe "Avoid light at 15:00"
             early.text shouldBe "15:00–18:00"
-            early.secondary shouldBe "Tokyo: 23:00–02:00"
+            early.secondary shouldBe "23:00–02:00 Tokyo"
+            early.line shouldBe "15:00–18:00 · 23:00–02:00 Tokyo"
             late.title shouldBe "Avoid light now"
         }
 
@@ -310,7 +363,8 @@ class NotificationTextFormatterTest {
             val text = redacting().now(NowStateCalculator.compute(p, at)!!, p, at)
 
             text.title shouldBe "In flight"
-            text.text shouldBe "until 18:00 · then Sleep 18:00–02:00"
+            text.text shouldBe "until Sun 00:00"
+            text.details shouldContainExactly listOf("Next: Sleep at 18:00")
             text.secondary.shouldBeNull()
             text.tip.shouldBeNull()
             text.subText shouldBe "Body clock in sync"

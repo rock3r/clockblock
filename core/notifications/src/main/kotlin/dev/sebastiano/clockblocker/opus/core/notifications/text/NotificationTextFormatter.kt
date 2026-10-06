@@ -17,26 +17,32 @@ import kotlin.math.abs
 /** Rendered text of a notification. */
 data class NotificationText(
     val title: String,
+    /** The main line: "until 20:00", a reminder's range, "Next: Sleep at 23:00" in a gap. */
     val text: String,
-    /** The main text again in a second zone (destination, or home once you're there); `null` if same offset. */
+    /** [text]'s time in the trip's other zone, as a short tail ("04:00 Tokyo"); `null` if same offset. */
     val secondary: String? = null,
     val tip: String? = null,
     /** Header line next to the app name: the body clock, plus route and phase on travel day. */
     val subText: String? = null,
+    /** Expanded-only lines between the main line and the tip: "Also now: …", "Next: …". */
+    val details: List<String> = emptyList(),
+    /** [text] with its [secondary] tail: "until 20:00 · 04:00 Tokyo". */
+    val line: String = text,
 ) {
-    /** Expanded (BigText) body: text, then the secondary zone line, then the tip. */
-    val bigText: String get() = listOfNotNull(text, secondary, tip).joinToString("\n")
+    /** Expanded (BigText) body: the main line with its zone tail, the details, then the tip. */
+    val bigText: String get() = (listOf(line) + details + listOfNotNull(tip)).joinToString("\n")
 }
 
 /**
  * Pure composition of notification copy from plan state. Primary times are in the plan's local time at that instant
  * ([localZoneAt]: the zone of the plan day, the same zone the plan screen and the widgets show, never the device's);
- * a secondary line repeats them in the other end of the trip ([secondaryZoneFor]: the destination, or home once local
- * time is the destination's), so "Times show local time plus a secondary zone" holds on every surface.
+ * the main time is repeated as a short tail in the other end of the trip ([secondaryZoneFor]: the destination, or
+ * home once local time is the destination's), "until 20:00 · 04:00 Tokyo" like the plan screen's Now card, so "Times
+ * show local time plus a secondary zone" holds on every surface without repeating every line in both zones.
  *
  * @param locale and [use24Hour] shape the times; the zone always comes from the plan.
  * @param redact the lock-screen (public) version: keeps labels and times, drops place names (the secondary zone
- *   line, the route), flight numbers, melatonin (named as a plain plan step, without its dose) and tips.
+ *   tail, the route), flight numbers, melatonin (named as a plain plan step, without its dose) and tips.
  */
 class NotificationTextFormatter(
     private val strings: NotificationStrings,
@@ -48,17 +54,42 @@ class NotificationTextFormatter(
     /** Formats times in [plan]'s local time at [now] (see [localZoneAt]). */
     fun localClock(plan: JetLagPlan, now: Instant): ClockFormat = ClockFormat(plan.localZoneAt(now), locale, use24Hour)
 
-    /** The ongoing Now notification. */
+    /**
+     * The ongoing Now notification: the advice label, "until" its own end (as on the Now card and the widgets) with
+     * the other zone's time as a tail, then (expanded) other blocks running alongside, what starts next, and a tip.
+     * In a gap: "Nothing right now" and when the next block starts.
+     */
     fun now(state: NowState, plan: JetLagPlan, now: Instant): NotificationText {
         val clock = localClock(plan, now)
         val secondary = secondaryClock(plan, clock, now)
         val headline = state.headline
-        return NotificationText(
-            title = headline?.let(::titleOf) ?: strings.nothingNow(),
-            text = nowSentence(state, now, clock),
-            secondary = secondary?.let { strings.inZone(ClockFormat.cityOf(it.zone.id), nowSentence(state, now, it)) },
-            tip = headline?.let(::tipOf),
-            subText = bodyClock(plan, now),
+        val until = state.until
+        if (headline == null || until == null) {
+            val next = state.next
+            return withLine(
+                NotificationText(
+                    title = strings.nothingNow(),
+                    text = next?.let { strings.next(titleOf(it), clock.time(it.start, now)) } ?: strings.nothingNow(),
+                    secondary = next?.let { n -> secondary?.let { zoneTail(it, n.start) } },
+                    subText = bodyClock(plan, now),
+                ),
+            )
+        }
+        val details = listOfNotNull(
+            state.alongside.takeIf { it.isNotEmpty() }?.let { list ->
+                strings.alsoNow(list.take(MAX_ALONGSIDE).joinToString(", ") { strings.labelUntil(titleOf(it), clock.time(it.end, now)) })
+            },
+            state.next?.let { strings.next(titleOf(it), clock.time(it.start, now)) },
+        )
+        return withLine(
+            NotificationText(
+                title = titleOf(headline),
+                text = listOfNotNull(state.outcome?.let(strings::outcome), strings.until(clock.time(until, now))).reduce(strings::join),
+                secondary = secondary?.let { zoneTail(it, until) },
+                tip = tipOf(headline),
+                subText = bodyClock(plan, now),
+                details = details,
+            ),
         )
     }
 
@@ -70,7 +101,7 @@ class NotificationTextFormatter(
         val secondary = secondaryClock(plan, clock, now)
         val also = spec.alsoStarting.takeIf { it.isNotEmpty() && !redact }
             ?.let { list -> strings.also(list.joinToString(", ") { strings.label(it.type) }) }
-        return when (spec.kind) {
+        val text = when (spec.kind) {
             ReminderKind.Upcoming -> NotificationText(
                 title = if (now.isBefore(advice.start)) {
                     strings.upcomingTitle(label, clock.time(advice.start, now))
@@ -78,7 +109,7 @@ class NotificationTextFormatter(
                     strings.nowTitle(label)
                 },
                 text = clock.range(advice.start, advice.end, now),
-                secondary = secondary?.let { zoneLine(it) { f -> f.range(advice.start, advice.end, now) } },
+                secondary = secondary?.let { strings.zoneTail(it.range(advice.start, advice.end, now), cityOf(it)) },
                 tip = listOfNotNull(tipOf(advice), also).takeIf { it.isNotEmpty() }?.joinToString("\n"),
             )
             ReminderKind.Moment -> NotificationText(
@@ -92,13 +123,16 @@ class NotificationTextFormatter(
                 } else {
                     listOfNotNull(advice.detail, strings.tip(advice.type)).reduce(strings::join)
                 },
-                secondary = secondary?.let { zoneLine(it) { f -> f.time(advice.start, now) } },
+                details = listOfNotNull(secondary?.let { zoneTail(it, advice.start) }),
                 tip = also,
             )
             ReminderKind.WakeUp -> NotificationText(
                 title = strings.wakeUpTitle(advice.type),
-                text = state?.headline?.let { strings.join(strings.nowPrefix(titleOf(it)), nowSentence(state, now, clock)) }
-                    ?: state?.next?.let { strings.next(titleOf(it.advice), clock.range(it.from, it.until, now)) }
+                text = state?.headline?.let { h ->
+                    listOfNotNull(strings.nowPrefix(titleOf(h)), state.until?.let { strings.until(clock.time(it, now)) })
+                        .reduce(strings::join)
+                }
+                    ?: state?.next?.let { strings.next(titleOf(it), clock.time(it.start, now)) }
                     ?: strings.wakeUpFallback(),
                 tip = state?.headline?.let(::tipOf),
             )
@@ -112,6 +146,7 @@ class NotificationTextFormatter(
                 tip = tipOf(advice),
             )
         }
+        return withLine(text)
     }
 
     /** The test reminder from Settings. */
@@ -151,22 +186,15 @@ class NotificationTextFormatter(
     /** "SFO → LHR" from two display codes. */
     fun route(from: String, to: String): String = strings.route(from, to)
 
-    /** "until 18:00 · then Sleep 18:00–02:00", prefixed by a logged outcome; "Next: …" in a gap. */
-    private fun nowSentence(state: NowState, now: Instant, format: ClockFormat): String {
-        val next = state.next?.let { format.range(it.from, it.until, now) to titleOf(it.advice) }
-        if (state.headline == null) {
-            return next?.let { (range, label) -> strings.next(label, range) } ?: strings.nothingNow()
-        }
-        val clauses = listOfNotNull(
-            state.outcome?.let(strings::outcome),
-            state.until?.let { strings.until(format.time(it, now)) },
-            next?.let { (range, label) -> strings.then(label, range) },
-        )
-        return clauses.reduce(strings::join)
-    }
+    /** Fills [NotificationText.line]: the main text with its zone tail, "until 20:00 · 04:00 Tokyo". */
+    private fun withLine(text: NotificationText): NotificationText =
+        text.copy(line = text.secondary?.let { strings.join(text.text, it) } ?: text.text)
 
-    private fun zoneLine(format: ClockFormat, body: (ClockFormat) -> String): String =
-        strings.inZone(ClockFormat.cityOf(format.zone.id), body(format))
+    /** "04:00 Tokyo": [instant] in [format]'s zone, then the city; no weekday, like the plan screen's tail. */
+    private fun zoneTail(format: ClockFormat, instant: Instant): String =
+        strings.zoneTail(format.plainTime(instant), cityOf(format))
+
+    private fun cityOf(format: ClockFormat): String = ClockFormat.cityOf(format.zone.id)
 
     /** Labels plus the detail for flights ("In flight · BA7"); redacted: no flight number, melatonin unnamed. */
     private fun titleOf(advice: Advice): String {
@@ -190,6 +218,9 @@ class NotificationTextFormatter(
     }
 
     private companion object {
+        /** At most this many blocks on the "Also now" line; more would turn it back into a wall of text. */
+        const val MAX_ALONGSIDE = 2
+
         /** "3½ h", "½ h", "8 h": [minutes] (non-negative) rounded to the nearest half hour. */
         fun halfHours(minutes: Int): String {
             val halves = BodyClockHeader.halfHourSteps(minutes)

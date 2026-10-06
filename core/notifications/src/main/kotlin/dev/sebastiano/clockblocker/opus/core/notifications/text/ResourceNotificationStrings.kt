@@ -41,8 +41,9 @@ internal class ResourceNotificationStrings(private val context: Context) : Notif
     )
 
     override fun until(time: String): String = context.getString(R.string.now_until, time)
-    override fun then(label: String, range: String): String = context.getString(R.string.now_then, label, range)
-    override fun next(label: String, range: String): String = context.getString(R.string.now_next, label, range)
+    override fun next(label: String, time: String): String = context.getString(R.string.now_next, label, time)
+    override fun alsoNow(items: String): String = context.getString(R.string.now_also, items)
+    override fun labelUntil(label: String, time: String): String = context.getString(R.string.now_label_until, label, time)
     override fun nothingNow(): String = context.getString(R.string.now_nothing)
 
     override fun outcome(outcome: AdviceOutcome): String = context.getString(
@@ -54,7 +55,7 @@ internal class ResourceNotificationStrings(private val context: Context) : Notif
     )
 
     override fun join(first: String, second: String): String = context.getString(R.string.now_join, first, second)
-    override fun inZone(city: String, text: String): String = context.getString(R.string.now_in_zone, city, text)
+    override fun zoneTail(time: String, city: String): String = context.getString(R.string.now_zone_tail, time, city)
 
     override fun upcomingTitle(label: String, time: String): String =
         context.getString(R.string.reminder_upcoming_title, label, time)

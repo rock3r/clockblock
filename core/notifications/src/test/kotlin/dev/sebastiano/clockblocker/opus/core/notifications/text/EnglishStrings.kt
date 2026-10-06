@@ -21,12 +21,13 @@ object EnglishStrings : NotificationStrings {
 
     override fun tip(type: AdviceType) = "tip:${type.name}"
     override fun until(time: String) = "until $time"
-    override fun then(label: String, range: String) = "then $label $range"
-    override fun next(label: String, range: String) = "Next: $label $range"
+    override fun next(label: String, time: String) = "Next: $label at $time"
+    override fun alsoNow(items: String) = "Also now: $items"
+    override fun labelUntil(label: String, time: String) = "$label until $time"
     override fun nothingNow() = "Nothing right now"
     override fun outcome(outcome: AdviceOutcome) = outcome.name
     override fun join(first: String, second: String) = "$first · $second"
-    override fun inZone(city: String, text: String) = "$city: $text"
+    override fun zoneTail(time: String, city: String) = "$time $city"
     override fun upcomingTitle(label: String, time: String) = "$label at $time"
     override fun nowTitle(label: String) = "$label now"
     override fun wakeUpTitle(type: AdviceType) = "${label(type)} over"
