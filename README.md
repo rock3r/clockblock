@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/screenshots/launcher-icon.png" alt="Opus Clockblock icon: a marigold clock and a lavender body clock" width="128" />
+  <img src="docs/screenshots/launcher-icon.png" alt="Clockblock icon: a marigold clock and a lavender body clock" width="128" />
 </p>
 
-<h1 align="center">Opus Clockblock</h1>
+<h1 align="center">Clockblock</h1>
 
 <p align="center">
   <strong>A free, open-source jet lag planner for Android that works entirely offline.</strong><br />
@@ -26,7 +26,7 @@
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
-Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Opus Clockblock builds a plan
+Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Clockblock builds a plan
 that moves your body clock towards your destination, then tells you what to do and until when: light, sleep, naps
 and caffeine. Each piece of advice explains why it's there. Everything runs on your phone. It's a free,
 transparent alternative to commercial jet lag apps.
@@ -85,14 +85,14 @@ The research is cited, the rules are written down, and the known limitations are
 
 ## Privacy
 
-Opus Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
+Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
 accounts, no analytics, no ads, no crash reporters and no third-party SDKs. Your trips and profile live in the
 app's private storage. They leave the device only when you export a backup or calendar file, share a plan
 summary to another app, or when Android's own device backup copies app data (if you have it turned on).
 
 ## Not medical advice
 
-Opus Clockblock gives general information for healthy adults, based on published research. It isn't medical
+Clockblock gives general information for healthy adults, based on published research. It isn't medical
 advice, it doesn't measure anything about you, and it isn't meant for flight crew on duty. If you have a health
 condition, are pregnant, or take medication, talk to a doctor before changing your sleep.
 
@@ -183,4 +183,4 @@ Full attributions are in [NOTICE](NOTICE) and in the app under About → Licence
 Copyright 2026 Sebastiano Poggi and contributors. Licensed under the [Apache License, Version 2.0](LICENSE).
 Bundled fonts and data keep their own licences; see [NOTICE](NOTICE).
 
-"Timeshifter" is a trademark of its owner. Opus Clockblock isn't affiliated with or endorsed by Timeshifter.
+"Timeshifter" is a trademark of its owner. Clockblock isn't affiliated with or endorsed by Timeshifter.
