@@ -88,6 +88,43 @@ class SleepDialMathTest {
     }
 
     @Test
+    fun `nudging after an exact pick keeps the picked minute offset`() {
+        val picked = SleepWindow(LocalTime.of(23, 0), LocalTime.of(6, 13))
+        SleepDialMath.nudge(picked, SleepHandle.Wake, 15) shouldBe SleepWindow(LocalTime.of(23, 0), LocalTime.of(6, 28))
+        SleepDialMath.nudge(picked, SleepHandle.Bedtime, -15) shouldBe SleepWindow(LocalTime.of(22, 45), LocalTime.of(6, 13))
+        val pickedBed = SleepWindow(LocalTime.of(22, 47), LocalTime.of(7, 0))
+        SleepDialMath.nudge(pickedBed, SleepHandle.Bedtime, 15) shouldBe SleepWindow(LocalTime.of(23, 2), LocalTime.of(7, 0))
+        // Sliding the whole arc keeps the exact duration.
+        SleepDialMath.nudge(picked, SleepHandle.Both, 15) shouldBe SleepWindow(LocalTime.of(23, 15), LocalTime.of(6, 28))
+    }
+
+    @Test
+    fun `dragging an off-grid window keeps the fixed end, offsets and the arc's duration`() = runTest {
+        checkAll(Arb.int(0, 1439), Arb.int(60, 1435), Arb.list(Arb.int(-9000, 9000).map { it / 10f }, 1..12)) { bed, dur, moves ->
+            val start = SleepWindow(SleepDialMath.timeOf(bed), SleepDialMath.timeOf(bed + dur))
+            SleepHandle.entries.forEach { handle ->
+                val drag = SleepDrag(handle, start)
+                moves.forEach { drag.moveBy(it) }
+                val window = drag.window
+                val d = SleepDialMath.durationMinutes(window)
+                (d in SleepDialMath.MinDurationMinutes..SleepDialMath.MaxDurationMinutes).shouldBeTrue()
+                when (handle) {
+                    SleepHandle.Bedtime -> window.wake shouldBe start.wake
+                    SleepHandle.Wake -> window.bedtime shouldBe start.bedtime
+                    SleepHandle.Both -> {
+                        d shouldBe dur
+                        SleepDialMath.minuteOf(window.bedtime).mod(5) shouldBe bed.mod(5)
+                    }
+                }
+                if (handle != SleepHandle.Both && d in 61..1434) {
+                    // Unclamped: the moved end stays on its own five-minute grid.
+                    (d - dur).mod(5) shouldBe 0
+                }
+            }
+        }
+    }
+
+    @Test
     fun `a picked time sets that end to the exact minute and keeps the other end`() {
         SleepDialMath.withTime(default, SleepHandle.Bedtime, LocalTime.of(22, 47)) shouldBe
             SleepWindow(LocalTime.of(22, 47), LocalTime.of(7, 0))
