@@ -78,6 +78,7 @@ import java.time.Duration
 internal fun NowCard(
     moment: PlanMoment,
     previewing: Boolean,
+    previewDay: String? = null,
     outcome: AdviceOutcome?,
     flightRoute: String?,
     onOutcome: (AdviceOutcome) -> Unit,
@@ -90,7 +91,7 @@ internal fun NowCard(
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     val heading = if (previewing) {
-        stringResource(R.string.plan_previewing, formatter.formatFull(moment.instant.atZone(moment.zone).toLocalTime()))
+        previewHeading(formatter.formatFull(moment.instant.atZone(moment.zone).toLocalTime()), previewDay)
     } else {
         stringResource(R.string.plan_now)
     }
@@ -354,7 +355,7 @@ private fun OutcomeSplitButton(
  * plan has nothing further today.
  */
 @Composable
-internal fun FreeTimeCard(moment: PlanMoment, previewing: Boolean, modifier: Modifier = Modifier) {
+internal fun FreeTimeCard(moment: PlanMoment, previewing: Boolean, modifier: Modifier = Modifier, previewDay: String? = null) {
     val formatter = rememberTimeFormatter()
     val next = moment.upNext.firstOrNull()
     Surface(
@@ -365,7 +366,7 @@ internal fun FreeTimeCard(moment: PlanMoment, previewing: Boolean, modifier: Mod
         Column(Modifier.padding(20.dp)) {
             Text(
                 (if (previewing) {
-                    stringResource(R.string.plan_previewing, formatter.formatFull(moment.instant.atZone(moment.zone).toLocalTime()))
+                    previewHeading(formatter.formatFull(moment.instant.atZone(moment.zone).toLocalTime()), previewDay)
                 } else {
                     stringResource(R.string.plan_now)
                 }).uppercase(),
@@ -441,3 +442,8 @@ internal fun OutcomeBadge(outcome: AdviceOutcome, modifier: Modifier = Modifier)
 
 private fun AdviceType.labelString(resources: android.content.res.Resources): String =
     resources.getString(labelRes)
+
+/** "At 11:00", or "Day 3 at 11:00" when the preview is on another day. */
+@Composable
+private fun previewHeading(time: String, day: String?): String =
+    if (day == null) stringResource(R.string.plan_previewing, time) else stringResource(R.string.plan_previewing_day, day, time)

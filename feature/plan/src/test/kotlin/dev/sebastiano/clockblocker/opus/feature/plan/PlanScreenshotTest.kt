@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
@@ -190,6 +191,24 @@ class PlanScreenshotTest {
     }
 
     /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
+    /** Day 4 picked in the day strip: dial, Now card and header show Day 4 at the current time of day. */
+    @Test
+    fun dayPicked() {
+        snap("day_picked", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked.png")
+    }
+
+    @Test
+    fun dayPickedDark() {
+        snap("day_picked_dark", darkTheme = true, capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+        compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(-1)))
+        compose.onNodeWithTag(PlanTags.dayPill(-1)).performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked_dark.png")
+    }
+
     @Test
     @Config(qualifiers = "w411dp-h640dp-xhdpi")
     fun compactPhone() = snap("compact_phone") { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }

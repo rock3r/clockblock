@@ -3,7 +3,10 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -200,6 +203,44 @@ class PlanContentTest {
         // Navigation settle + the ring turn (or the timeout) later, the overlay is up.
         compose.mainClock.advanceTimeBy(CelebrationNavSettleMillis + CelebrationAlignTimeoutMillis + 1_000)
         compose.onNodeWithTag(PlanTags.CelebrationDismiss).assertExists()
+    }
+
+    @Test
+    fun `picking a day in the strip previews it at the same time of day, and today goes back to live`() {
+        show(midAdaptation)
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        // Mid-adaptation is Day 2 at 11:00 London: Day 3 previews 11:00 on Day 3.
+        val day3Heading = hasText(context.getString(R.string.plan_previewing_day, "Day 3", "11:00").uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected()
+
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsSelected()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsNotSelected()
+        compose.onNode(day3Heading).assertExists()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+    }
+
+    @Test
+    fun `day pills read their day, date and body offset to TalkBack`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("Day 2", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("today", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("body", substring = true)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - picking a day also brings its rows up on the rail`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
     }
 
     @Test

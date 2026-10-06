@@ -36,6 +36,15 @@
     <!-- Now card -->
     <string name="plan_now">Now</string>
     <string name="plan_previewing">At %1$s</string>
+    <!-- Now card heading while another day is previewed: "Day 3 at 11:00". -->
+    <string name="plan_previewing_day">%1$s at %2$s</string>
+    <!-- Day strip: short pill labels. -->
+    <string name="plan_strip_pre">Pre %1$s</string>
+    <string name="plan_strip_travel">Travel</string>
+    <string name="plan_strip_today">Today</string>
+    <!-- TalkBack for a day pill: "Day 2, Wed 17 Jun, today, body 3½ h behind". -->
+    <string name="plan_strip_pill_description">%1$s, %2$s, %3$s</string>
+    <string name="plan_strip_pill_description_today">%1$s, %2$s, today, %3$s</string>
     <string name="plan_until">until %1$s</string>
     <string name="plan_at">at %1$s</string>
     <string name="plan_until_label">until</string>

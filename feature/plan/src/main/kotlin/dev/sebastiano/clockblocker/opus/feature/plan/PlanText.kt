@@ -135,6 +135,13 @@ internal fun Resources.dayTitle(day: PlanDay): String = when (day.kind) {
 @ReadOnlyComposable
 internal fun dayTitle(day: PlanDay): String = LocalContext.current.resources.dayTitle(day)
 
+/** Short day name for the day strip and previews: "Pre −2", "Travel day" ("Travel" in a pill), "Day 2". */
+internal fun Resources.dayShortTitle(day: PlanDay, pill: Boolean = false): String = when (day.kind) {
+    DayKind.PreTrip -> getString(R.string.plan_strip_pre, signedIndex(day.index))
+    DayKind.Travel -> getString(if (pill) R.string.plan_strip_travel else R.string.plan_day_header_travel)
+    DayKind.Arrival, DayKind.Adapted -> getString(R.string.plan_day_header_day, day.index)
+}
+
 private val DayDateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
 
 /** "Tue 16 Jun". */

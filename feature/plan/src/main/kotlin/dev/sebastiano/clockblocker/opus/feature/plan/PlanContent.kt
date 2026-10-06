@@ -130,8 +130,14 @@ internal class PlanScreenState(
     val rail: LazyListState,
     val pane: ScrollState,
 ) {
-    /** Instant the dial is being scrubbed to (null = now). */
+    /** Instant the dial is being scrubbed to (null = now, or the picked day's anchor). */
     var preview: Instant? by mutableStateOf(null)
+
+    /** The day picked in the day strip (`PlanDay.index`; null = live). */
+    var selectedDay: Int? by mutableStateOf(null)
+
+    /** A day was just picked in the strip: the two-pane rail follows it. */
+    var dayPicked: Boolean by mutableStateOf(false)
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
@@ -329,9 +335,20 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
-    val preview = screen.preview?.takeIf { it != state.now }
-    val shown = remember(plan, state.moment, preview) { if (preview == null) state.moment else plan.momentAt(preview) }
     val railDays = remember(plan, state.now, state.outcomes) { plan.railDays(state.now, state.outcomes) }
+    // A day picked in the strip anchors everything to that day at the current time of day; the dial's scrub is
+    // relative to that anchor and springs back to it.
+    val dayBase = remember(railDays, screen.selectedDay, state.now, state.moment.zone) {
+        selectedDayBase(railDays, screen.selectedDay, state.now, state.moment.zone)
+    }
+    val anchor = dayBase ?: state.now
+    val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == screen.selectedDay }?.zone ?: state.moment.zone
+    val preview = screen.preview?.takeIf { it != anchor } ?: dayBase
+    val shown = remember(plan, state.moment, preview) { if (preview == null) state.moment else plan.momentAt(preview) }
+    val todayIndex = remember(railDays, state.now) {
+        railDays.firstOrNull { !state.now.isBefore(it.start) && state.now.isBefore(it.end) }?.day?.index
+    }
+    val dayOffsets = remember(plan, railDays) { dayStripOffsets(plan, railDays) }
     val rows = remember(railDays, state.now, screen.showEarlier) { buildRailRows(railDays, state.now, screen.showEarlier) }
     val routes = remember(plan, state.trip, resources) { flightRoutes(plan, state.trip, resources) }
     val highlighted = remember(shown, preview) {
@@ -385,8 +402,20 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val shortWindow = maxHeight < ShortWindowMaxHeight
         // Compact phones: the dial gives up size before the Now card's Done drops below the fold (issue #11). Sized
         // from the window, never from the collapsing header, so scrolling never resizes it.
-        val dialSize = (maxHeight - HeroReserve).coerceIn(MinDialSize, MaxDialSize)
-        val sections = PlanSections(state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize)
+        // The day strip goes above the dial when that still leaves the dial its smallest size; otherwise it
+        // follows the Now card so Done stays above the fold.
+        val withStrip = railDays.size > 1
+        val stripFirst = withStrip && maxHeight - HeroReserve - StripReserve >= MinDialSize
+        val dialSize = (maxHeight - HeroReserve - if (stripFirst) StripReserve else 0.dp).coerceIn(MinDialSize, MaxDialSize)
+        val strip = if (withStrip) {
+            DayStripModel(railDays, dayOffsets, todayIndex, first = stripFirst)
+        } else {
+            null
+        }
+        val sections = PlanSections(
+            state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
+            anchor = anchor, anchorZone = anchorZone, strip = strip,
+        )
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -461,6 +490,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                 canWhy = shown.active != null || shown.upNext.isNotEmpty(),
                                 onNow = {
                                     screen.preview = null
+                                    screen.selectedDay = null
                                     scope.launch {
                                         val now = rows.nowRowIndex()
                                         if (now >= 0) {
@@ -488,6 +518,21 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 }
 
                 if (expanded) {
+                    // Two panes: the rail is in view, so picking a day also brings that day's rows up (today:
+                    // the Now line).
+                    LaunchedEffect(screen.dayPicked) {
+                        if (!screen.dayPicked) return@LaunchedEffect
+                        screen.dayPicked = false
+                        val picked = railDays.firstOrNull { it.day.index == screen.selectedDay }
+                        if (picked == null) {
+                            val now = rows.nowRowIndex()
+                            if (now >= 0) scrollRail(now, nowOffsetPx)
+                        } else {
+                            val key = RailRow.Header(picked, isToday = false).key
+                            if (rows.none { it.key == key }) screen.showEarlier = true
+                            screen.pendingScrollKey = key
+                        }
+                    }
                     Row(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
                         Column(
                             Modifier
@@ -525,6 +570,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         }
                     }
                 } else {
+                    LaunchedEffect(screen.dayPicked) { screen.dayPicked = false }
                     LazyColumn(
                         state = screen.list,
                         // Padding (not contentPadding) on top so sticky day headers pin below the header.
@@ -610,10 +656,16 @@ private class PlanSections(
     val showSnack: (String) -> Unit,
     val showActionSnack: (message: String, action: String, onAction: () -> Unit) -> Unit,
     val dialSize: Dp = MaxDialSize,
+    /** What the dial is anchored to: now, or the picked day at the current time of day. */
+    val anchor: Instant = state.now,
+    val anchorZone: ZoneId = state.moment.zone,
+    val strip: DayStripModel? = null,
 ) {
     val heroKeys: List<String> = buildList {
+        if (strip?.first == true) add(KeyDays)
         add(KeyDial)
         add(KeyNow)
+        if (strip != null && !strip.first) add(KeyDays)
         if (shown.upNext.isNotEmpty() && shown.stage != PlanStage.Complete && shown.stage != PlanStage.Upcoming) add(KeyUpNext)
         if (shown.stage != PlanStage.Complete) add(KeyStatus)
     }
@@ -622,6 +674,20 @@ private class PlanSections(
     fun Section(key: String) {
         val width = Modifier.widthIn(max = 640.dp).fillMaxWidth()
         when (key) {
+            KeyDays -> strip?.let { model ->
+                PlanDayStrip(
+                    days = model.days,
+                    offsets = model.offsets,
+                    todayIndex = model.todayIndex,
+                    selectedIndex = screen.selectedDay?.takeIf { picked -> model.days.any { it.day.index == picked } },
+                    onSelect = { index ->
+                        screen.preview = null
+                        screen.selectedDay = index
+                        screen.dayPicked = true
+                    },
+                    modifier = width,
+                )
+            }
             KeyDial -> Dial(width)
             KeyNow -> Now(width.padding(horizontal = 16.dp, vertical = 8.dp))
             KeyUpNext -> UpNextCard(shown, onClick = { screen.whyAdviceId = it.id }, modifier = width.padding(horizontal = 16.dp, vertical = 8.dp))
@@ -632,9 +698,10 @@ private class PlanSections(
     @Composable
     private fun Dial(modifier: Modifier) {
         val plan = state.plan
-        val now = state.now
-        val zone = state.moment.zone
-        // The dial owns the scrub offset; its state stays at "now" so the offset doesn't compound.
+        val now = anchor
+        val zone = anchorZone
+        // The dial owns the scrub offset; its state stays at the anchor (now, or the picked day) so the offset
+        // doesn't compound.
         val nowState = remember(plan, now, zone) { plan.toDialState(now, zone) }
         // Celebration: the rings start where they were on arrival and turn into alignment once navigation settles.
         val holdAtArrival = state.celebrate && screen.celebrationStage == CelebrationStage.Waiting
@@ -667,10 +734,13 @@ private class PlanSections(
     private fun Now(modifier: Modifier) {
         val active = shown.active
         val resources = LocalContext.current.resources
+        // Previewing another day (picked, or scrubbed past midnight): the heading says which.
+        val previewDay = shown.day?.takeIf { previewing && it.index != state.moment.day?.index }?.let { resources.dayShortTitle(it) }
         when {
             active != null -> NowCard(
                 moment = shown,
                 previewing = previewing,
+                previewDay = previewDay,
                 outcome = state.outcomes[active.id],
                 flightRoute = routes[active.id],
                 onOutcome = { outcome ->
@@ -696,7 +766,7 @@ private class PlanSections(
             )
             shown.stage == PlanStage.Complete -> CompleteCard(state.plan, state.outcomes, modifier)
             shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier)
-            else -> FreeTimeCard(shown, previewing, modifier)
+            else -> FreeTimeCard(shown, previewing, modifier, previewDay = previewDay)
         }
     }
 
@@ -710,6 +780,7 @@ private class PlanSections(
     }
 
     companion object {
+        const val KeyDays = "hero-days"
         const val KeyDial = "hero-dial"
         const val KeyNow = "hero-now"
         const val KeyUpNext = "hero-up-next"
@@ -791,6 +862,18 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** The day strip's share of the hero (pills + padding). */
+private val StripReserve = 80.dp
+
+/** The day strip's data, and whether it sits above the dial ([first]) or after the Now card. */
+@Immutable
+internal class DayStripModel(
+    val days: List<RailDay>,
+    val offsets: Map<Int, Float>,
+    val todayIndex: Int?,
+    val first: Boolean,
+)
 
 /** The dial's size on roomy windows, and the smallest it gets on compact ones. */
 private val MaxDialSize = 320.dp
