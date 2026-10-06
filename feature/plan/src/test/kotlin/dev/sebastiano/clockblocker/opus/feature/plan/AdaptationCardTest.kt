@@ -1,10 +1,15 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
+import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,5 +39,27 @@ class AdaptationCardTest {
         // …and neither claims "about 21 days".
         compose.onAllNodesWithContentDescription("about $days days", substring = true, ignoreCase = true)
             .assertCountEquals(0)
+    }
+
+    @Test
+    fun `the westward long way round admits it covers more hours`() {
+        // London → San Francisco is 8 h west; advancing 16 h is further round the clock face, never "fewer hours".
+        val plan = realPlan.copy(
+            originZoneId = realPlan.destinationZoneId,
+            destinationZoneId = realPlan.originZoneId,
+            direction = ShiftDirection.Advance,
+            shiftHours = 16.0,
+        )
+        plan.longWayRound() shouldBe LongWayRound.WestByAdvancing
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
+            }
+        }
+        val inCallout = hasAnyAncestor(hasTestTag(PlanTags.LongWayRound))
+        compose.onNode(inCallout and hasText("8 h behind", substring = true)).assertExists()
+        compose.onNode(inCallout and hasText("16 h earlier", substring = true)).assertExists()
+        compose.onNode(inCallout and hasText("further round the clock face", substring = true)).assertExists()
+        compose.onAllNodes(inCallout and hasText("fewer", substring = true)).assertCountEquals(0)
     }
 }

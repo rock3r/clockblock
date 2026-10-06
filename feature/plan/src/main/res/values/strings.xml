@@ -115,7 +115,7 @@
     <!-- Long way round callout (an eastward trip solved by moving the clock later, or a westward one by moving it earlier). -->
     <string name="plan_long_way_title">The long way round</string>
     <string name="plan_long_way_east">%1$s is %2$s ahead, but this plan moves your body clock %3$s later instead. After a big jump east, the destination\'s morning light falls before your body\'s low point, where light pushes the clock the wrong way. Most body clocks also run a little longer than 24 hours, so moving later each day comes more easily. Experts still disagree on where the cut-off lies.</string>
-    <string name="plan_long_way_west">%1$s is %2$s behind, but this plan moves your body clock %3$s earlier instead: the same clock face, fewer hours to cover.</string>
+    <string name="plan_long_way_west">%1$s is %2$s behind, but this plan moves your body clock %3$s earlier instead. That\'s further round the clock face, but for this trip it\'s the direction the plan\'s light and sleep timing can push your body clock most reliably. Experts still disagree on where the cut-off lies.</string>
     <string name="plan_adaptation_upcoming">Adapting starts with your first pre-trip day.</string>
     <string name="plan_no_shift_title">No jet lag expected. Enjoy the trip.</string>
     <string name="plan_no_shift_body">%1$s and %2$s keep nearly the same hours. Keep your usual sleep, %3$s to %4$s local time, and get some daylight in the morning.</string>
