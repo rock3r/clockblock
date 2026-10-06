@@ -240,7 +240,7 @@ A `LargeFlexibleTopAppBar` over a full-bleed sky painted by **body-clock time**,
 A `LinearWavyProgressIndicator` with `progress = adaptation %` and `amplitude = { misalignmentHours / initialMisalignment }`. The wave literally **calms down** as you adapt; it is flat on arrival-adapted. Reused in the trip list rows and the widget (as a static bitmap).
 
 ### E. Great-circle trip card
-Dot-matrix orthographic globe (≈1,500 dots from a bundled 1-bit 360×180 land mask). Dashed great-circle arc with an `Arrow` glyph oriented along the tangent (`PathMeasure.getPosTan`). On travel day the plane advances in real time. Caption "+8 h · 8 zones east · eastward is harder". Fully Canvas, no map SDK, offline.
+Dot-matrix orthographic globe (≈1,500 dots from a bundled 1-bit 360×180 land mask). Dashed great-circle arc with an `Arrow` glyph oriented along the tangent (`PathMeasure.getPosTan`). On travel day the plane advances in real time. Caption "+8 h · 8 zones east · eastward is harder". Fully Canvas, no map SDK, offline. For cards and editor headers the design system also offers a flattened `RouteArcBanner`: dot-matrix airport codes (`IataCode`, our own 5 × 7 Canvas glyphs, not a copy of any brand font) bridged by the same dashed arc, flat until a destination is picked.
 
 ### F. Adaptation tide chart
 Days on x, misalignment hours on y. The predicted curve is a dashed line; check-ins are dots. The area fill uses the effort level's colour. Shows Gentle / Balanced / Max side by side during setup.
@@ -358,7 +358,7 @@ Always pair icons with a text label in cards (fixes complaint #9).
 ### Motion personality: "Springy by day, syrupy by night"
 - **Day (body-clock day):** `MotionScheme.expressive()`. Card → Now uses defaultSpatial; glyph morphs use fastSpatial; colour uses defaultEffects.
 - **Night / avoid-light windows:** custom calm scheme (no overshoot, about 1.5× slower) + Night-safe UI.
-- **Signature moments:** inner-ring rotation on day change (Standard slowSpatial, no overshoot); hour-tick haptics while scrubbing; `SEGMENT_TICK` haptic when crossing an advice boundary; ring "click" + confetti on adaptation; digits roll vertically with a weight spring.
+- **Signature moments:** inner-ring rotation on day change (Standard slowSpatial, no overshoot); hour-tick haptics while scrubbing; `SEGMENT_TICK` haptic when crossing an advice boundary; ring "click" + confetti on adaptation; changed digits roll vertically (`RollingText`, Standard spatial; no weight spring, see MOTION.md).
 - **Predictive back:** plan screen shrinks back into its trip circle on the Trips list (shared element).
 - **Reduce motion:** respect `ANIMATOR_DURATION_SCALE == 0` plus an in-app toggle. Morphs become cross-fades, waves go flat (`amplitude = 0`), no confetti.
 

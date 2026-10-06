@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/screenshots/launcher-icon.png" alt="Opus Clockblock icon: a marigold clock and a lavender body clock" width="128" />
+  <img src="docs/screenshots/launcher-icon.png" alt="Clockblock icon: a marigold clock and a lavender body clock" width="128" />
 </p>
 
-<h1 align="center">Opus Clockblock</h1>
+<h1 align="center">Clockblock</h1>
 
 <p align="center">
   <strong>A free, open-source jet lag planner for Android that works entirely offline.</strong><br />
@@ -19,14 +19,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 15:59 local and 18:35 body time, and the Now card says Avoid caffeine until 20:00" width="19%" />
-  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 with Sleep 23:30 to 07:30, then Day 4, Adapted, with See bright light and See some light, each also shown in Lisbon time" width="19%" />
+  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 10:14 local and 12:35 body time, and the Now card says See some light until 12:00" width="19%" />
+  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 in Tokyo with Sleep 01:00 to 09:00, then See bright light, See some light and Avoid caffeine, each also shown in Lisbon time" width="19%" />
   <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo with departure and arrival in each airport's local time" width="19%" />
-  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 33% adapted" width="19%" />
+  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 29% adapted" width="19%" />
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
-Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Opus Clockblock builds a plan
+Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Clockblock builds a plan
 that moves your body clock towards your destination, then tells you what to do and until when: light, sleep, naps
 and caffeine. Each piece of advice explains why it's there. Everything runs on your phone. It's a free,
 transparent alternative to commercial jet lag apps.
@@ -85,14 +85,14 @@ The research is cited, the rules are written down, and the known limitations are
 
 ## Privacy
 
-Opus Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
+Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
 accounts, no analytics, no ads, no crash reporters and no third-party SDKs. Your trips and profile live in the
 app's private storage. They leave the device only when you export a backup or calendar file, share a plan
 summary to another app, or when Android's own device backup copies app data (if you have it turned on).
 
 ## Not medical advice
 
-Opus Clockblock gives general information for healthy adults, based on published research. It isn't medical
+Clockblock gives general information for healthy adults, based on published research. It isn't medical
 advice, it doesn't measure anything about you, and it isn't meant for flight crew on duty. If you have a health
 condition, are pregnant, or take medication, talk to a doctor before changing your sleep.
 
@@ -182,5 +182,3 @@ Full attributions are in [NOTICE](NOTICE) and in the app under About → Licence
 
 Copyright 2026 Sebastiano Poggi and contributors. Licensed under the [Apache License, Version 2.0](LICENSE).
 Bundled fonts and data keep their own licences; see [NOTICE](NOTICE).
-
-"Timeshifter" is a trademark of its owner. Opus Clockblock isn't affiliated with or endorsed by Timeshifter.
