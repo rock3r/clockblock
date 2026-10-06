@@ -90,7 +90,10 @@ private const val DONE_WEIGHT = 0.3f
  */
 internal const val UP_NEXT_ROWS = 2
 
-/** Above this font scale the 4×1 row drops its secondary-zone line (it would be clipped). */
+/**
+ * Above this font scale the 4×1 row has two lines: the secondary-zone time joins the "until" line (three lines would
+ * be clipped) and the countdown gives up its slot.
+ */
 internal const val MAX_THREE_LINE_FONT_SCALE = 1.15f
 
 /** Two Clocks widget: 24 h dial with host-driven hand, local/body time readouts and the next action. */
@@ -382,8 +385,12 @@ private fun SmallNextUp(model: WidgetModel) {
 private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int = 14, tight: Boolean = false) {
     val p = model.palette
     val texts = model.texts
-    val countdown = countdownText(model)?.takeIf { showCountdown }
     val fontScale = LocalContext.current.resources.configuration.fontScale
+    // A 4×1 row fits three lines only near the default font size. Larger text gets two lines: the label, then
+    // "until 16:30 · 08:30 in Lisbon" (the other zone's time stays, "then …" goes). The countdown gives its slot to
+    // that line: the end time already says when, and the label and times matter more than the duration.
+    val twoLines = showCountdown && tight && fontScale > MAX_THREE_LINE_FONT_SCALE
+    val countdown = countdownText(model)?.takeIf { showCountdown && !twoLines }
     // The countdown is sp-sized: keep its slot in step so the label never runs under it.
     val countdownSlot = (COUNTDOWN_TEXT_DP * fontScale.coerceAtLeast(1f)).roundToInt() + endPadding + 12
     RemoteBox(modifier = RemoteModifier.fillMaxSize(), contentAlignment = RemoteAlignment.Center) {
@@ -401,9 +408,8 @@ private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int =
                 verticalArrangement = RemoteArrangement.spacedBy(1.rdp),
             ) {
                 Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
-                Label(texts.subtitle.rs, p.onSurfaceVariant, 12, maxLines = 1)
-                // A 4×1 row has room for three lines only at default-ish font sizes; larger text keeps label + time.
-                if (showCountdown && (!tight || fontScale <= MAX_THREE_LINE_FONT_SCALE)) {
+                Label((if (twoLines) texts.subtitleWithSecondary else texts.subtitle).rs, p.onSurfaceVariant, 12, maxLines = 1)
+                if (showCountdown && !twoLines) {
                     texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
                 }
             }

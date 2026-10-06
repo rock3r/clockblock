@@ -165,6 +165,21 @@ class WidgetScreenshotTest {
         }
     }
 
+    /** The 4×1 row and the ribbon at 150 % font size: two lines, the other zone's time kept. */
+    @Test
+    @Config(sdk = [33])
+    fun legacyFontScale() {
+        RuntimeEnvironment.setFontScale(1.5f)
+        captureRoboImage("$DIR/legacy_font_scale.png") {
+            Grid(
+                listOf(
+                    listOf(legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76)),
+                    listOf(legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Ribbon, 360, 172)),
+                ),
+            )
+        }
+    }
+
     // --- Remote Compose documents, played back by the androidx player ------------------------------------------
 
     /** Docs overview: the 2×2 dial in every theme, the 4×2 layout and the empty state. */

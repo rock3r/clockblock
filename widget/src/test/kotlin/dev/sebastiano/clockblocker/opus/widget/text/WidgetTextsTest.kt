@@ -133,6 +133,12 @@ class WidgetTextsTest {
     }
 
     @Test
+    fun `the two-line subtitle keeps the other zone's time`() {
+        val t = texts(DemoPlans.Scenario.AvoidLight)
+        t.subtitleWithSecondary shouldBe "until 19:30 · 11:30 in Lisbon"
+    }
+
+    @Test
     fun `up next rows show their time in the secondary zone too`() {
         // Demo: shown in Tokyo, secondary Lisbon (8 h behind in October).
         val row = texts(DemoPlans.Scenario.AvoidLight).upcoming.first()

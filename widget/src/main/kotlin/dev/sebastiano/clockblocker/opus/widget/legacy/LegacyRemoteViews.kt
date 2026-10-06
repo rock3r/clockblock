@@ -169,7 +169,10 @@ object LegacyRemoteViews {
                 setTextViewTextSize(R.id.title, TypedValue.COMPLEX_UNIT_SP, TextFit.smallLabelSp(context, texts.title).toFloat())
             }
             val millisLeft = texts.countdownEnd?.let { Duration.between(now, it).toMillis() }?.takeIf { it > 0 }
-            val showCountdown = millisLeft != null && layout != NextUpLayout.Medium
+            // Same rule as Remote Compose: at large font sizes the 4×1 row has two lines, the second one folds in the
+            // other zone's time, and the countdown gives that line its room.
+            val twoLines = layout == NextUpLayout.Wide && context.resources.configuration.fontScale > MAX_THREE_LINE_FONT_SCALE
+            val showCountdown = millisLeft != null && layout != NextUpLayout.Medium && !twoLines
             if (showCountdown) {
                 setChronometer(R.id.countdown, SystemClock.elapsedRealtime() + millisLeft!!, null, true)
                 setChronometerCountDown(R.id.countdown, true)
@@ -197,12 +200,9 @@ object LegacyRemoteViews {
                     text(R.id.secondary, texts.secondary, p.onSurfaceVariant)
                 }
                 else -> {
-                    setTextViewText(R.id.subtitle, texts.subtitle)
+                    setTextViewText(R.id.subtitle, if (twoLines) texts.subtitleWithSecondary else texts.subtitle)
                     setTextColor(R.id.subtitle, p.onSurfaceVariant)
-                    // Same rule as Remote Compose: a 4×1 row only fits three lines near the default font size.
-                    val fontScale = context.resources.configuration.fontScale
-                    val roomForSecondary = layout == NextUpLayout.Ribbon ||
-                        (layout == NextUpLayout.Wide && fontScale <= MAX_THREE_LINE_FONT_SCALE)
+                    val roomForSecondary = layout == NextUpLayout.Ribbon || (layout == NextUpLayout.Wide && !twoLines)
                     text(R.id.secondary, texts.secondary.takeIf { roomForSecondary }, p.onSurfaceVariant)
                 }
             }

@@ -56,6 +56,13 @@ data class WidgetTexts(
     /** The Done action for the current block; null when there is nothing to mark (free time, flights, no plan). */
     val done: DoneText? = null,
 ) {
+    /**
+     * Two-line rows at large font sizes: the first "until" line plus the [secondary] time ("until 16:30 · 08:30 in
+     * Lisbon"). The "then …" part goes first, so the time in the other zone always stays.
+     */
+    val subtitleWithSecondary: String
+        get() = listOfNotNull(subtitleLines.firstOrNull() ?: subtitle, secondary).joinToString(" · ")
+
     companion object {
         fun from(context: Context, state: WidgetState, is24Hour: Boolean = DateFormat.is24HourFormat(context)) =
             WidgetTextFactory(context, is24Hour).texts(state)
