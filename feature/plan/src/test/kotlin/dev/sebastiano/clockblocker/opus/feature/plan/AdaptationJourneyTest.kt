@@ -77,6 +77,9 @@ class AdaptationJourneyTest {
     fun `a no-plan estimate at the horizon only supports an at-least claim`() {
         // Not adapted by day 21 without a plan: 15 days with it is at least 6 days faster, not "about 6".
         daysSaved(withPlan = 15.0, withoutPlan = EstimateHorizonDays) shouldBe DaysSaved(6, atLeast = true)
+        // A lower bound rounds down: 21 − 15.49 only guarantees 5.51 days.
+        daysSaved(withPlan = 15.49, withoutPlan = EstimateHorizonDays) shouldBe DaysSaved(5, atLeast = true)
+        daysSaved(withPlan = 20.6, withoutPlan = EstimateHorizonDays).shouldBeNull()
         // Both censored: nothing to claim.
         daysSaved(withPlan = EstimateHorizonDays, withoutPlan = EstimateHorizonDays).shouldBeNull()
     }

@@ -47,6 +47,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
@@ -198,8 +199,10 @@ internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
 /** Whole days the plan saves over the no-plan estimate, or null when it doesn't (never claim a tie as a win). */
 internal fun daysSaved(withPlan: Double, withoutPlan: Double): DaysSaved? {
     if (withPlan >= EstimateHorizonDays) return null
-    val days = (roundDays(withoutPlan) - roundDays(withPlan)).takeIf { it > 0 } ?: return null
-    return DaysSaved(days, atLeast = withoutPlan >= EstimateHorizonDays)
+    val censored = withoutPlan >= EstimateHorizonDays
+    // A lower bound must not round up, so a censored estimate floors the raw difference.
+    val days = if (censored) floor(withoutPlan - withPlan).toInt() else roundDays(withoutPlan) - roundDays(withPlan)
+    return days.takeIf { it > 0 }?.let { DaysSaved(it, atLeast = censored) }
 }
 
 /**
