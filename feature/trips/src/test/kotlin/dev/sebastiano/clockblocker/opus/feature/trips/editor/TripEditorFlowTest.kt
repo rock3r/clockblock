@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
@@ -11,7 +12,10 @@ import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
+import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
 import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
@@ -41,7 +45,7 @@ class TripEditorFlowTest : TripsScreenshotTest() {
     private val done = mutableListOf<String?>()
     private var backs = 0
 
-    private fun open(args: TripEditorArgs = TripEditorArgs()) {
+    private fun open(args: TripEditorArgs = TripEditorArgs()): TripEditorViewModel {
         val vm = TripEditorViewModel(
             args = args,
             trips = trips,
@@ -50,9 +54,13 @@ class TripEditorFlowTest : TripsScreenshotTest() {
             titles = TripTitleSuggester(),
             returnTrips = ReturnTripFactory(clock, TripTitleSuggester()),
             clock = clock,
+            planner = FakeJetLagPlanner(),
+            profiles = FakeProfileRepository.onboarded(),
+            dispatchers = AppDispatchers(main.dispatcher, main.dispatcher, main.dispatcher),
         )
         setContent { TripEditorRoute(viewModel = vm, onDone = { done += it }, onBack = { backs++ }) }
         settle()
+        return vm
     }
 
     private fun settle() {
@@ -79,6 +87,29 @@ class TripEditorFlowTest : TripsScreenshotTest() {
     }
 
     @Test
+    fun movingAnEstimatedArrivalToTheDepartureDayOffersAFixThatClearsIt() {
+        val vm = open()
+        val lis = DemoData.LIS
+        val hnd = DemoData.HND
+        vm.onPlaceSelected(PlaceFieldRef(0, LegEnd.Origin), lis)
+        vm.onPlaceSelected(PlaceFieldRef(0, LegEnd.Destination), hnd)
+        val day = java.time.LocalDate.of(2026, 10, 7)
+        vm.onDepartureDateChange(0, day)
+        vm.onDepartureTimeChange(0, java.time.LocalTime.of(9, 0))
+        settle()
+        tag(TripsTestTags.editorArrivalEstimate(0)).performScrollTo()
+
+        vm.onArrivalDateChange(0, day)
+        settle()
+        compose.onNodeWithTag(TripsTestTags.editorArrivalEstimate(0)).assertDoesNotExist()
+        tag(TripsTestTags.editorFix(0)).performScrollTo().performClick()
+        settle()
+
+        compose.onNodeWithTag(TripsTestTags.editorFix(0)).assertDoesNotExist()
+        vm.state.value.issuesFor(0) shouldBe emptyList()
+    }
+
+    @Test
     fun addingAConnectionChainsFromThePreviousDestinationAndSearchPicksTheNextAirport() {
         open(TripEditorArgs(tripId = "lis-hnd-typo"))
 
@@ -93,6 +124,8 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         tag(TripsTestTags.placeResult("SYD")).performScrollTo().performClick()
         settle()
         tag(TripsTestTags.editorTo(1)).assertTextContains("Sydney", substring = true)
+        // Picking the destination moves on (or just drops focus), so the keyboard doesn't linger over the dates.
+        tag(TripsTestTags.editorTo(1)).assertIsNotFocused()
 
         tag(TripsTestTags.editorRemoveLeg(1)).performScrollTo().performClick()
         settle()

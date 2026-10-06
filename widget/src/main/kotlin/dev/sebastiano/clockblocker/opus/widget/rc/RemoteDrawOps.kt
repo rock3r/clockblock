@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.widget.rc
 
+import androidx.compose.remote.creation.RemotePath
 import androidx.compose.remote.creation.compose.layout.RemoteDrawScope
 import androidx.compose.remote.creation.compose.layout.RemoteOffset
 import androidx.compose.remote.creation.compose.layout.RemoteSize
@@ -12,9 +13,12 @@ import androidx.compose.remote.creation.compose.state.sin
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import dev.sebastiano.clockblocker.opus.widget.draw.DrawOp
+import dev.sebastiano.clockblocker.opus.widget.draw.PathSegment
 import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
+import dev.sebastiano.clockblocker.opus.widget.draw.segments
 import kotlin.math.PI
 
 /**
@@ -79,6 +83,21 @@ private fun RemoteDrawScope.drawOp(op: DrawOp) {
             size = RemoteSize((op.right - op.left).rf, (op.bottom - op.top).rf),
             cornerRadius = RemoteOffset(op.radius.rf, op.radius.rf),
         )
+        is DrawOp.Path -> drawPath(op.toRemotePath(), paint(op.color, op.stroke).apply { strokeJoin = StrokeJoin.Round })
+        // alpha20's brush → shader API is not callable from Kotlin, and plain arcs are the safest op on every widget
+        // host anyway: approximate the sweep with short constant-colour arcs (5° each, slightly overlapping).
+        is DrawOp.SweepRing -> op.segments().forEach { drawOp(it) }
+    }
+}
+
+private fun DrawOp.Path.toRemotePath(): RemotePath = RemotePath().apply {
+    segments.forEach { s ->
+        when (s) {
+            is PathSegment.MoveTo -> moveTo(s.x, s.y)
+            is PathSegment.LineTo -> lineTo(s.x, s.y)
+            is PathSegment.CubicTo -> cubicTo(s.x1, s.y1, s.x2, s.y2, s.x, s.y)
+            PathSegment.Close -> close()
+        }
     }
 }
 
@@ -106,8 +125,12 @@ internal fun RemoteDrawScope.drawHostHand(
             start = at(hand.INNER_R),
             end = at(hand.OUTER_R),
         )
-        val head = at(TwoClocksDial.LOCAL_RING_R)
-        drawCircle(paint(p.hand, 0f), (hand.HEAD_R + hand.HEAD_RING).rf, head)
-        drawCircle(paint(p.sun, 0f), hand.HEAD_R.rf, head)
+        val r = TwoClocksDial.LOCAL_RING_R
+        translate(r.rf * c, r.rf * s) {
+            TwoClocksDial.headHalo(p).forEach { drawOp(it) }
+            // Both heads are written; the host shows one: sun between sunrise and sunset, moon otherwise.
+            scale(HostTime.dayFactor(minute)) { TwoClocksDial.sunHead(p).forEach { drawOp(it) } }
+            scale(HostTime.nightFactor(minute)) { TwoClocksDial.moonHead(p).forEach { drawOp(it) } }
+        }
     }
 }

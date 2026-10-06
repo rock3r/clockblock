@@ -9,8 +9,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
+import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
@@ -21,6 +23,7 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -86,7 +89,7 @@ class WidgetUpdaterTest {
 
     @Test
     fun `without a plan both widgets show the empty state`() = runBlocking<Unit> {
-        val clocks = place(WidgetKind.TwoClocks, 1)
+        val clocks = place(WidgetKind.TwoClocks, 1, widthDp = 176, heightDp = 176)
         val next = place(WidgetKind.NextUp, 2)
         updater.updateAll()
         texts(clocks) shouldContain app.getString(R.string.widget_no_trip_full)
@@ -152,15 +155,56 @@ class WidgetUpdaterTest {
         val noTrip = WidgetState.NoTrip
         fun state(s: DemoPlans.Scenario) = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, s), now, ZoneId.of("UTC"))
 
-        WidgetUpdater.isDark(AppSettings(), noTrip, day).shouldBeFalse()
-        WidgetUpdater.isDark(AppSettings(), noTrip, night).shouldBeTrue()
-        WidgetUpdater.isDark(AppSettings(themeMode = ThemeMode.Dark), noTrip, day).shouldBeTrue()
-        WidgetUpdater.isDark(AppSettings(themeMode = ThemeMode.Light), noTrip, night).shouldBeFalse()
-        // Night-safe: avoid-light / sleep windows force the dark palette, unless turned off.
-        WidgetUpdater.isDark(AppSettings(themeMode = ThemeMode.Light), state(DemoPlans.Scenario.AvoidLight), day)
-            .shouldBeTrue()
-        WidgetUpdater.isDark(AppSettings(), state(DemoPlans.Scenario.Sleep), day).shouldBeTrue()
-        WidgetUpdater.isDark(AppSettings(nightSafeAuto = false), state(DemoPlans.Scenario.Sleep), day).shouldBeFalse()
-        WidgetUpdater.isDark(AppSettings(), state(DemoPlans.Scenario.SeeBrightLight), day).shouldBeFalse()
+        WidgetUpdater.theme(AppSettings(), noTrip, day) shouldBe WidgetTheme.Light
+        WidgetUpdater.theme(AppSettings(), noTrip, night) shouldBe WidgetTheme.Dark
+        WidgetUpdater.theme(AppSettings(themeMode = ThemeMode.Dark), noTrip, day) shouldBe WidgetTheme.Dark
+        WidgetUpdater.theme(AppSettings(themeMode = ThemeMode.Light), noTrip, night) shouldBe WidgetTheme.Light
+        // Night-safe: avoid-light / sleep windows switch to the black + dim amber palette, unless turned off.
+        WidgetUpdater.theme(AppSettings(themeMode = ThemeMode.Light), state(DemoPlans.Scenario.AvoidLight), day) shouldBe
+            WidgetTheme.NightSafe
+        WidgetUpdater.theme(AppSettings(), state(DemoPlans.Scenario.Sleep), day) shouldBe WidgetTheme.NightSafe
+        WidgetUpdater.theme(AppSettings(nightSafeAuto = false), state(DemoPlans.Scenario.Sleep), day) shouldBe
+            WidgetTheme.Light
+        WidgetUpdater.theme(AppSettings(), state(DemoPlans.Scenario.SeeBrightLight), day) shouldBe WidgetTheme.Light
+    }
+
+    @Test
+    fun `preview key changes with the app version and with night mode`() {
+        WidgetUpdater.previewKey(12, night = false) shouldBe WidgetUpdater.previewKey(12, night = false)
+        WidgetUpdater.previewKey(12, night = false) shouldNotBe WidgetUpdater.previewKey(12, night = true)
+        WidgetUpdater.previewKey(12, night = true) shouldNotBe WidgetUpdater.previewKey(13, night = true)
+    }
+
+    @Test
+    fun `a light-dark switch triggers one refresh, other configuration changes none`() {
+        fun config(night: Boolean, fontScale: Float = 1f) = Configuration(app.resources.configuration).apply {
+            val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
+            this.fontScale = fontScale
+        }
+        updater.nightModeChanged(config(night = false, fontScale = 1.3f)).shouldBeFalse()
+        updater.nightModeChanged(config(night = true)).shouldBeTrue()
+        updater.nightModeChanged(config(night = true)).shouldBeFalse()
+        updater.nightModeChanged(config(night = false)).shouldBeTrue()
+    }
+
+    @Test
+    fun `Done shows on Next up and turns into a chip once logged`() = runBlocking<Unit> {
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        plans.current.value = plan
+        val logs = FakeAdviceLogRepository()
+        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), logs).apply {
+            clock = Clock.fixed(now, ZoneOffset.UTC)
+        }
+        // 4×2: Next up with its Done button.
+        val next = place(WidgetKind.NextUp, 9, widthDp = 300, heightDp = 130)
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        val done = app.getString(R.string.widget_done)
+        texts(next) shouldContain done
+
+        val current = (WidgetStateMapper.map(plan, now, ZoneId.of("UTC")) as WidgetState.Active).current!!
+        logs.log(plan.tripId, current.adviceId, AdviceOutcome.Skipped)
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        texts(next) shouldContain app.getString(R.string.widget_skipped)
     }
 }

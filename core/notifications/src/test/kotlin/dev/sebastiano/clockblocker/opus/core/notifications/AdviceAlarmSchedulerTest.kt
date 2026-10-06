@@ -18,7 +18,10 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -56,7 +59,7 @@ class AdviceAlarmSchedulerTest {
     private val factory = NotificationFactory(context, capabilities, clock)
     private val reminders = ReminderNotifier(context, factory, capabilities)
     private val widget = RecordingSurface()
-    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock)
+    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())
 
     private fun scheduler(vararg extra: dev.sebastiano.clockblocker.opus.core.data.PlanSurface) = AdviceAlarmScheduler(
         context, plans, settings, setOf(nowSurface, widget, *extra), reminders, snooze, capabilities, clock,
@@ -156,6 +159,157 @@ class AdviceAlarmSchedulerTest {
         runCurrent()
         scheduled.first().triggerAtMs shouldBe ScheduledAlarm("2026-10-10T21:30")
         widget.refreshes shouldBe 3
+    }
+
+    @Test
+    fun `turning on lock-screen privacy rebuilds a reminder already on screen redacted`() = runTest(UnconfinedTestDispatcher()) {
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull().publicVersion.shouldBeNull()
+
+        clock.instant = utc("2026-10-10T13:50")
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        runCurrent()
+
+        val n = reminder.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        (n.publicVersion.shouldNotBeNull().actions ?: emptyArray()).size shouldBe 0
+        n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light at 15:00"
+        (n.flags and Notification.FLAG_ONLY_ALERT_ONCE) shouldBe Notification.FLAG_ONLY_ALERT_ONCE // no second buzz
+        n.timeoutAfter shouldBe Duration.ofMinutes(40).toMillis() // still until 30 min after the window starts
+    }
+
+    @Test
+    fun `turning on lock-screen privacy does not bring back a dismissed reminder`() = runTest(UnconfinedTestDispatcher()) {
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        notificationManager.cancel(NotificationIds.REMINDER) // swiped away
+
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        runCurrent()
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
+    fun `starting with privacy on withdraws an unredacted reminder left from before a restart`() = runTest(UnconfinedTestDispatcher()) {
+        // Posted by a previous process, which died after the setting was saved but before it could redact it.
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull().publicVersion.shouldBeNull()
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+
+        val restarted = AdviceAlarmScheduler(
+            context, plans, settings, setOf(widget), ReminderNotifier(context, factory, capabilities), snooze,
+            capabilities, clock,
+        )
+        restarted.start(backgroundScope)
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
+    fun `privacy turned on while an alarm is handled still redacts the reminder`() = runTest {
+        // The alarm reads settings first with privacy off; the user turns it on before the reminder is posted.
+        val stored = settings.current
+        val racing = object : dev.sebastiano.clockblocker.opus.core.data.SettingsRepository {
+            var reads = 0
+            override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = kotlinx.coroutines.flow.flow {
+                val current = stored.value
+                emit(if (reads++ == 0) current else current.copy(hideLockScreenDetails = true))
+            }
+            override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
+        }
+        val scheduler = AdviceAlarmScheduler(
+            context, plans, racing, setOf(widget), reminders, snooze, capabilities, clock,
+        )
+        clock.instant = utc("2026-10-10T13:45")
+
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+
+        val n = reminder.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        n.publicVersion.shouldNotBeNull()
+    }
+
+    @Test
+    fun `redacting leaves a reminder that was already posted redacted untouched`() = runTest {
+        // An alarm racing the flip can win the lock, re-read privacy on and post redacted before the collector runs.
+        clock.instant = utc("2026-10-10T13:45")
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        val posted = reminder.shouldNotBeNull()
+        posted.publicVersion.shouldNotBeNull()
+
+        reminders.redactShowing(utc("2026-10-10T13:50"))
+
+        reminder shouldBeSameInstanceAs posted
+    }
+
+    @Test
+    fun `a reminder handled while it is being redacted stays gone`() = runTest {
+        // Snooze, Done or Can't do this cancels the reminder while redactShowing is rebuilding it on another thread.
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val cancelled = java.util.concurrent.CountDownLatch(1)
+        var pause = false
+        val pausing = object : PlatformCapabilities by capabilities {
+            override fun areNotificationsEnabled(): Boolean {
+                if (pause) {
+                    pause = false
+                    entered.countDown()
+                    cancelled.await(500, java.util.concurrent.TimeUnit.MILLISECONDS) // never comes if cancel waits
+                }
+                return true
+            }
+        }
+        val notifier = ReminderNotifier(context, factory, pausing)
+        clock.instant = utc("2026-10-10T13:45")
+        AdviceAlarmScheduler(context, plans, settings, setOf(widget), notifier, snooze, pausing, clock)
+            .onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull()
+
+        pause = true
+        val redacting = Thread { notifier.redactShowing(utc("2026-10-10T13:50")) }.apply { start() }
+        entered.await()
+        val handling = Thread { notifier.cancel(); cancelled.countDown() }.apply { start() }
+        redacting.join()
+        handling.join()
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
+    fun `turning lock-screen privacy off leaves the reminder alone`() = runTest(UnconfinedTestDispatcher()) {
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = false)
+        runCurrent()
+
+        reminder.shouldNotBeNull()
+    }
+
+    @Test
+    fun `a refresh is armed for the next change of the body-clock header`() = runTest {
+        // Body drifts from London time (0 h) to 1 h ahead over 24 h: the header leaves "in sync" at +30 min,
+        // i.e. 12 h in, at 19:00 UTC, before any plan transition after 17:00 would refresh it.
+        plans.current.value = plan.copy(
+            phase = listOf(
+                PhasePoint(utc("2026-10-10T07:00"), 60, utc("2026-10-10T07:00")),
+                PhasePoint(utc("2026-10-11T07:00"), 120, utc("2026-10-11T07:00")),
+            ),
+        )
+
+        val alarms = scheduler().resync().instants
+
+        alarms shouldContain utc("2026-10-10T19:00")
     }
 
     @Test

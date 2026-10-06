@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.widget
 import android.content.Context
 import android.util.SizeF
 import androidx.test.core.app.ApplicationProvider
+import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeSupport
@@ -65,20 +66,23 @@ class WidgetRendererTest {
     fun `API 35 renders the classic layouts`() = runBlocking<Unit> {
         val renderer = WidgetRenderer(context)
         renderer.backend shouldBe WidgetBackend.Legacy
-        val twoClocks = renderer.render(WidgetKind.TwoClocks, active, dark = false, now = now)
-        twoClocks.layoutId shouldBe R.layout.widget_two_clocks_legacy
-        // Next up is responsive (size-mapped RemoteViews) on API 31+.
-        renderer.render(WidgetKind.NextUp, active, dark = true, now = now).shouldNotBeNull()
+        // Both kinds are responsive (size-mapped RemoteViews) on API 31+.
+        renderer.render(WidgetKind.TwoClocks, active, WidgetTheme.Light, now = now).shouldNotBeNull()
+        renderer.render(WidgetKind.NextUp, active, WidgetTheme.NightSafe, now = now).shouldNotBeNull()
     }
 
     @Test
     @Config(sdk = [29])
     fun `pre-31 hosts get the single layout that fits the reported size`() = runBlocking<Unit> {
         val renderer = WidgetRenderer(context)
-        renderer.render(WidgetKind.NextUp, WidgetState.NoTrip, false, WidgetSizeDp(57f, 50f), now).layoutId shouldBe
-            R.layout.widget_next_up_small_legacy
-        renderer.render(WidgetKind.NextUp, active, false, WidgetSizeDp(300f, 50f), now).layoutId shouldBe
-            R.layout.widget_next_up_legacy
+        suspend fun layout(kind: WidgetKind, state: WidgetState, w: Float, h: Float) =
+            renderer.render(kind, state, WidgetTheme.Light, WidgetSizeDp(w, h), now).layoutId
+        layout(WidgetKind.NextUp, WidgetState.NoTrip, 57f, 50f) shouldBe R.layout.widget_next_up_small_legacy
+        layout(WidgetKind.NextUp, active, 300f, 50f) shouldBe R.layout.widget_next_up_legacy
+        layout(WidgetKind.NextUp, active, 300f, 130f) shouldBe R.layout.widget_next_up_ribbon_legacy
+        layout(WidgetKind.NextUp, active, 150f, 250f) shouldBe R.layout.widget_next_up_stack_legacy
+        layout(WidgetKind.TwoClocks, active, 150f, 150f) shouldBe R.layout.widget_two_clocks_legacy
+        layout(WidgetKind.TwoClocks, active, 300f, 130f) shouldBe R.layout.widget_two_clocks_wide_legacy
     }
 
     @Test
@@ -88,7 +92,16 @@ class WidgetRendererTest {
         WidgetRenderer.pick(sizes, WidgetSizeDp(30f, 30f)) shouldBe NextUpLayout.Small
         WidgetRenderer.pick(sizes, WidgetSizeDp(120f, 50f)) shouldBe NextUpLayout.Medium
         WidgetRenderer.pick(sizes, WidgetSizeDp(400f, 50f)) shouldBe NextUpLayout.Wide
-        WidgetRenderer.pick(WidgetRenderer.TWO_CLOCKS_SIZES, WidgetSizeDp(280f, 120f)) shouldBe TwoClocksLayout.Wide
+        WidgetRenderer.pick(sizes, WidgetSizeDp(176f, 176f)) shouldBe NextUpLayout.Square
+        WidgetRenderer.pick(sizes, WidgetSizeDp(176f, 260f)) shouldBe NextUpLayout.Tall
+        WidgetRenderer.pick(sizes, WidgetSizeDp(360f, 172f)) shouldBe NextUpLayout.Ribbon
+        WidgetRenderer.pick(sizes, WidgetSizeDp(360f, 260f)) shouldBe NextUpLayout.Tall
+        val clocks = WidgetRenderer.TWO_CLOCKS_SIZES
+        WidgetRenderer.pick(clocks, WidgetSizeDp(76f, 76f)) shouldBe TwoClocksLayout.Compact
+        WidgetRenderer.pick(clocks, WidgetSizeDp(176f, 176f)) shouldBe TwoClocksLayout.Square
+        WidgetRenderer.pick(clocks, WidgetSizeDp(280f, 120f)) shouldBe TwoClocksLayout.Wide
+        WidgetRenderer.pick(clocks, WidgetSizeDp(176f, 260f)) shouldBe TwoClocksLayout.Tall
+        WidgetRenderer.pick(clocks, WidgetSizeDp(360f, 260f)) shouldBe TwoClocksLayout.Large
     }
 
     @Test

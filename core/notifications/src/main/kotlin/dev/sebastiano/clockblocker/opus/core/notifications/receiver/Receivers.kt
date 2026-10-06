@@ -84,7 +84,7 @@ class ScheduleResetReceiver(
     }
 }
 
-/** Done / Can't do this / Snooze 15 on the Now notification and reminders. Not exported. */
+/** Done / Can't do this / Snooze 15 / Undo on the Now notification and reminders. Not exported. */
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey
 @Inject
@@ -104,6 +104,7 @@ class AdviceActionReceiver(
                 AdviceAction.Done -> log(tripId, adviceId, AdviceOutcome.Done)
                 AdviceAction.CantDo -> log(tripId, adviceId, AdviceOutcome.CantDo)
                 AdviceAction.Snooze -> scheduler.snooze(adviceId)
+                AdviceAction.Undo -> undo(tripId, adviceId)
             }
         }
     }
@@ -112,6 +113,12 @@ class AdviceActionReceiver(
         adviceLogRepository.log(tripId, adviceId, outcome)
         reminders.cancel()
         // Same source of truth: the Now notification (and widgets) re-render with the logged outcome.
+        scheduler.refreshSurfaces()
+    }
+
+    /** The notification only offers Undo for a logged outcome, so forgetting it restores the state before. */
+    private suspend fun undo(tripId: String, adviceId: String) {
+        adviceLogRepository.clear(tripId, adviceId)
         scheduler.refreshSurfaces()
     }
 }

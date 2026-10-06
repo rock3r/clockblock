@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
@@ -20,8 +22,12 @@ import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsTags
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -167,5 +173,42 @@ class OnboardingContentTest : OpusScreenshotTest() {
         actions.calls shouldContainExactly listOf("back")
         compose.onNodeWithTag(OnboardingTags.step(OnboardingStep.Chronotype)).assertDoesNotExist()
         compose.onNodeWithTag(OnboardingTags.step(OnboardingStep.Sleep)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the headline sits at the same height on every question step`() = assertHeadlineRhythm(fontScale = 1f)
+
+    @Test
+    fun `the headline sits at the same height on every question step at a large font`() = assertHeadlineRhythm(fontScale = 1.5f)
+
+    /** Steps 2 to 5 share one header (art, headline, body): stepping through them never moves the headline. */
+    private fun assertHeadlineRhythm(fontScale: Float) {
+        var step by mutableStateOf(OnboardingStep.HomeZone)
+        setContent(fontScale = fontScale) { OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize()) }
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val tops = listOf(
+            OnboardingStep.HomeZone to R.string.home_headline,
+            OnboardingStep.Sleep to R.string.sleep_headline,
+            OnboardingStep.Chronotype to R.string.chronotype_headline,
+            OnboardingStep.Tools to R.string.tools_headline,
+        ).map { (target, headline) ->
+            step = target
+            compose.mainClock.advanceTimeBy(2_000)
+            compose.waitForIdle()
+            compose.onNodeWithText(context.getString(headline)).getUnclippedBoundsInRoot().top
+        }
+        tops.distinct() shouldHaveSize 1
+    }
+
+    /** The sleep dial has a minimum size; when it doesn't fit, it scrolls inside the step and never pushes Back/Next off. */
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun `back and next stay on screen on a small phone at the largest font`() {
+        setContent(fontScale = 2f) { OnboardingContent(onboardingState(OnboardingStep.Sleep), actions, Modifier.fillMaxSize()) }
+        compose.onNodeWithTag(OnboardingTags.Back).assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
+        compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
+        actions.calls shouldContainExactly listOf("next")
     }
 }

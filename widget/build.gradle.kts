@@ -16,6 +16,8 @@ android {
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.data)
+    // Only for the Done button: it fires the notification module's Done broadcast (NotificationIntents.widgetDone).
+    implementation(projects.core.notifications)
     implementation(projects.core.designsystem)
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

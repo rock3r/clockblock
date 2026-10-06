@@ -11,7 +11,7 @@ how to back it up.
 | Setting | What it does |
 |---|---|
 | Home time zone | Where home is. Search for a city or airport. Plans don't use it yet: they start from the trip's first departure airport. |
-| Usual sleep | Your normal bedtime and wake-up time. |
+| Usual sleep | Your normal bedtime and wake-up time, on the same dial as setup. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
 | Chronotype | Lark, owl or in between. |
 | Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#5-your-tools). |
 | How hard the plan pushes | Gentle, Balanced or Max. |
@@ -28,8 +28,13 @@ how to back it up.
 | Night-safe automatically | Makes the plan screen dark and dim while your plan says avoid light or sleep, or during your body's night when no light is planned. The widgets turn dark while your plan says avoid light or sleep. |
 | Reminders | Turns all reminders and the Now notification on or off. Widgets keep working. |
 | How early | When reminders arrive: on time, or 5, 10, 15 or 30 minutes before a block starts. |
-| What Android allows | Shows whether the app may send notifications, use exact timing, show Live Updates, and run without battery optimisation. Tap **Allow** or **Open settings** to change it. |
+| Hide details on the lock screen | Keeps places, flight numbers and supplement names off the lock screen whenever Android hides sensitive notification content. Times and the kind of block stay. Off by default. See [On the lock screen](widgets-and-notifications.md#on-the-lock-screen). |
 | Send a test reminder | Sends a sample reminder so you can check that reminders arrive. |
+| What Android allows | A one-line summary of whether reminders can arrive on time. Tap it to see each permission: notifications, exact timing, Live Updates (Android 16 and later) and battery optimisation, and tap **Allow** or **Open settings** to change one. It opens by itself when notifications or exact timing are missing. Live Updates and battery optimisation are optional extras. |
+| Widgets | A preview of each home-screen widget with an **Add** button that places it on your home screen. Only shown if your home screen app supports it. |
+
+On a tablet, a foldable or a large window, Settings shows two columns: your profile, tools, appearance and More
+on the left, reminders, widgets and your data on the right.
 
 ## Your data
 
@@ -76,6 +81,6 @@ removed may stay in your calendar, so delete the old events after a big change.
 
 - **Replay setup** walks you through the first-run questions again.
 - **About Opus Clockblock** explains how the plan works, lists the research it's based on, and shows the version
-  and the open-source licences.
+  and the open-source licences. Tap a licence to open the project's web page.
 
 Next: [Questions and answers](faq.md).

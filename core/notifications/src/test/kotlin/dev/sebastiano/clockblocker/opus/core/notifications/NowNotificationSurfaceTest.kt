@@ -15,6 +15,11 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType.SeeBrightLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Sleep
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
+import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.longs.shouldBeGreaterThan
@@ -23,6 +28,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -31,6 +37,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
@@ -52,9 +60,26 @@ class NowNotificationSurfaceTest {
     private val clock = FakeClock(utc("2026-10-10T15:00"))
     private val capabilities = FakeCapabilities()
     private val snooze = SnoozeStore(context)
+    private val trips = FakeTripRepository(
+        Trip(
+            id = "trip-1",
+            title = "Tokyo",
+            legs = listOf(
+                FlightLeg(
+                    id = "leg-1",
+                    origin = Place("LHR", "Heathrow", "London", "GB", "Europe/London", 51.47, -0.45),
+                    destination = Place("HND", "Haneda", "Tokyo", "JP", "Asia/Tokyo", 35.55, 139.78),
+                    departureLocal = LocalDateTime.parse("2026-10-10T13:00"),
+                    arrivalLocal = LocalDateTime.parse("2026-10-11T08:00"),
+                    flightNumber = "BA7",
+                ),
+            ),
+            createdAt = Instant.EPOCH,
+        ),
+    )
 
     private val surface = NowNotificationSurface(
-        context, plans, settings, logs, snooze, NotificationFactory(context, capabilities, clock), capabilities, clock,
+        context, plans, settings, logs, snooze, NotificationFactory(context, capabilities, clock), capabilities, clock, trips,
     )
 
     private val posted: Notification? get() = shadowOf(manager).getNotification(NotificationIds.NOW)
@@ -158,14 +183,71 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
-    fun `logged outcome replaces the actions`() = runTest {
+    fun `logged outcome leaves a single Undo`() = runTest {
         logs.log("trip-1", avoid.id, AdviceOutcome.Done)
 
         surface.render()
 
         val n = posted.shouldNotBeNull()
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Done · until 18:00 · then Sleep 18:00–02:00"
-        (n.actions ?: emptyArray()).toList().shouldBeEmpty()
+        n.actions.map { it.title.toString() } shouldContainExactly listOf("Undo")
+        val undo = shadowOf(n.actions[0].actionIntent).savedIntent
+        undo.action shouldBe NotificationIntents.adviceAction(context, AdviceAction.Undo)
+        undo.getStringExtra(NotificationIntents.EXTRA_ADVICE_ID) shouldBe avoid.id
+    }
+
+    @Test
+    fun `the header shows the body clock`() = runTest {
+        clock.zoneId = ZoneId.of("Asia/Tokyo")
+
+        surface.render()
+
+        posted.shouldNotBeNull().extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString() shouldBe "Body 8 h behind"
+    }
+
+    @Test
+    fun `details stay visible on the lock screen by default`() = runTest {
+        surface.render()
+
+        val n = posted.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PUBLIC
+        n.publicVersion.shouldBeNull()
+    }
+
+    @Test
+    fun `hiding lock screen details posts a private notification with a redacted public version`() = runTest {
+        settings.current.value = AppSettings(hideLockScreenDetails = true)
+        plans.current.value = planOf(flight, sleep)
+        clock.instant = utc("2026-10-10T13:00")
+
+        surface.render() shouldBe NowRendering.Ongoing
+
+        val n = posted.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        n.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight · BA7"
+        val public = n.publicVersion.shouldNotBeNull()
+        public.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight"
+        public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
+        public.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldNotContain "Tokyo"
+        (public.actions ?: emptyArray()).toList().shouldBeEmpty()
+    }
+
+    @Test
+    fun `a redacted melatonin reminder hides its name, dose and pill icon`() {
+        val melatonin = advice(Melatonin, "2026-10-10T20:00", detail = "0.5 mg")
+        val spec = ReminderSpec(ReminderKind.Moment, melatonin, expiresAt = melatonin.start.plusSeconds(7200))
+
+        val n = NotificationFactory(context, capabilities, clock).reminder(spec, planOf(avoid, sleep, melatonin), utc("2026-10-10T20:00"), redact = true)
+
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Melatonin now"
+        n.smallIcon.resId shouldBe R.drawable.ic_notif_clock
+        val public = n.publicVersion.shouldNotBeNull()
+        public.extras.getString(Notification.EXTRA_TITLE) shouldBe "Plan step now"
+        public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Unlock to see details"
+        // Done + Snooze would name melatonin on its own: the stand-in carries no actions.
+        n.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Snooze 15 min")
+        (public.actions ?: emptyArray()).toList().shouldBeEmpty()
     }
 
     @Test
@@ -228,6 +310,24 @@ class NowNotificationSurfaceTest {
         style.progress shouldBe 5 * 60 + 30
         n.shortCriticalText.toString() shouldBe "18:00"
         n.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Can't do this", "Snooze 15 min")
+        // Route from the trip, phase as an absolute time (the notification only re-renders at plan boundaries).
+        n.extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString() shouldBe
+            "LHR → HND · Lands Sun 00:00 · Body clock in sync"
+    }
+
+    @Test
+    fun `a redacted live update keeps its progress but drops the route`() = runTest {
+        settings.current.value = AppSettings(hideLockScreenDetails = true)
+        plans.current.value = planOf(flight, avoid, sleep)
+        clock.instant = utc("2026-10-10T14:30")
+
+        surface.render() shouldBe NowRendering.LiveUpdate
+
+        val n = posted.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        val public = n.publicVersion.shouldNotBeNull()
+        public.extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString() shouldBe "Lands Sun 00:00 · Body clock in sync"
+        (Notification.Builder.recoverBuilder(context, public).style is Notification.ProgressStyle) shouldBe true
     }
 
     @Test

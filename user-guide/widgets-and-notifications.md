@@ -24,8 +24,8 @@ The buttons on a reminder depend on what it's for:
 | The wake-up reminder | none. Tap it to open the plan |
 
 Your answer is saved, just as if you'd tapped it in the app. The Now notification (below) has all three buttons,
-**Done**, **Can't do this** and **Snooze 15 min**, until you answer. When the only thing happening is the flight
-itself, it has none.
+**Done**, **Can't do this** and **Snooze 15 min**, until you answer. After that it shows a single **Undo** button,
+so a mistaken tap is easy to take back. When the only thing happening is the flight itself, it has no buttons.
 
 ## The Now notification
 
@@ -33,7 +33,8 @@ itself, it has none.
 
 While a plan is in progress, one quiet notification stays in your notification shade. It says what to do now,
 until when, and what comes next, for example "See some light until 20:00 · then Avoid caffeine". It updates by
-itself and never makes a sound. Tap it to open the plan.
+itself and never makes a sound. Tap it to open the plan. Its header shows how far your body clock is from local
+time, for example "Body 3½ h behind", or "Body clock in sync" once you've adjusted.
 
 **Snooze 15 min** hides it for 15 minutes, then reminds you again if the block is still going.
 
@@ -43,40 +44,58 @@ On Android 16 and later, the notification becomes a **Live Update** on your trav
 about 3 hours before your first flight until about 2 hours after you land, with your plan's blocks and the
 take-off and landing times on it. It also appears as a small chip in the status bar, if Android allows it. It
 only shows while a light, sleep or other plan block (not just the flight) is active; otherwise you see the normal
-notification.
+notification. Its header shows the route and the next step of the day, for example "LHR → HND · Lands 19:00 ·
+Body 8 h behind".
+
+### On the lock screen
+
+By default, the notification shows the same text on the lock screen as in the shade. If you'd rather keep your
+travel details private, turn on **Settings** → **Reminders** → **Hide details on the lock screen**. Then, whenever
+Android hides sensitive notification content on the lock screen (an Android setting), the lock screen shows only
+the kind of block and its times: no places, flight numbers or supplement names, and no buttons. Unlock your
+phone to see everything. Turning the setting on also hides the details of a reminder that's already showing,
+without buzzing again.
 
 ## Widgets
 
-To add a widget, touch and hold an empty area of your home screen, tap **Widgets**, find Opus Clockblock, and
-drag the widget you want onto the screen. You can resize both widgets.
+The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
+home screen asks where to put it. (The section only appears if your home screen app supports this.) You can
+also touch and hold an empty area of your home screen, tap **Widgets**, find Opus Clockblock, and drag the widget
+you want onto the screen. You can resize both widgets.
 
 ### Two Clocks
 
-<img src="images/widget-two-clocks.png" alt="Two Clocks widgets in light and dark, small and wide. The dial shows 15:20 local time, body 08:20, −7 h, with Avoid light until 16:30. The wide version adds then Melatonin and 08:30 in Lisbon. The bottom row shows the empty state: No trip, Plan one." width="480" />
+<img src="images/widget-two-clocks.png" alt="Two Clocks widgets. Top row: the small dial in light, dark and night-safe (black and amber), showing 15:20 local time, body 08:20, −7 h, and Avoid light until 16:30, then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with a card saying Tokyo · Day 2, Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, and a Done button." width="480" />
 
 The *Two Clocks* widget is a small version of the dial in the app. It shows the local time, the time your body
 clock thinks it is ("body 08:20"), the gap between them ("−7 h": your body is 7 hours behind), and the current
-block with its end time. The wide version also shows what comes next and the time in your other time zone.
+block with its end time. The outer ring follows the sky through the day. The bigger sizes add a card with the
+place and plan day ("Tokyo · Day 2"), what comes next, the time in your other time zone, and a **Done** button.
+The biggest size also lists the next blocks (with their time in your other zone) and how far you've adapted.
 
 ### Next up
 
-<img src="images/widget-next-up.png" alt="Next up widgets in light and dark: a row saying Avoid light until 16:30, then Melatonin, with a 1h 10m countdown; Free time; small tiles with Sleep 5h40m and Avoid light 1h10m; Clockblocked; and No trip, Plan one." width="480" />
+<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
 
 The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
-short label. It says "Free time" when there's nothing to do, and "Clockblocked" when your plan is finished.
+short label. Bigger sizes add a **Done** button, and the tallest and widest ones list what's up next. It says
+"Free time" when there's nothing to do, and "Clockblocked" when your plan is finished.
 
 ### Good to know
 
 - Tap a widget to open the plan. With no trip planned, the widgets say "No trip · Plan one", and a tap opens the
   new trip screen.
+- Tap **Done** on a widget to mark the current block as done, just like the button on the notification. The button
+  then turns into "✓ Done" (or "Skipped" if you skipped it elsewhere).
 - The widgets follow the app's theme. When "Night-safe automatically" is on and your plan says to avoid light or
-  sleep, they turn dark too.
+  sleep, they switch to a black and amber look that won't light up a dark room.
 - The widgets update when your plan changes and at each block boundary. They don't drain your battery by checking
   all the time.
 
 ## If reminders don't arrive
 
-1. Open **Settings** and look at **What Android allows**.
+1. Open **Settings** and look at **What Android allows**. If everything needed is allowed, it shows a one-line
+   summary; tap it to see each permission.
 2. Make sure **Notifications** says "Allowed". If not, tap **Allow**.
 3. Make sure **Exact timing** says "Allowed". Without it, reminders may arrive several minutes late, or much later while the phone is idle.
 4. On some phones, turning off **Battery optimisation** for the app helps too.

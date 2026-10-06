@@ -12,6 +12,7 @@ import dev.sebastiano.clockblocker.opus.core.notifications.now.NowState
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowStateCalculator
 import dev.sebastiano.clockblocker.opus.core.notifications.now.TravelPlanner
 import dev.sebastiano.clockblocker.opus.core.notifications.now.TravelProgress
+import dev.sebastiano.clockblocker.opus.core.notifications.now.TripRoute
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import dev.sebastiano.clockblocker.opus.core.notifications.text.ClockFormat
@@ -36,23 +37,56 @@ class NotificationFactory(
 
     private fun clockFormat() = ClockFormat(clock.zone(), capabilities.locale(), capabilities.is24HourFormat())
 
-    private fun formatter() = NotificationTextFormatter(ResourceNotificationStrings(context), clockFormat())
+    private fun formatter(redact: Boolean = false) =
+        NotificationTextFormatter(ResourceNotificationStrings(context), clockFormat(), redact)
 
-    /** The standard ongoing "Now" notification. */
-    fun now(state: NowState, plan: JetLagPlan, now: Instant): Notification {
-        val text = formatter().now(state, plan, now)
-        return ongoingBuilder(OpusChannel.Now, state, text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
-            .build()
+    /**
+     * The standard ongoing "Now" notification. Its header carries the body clock ("Body 3½ h behind").
+     *
+     * @param redact hide details on the lock screen: the notification becomes `VISIBILITY_PRIVATE` with a public
+     *   version that keeps labels and times but drops places, flight numbers and supplements.
+     */
+    fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
+        fun build(publicText: Boolean): NotificationCompat.Builder {
+            val text = formatter(publicText).now(state, plan, now)
+            return ongoingBuilder(OpusChannel.Now, state, text, redacted = redact)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
+        }
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
 
     /**
      * The travel-day Live Update: a `ProgressStyle` across the travel window with advice-coloured segments,
      * take-off/landing points and a plane tracker. Promotion is only requested when the user allows it; when
-     * not, the same notification is posted unpromoted (still a progress notification in the shade).
+     * not, the same notification is posted unpromoted (still a progress notification in the shade). The header
+     * names the [route], the travel phase and the body clock.
      */
-    fun live(state: NowState, plan: JetLagPlan, now: Instant, progress: TravelProgress): Notification {
-        val text = formatter().now(state, plan, now)
+    fun live(
+        state: NowState,
+        plan: JetLagPlan,
+        now: Instant,
+        progress: TravelProgress,
+        route: TripRoute? = null,
+        redact: Boolean = false,
+    ): Notification {
+        // The private (full) version keeps every detail in its text; only icons follow the redaction setting.
+        fun build(publicText: Boolean): NotificationCompat.Builder {
+            val formatter = formatter(publicText)
+            val text = formatter.now(state, plan, now).copy(
+                subText = formatter.travelSubText(plan, now, route?.let { formatter.route(it.from, it.to) }),
+            )
+            return liveBuilder(state, now, progress, text, redacted = redact)
+        }
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
+    }
+
+    private fun liveBuilder(
+        state: NowState,
+        now: Instant,
+        progress: TravelProgress,
+        text: NotificationText,
+        redacted: Boolean,
+    ): NotificationCompat.Builder {
         val style = NotificationCompat.ProgressStyle()
             .setStyledByProgress(true)
             .setProgressSegments(
@@ -69,7 +103,7 @@ class NotificationFactory(
             .setProgress(progress.progressMinutes)
             .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_notif_flight))
 
-        val builder = ongoingBuilder(OpusChannel.TravelLive, state, text)
+        val builder = ongoingBuilder(OpusChannel.TravelLive, state, text, redacted)
             .setStyle(style)
             .setRequestPromotedOngoing(capabilities.canPostPromotedNotifications())
         state.until?.let { until ->
@@ -82,17 +116,39 @@ class NotificationFactory(
                 is LiveChip.EndsAt -> builder.setShortCriticalText(clockFormat().compact(chip.until))
             }
         }
-        return builder.build()
+        return builder
     }
 
-    /** An alerting reminder on the advice's own channel; expires by itself once it would be untrue. */
-    fun reminder(spec: ReminderSpec, plan: JetLagPlan, now: Instant): Notification {
+    /**
+     * An alerting reminder on the advice's own channel; expires by itself once it would be untrue.
+     *
+     * @param redact see [now]; a melatonin reminder also swaps its pill icon for the plain clock.
+     */
+    fun reminder(
+        spec: ReminderSpec,
+        plan: JetLagPlan,
+        now: Instant,
+        redact: Boolean = false,
+        onlyAlertOnce: Boolean = false,
+    ): Notification {
         val state = NowStateCalculator.compute(plan, now)
-        val text = formatter().reminder(spec, state, plan, now)
+        fun build(publicText: Boolean) =
+            reminderBuilder(spec, plan, now, formatter(publicText).reminder(spec, state, plan, now), redacted = redact)
+                .setOnlyAlertOnce(onlyAlertOnce)
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
+    }
+
+    private fun reminderBuilder(
+        spec: ReminderSpec,
+        plan: JetLagPlan,
+        now: Instant,
+        text: NotificationText,
+        redacted: Boolean,
+    ): NotificationCompat.Builder {
         val advice = spec.advice
         val style = advice.type.style
         val builder = NotificationCompat.Builder(context, style.channel.id)
-            .setSmallIcon(style.icon)
+            .setSmallIcon(iconOf(advice.type, redacted))
             .setColor(style.color)
             .setContentTitle(text.title)
             .setContentText(text.text)
@@ -112,7 +168,7 @@ class NotificationFactory(
             ReminderKind.WakeUp -> emptyList()
         }
         actions.forEach { builder.addAction(action(it, ActionSource.Reminder, plan.tripId, advice.id)) }
-        return builder.build()
+        return builder
     }
 
     /** "Send test reminder" from Settings, on a real alerting channel. */
@@ -156,13 +212,19 @@ class NotificationFactory(
         return builder.build()
     }
 
-    private fun ongoingBuilder(channel: OpusChannel, state: NowState, text: NotificationText): NotificationCompat.Builder {
+    private fun ongoingBuilder(
+        channel: OpusChannel,
+        state: NowState,
+        text: NotificationText,
+        redacted: Boolean,
+    ): NotificationCompat.Builder {
         val headline = state.headline
         val builder = NotificationCompat.Builder(context, channel.id)
-            .setSmallIcon(headline?.type?.style?.icon ?: R.drawable.ic_notif_clock)
+            .setSmallIcon(headline?.type?.let { iconOf(it, redacted) } ?: R.drawable.ic_notif_clock)
             .setColor(headline?.type?.style?.color ?: BRAND_COLOR)
             .setContentTitle(text.title)
             .setContentText(text.text)
+            .setSubText(text.subText)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
@@ -173,13 +235,33 @@ class NotificationFactory(
             // Our own group (setSilent would otherwise file it under a summary-less "silent" group, which the
             // system force-regroups with the reminders into a bundle that opens the launcher).
             .setGroup(NotificationGroup.KEY)
-        if (headline != null && headline.type != AdviceType.Flight && state.outcome == null) {
-            listOf(AdviceAction.Done, AdviceAction.CantDo, AdviceAction.Snooze).forEach {
-                builder.addAction(action(it, ActionSource.Now, state.tripId, headline.id))
+        if (headline != null && headline.type != AdviceType.Flight) {
+            // Once something is logged, one Undo stays so an accidental lock-screen tap is one tap from reverted.
+            val actions = if (state.outcome == null) {
+                listOf(AdviceAction.Done, AdviceAction.CantDo, AdviceAction.Snooze)
+            } else {
+                listOf(AdviceAction.Undo)
             }
+            actions.forEach { builder.addAction(action(it, ActionSource.Now, state.tripId, headline.id)) }
         }
         return builder
     }
+
+    /**
+     * Lock-screen redaction: private, with [public] (built only when needed) standing in on a secure keyguard. The
+     * stand-in carries no actions: their set alone can name the advice (Done + Snooze is melatonin), and acting on
+     * a step you can't see invites mistakes. Unlocking brings the full notification and its actions back.
+     */
+    private inline fun NotificationCompat.Builder.withPublicVersion(
+        redact: Boolean,
+        public: () -> Notification,
+    ): NotificationCompat.Builder = apply {
+        if (redact) setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public())
+    }
+
+    /** The advice's glyph; melatonin's pill would name it in the status bar, so redaction shows the clock. */
+    private fun iconOf(type: AdviceType, redacted: Boolean): Int =
+        if (redacted && type == AdviceType.Melatonin) R.drawable.ic_notif_clock else type.style.icon
 
     private fun action(action: AdviceAction, source: ActionSource, tripId: String, adviceId: String) =
         NotificationCompat.Action.Builder(
@@ -187,12 +269,14 @@ class NotificationFactory(
                 AdviceAction.Done -> R.drawable.ic_notif_action_done
                 AdviceAction.CantDo -> R.drawable.ic_notif_action_cant_do
                 AdviceAction.Snooze -> R.drawable.ic_notif_clock
+                AdviceAction.Undo -> R.drawable.ic_notif_action_undo
             },
             context.getString(
                 when (action) {
                     AdviceAction.Done -> R.string.action_done
                     AdviceAction.CantDo -> R.string.action_cant_do
                     AdviceAction.Snooze -> R.string.action_snooze
+                    AdviceAction.Undo -> R.string.action_undo
                 },
             ),
             NotificationIntents.action(context, action, source, tripId, adviceId),

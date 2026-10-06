@@ -1,8 +1,11 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -23,12 +26,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -42,6 +56,14 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.data.trip.IssueSeverity
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripIssue
+import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBanner
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.routeArcDescription
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.feature.trips.R
@@ -62,8 +84,10 @@ internal class LegFocus {
 }
 
 /**
- * One flight as a card: From → departure (local time at that airport) → a flight strip with the duration →
- * To → arrival (local time there) → optional flight number → inline issues with fixes.
+ * One flight as a boarding-pass card: a sky banner with the route in dot-matrix codes (painted for the departure
+ * time of day), the From/To pair with a swap button, departure (local time at that airport) → a flight strip with the
+ * duration → arrival (local time there, estimated from the distance until the user sets it), optional flight number,
+ * and inline issues with fixes.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -85,8 +109,6 @@ internal fun LegCard(
     val hasArrivalError = issues.any {
         it.severity == IssueSeverity.Error && (it is TripIssue.ArrivalNotAfterDeparture)
     }
-    val fromRef = PlaceFieldRef(index, LegEnd.Origin)
-    val toRef = PlaceFieldRef(index, LegEnd.Destination)
 
     Surface(
         modifier = modifier.fillMaxWidth().testTag(TripsTestTags.editorLeg(index)),
@@ -116,24 +138,10 @@ internal fun LegCard(
                 }
             }
 
-            PlaceField(
-                label = stringResource(R.string.editor_from),
-                input = leg.origin,
-                search = search?.takeIf { it.field == fromRef },
-                now = now,
-                onQueryChange = { actions.onPlaceQueryChange(fromRef, it) },
-                onSelect = { place ->
-                    actions.onPlaceSelected(fromRef, place)
-                    focus.to.requestFocus()
-                },
-                onImeAction = {
-                    actions.pickTopResult(fromRef)
-                    focus.to.requestFocus()
-                },
-                tag = TripsTestTags.editorFrom(index),
-                focusRequester = focus.from,
-            )
-            Spacer(Modifier.height(8.dp))
+            SkyRouteBanner(leg)
+            Spacer(Modifier.height(12.dp))
+            RoutePair(index, leg, search, now, focus, actions)
+            Spacer(Modifier.height(12.dp))
             TimeRow(
                 caption = stringResource(R.string.editor_departs),
                 place = leg.origin.place,
@@ -149,24 +157,6 @@ internal fun LegCard(
 
             FlightStrip(leg)
 
-            PlaceField(
-                label = stringResource(R.string.editor_to),
-                input = leg.destination,
-                search = search?.takeIf { it.field == toRef },
-                now = now,
-                onQueryChange = { actions.onPlaceQueryChange(toRef, it) },
-                onSelect = { place ->
-                    actions.onPlaceSelected(toRef, place)
-                    focus.departureDate.requestFocus()
-                },
-                onImeAction = {
-                    actions.pickTopResult(toRef)
-                    focus.departureDate.requestFocus()
-                },
-                tag = TripsTestTags.editorTo(index),
-                focusRequester = focus.to,
-            )
-            Spacer(Modifier.height(8.dp))
             TimeRow(
                 caption = stringResource(R.string.editor_arrives),
                 place = leg.destination.place,
@@ -178,7 +168,16 @@ internal fun LegCard(
                 onPickDate = { onPick(PickerTarget.ArrivalDate(index)) },
                 onPickTime = { onPick(PickerTarget.ArrivalTime(index)) },
                 isError = hasArrivalError,
+                estimated = leg.arrivalEstimated,
             )
+            if (leg.arrivalEstimated) {
+                Text(
+                    stringResource(R.string.editor_arrival_estimated),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 6.dp).testTag(TripsTestTags.editorArrivalEstimate(index)),
+                )
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = leg.flightNumber,
@@ -219,6 +218,204 @@ internal fun LegCard(
     }
 }
 
+/**
+ * The boarding-pass header: **From ──✈── To** in dot-matrix codes ([RouteArcBanner]) on a sky painted for the
+ * departure time of day, so a 09:00 and a 21:00 flight look different at a glance (a check on AM/PM). Without a
+ * departure time the banner is a plain tonal surface. The sky cross-fades with the colour token, read in the draw
+ * phase; the ink snaps to stay legible. The times themselves are in the fields below, so the sky adds no meaning
+ * that motion or colour alone would carry.
+ */
+@Composable
+private fun SkyRouteBanner(leg: LegDraft, modifier: Modifier = Modifier) {
+    val motion = OpusTheme.motion
+    val time = leg.departureTime
+    val gradient = time?.let { OpusTheme.sky.gradientAt(it) }
+    val neutral = MaterialTheme.colorScheme.surfaceContainerHigh
+    val top = animateColorAsState(gradient?.top ?: neutral, motion.colour(), label = "skyTop")
+    val bottom = animateColorAsState(gradient?.bottom ?: neutral, motion.colour(), label = "skyBottom")
+    val night = time != null && !celestialPosition(time.toHourFloat()).isSun
+    val stars = animateFloatAsState(if (night) 0.7f else 0f, motion.colour(), label = "stars")
+    val ink = gradient?.contentColor() ?: MaterialTheme.colorScheme.onSurface
+    val from = leg.origin.place
+    val to = leg.destination.place
+    val apex = if (from != null && to != null) RouteArcDefaults.apexForDistance(TripValidator.distanceKm(from, to)) else 1f
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .drawBehind {
+                drawRect(Brush.verticalGradient(listOf(top.value, bottom.value)))
+                val a = stars.value
+                if (a > 0f) {
+                    val r = 1.2.dp.toPx()
+                    BannerStars.forEachIndexed { i, (x, y) ->
+                        drawCircle(Color.White.copy(alpha = a), if (i % 3 == 0) r * 1.5f else r, Offset(size.width * x, size.height * y))
+                    }
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        RouteArcBanner(
+            origin = from?.displayCode,
+            destination = to?.displayCode,
+            progress = BannerPlanePosition,
+            apex = apex,
+            colors = RouteArcDefaults.colors(
+                background = gradient?.mid ?: neutral,
+                route = ink.copy(alpha = 0.5f),
+                progress = ink.copy(alpha = 0.7f),
+                origin = ink,
+                destination = ink,
+                plane = ink,
+                code = ink,
+                emptyCode = ink.copy(alpha = 0.6f),
+                caption = ink.copy(alpha = 0.86f),
+            ),
+            contentDescription = routeArcDescription(from?.displayCode, to?.displayCode, from?.cityLabel, to?.cityLabel),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Where the editor's preview plane sits once both airports are set (mid-route: it's a preview, not progress). */
+private const val BannerPlanePosition = 0.5f
+
+private val BannerStars = listOf(
+    0.06f to 0.16f, 0.18f to 0.08f, 0.33f to 0.22f, 0.47f to 0.06f, 0.61f to 0.18f,
+    0.74f to 0.09f, 0.86f to 0.24f, 0.95f to 0.12f,
+)
+
+/**
+ * From and To as a connected pair joined by a swap button: stacked with the button at the end on phones,
+ * side by side with the button between them on wide cards. Results (or popular airports) for the focused field span
+ * the pair's full width underneath, so they stay readable either way.
+ */
+@Composable
+private fun RoutePair(
+    index: Int,
+    leg: LegDraft,
+    search: PlaceSearchState?,
+    now: Instant,
+    focus: LegFocus,
+    actions: TripEditorActions,
+) {
+    var focusedEnd by remember { mutableStateOf<LegEnd?>(null) }
+    val focusManager = LocalFocusManager.current
+    val fromRef = PlaceFieldRef(index, LegEnd.Origin)
+    val toRef = PlaceFieldRef(index, LegEnd.Destination)
+    // After the destination, move on to the departure date. The date is a picker button, which can't take focus in
+    // touch mode: then drop focus instead, so the keyboard goes away rather than coming back after every picker.
+    fun leaveDestination() {
+        if (!focus.departureDate.requestFocus()) focusManager.clearFocus()
+    }
+    fun onFocus(end: LegEnd, ref: PlaceFieldRef, focused: Boolean) {
+        if (focused) {
+            focusedEnd = end
+            actions.onPlaceFieldFocused(ref)
+        } else if (focusedEnd == end) {
+            focusedEnd = null
+        }
+    }
+    val from: @Composable (Modifier) -> Unit = { fieldModifier ->
+        PlaceField(
+            label = stringResource(R.string.editor_from),
+            input = leg.origin,
+            focused = focusedEnd == LegEnd.Origin,
+            now = now,
+            onQueryChange = { actions.onPlaceQueryChange(fromRef, it) },
+            onFocusChange = { onFocus(LegEnd.Origin, fromRef, it) },
+            onImeAction = {
+                actions.pickTopResult(fromRef)
+                focus.to.requestFocus()
+            },
+            tag = TripsTestTags.editorFrom(index),
+            focusRequester = focus.from,
+            modifier = fieldModifier,
+        )
+    }
+    val to: @Composable (Modifier) -> Unit = { fieldModifier ->
+        PlaceField(
+            label = stringResource(R.string.editor_to),
+            input = leg.destination,
+            focused = focusedEnd == LegEnd.Destination,
+            now = now,
+            onQueryChange = { actions.onPlaceQueryChange(toRef, it) },
+            onFocusChange = { onFocus(LegEnd.Destination, toRef, it) },
+            onImeAction = {
+                actions.pickTopResult(toRef)
+                leaveDestination()
+            },
+            tag = TripsTestTags.editorTo(index),
+            focusRequester = focus.to,
+            modifier = fieldModifier,
+        )
+    }
+    val canSwap = leg.origin.place != null || leg.destination.place != null
+    BoxWithConstraints {
+        val sideBySide = maxWidth >= SideBySideMinWidth
+        Column {
+            if (sideBySide) {
+                Row(verticalAlignment = Alignment.Top) {
+                    from(Modifier.weight(1f))
+                    SwapButton(index, canSwap, vertical = false, onSwap = { actions.swapPlaces(index) }, modifier = Modifier.padding(top = 8.dp))
+                    to(Modifier.weight(1f))
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        from(Modifier)
+                        to(Modifier)
+                    }
+                    SwapButton(index, canSwap, vertical = true, onSwap = { actions.swapPlaces(index) }, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+            val end = focusedEnd
+            val visible = search?.takeIf { s ->
+                end != null && s.field == PlaceFieldRef(index, end) && leg.place(end).let { it.place == null && it.query == s.query }
+            }
+            if (visible != null) {
+                PlaceResults(
+                    search = visible,
+                    now = now,
+                    onSelect = { place ->
+                        actions.onPlaceSelected(visible.field, place)
+                        if (visible.field.end == LegEnd.Origin) focus.to.requestFocus() else leaveDestination()
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Swaps From and To. Each tap turns the arrows half a turn (a state change, so the non-bouncy data token; snaps
+ * under reduce motion, and the swapped codes and fields carry the result anyway).
+ */
+@Composable
+private fun SwapButton(index: Int, enabled: Boolean, vertical: Boolean, onSwap: () -> Unit, modifier: Modifier = Modifier) {
+    var turns by rememberSaveable { mutableIntStateOf(0) }
+    val rotation = animateFloatAsState(turns * 180f, OpusTheme.motion.dataSpatial(), label = "swap")
+    val base = if (vertical) 0f else 90f
+    IconButton(
+        onClick = {
+            turns++
+            onSwap()
+        },
+        enabled = enabled,
+        modifier = modifier.testTag(TripsTestTags.editorSwap(index)),
+    ) {
+        Icon(
+            painterResource(R.drawable.ic_trips_swap),
+            contentDescription = stringResource(R.string.editor_swap),
+            modifier = Modifier.graphicsLayer { rotationZ = base + rotation.value },
+        )
+    }
+}
+
+/** Card width from which From and To sit side by side. */
+private val SideBySideMinWidth = 560.dp
+
 @Composable
 private fun TimeRow(
     caption: String,
@@ -232,7 +429,9 @@ private fun TimeRow(
     onPickTime: () -> Unit,
     dateModifier: Modifier = Modifier,
     isError: Boolean = false,
+    estimated: Boolean = false,
 ) {
+    val estimatedLabel = if (estimated) ", ${stringResource(R.string.editor_arrival_estimated_short)}" else ""
     val zoneLabel = when {
         place != null -> stringResource(R.string.editor_local_time_in, place.cityLabel)
         originSide -> stringResource(R.string.editor_local_time_origin)
@@ -250,7 +449,7 @@ private fun TimeRow(
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PickerField(
                 label = stringResource(R.string.editor_date),
-                accessibilityLabel = "$caption, ${stringResource(R.string.editor_date)}",
+                accessibilityLabel = "$caption, ${stringResource(R.string.editor_date)}$estimatedLabel",
                 value = dateText,
                 icon = R.drawable.ic_trips_event,
                 onClick = onPickDate,
@@ -261,7 +460,7 @@ private fun TimeRow(
             )
             PickerField(
                 label = stringResource(R.string.editor_time),
-                accessibilityLabel = "$caption, ${stringResource(R.string.editor_time)}, $zoneLabel",
+                accessibilityLabel = "$caption, ${stringResource(R.string.editor_time)}, $zoneLabel$estimatedLabel",
                 value = timeText,
                 icon = R.drawable.ic_trips_schedule,
                 onClick = onPickTime,

@@ -30,6 +30,8 @@
     <string name="widget_until_then">until %1$s · then %2$s</string>
     <string name="widget_then">then %1$s</string>
     <string name="widget_starts_at">%1$s at %2$s</string>
+    <!-- Spoken Up next entry with the time in the other zone: "Melatonin at 20:30 (12:30 in Lisbon)". -->
+    <string name="widget_starts_at_with_secondary">%1$s at %2$s (%3$s)</string>
     <string name="widget_secondary_time">%1$s in %2$s</string>
     <string name="widget_body_prefix">body</string>
     <string name="widget_in_sync">in sync</string>
@@ -37,8 +39,22 @@
     <string name="widget_preview_dial_title">Avoid light</string>
     <string name="widget_preview_dial_detail">until 18:00</string>
     <string name="widget_preview_subtitle">until 18:00 · then Sleep</string>
+    <string name="widget_header">%1$s · %2$s</string>
+    <string name="widget_day_pre">Pre-trip %1$s</string>
+    <string name="widget_day_travel">Travel day</string>
+    <string name="widget_day_n">Day %1$d</string>
+    <string name="widget_day_adapted">Day %1$d · Adapted</string>
+    <string name="widget_adapted_percent">%1$d%% adapted</string>
+    <string name="widget_up_next">Up next</string>
+    <string name="widget_done">Done</string>
+    <string name="widget_done_logged">✓ Done</string>
+    <string name="widget_skipped">Skipped</string>
 
     <!-- Accessibility -->
+    <string name="widget_a11y_done_action">Mark %1$s as done</string>
+    <string name="widget_a11y_done_logged">%1$s: done</string>
+    <string name="widget_a11y_skipped_logged">%1$s: skipped</string>
+    <string name="widget_a11y_up_next">Up next: %1$s</string>
     <string name="widget_a11y_two_clocks">%1$s local, %2$s for your body. %3$s %4$s</string>
     <string name="widget_a11y_body_behind">Your body clock is %1$s behind local time.</string>
     <string name="widget_a11y_body_ahead">Your body clock is %1$s ahead of local time.</string>

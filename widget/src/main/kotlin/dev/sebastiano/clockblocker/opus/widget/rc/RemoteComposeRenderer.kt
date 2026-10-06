@@ -50,28 +50,37 @@ object RemoteComposeRenderer {
     }
 
     /**
-     * Platform `RemoteViews` playing [document]. [click] answers the card's id host action
-     * ([DeepLinkIntents.CLICK_ACTION_ID]): the platform player forwards id actions to the click response registered
-     * under that id.
+     * Platform `RemoteViews` playing [document]. [click] answers the main region's id host action
+     * ([DeepLinkIntents.CLICK_ACTION_ID]) and [done] the Done button's ([DeepLinkIntents.DONE_ACTION_ID]): the
+     * platform player forwards id actions to the click response registered under that id.
      */
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    fun remoteViews(document: CapturedDocument, click: PendingIntent? = null): RemoteViews {
+    fun remoteViews(document: CapturedDocument, click: PendingIntent? = null, done: PendingIntent? = null): RemoteViews {
         val views = RemoteViews(RemoteViews.DrawInstructions.Builder(listOf(document.bytes)).build())
         document.pendingIntents.forEach { key, pendingIntent -> views.setOnClickPendingIntent(key, pendingIntent) }
         click?.let { views.setOnClickPendingIntent(DeepLinkIntents.CLICK_ACTION_ID, it) }
+        done?.let { views.setOnClickPendingIntent(DeepLinkIntents.DONE_ACTION_ID, it) }
         return views
     }
 
-    /** One document per responsive size; the host picks the largest that fits (API 31+ size mapping). */
+    /**
+     * One document per responsive size; the host picks the largest that fits (API 31+ size mapping). Sizes that map
+     * to the same layout share one capture.
+     */
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     suspend fun <L> responsive(
         context: Context,
         profile: Profile,
         sizes: Map<SizeF, L>,
         click: PendingIntent? = null,
+        done: PendingIntent? = null,
         content: @RemoteComposable @Composable (L) -> Unit,
     ): RemoteViews {
-        val views = sizes.mapValues { (_, layout) -> remoteViews(capture(context, profile) { content(layout) }, click) }
+        val documents = mutableMapOf<L, CapturedDocument>()
+        val views = sizes.mapValues { (_, layout) ->
+            val document = documents[layout] ?: capture(context, profile) { content(layout) }.also { documents[layout] = it }
+            remoteViews(document, click, done)
+        }
         return if (views.size == 1) views.values.single() else RemoteViews(views)
     }
 }

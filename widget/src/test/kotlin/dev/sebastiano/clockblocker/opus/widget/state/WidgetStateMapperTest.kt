@@ -1,6 +1,10 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
+import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
+import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -171,6 +175,41 @@ class WidgetStateMapperTest {
         state.cbtMinMinute.shouldBeNull()
         // Body 23:00-07:00 shown on the local dial: 23:00 + 8 h = 07:00 local.
         state.bodyNight shouldBe DialArc(null, 7 * 60, 8 * 60)
+    }
+
+    @Test
+    fun `upcoming lists what starts after now, without the current block, at most three`() {
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30"), utc))
+        // Caffeine started at 16:00 (before now): it is running, not "up next".
+        state.upcoming.map { it.type } shouldBe listOf(AdviceType.Melatonin, AdviceType.Sleep)
+
+        val morning = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T08:00"), utc))
+        morning.upcoming.map { it.type } shouldBe
+            listOf(AdviceType.SeeBrightLight, AdviceType.AvoidLight, AdviceType.Caffeine)
+    }
+
+    @Test
+    fun `the logged outcome of the current block is carried`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        active(WidgetStateMapper.map(tokyoDay, now, utc)).currentOutcome.shouldBeNull()
+
+        val current = active(WidgetStateMapper.map(tokyoDay, now, utc)).current!!
+        val logs = listOf(AdviceLog("other", AdviceOutcome.Skipped), AdviceLog(current.adviceId, AdviceOutcome.Done))
+        active(WidgetStateMapper.map(tokyoDay, now, utc, logs)).currentOutcome shouldBe AdviceOutcome.Done
+    }
+
+    @Test
+    fun `plan day and adaptation progress come from the plan`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        val state = active(WidgetStateMapper.map(tokyoDay, now, utc))
+        state.dayKind shouldBe DayKind.Arrival
+        state.dayIndex shouldBe 1
+        state.adaptation shouldBe tokyoDay.adaptationProgressAt(now)
+
+        val travel = plan { day(0, "2026-10-05", lisbon, DayKind.Travel) { advice(AdviceType.Flight, "2026-10-05T10:00", "2026-10-05T20:00") } }
+        val onTravel = active(WidgetStateMapper.map(travel, at(lisbon, "2026-10-05T12:00"), utc))
+        onTravel.dayKind shouldBe DayKind.Travel
+        onTravel.dayIndex shouldBe 0
     }
 
     @Test

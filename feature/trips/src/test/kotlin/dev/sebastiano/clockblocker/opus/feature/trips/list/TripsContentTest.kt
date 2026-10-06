@@ -14,6 +14,7 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsSamples
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreenshotTest
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.shouldBe
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -59,6 +60,20 @@ class TripsContentTest : TripsScreenshotTest() {
         compose.onNodeWithTag(TripsTestTags.DemoTrip).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.NewTrip).performClick()
         calls shouldContainExactly listOf("new")
+    }
+
+    @Test
+    fun shortWindowsMoveTheAddMenuIntoTheAppBar() {
+        // Landscape phone (#15): no floating button over the cards; the same entries sit behind an app bar action.
+        setContent(qualifiers = "w540dp-h411dp") { TripsContent(TripsSamples.state(), callbacks) }
+        compose.onNodeWithTag(TripsTestTags.Fab).performClick()
+        compose.onNodeWithTag(TripsTestTags.ReturnTrip).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.DemoTrip).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.NewTrip).performClick()
+        calls shouldContainExactly listOf("new")
+        val fab = compose.onNodeWithTag(TripsTestTags.Fab).fetchSemanticsNode().boundsInRoot
+        val firstCard = compose.onNodeWithTag(TripsTestTags.tripCard(DemoData.SfoLhrId)).fetchSemanticsNode().boundsInRoot
+        (fab.bottom <= firstCard.top) shouldBe true
     }
 
     @Test
