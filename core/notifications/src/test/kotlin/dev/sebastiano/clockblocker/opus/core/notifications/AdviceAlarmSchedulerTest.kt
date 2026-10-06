@@ -56,7 +56,7 @@ class AdviceAlarmSchedulerTest {
     private val factory = NotificationFactory(context, capabilities, clock)
     private val reminders = ReminderNotifier(context, factory, capabilities)
     private val widget = RecordingSurface()
-    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock)
+    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())
 
     private fun scheduler(vararg extra: dev.sebastiano.clockblocker.opus.core.data.PlanSurface) = AdviceAlarmScheduler(
         context, plans, settings, setOf(nowSurface, widget, *extra), reminders, snooze, capabilities, clock,

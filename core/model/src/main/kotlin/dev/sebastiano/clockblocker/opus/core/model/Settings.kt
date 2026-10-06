@@ -19,6 +19,11 @@ data class AppSettings(
     /** Easter egg: "Opus No. 1 in Jet-Lag Minor" concert theme, unlocked from About. */
     val opusModeUnlocked: Boolean = false,
     val opusModeEnabled: Boolean = false,
+    /**
+     * Keep places, flight numbers and supplements off the lock screen; times and labels stay. Notifications are
+     * posted private with a redacted public version; keyguard widgets should honour it too.
+     */
+    val hideLockScreenDetails: Boolean = false,
 )
 
 /** Logged user feedback on an advice card. */

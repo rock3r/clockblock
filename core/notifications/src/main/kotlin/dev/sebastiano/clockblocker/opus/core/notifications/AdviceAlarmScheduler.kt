@@ -105,7 +105,7 @@ class AdviceAlarmScheduler(
             val snoozed = snooze?.takeIf { snoozeElapsed }?.adviceId
                 ?.let { id -> plan.allAdvice.firstOrNull { it.id == id } }
                 ?.let { ReminderSelector.snoozed(it, now) }
-            (due ?: snoozed)?.let { reminders.post(it, plan, now) }
+            (due ?: snoozed)?.let { reminders.post(it, plan, now, settings.hideLockScreenDetails) }
         }
         refreshSurfaces()
         arm(plan, settings)

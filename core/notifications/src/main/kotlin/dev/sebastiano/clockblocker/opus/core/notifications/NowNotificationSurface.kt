@@ -7,9 +7,11 @@ import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanSurface
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
+import dev.sebastiano.clockblocker.opus.core.data.TripRepository
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowStateCalculator
 import dev.sebastiano.clockblocker.opus.core.notifications.now.TravelPlanner
+import dev.sebastiano.clockblocker.opus.core.notifications.now.TripRoute
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
@@ -47,6 +49,7 @@ class NowNotificationSurface(
     private val factory: NotificationFactory,
     private val capabilities: PlatformCapabilities,
     private val clock: NotificationClock,
+    private val tripRepository: TripRepository,
 ) : PlanSurface {
     private val mutex = Mutex()
 
@@ -80,7 +83,13 @@ class NowNotificationSurface(
         }
         val progress = TravelPlanner.progress(plan, now)
         val live = progress != null && TravelPlanner.isLiveUpdateActive(plan, now)
-        val notification = if (live) factory.live(state, plan, now, progress) else factory.now(state, plan, now)
+        val redact = settings.hideLockScreenDetails
+        val notification = if (live) {
+            val route = tripRepository.trip(plan.tripId).first()?.let { TripRoute(it.origin.displayCode, it.destination.displayCode) }
+            factory.live(state, plan, now, progress, route, redact)
+        } else {
+            factory.now(state, plan, now, redact)
+        }
         NotificationChannels.ensureCreated(application)
         try {
             manager.notify(NotificationIds.NOW, notification)
@@ -99,10 +108,10 @@ class ReminderNotifier(
     private val factory: NotificationFactory,
     private val capabilities: PlatformCapabilities,
 ) {
-    /** Returns whether the reminder was posted. */
+    /** Returns whether the reminder was posted. [redact]: hide details on the lock screen (see [NotificationFactory.now]). */
     @SuppressLint("MissingPermission")
-    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant): Boolean =
-        notify(NotificationIds.REMINDER) { factory.reminder(spec, plan, now) }
+    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Boolean =
+        notify(NotificationIds.REMINDER) { factory.reminder(spec, plan, now, redact) }
 
     @SuppressLint("MissingPermission")
     fun postTest(): Boolean = notify(NotificationIds.TEST) { factory.test() }

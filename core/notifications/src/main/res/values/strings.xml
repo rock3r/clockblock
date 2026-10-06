@@ -55,6 +55,22 @@
     <string name="outcome_skipped">Skipped</string>
     <string name="outcome_cant_do">Noted, skip it</string>
 
+    <!-- Header subtext: the body clock relative to local time; %1$s is "3½ h" -->
+    <string name="body_behind">Body %1$s behind</string>
+    <string name="body_ahead">Body %1$s ahead</string>
+    <string name="body_in_sync">Body clock in sync</string>
+
+    <!-- Travel-day Live Update subtext -->
+    <string name="travel_route">%1$s → %2$s</string>
+    <string name="travel_departs">Departs %1$s</string>
+    <string name="travel_lands">Lands %1$s</string>
+    <string name="travel_next_flight">Next flight %1$s</string>
+    <string name="travel_landed">Landed</string>
+
+    <!-- Lock-screen (public) versions when details are hidden -->
+    <string name="redacted_label">Plan step</string>
+    <string name="redacted_text">Unlock to see details</string>
+
     <!-- Reminders -->
     <string name="reminder_upcoming_title">%1$s at %2$s</string>
     <string name="reminder_now_title">%1$s now</string>
@@ -70,4 +86,5 @@
     <string name="action_done">Done</string>
     <string name="action_cant_do">Can\'t do this</string>
     <string name="action_snooze">Snooze 15 min</string>
+    <string name="action_undo">Undo</string>
 </resources>
