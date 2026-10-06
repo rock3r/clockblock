@@ -4,6 +4,8 @@ import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -191,6 +193,27 @@ class PlanScreenshotTest {
     }
 
     /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
+    /** The adaptation card: with/without hero, journey chart (dot on Day 2) and legend. */
+    @Test
+    @Config(qualifiers = "w400dp-h700dp-xhdpi")
+    fun adaptationCard() = snap("adaptation_card") {
+        Box(Modifier.padding(16.dp)) { AdaptationCard(realPlan, realPlan.momentAt(PlanFixtures.MidAdaptation)) }
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h1000dp-xhdpi")
+    fun adaptationCardFontScale() = snap("adaptation_card_font_1_5", fontScale = 1.5f) {
+        Box(Modifier.padding(16.dp)) { AdaptationCard(realPlan, realPlan.momentAt(PlanFixtures.MidAdaptation)) }
+    }
+
+    /** An 11 h eastward trip delayed instead: the card explains the long way round. */
+    @Test
+    @Config(qualifiers = "w400dp-h1000dp-xhdpi")
+    fun adaptationLongWayDark() = snap("adaptation_long_way_dark", darkTheme = true) {
+        val plan = PlanFixtures.longWayPlan
+        Box(Modifier.padding(16.dp)) { AdaptationCard(plan, plan.momentAt(plan.landing!!.plusSeconds(36 * 3600))) }
+    }
+
     /** Day 4 picked in the day strip: dial, Now card and header show Day 4 at the current time of day. */
     @Test
     fun dayPicked() {

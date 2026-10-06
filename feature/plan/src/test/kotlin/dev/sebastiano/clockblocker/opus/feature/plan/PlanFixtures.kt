@@ -3,11 +3,13 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 import dev.sebastiano.clockblocker.opus.core.circadian.DefaultJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import kotlinx.collections.immutable.toImmutableMap
 import java.time.Instant
+import java.time.LocalDateTime
 
 /**
  * Shared plans and instants. SFO 19:30 (15 Jun, PDT) → LHR 13:50 (16 Jun, BST), eastbound 8 h.
@@ -20,6 +22,25 @@ internal object PlanFixtures {
     val trip: Trip = DemoData.sfoToLhr()
     val fakePlan: JetLagPlan by lazy { FakeJetLagPlanner().plan(trip, DemoData.profile, DemoData.Now) }
     val realPlan: JetLagPlan by lazy { DefaultJetLagPlanner().plan(trip, DemoData.profile, DemoData.Now) }
+
+    /** LAX 16:00 (15 Jun, PDT) → DXB (UTC+4), 16 h: 11 h east, which the planner solves by delaying (the long way round). */
+    val longWayTrip: Trip = Trip(
+        id = "long-way",
+        title = "Los Angeles → Dubai",
+        legs = listOf(
+            FlightLeg(
+                id = "long-way-1",
+                origin = DemoData.LAX,
+                destination = DemoData.DXB,
+                departureLocal = LocalDateTime.of(2026, 6, 15, 16, 0),
+                arrivalLocal = LocalDateTime.of(2026, 6, 15, 16, 0).atZone(DemoData.LAX.zone).plusHours(16)
+                    .withZoneSameInstant(DemoData.DXB.zone).toLocalDateTime(),
+                flightNumber = "EK 216",
+            ),
+        ),
+        createdAt = Instant.parse("2026-05-15T00:00:00Z"),
+    )
+    val longWayPlan: JetLagPlan by lazy { DefaultJetLagPlanner().plan(longWayTrip, DemoData.profile, DemoData.Now) }
 
     // Fake plan instants.
     /** 07:30 PDT on day −1: bright light (07:00–09:00). */

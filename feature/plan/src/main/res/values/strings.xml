@@ -92,6 +92,28 @@
         <item quantity="other">Without a plan it would take about %d days.</item>
     </plurals>
     <string name="plan_adapted_line">Your body clock is on %1$s time.</string>
+    <!-- Adaptation card hero: "3 d" / "with your plan" next to "9 d" / "without a plan". -->
+    <string name="plan_days_short">%1$d d</string>
+    <string name="plan_days_short_horizon">%1$d+ d</string>
+    <string name="plan_hero_with">with your plan</string>
+    <string name="plan_hero_without">without a plan</string>
+    <plurals name="plan_days_faster">
+        <item quantity="one">~%d day faster</item>
+        <item quantity="other">~%d days faster</item>
+    </plurals>
+    <!-- TalkBack for the hero comparison. -->
+    <string name="plan_hero_description">About %1$s to adapt with your plan, about %2$s without one.</string>
+    <!-- Journey chart: hours out of sync with destination time, by day. -->
+    <string name="plan_journey_arrive">Arrive</string>
+    <string name="plan_journey_hours">%1$d h off</string>
+    <string name="plan_journey_in_sync">In sync</string>
+    <string name="plan_journey_with">With your plan</string>
+    <string name="plan_journey_without">Without a plan (rough guide)</string>
+    <string name="plan_journey_description">Chart of hours your body clock is off %1$s time. With your plan: %2$s at landing, in sync in about %3$s. Without a plan, as a rough guide: %4$s at landing, about %5$s.</string>
+    <!-- Long way round callout (an eastward trip solved by moving the clock later, or a westward one by moving it earlier). -->
+    <string name="plan_long_way_title">The long way round</string>
+    <string name="plan_long_way_east">%1$s is %2$s ahead, but this plan moves your body clock %3$s later instead. After a big jump east, the destination\'s morning light falls before your body\'s low point, where light pushes the clock the wrong way. Most body clocks also run a little longer than 24 hours, so moving later each day comes more easily. Experts still disagree on where the cut-off lies.</string>
+    <string name="plan_long_way_west">%1$s is %2$s behind, but this plan moves your body clock %3$s earlier instead: the same clock face, fewer hours to cover.</string>
     <string name="plan_adaptation_upcoming">Adapting starts with your first pre-trip day.</string>
     <string name="plan_no_shift_title">No jet lag expected. Enjoy the trip.</string>
     <string name="plan_no_shift_body">%1$s and %2$s keep nearly the same hours. Keep your usual sleep, %3$s to %4$s local time, and get some daylight in the morning.</string>

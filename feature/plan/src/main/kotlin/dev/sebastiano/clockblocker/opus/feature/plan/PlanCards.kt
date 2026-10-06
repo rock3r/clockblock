@@ -1,6 +1,11 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.contentDescription
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -110,12 +115,18 @@ internal fun AdaptationCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modi
     val percent = (moment.progress * 100).roundToInt()
     val adapted = moment.stage == PlanStage.Adapted || moment.stage == PlanStage.Complete || moment.progress >= 0.95f
     val toGo = if (adapted) null else daysToGoLabel(moment.daysToGo)
+    val journey = remember(plan) { plan.journey() }
+    val longWay = remember(plan) { plan.longWayRound() }
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier.fillMaxWidth().testTag(PlanTags.Adaptation),
     ) {
         Column(Modifier.padding(20.dp)) {
+            if (!adapted && journey != null) {
+                HeroComparison(plan)
+                Spacer(Modifier.height(16.dp))
+            }
             val headline: @Composable () -> Unit = {
                 Text(
                     stringResource(R.string.plan_adapted_percent, percent),
@@ -148,13 +159,116 @@ internal fun AdaptationCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modi
                 remaining = if (adapted) null else remainingBareLabel(moment.daysToGo),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(14.dp))
+            if (journey != null) {
+                Spacer(Modifier.height(16.dp))
+                JourneyChart(
+                    journey = journey,
+                    activeDay = plan.dayOfJourney(moment.instant),
+                    description = journeyDescription(plan, journey),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             val supporting = when {
                 adapted -> stringResource(R.string.plan_adapted_line, ZoneId.of(plan.destinationZoneId).cityName())
                 moment.stage == PlanStage.Upcoming -> stringResource(R.string.plan_adaptation_upcoming)
+                // With the chart, the hero already compares with no plan.
+                journey != null -> null
                 else -> roundDays(plan.estimatedDaysWithoutPlan).let { pluralStringResource(R.plurals.plan_without_plan, it, it) }
             }
-            Text(supporting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (supporting != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(supporting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (longWay != null && !adapted) {
+                Spacer(Modifier.height(16.dp))
+                LongWayRoundCallout(plan, longWay)
+            }
+        }
+    }
+}
+
+/**
+ * "3 d with your plan · 9 d without a plan · ~6 days faster": the model's two estimates side by side. The pill only
+ * appears when the plan is actually faster.
+ */
+@Composable
+private fun HeroComparison(plan: JetLagPlan) {
+    val with = roundDays(plan.estimatedDaysToAdapt)
+    val withoutAtHorizon = plan.estimatedDaysWithoutPlan >= NoPlanHorizonDays
+    val without = roundDays(plan.estimatedDaysWithoutPlan)
+    val saved = daysSaved(plan.estimatedDaysToAdapt, plan.estimatedDaysWithoutPlan)
+    val withText = stringResource(R.string.plan_days_short, with)
+    val withoutText = stringResource(if (withoutAtHorizon) R.string.plan_days_short_horizon else R.string.plan_days_short, without)
+    val description = stringResource(
+        R.string.plan_hero_description,
+        pluralStringResource(R.plurals.plan_days_bare, with, with),
+        pluralStringResource(R.plurals.plan_days_bare, without, without),
+    ) + (saved?.let { " " + pluralStringResource(R.plurals.plan_days_faster, it, it) } ?: "")
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.Bottom,
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = description },
+    ) {
+        Column {
+            Text(withText, style = OpusTheme.textStyles.timeHeadline, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.plan_hero_with), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        }
+        Column {
+            Text(withoutText, style = OpusTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.plan_hero_without), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (saved != null) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.padding(bottom = 2.dp)) {
+                Text(
+                    pluralStringResource(R.plurals.plan_days_faster, saved, saved),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): String {
+    val atLanding = journey.withPlanAt(0f).roundToInt()
+    val home = journey.withoutPlan.first().hours.roundToInt()
+    return stringResource(
+        R.string.plan_journey_description,
+        ZoneId.of(plan.destinationZoneId).cityName(),
+        stringResource(R.string.plan_journey_hours, atLanding),
+        remainingBareLabel(plan.estimatedDaysToAdapt),
+        stringResource(R.string.plan_journey_hours, home),
+        remainingBareLabel(plan.estimatedDaysWithoutPlan),
+    )
+}
+
+/**
+ * Why the plan goes the long way round the clock face. Careful copy: it never claims the long way is faster
+ * (docs/science.md §5.4), only why the direct way is risky and why later is easier day to day.
+ */
+@Composable
+private fun LongWayRoundCallout(plan: JetLagPlan, longWay: LongWayRound) {
+    val city = ZoneId.of(plan.destinationZoneId).cityName()
+    val geographic = abs(plan.geographicShiftHours(plan.landing ?: plan.generatedAt)).roundToInt()
+    val moved = abs(plan.shiftHours).roundToInt()
+    val apart = stringResource(R.string.plan_duration_h, geographic)
+    val shifted = stringResource(R.string.plan_duration_h, moved)
+    val body = when (longWay) {
+        LongWayRound.EastByDelaying -> stringResource(R.string.plan_long_way_east, city, apart, shifted)
+        LongWayRound.WestByAdvancing -> stringResource(R.string.plan_long_way_west, city, apart, shifted)
+    }
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = Modifier.fillMaxWidth().testTag(PlanTags.LongWayRound),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.plan_long_way_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.semantics { heading() })
+            Text(body, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
