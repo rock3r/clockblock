@@ -24,6 +24,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
@@ -375,6 +377,25 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - a day pick that goes live on its own brings the rail back to the Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        // The rail is left scrolled well past the picked day.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+
+        // The clock reaches Day 3: the pick goes live without a tap, and the rail follows the screen to Now.
+        val later = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(1)))
+        state = later
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(later.moment.active!!.id)).assertIsDisplayed()
     }
 
     @Test

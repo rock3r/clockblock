@@ -370,8 +370,12 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     }
     // A pick that is (or has become) today, a look ahead whose day has come (even while the app was away), or a
     // day the plan no longer has, is live: forget it, so the screen can't jump back to it once that day is past.
+    // Going live counts as a pick, so the two-pane rail follows back to the Now row too.
     if (selectedDay != null && dayBase == null) {
-        SideEffect { screen.pickDay(plan.tripId, null) }
+        SideEffect {
+            screen.pickDay(plan.tripId, null)
+            screen.dayPicks++
+        }
     }
     val anchor = dayBase ?: state.now
     val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone
