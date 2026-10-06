@@ -229,6 +229,7 @@ class NowNotificationSurfaceTest {
         public.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight"
         public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
         public.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldNotContain "Tokyo"
+        (public.actions ?: emptyArray()).toList().shouldBeEmpty()
     }
 
     @Test
@@ -244,6 +245,9 @@ class NowNotificationSurfaceTest {
         val public = n.publicVersion.shouldNotBeNull()
         public.extras.getString(Notification.EXTRA_TITLE) shouldBe "Plan step now"
         public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Unlock to see details"
+        // Done + Snooze would name melatonin on its own: the stand-in carries no actions.
+        n.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Snooze 15 min")
+        (public.actions ?: emptyArray()).toList().shouldBeEmpty()
     }
 
     @Test

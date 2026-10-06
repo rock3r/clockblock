@@ -209,6 +209,27 @@ class NotificationTextFormatterTest {
         }
 
         @Test
+        fun `the next header change is where the rounded reading moves`() {
+            // Body from London time to 1 h ahead over 24 h: in sync until +30 min (12 h in), ½ h until +45 min.
+            val drifting = plan.copy(
+                phase = listOf(
+                    PhasePoint(utc("2026-10-10T00:00"), 60, utc("2026-10-10T00:00")),
+                    PhasePoint(utc("2026-10-11T00:00"), 120, utc("2026-10-11T00:00")),
+                ),
+            )
+            val london = java.time.ZoneId.of("Europe/London")
+
+            BodyClockHeader.nextChange(drifting, london, utc("2026-10-10T00:00")) shouldBe utc("2026-10-10T12:00")
+            BodyClockHeader.step(drifting, london, utc("2026-10-10T12:00")) shouldBe 1
+            BodyClockHeader.nextChange(drifting, london, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T18:00")
+        }
+
+        @Test
+        fun `a steady body clock has no next header change`() {
+            BodyClockHeader.nextChange(plan, java.time.ZoneId.of("Asia/Tokyo"), now) shouldBe null
+        }
+
+        @Test
         fun `the Now notification carries the body clock as its subtext`() {
             nowText("Asia/Tokyo").subText shouldBe "Body 8 h behind"
         }

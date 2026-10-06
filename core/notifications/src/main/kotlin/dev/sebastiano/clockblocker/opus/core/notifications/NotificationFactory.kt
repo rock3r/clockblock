@@ -52,7 +52,7 @@ class NotificationFactory(
             return ongoingBuilder(OpusChannel.Now, state, text, redacted = redact)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
         }
-        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).build() }.build()
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
 
     /**
@@ -77,7 +77,7 @@ class NotificationFactory(
             )
             return liveBuilder(state, now, progress, text, redacted = redact)
         }
-        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).build() }.build()
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
 
     private fun liveBuilder(
@@ -128,7 +128,7 @@ class NotificationFactory(
         val state = NowStateCalculator.compute(plan, now)
         fun build(publicText: Boolean) =
             reminderBuilder(spec, plan, now, formatter(publicText).reminder(spec, state, plan, now), redacted = redact)
-        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).build() }.build()
+        return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
 
     private fun reminderBuilder(
@@ -240,7 +240,11 @@ class NotificationFactory(
         return builder
     }
 
-    /** Lock-screen redaction: private, with [public] (built only when needed) standing in on a secure keyguard. */
+    /**
+     * Lock-screen redaction: private, with [public] (built only when needed) standing in on a secure keyguard. The
+     * stand-in carries no actions: their set alone can name the advice (Done + Snooze is melatonin), and acting on
+     * a step you can't see invites mistakes. Unlocking brings the full notification and its actions back.
+     */
     private inline fun NotificationCompat.Builder.withPublicVersion(
         redact: Boolean,
         public: () -> Notification,

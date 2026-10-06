@@ -52,8 +52,8 @@ Body 8 h behind".
 By default, the notification shows the same text on the lock screen as in the shade. If you'd rather keep your
 travel details private, turn on **Settings** → **Reminders** → **Hide details on the lock screen**. Then, whenever
 Android hides sensitive notification content on the lock screen (an Android setting), the lock screen shows only
-the kind of block and its times: no places, flight numbers or supplement names. Unlock your phone to see
-everything.
+the kind of block and its times: no places, flight numbers or supplement names, and no buttons. Unlock your
+phone to see everything. Turning the setting on also removes a reminder that's already showing.
 
 ## Widgets
 

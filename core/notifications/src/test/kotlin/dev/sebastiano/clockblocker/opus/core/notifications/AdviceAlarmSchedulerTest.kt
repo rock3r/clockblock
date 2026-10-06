@@ -18,6 +18,8 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -156,6 +158,50 @@ class AdviceAlarmSchedulerTest {
         runCurrent()
         scheduled.first().triggerAtMs shouldBe ScheduledAlarm("2026-10-10T21:30")
         widget.refreshes shouldBe 3
+    }
+
+    @Test
+    fun `turning on lock-screen privacy withdraws a reminder already on screen`() = runTest(UnconfinedTestDispatcher()) {
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull()
+
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        runCurrent()
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
+    fun `turning lock-screen privacy off leaves the reminder alone`() = runTest(UnconfinedTestDispatcher()) {
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = false)
+        runCurrent()
+
+        reminder.shouldNotBeNull()
+    }
+
+    @Test
+    fun `a refresh is armed for the next change of the body-clock header`() = runTest {
+        // Body drifts from London time (0 h) to 1 h ahead over 24 h: the header leaves "in sync" at +30 min,
+        // i.e. 12 h in, at 19:00 UTC, before any plan transition after 17:00 would refresh it.
+        plans.current.value = plan.copy(
+            phase = listOf(
+                PhasePoint(utc("2026-10-10T07:00"), 60, utc("2026-10-10T07:00")),
+                PhasePoint(utc("2026-10-11T07:00"), 120, utc("2026-10-11T07:00")),
+            ),
+        )
+
+        val alarms = scheduler().resync().instants
+
+        alarms shouldContain utc("2026-10-10T19:00")
     }
 
     @Test

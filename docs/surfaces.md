@@ -45,8 +45,9 @@ current plan again, decides whether a reminder is still correct, redraws everyth
 
 A few details matter:
 
-- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze and a
-  15-minute progress tick while a Live Update is showing.
+- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
+  15-minute progress tick while a Live Update is showing, and (with reminders on) the next change of the Now
+  notification's body-clock header.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
   next maintenance window, well past 10 minutes.
@@ -134,19 +135,23 @@ passed). The snooze state is kept in
 
 The notification's subtext (the header line) shows the body-clock offset relative to the local zone, rounded to
 the half hour: "Body 3½ h behind", "Body 2 h ahead", or "Body clock in sync" under 30 minutes. It shows the offset
-rather than a body time of day, because the notification is only re-rendered at plan boundaries and a clock time
-would go stale in between
-([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
+rather than a body time of day, which would change every minute. The offset itself drifts along the plan's phase
+trajectory, so the scheduler arms one extra alarm at the next instant the rounded reading changes
+(`BodyClockHeader.nextChange`, scanned in 10-minute steps up to 36 hours ahead) and re-renders the notification
+there ([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
 
 ### Lock-screen redaction
 
 Every Now notification and reminder carries a public version, built by the same formatter with `redact = true`:
 no flight number, no route, no secondary-zone line, tips or "also", melatonin shown as "Plan step" with a neutral
-icon, and moments as "Unlock to see details". Times and the kind of block stay. When the user turns on
+icon, and moments as "Unlock to see details". Times and the kind of block stay. The public version has no
+actions, because their set alone can name the advice (Done with Snooze is melatonin). When the user turns on
 `AppSettings.hideLockScreenDetails` ("Hide details on the lock screen"), the notification's visibility becomes
 `VISIBILITY_PRIVATE`, so Android shows the public version on a secure lock screen whenever the user's system
 setting hides sensitive content. With the setting off (the default), visibility stays public and the full text
-shows, as before. Lock-screen widgets don't honour the setting yet.
+shows, as before. Turning the setting on also withdraws a reminder that is already showing, since it was posted
+without a public version. Lock-screen widgets don't honour the setting yet
+([#18](https://github.com/rock3r/clockblock/issues/18)).
 
 ### Live Update on travel days
 

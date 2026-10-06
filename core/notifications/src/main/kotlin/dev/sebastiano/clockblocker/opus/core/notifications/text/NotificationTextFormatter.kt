@@ -6,8 +6,10 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowState
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderKind
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSpec
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
 /** Rendered text of a notification. */
@@ -108,13 +110,12 @@ class NotificationTextFormatter(
     /**
      * "Body 3½ h behind": the body clock relative to *local* time (the app-wide convention), rounded to the
      * nearest half hour. Within half an hour it reads as in sync, matching the dial (whose rings then line up).
-     * No body time of day: notifications only re-render at plan boundaries, so a clock reading would go stale.
+     * No body time of day, which would change every minute; the scheduler re-renders the notification whenever
+     * this rounded reading changes ([BodyClockHeader.nextChange]).
      */
     fun bodyClock(plan: JetLagPlan, now: Instant): String {
-        val local = clock.zone.rules.getOffset(now).totalSeconds / 60
-        val body = plan.bodyOffsetAt(now).totalSeconds / 60
-        val minutes = Math.floorMod(body - local + HALF_DAY_MINUTES, DAY_MINUTES) - HALF_DAY_MINUTES
-        if (abs(minutes) < IN_SYNC_MINUTES) return strings.bodyInSync()
+        val minutes = BodyClockHeader.minutesFromLocal(plan, clock.zone, now)
+        if (abs(minutes) < BodyClockHeader.IN_SYNC_MINUTES) return strings.bodyInSync()
         val hours = halfHours(abs(minutes))
         return if (minutes < 0) strings.bodyBehind(hours) else strings.bodyAhead(hours)
     }
@@ -181,15 +182,9 @@ class NotificationTextFormatter(
     }
 
     private companion object {
-        const val DAY_MINUTES = 24 * 60
-        const val HALF_DAY_MINUTES = 12 * 60
-
-        /** Same threshold as the dial's aligned rings (`DialState.AlignedThresholdMinutes`). */
-        const val IN_SYNC_MINUTES = 30
-
         /** "3½ h", "½ h", "8 h": [minutes] (non-negative) rounded to the nearest half hour. */
         fun halfHours(minutes: Int): String {
-            val halves = (minutes + 15) / 30
+            val halves = BodyClockHeader.halfHourSteps(minutes)
             val whole = halves / 2
             val half = halves % 2 == 1
             val number = when {
@@ -199,5 +194,55 @@ class NotificationTextFormatter(
             }
             return "$number h"
         }
+    }
+}
+
+/**
+ * When the body-clock header ([NotificationTextFormatter.bodyClock]) reads differently. The body offset moves
+ * continuously along the plan's phase trajectory, so a long block can carry the rounded reading across a
+ * half-hour step; the scheduler arms a refresh at [nextChange] so the header never goes stale.
+ */
+object BodyClockHeader {
+    private const val DAY_MINUTES = 24 * 60
+    private const val HALF_DAY_MINUTES = 12 * 60
+
+    /** Same threshold as the dial's aligned rings (`DialState.AlignedThresholdMinutes`). */
+    internal const val IN_SYNC_MINUTES = 30
+
+    /** How finely [nextChange] scans: a step change is picked up at most this late. */
+    val SCAN_STEP: Duration = Duration.ofMinutes(10)
+
+    /** How far ahead [nextChange] looks; later changes are found when the chain re-arms. */
+    val HORIZON: Duration = Duration.ofHours(36)
+
+    /** Body clock minus local time at [at], the short way round the clock (negative = behind). */
+    fun minutesFromLocal(plan: JetLagPlan, zone: ZoneId, at: Instant): Int {
+        val local = zone.rules.getOffset(at).totalSeconds / 60
+        val body = plan.bodyOffsetAt(at).totalSeconds / 60
+        return Math.floorMod(body - local + HALF_DAY_MINUTES, DAY_MINUTES) - HALF_DAY_MINUTES
+    }
+
+    /** Non-negative [minutes] in half-hour steps, rounded to the nearest. */
+    internal fun halfHourSteps(minutes: Int): Int = (minutes + 15) / 30
+
+    /** The header as a number: 0 = in sync, otherwise signed half-hour steps. Equal steps read the same. */
+    fun step(plan: JetLagPlan, zone: ZoneId, at: Instant): Int {
+        val minutes = minutesFromLocal(plan, zone, at)
+        if (abs(minutes) < IN_SYNC_MINUTES) return 0
+        val steps = halfHourSteps(abs(minutes))
+        return if (minutes < 0) -steps else steps
+    }
+
+    /**
+     * The first instant after [from], on a [SCAN_STEP] grid within [HORIZON], whose header reads differently from
+     * the one at [from]; `null` when it holds all the way.
+     */
+    fun nextChange(plan: JetLagPlan, zone: ZoneId, from: Instant): Instant? {
+        val current = step(plan, zone, from)
+        val start = from.truncatedTo(ChronoUnit.MINUTES)
+        val steps = HORIZON.toMinutes() / SCAN_STEP.toMinutes()
+        return (1..steps).asSequence()
+            .map { start.plus(SCAN_STEP.multipliedBy(it)) }
+            .firstOrNull { step(plan, zone, it) != current }
     }
 }
