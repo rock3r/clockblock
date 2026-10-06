@@ -28,7 +28,7 @@ you're on (or the last one you took), and **Try a demo trip**. On short windows,
 
 ## Adding flights
 
-<img src="images/trip-editor.png" alt="The New trip screen: Flight 1 from Lisbon to Tokyo, with Date and Time fields for departure (local time in Lisbon) and arrival (local time in Tokyo), an optional flight number, Add connecting flight, and Trip details with the title Lisbon to Tokyo." width="280" />
+<img src="images/trip-editor.png" alt="The New trip screen: Flight 1 from Lisbon (LIS) to Tokyo (HND) under a boarding-pass card with the route drawn as an arc. Departs Wed, Oct 7 at 09:00, local time in Lisbon; 14 h 25 m in the air, lands the next day; arrives Thu, Oct 8 at 07:25, local time in Tokyo, marked Estimated from the flight distance. Below, an optional flight number and Add connecting flight." width="280" />
 
 1. Under **From**, type a city, an airport name or a three-letter code (for example LIS) and pick the airport.
    The search works offline. Before you type, the list offers a few popular airports. Each result shows the
@@ -54,7 +54,7 @@ you to it before the next flight.
 
 ### When something looks wrong
 
-<img src="images/trip-editor-validation.png" alt="The New trip screen with an error: Lands before it takes off, once both local times are in their own time zones. A button offers Arrives next day?" width="280" />
+<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Wed, Oct 7 and the arrival fields outlined in red. An error says: Lands before it takes off, once both local times are in their own time zones. A button offers Arrives next day?" width="280" />
 
 The editor checks your flights as you type. Problems are marked **Error** (you can't save until you fix it),
 **Check this** (probably a mistake) or **Note** (just information). Many come with a one-tap fix. For example, an
@@ -69,7 +69,7 @@ Below the flights, **Trip details** has three more settings:
 - **Flying back (optional)**: the date and time of your return flight. This lets the app spot short trips.
 - **Body clock**: how the plan treats your body clock.
 
-<img src="images/body-clock-choice.png" alt="The Body clock setting with three options: Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time." width="320" />
+<img src="images/body-clock-choice.png" alt="The Trip details card: the title London to San Francisco, an empty Flying back (optional) date and time, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Below, Your shift preview: 8 h west, shift later, about 5 days to adapt with the plan, about 8 days without one." width="320" />
 
 | Choice | What happens |
 |---|---|
@@ -87,7 +87,7 @@ For a short trip, staying on home time is usually easier: you're back before you
 
 ## Return trips
 
-<img src="images/return-trip.png" alt="The Return trip screen: Flight 1 from London to San Francisco on Tue, Jun 23, departing 19:30 and arriving 21:50, 10 h 20 m in the air." width="280" />
+<img src="images/return-trip.png" alt="The Return trip screen: Flight 1 from London (LHR) to San Francisco (SFO) under a boarding-pass card, on Tue, Jun 23, departing 19:30 and arriving 21:50, 10 h 20 m in the air." width="280" />
 
 To plan the way home, open the trip's menu (the three dots on its card) and choose **Create return trip**, or tap
 **+** and **Return from** the destination. The app reverses the route and suggests times. Check them against your

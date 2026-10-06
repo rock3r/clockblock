@@ -101,10 +101,10 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![Two Opus Clockblock notifications grouped in the shade: a test reminder, and the Now notification "See some light until 20:00, then Avoid caffeine"](../user-guide/images/notification.png)
+![The Now notification, expanded: header "Body 2½ h ahead", title "Avoid caffeine", "until 17:00 · then Avoid light 17:00–20:00", the same times in Tokyo, a tip, and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
-The screenshot shows the app's notifications grouped in the shade. The second line is the Now notification: the
-current advice, when it ends and what comes next. The first line is the test reminder from Settings.
+The screenshot shows the Now notification expanded in the shade: the current advice, when it stops being the
+headline, what comes next, the same times at the other end of the trip, and the action buttons.
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)
