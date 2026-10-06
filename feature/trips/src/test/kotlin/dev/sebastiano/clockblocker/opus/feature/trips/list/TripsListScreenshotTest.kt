@@ -58,6 +58,21 @@ class TripsListScreenshotTest : TripsScreenshotTest() {
         TripsContent(TripsSamples.state(), callbacks, selectedTripId = DemoData.LhrSydId)
     }
 
+    /** Landscape phone pane (#15): single-row sky bar, add menu in the app bar, nothing floating over the cards. */
+    @Test
+    fun shortWindow() = snap("trips_list_short_window", qualifiers = "w540dp-h411dp") { TripsContent(TripsSamples.state(), callbacks) }
+
+    @Test
+    fun shortWindowMenu() {
+        setContent(darkTheme = true, qualifiers = "w540dp-h411dp") { TripsContent(TripsSamples.state(), callbacks) }
+        compose.onNodeWithTag(TripsTestTags.Fab).performClick()
+        capture("trips_list_short_window_menu_dark")
+    }
+
+    /** At night the sky darkens and the ink turns light; the body clock time is in the subtitle. */
+    @Test
+    fun nightSky() = snap("trips_list_night_sky") { TripsContent(TripsSamples.state(now = TripsSamples.Now.plusSeconds(11 * 3600)), callbacks) }
+
     @Test
     fun fabMenuOpen() {
         setContent { TripsContent(TripsSamples.state(), callbacks) }
