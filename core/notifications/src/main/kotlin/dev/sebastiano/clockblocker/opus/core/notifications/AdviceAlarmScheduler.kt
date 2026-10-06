@@ -83,9 +83,10 @@ class AdviceAlarmScheduler(
         combine(planRepository.currentPlan, settingsRepository.settings, ::Pair)
             .distinctUntilChanged()
             .collectLatest { (plan, settings) ->
-                // A reminder already on screen was posted without a redacted public version: withdraw it the
-                // moment the user asks for privacy (the Now notification, refreshed below, keeps the current step).
-                if (hidingDetails == false && settings.hideLockScreenDetails) reminderMutex.withLock { reminders.cancel() }
+                // A reminder already on screen without a redacted public version: withdraw it the moment the user
+                // asks for privacy (the Now notification, refreshed below, keeps the current step). One an alarm
+                // already posted redacted while racing this flip stays.
+                if (hidingDetails == false && settings.hideLockScreenDetails) reminderMutex.withLock { reminders.cancelUnredacted() }
                 hidingDetails = settings.hideLockScreenDetails
                 arm(plan, settings)
                 refreshSurfaces()

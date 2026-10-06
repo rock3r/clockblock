@@ -121,6 +121,13 @@ class ReminderNotifier(
         NotificationGroup.sync(application, factory)
     }
 
+    /** Withdraws the reminder only if it shows details on the lock screen (posted without a redacted public version). */
+    fun cancelUnredacted() {
+        val showing = NotificationManagerCompat.from(application).activeNotifications
+            .firstOrNull { it.id == NotificationIds.REMINDER } ?: return
+        if (showing.notification.publicVersion == null) cancel()
+    }
+
     @SuppressLint("MissingPermission")
     private fun notify(id: Int, build: () -> android.app.Notification): Boolean {
         if (!capabilities.areNotificationsEnabled()) return false

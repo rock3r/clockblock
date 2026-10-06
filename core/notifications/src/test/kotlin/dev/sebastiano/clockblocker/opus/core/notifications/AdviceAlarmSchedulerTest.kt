@@ -199,6 +199,19 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `withdrawing for privacy keeps a reminder that was already posted redacted`() = runTest {
+        // An alarm racing the flip can win the lock, re-read privacy on and post redacted before the collector runs.
+        clock.instant = utc("2026-10-10T13:45")
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull().publicVersion.shouldNotBeNull()
+
+        reminders.cancelUnredacted()
+
+        reminder.shouldNotBeNull()
+    }
+
+    @Test
     fun `turning lock-screen privacy off leaves the reminder alone`() = runTest(UnconfinedTestDispatcher()) {
         settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
         val scheduler = scheduler()
