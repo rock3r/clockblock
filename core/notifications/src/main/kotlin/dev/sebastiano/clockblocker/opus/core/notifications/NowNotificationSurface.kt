@@ -108,24 +108,48 @@ class ReminderNotifier(
     private val factory: NotificationFactory,
     private val capabilities: PlatformCapabilities,
 ) {
+    /** What the reminder on screen was built from, while this process knows it (see [redactShowing]). */
+    private class Posted(val spec: ReminderSpec, val plan: JetLagPlan)
+
+    /**
+     * Guards the reminder slot: posting, cancelling (alarms, snooze, Done, Can't do this) and redacting never
+     * interleave, so a reminder the user just handled is never re-posted from a stale [lastPosted].
+     */
+    private val lock = Any()
+    private var lastPosted: Posted? = null
+
     /** Returns whether the reminder was posted. [redact]: hide details on the lock screen (see [NotificationFactory.now]). */
     @SuppressLint("MissingPermission")
-    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Boolean =
+    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Boolean = synchronized(lock) {
         notify(NotificationIds.REMINDER) { factory.reminder(spec, plan, now, redact) }
+            .also { posted -> if (posted) lastPosted = Posted(spec, plan) }
+    }
 
     @SuppressLint("MissingPermission")
     fun postTest(): Boolean = notify(NotificationIds.TEST) { factory.test() }
 
-    fun cancel() {
+    fun cancel(): Unit = synchronized(lock) {
+        lastPosted = null
         NotificationManagerCompat.from(application).cancel(NotificationIds.REMINDER)
         NotificationGroup.sync(application, factory)
     }
 
-    /** Withdraws the reminder only if it shows details on the lock screen (posted without a redacted public version). */
-    fun cancelUnredacted() {
+    /**
+     * Hides the details of the reminder on screen from the lock screen, for when the user turns on "Hide details on
+     * the lock screen". A reminder this process posted is rebuilt redacted at [now], without alerting again. One left
+     * from an earlier process is withdrawn instead, since what it said is no longer known. A reminder that is already
+     * redacted, or no longer showing, is left alone.
+     */
+    @SuppressLint("MissingPermission")
+    fun redactShowing(now: Instant): Unit = synchronized(lock) {
         val showing = NotificationManagerCompat.from(application).activeNotifications
             .firstOrNull { it.id == NotificationIds.REMINDER } ?: return
-        if (showing.notification.publicVersion == null) cancel()
+        if (showing.notification.publicVersion != null) return
+        val posted = lastPosted
+        val rebuilt = posted != null && notify(NotificationIds.REMINDER) {
+            factory.reminder(posted.spec, posted.plan, now, redact = true, onlyAlertOnce = true)
+        }
+        if (!rebuilt) cancel()
     }
 
     @SuppressLint("MissingPermission")

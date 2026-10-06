@@ -21,6 +21,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -161,15 +162,52 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
-    fun `turning on lock-screen privacy withdraws a reminder already on screen`() = runTest(UnconfinedTestDispatcher()) {
+    fun `turning on lock-screen privacy rebuilds a reminder already on screen redacted`() = runTest(UnconfinedTestDispatcher()) {
         val scheduler = scheduler()
         scheduler.start(backgroundScope)
         clock.instant = utc("2026-10-10T13:45")
         scheduler.onAlarm(utc("2026-10-10T13:45"))
-        reminder.shouldNotBeNull()
+        reminder.shouldNotBeNull().publicVersion.shouldBeNull()
+
+        clock.instant = utc("2026-10-10T13:50")
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+        runCurrent()
+
+        val n = reminder.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        (n.publicVersion.shouldNotBeNull().actions ?: emptyArray()).size shouldBe 0
+        n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light at 15:00"
+        (n.flags and Notification.FLAG_ONLY_ALERT_ONCE) shouldBe Notification.FLAG_ONLY_ALERT_ONCE // no second buzz
+        n.timeoutAfter shouldBe Duration.ofMinutes(40).toMillis() // still until 30 min after the window starts
+    }
+
+    @Test
+    fun `turning on lock-screen privacy does not bring back a dismissed reminder`() = runTest(UnconfinedTestDispatcher()) {
+        val scheduler = scheduler()
+        scheduler.start(backgroundScope)
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        notificationManager.cancel(NotificationIds.REMINDER) // swiped away
 
         settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
         runCurrent()
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
+    fun `starting with privacy on withdraws an unredacted reminder left from before a restart`() = runTest(UnconfinedTestDispatcher()) {
+        // Posted by a previous process, which died after the setting was saved but before it could redact it.
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull().publicVersion.shouldBeNull()
+        settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
+
+        val restarted = AdviceAlarmScheduler(
+            context, plans, settings, setOf(widget), ReminderNotifier(context, factory, capabilities), snooze,
+            capabilities, clock,
+        )
+        restarted.start(backgroundScope)
 
         reminder.shouldBeNull()
     }
@@ -199,16 +237,49 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
-    fun `withdrawing for privacy keeps a reminder that was already posted redacted`() = runTest {
+    fun `redacting leaves a reminder that was already posted redacted untouched`() = runTest {
         // An alarm racing the flip can win the lock, re-read privacy on and post redacted before the collector runs.
         clock.instant = utc("2026-10-10T13:45")
         settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
         scheduler().onAlarm(utc("2026-10-10T13:45"))
-        reminder.shouldNotBeNull().publicVersion.shouldNotBeNull()
+        val posted = reminder.shouldNotBeNull()
+        posted.publicVersion.shouldNotBeNull()
 
-        reminders.cancelUnredacted()
+        reminders.redactShowing(utc("2026-10-10T13:50"))
 
+        reminder shouldBeSameInstanceAs posted
+    }
+
+    @Test
+    fun `a reminder handled while it is being redacted stays gone`() = runTest {
+        // Snooze, Done or Can't do this cancels the reminder while redactShowing is rebuilding it on another thread.
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val cancelled = java.util.concurrent.CountDownLatch(1)
+        var pause = false
+        val pausing = object : PlatformCapabilities by capabilities {
+            override fun areNotificationsEnabled(): Boolean {
+                if (pause) {
+                    pause = false
+                    entered.countDown()
+                    cancelled.await(500, java.util.concurrent.TimeUnit.MILLISECONDS) // never comes if cancel waits
+                }
+                return true
+            }
+        }
+        val notifier = ReminderNotifier(context, factory, pausing)
+        clock.instant = utc("2026-10-10T13:45")
+        AdviceAlarmScheduler(context, plans, settings, setOf(widget), notifier, snooze, pausing, clock)
+            .onAlarm(utc("2026-10-10T13:45"))
         reminder.shouldNotBeNull()
+
+        pause = true
+        val redacting = Thread { notifier.redactShowing(utc("2026-10-10T13:50")) }.apply { start() }
+        entered.await()
+        val handling = Thread { notifier.cancel(); cancelled.countDown() }.apply { start() }
+        redacting.join()
+        handling.join()
+
+        reminder.shouldBeNull()
     }
 
     @Test
