@@ -9,7 +9,7 @@ This guide is for travellers. You don't need to know anything about the science 
 follow it.
 
 <p align="center">
-  <img src="images/plan-now.png" alt="The plan screen for a Lisbon to Tokyo trip: a round dial showing 15:59 local time and 18:35 body time, and a card saying Avoid caffeine until 20:00" width="280" />
+  <img src="images/plan-now.png" alt="The plan screen for a Lisbon to Tokyo trip: a round dial showing 10:14 local time and 12:35 body time, and a card saying See some light until 12:00" width="280" />
 </p>
 
 The picture shows the plan screen for a trip from Lisbon to Tokyo. The dial at the top compares the time on the
