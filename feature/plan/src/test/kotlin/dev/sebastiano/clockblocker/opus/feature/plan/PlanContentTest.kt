@@ -34,6 +34,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Duration
 import java.util.Locale
 import dev.sebastiano.clockblocker.opus.core.designsystem.R as DesignR
 
@@ -249,6 +250,28 @@ class PlanContentTest {
         compose.waitForIdle()
         compose.onNode(nowHeading).assertExists()
         compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
+    fun `a picked day that becomes today goes live for good`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The clock reaches Day 3: the pick is today, so the screen is live…
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(1)))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        // …and stays live on Day 4 instead of jumping back to the old pick.
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)))
+        compose.waitForIdle()
+        val day3Heading = hasText(context.getString(R.string.plan_previewing_day, "Day 3", "11:00").uppercase()) and inNowCard
+        compose.onNode(day3Heading).assertDoesNotExist()
         compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
     }
 

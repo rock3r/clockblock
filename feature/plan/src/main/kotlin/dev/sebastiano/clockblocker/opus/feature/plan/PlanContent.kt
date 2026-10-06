@@ -61,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -353,6 +354,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val dayBase = remember(railDays, selectedDay, state.now, state.moment.zone) {
         selectedDayBase(railDays, selectedDay, state.now, state.moment.zone)
     }
+    // A pick that is (or has become) today, or that the plan no longer has, is live: forget it, so a screen left
+    // open can't jump back to it once that day is past.
+    if (selectedDay != null && dayBase == null) {
+        SideEffect { screen.pickDay(plan.tripId, null) }
+    }
     val anchor = dayBase ?: state.now
     val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone
     val preview = screen.preview?.takeIf { it != anchor } ?: dayBase
@@ -535,7 +541,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     LaunchedEffect(screen.dayPicked) {
                         if (!screen.dayPicked) return@LaunchedEffect
                         screen.dayPicked = false
-                        val picked = railDays.firstOrNull { it.day.index == selectedDay }
+                        val picked = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }
                         if (picked == null) {
                             val now = rows.nowRowIndex()
                             if (now >= 0) scrollRail(now, nowOffsetPx)
