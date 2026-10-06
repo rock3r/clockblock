@@ -29,11 +29,11 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Opus Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, and Next: Avoid light at 23:30, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Opus Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It shows what to do now,
 with its symbol and colour, until when, and a bar that fills up as the block goes by, for example "See some
-light … until 19:00". Expand it to see the same time in your other time zone, anything else that's going on at
+light … until 19:00". Expand it to see the times in your other time zone too, anything else that's going on at
 the same time ("Also now: Avoid caffeine until 02:00"), what comes next ("Next: Avoid light at 23:30") and a short
 tip. "Until" is always when that block ends, the same time the app and the widgets show. When nothing is going
 on, it says "Nothing right now" and what's next.

@@ -160,7 +160,7 @@ class NowNotificationSurfaceTest {
         collapsed.texts(context) shouldContainExactly listOf("Avoid light", "until 18:00")
         val expanded = n.bigContentView.shouldNotBeNull().texts(context)
         expanded shouldContain "until 18:00 · 02:00 Tokyo"
-        expanded shouldContain "Next: Sleep at 18:00"
+        expanded shouldContain "Next: Sleep at 18:00 · 02:00 Tokyo"
         // 15:00 is a third of the way through 14:00–17:00.
         collapsed.inflate(context).findViewById<android.widget.ProgressBar>(R.id.now_progress).progress shouldBe 333
     }
@@ -176,8 +176,11 @@ class NowNotificationSurfaceTest {
         val n = posted.shouldNotBeNull()
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · 02:00 Tokyo"
         val expanded = n.bigContentView.shouldNotBeNull().texts(context)
-        expanded shouldContain "Also now: Avoid caffeine until 20:00"
+        expanded shouldContain "Also now: Avoid caffeine until 20:00 · 04:00 Tokyo"
         expanded shouldNotContain "until 20:00"
+        // It may wrap only after the dot: never before it, nor inside either time.
+        n.bigContentView.inflate(context).findViewById<android.widget.TextView>(R.id.now_also).text.toString() shouldBe
+            "Also now: Avoid caffeine until 20:00\u00A0· 04:00\u00A0Tokyo"
     }
 
     @Test
@@ -225,12 +228,16 @@ class NowNotificationSurfaceTest {
     @Test
     @Config(sdk = [30])
     fun `below API 31 the Now notification falls back to the standard big-text template`() = runTest {
+        val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
+
         surface.render() shouldBe NowRendering.Ongoing
 
         val n = posted.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TEMPLATE) shouldBe Notification.BigTextStyle::class.java.name
         n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain "Next: Sleep at 18:00"
         n.getLargeIcon().shouldNotBeNull()
+        // No bar to move, so no progress tick either.
+        alarms.scheduledAlarms.shouldBeEmpty()
     }
 
     @Test
@@ -306,7 +313,7 @@ class NowNotificationSurfaceTest {
 
         val n = posted.shouldNotBeNull()
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 07:00 · 15:00 London"
-        n.bigContentView.texts(context) shouldContain "Next: See bright light at 07:00"
+        n.bigContentView.texts(context) shouldContain "Next: See bright light at 07:00 · 15:00 London"
         // No trajectory: the body is on home (Los Angeles) time, like the plan day.
         n.extras.getCharSequence(Notification.EXTRA_SUB_TEXT).toString() shouldBe "Body clock in sync"
     }

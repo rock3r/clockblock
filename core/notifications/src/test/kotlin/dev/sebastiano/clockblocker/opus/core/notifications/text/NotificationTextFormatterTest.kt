@@ -64,12 +64,12 @@ class NotificationTextFormatterTest {
 
         @Test
         fun `what starts next is a detail line of its own`() {
-            nowText("Europe/London").next shouldBe "Next: Sleep at 18:00"
+            nowText("Europe/London").next shouldBe "Next: Sleep at 18:00 · 02:00 Tokyo"
         }
 
         @Test
         fun `expanded text reads top to bottom - until, next, tip`() {
-            nowText("Europe/London").bigText shouldBe "until 18:00 · 02:00 Tokyo\nNext: Sleep at 18:00\ntip:AvoidLight"
+            nowText("Europe/London").bigText shouldBe "until 18:00 · 02:00 Tokyo\nNext: Sleep at 18:00 · 02:00 Tokyo\ntip:AvoidLight"
         }
 
         @Test
@@ -77,7 +77,7 @@ class NotificationTextFormatterTest {
             val text = nowText("Asia/Tokyo")
 
             text.line shouldBe "until 02:00 · 18:00 London"
-            text.next shouldBe "Next: Sleep at 02:00"
+            text.next shouldBe "Next: Sleep at 02:00 · 18:00 London"
         }
 
         @Test
@@ -96,7 +96,7 @@ class NotificationTextFormatterTest {
             val text = nowText("America/New_York", use24Hour = false)
 
             text.text shouldBe "until 1:00 pm"
-            text.next shouldBe "Next: Sleep at 1:00 pm"
+            text.next shouldBe "Next: Sleep at 1:00 pm · 2:00 am Tokyo"
         }
 
         @Test
@@ -141,7 +141,7 @@ class NotificationTextFormatterTest {
 
             nowText("Europe/London", utc("2026-10-25T00:45"), p = dst).let {
                 it.text shouldBe "until 02:30"
-                it.next shouldBe "Next: See bright light at 02:30"
+                it.next shouldBe "Next: See bright light at 02:30 · 11:30 Tokyo"
             }
             ClockFormat(ZoneId.of("Europe/London"), Locale.UK)
                 .range(utc("2026-10-25T00:30"), utc("2026-10-25T02:30"), utc("2026-10-25T00:30")) shouldBe "01:30–02:30"
@@ -162,7 +162,7 @@ class NotificationTextFormatterTest {
                 text.title shouldBe "Avoid caffeine"
                 text.line shouldBe "until 20:00 · 04:00 Tokyo"
                 text.also.shouldBeNull()
-                text.next shouldBe "Next: Avoid light at 17:00"
+                text.next shouldBe "Next: Avoid light at 17:00 · 01:00 Tokyo"
             }
 
             @Test
@@ -171,8 +171,8 @@ class NotificationTextFormatterTest {
 
                 text.title shouldBe "Avoid light"
                 text.line shouldBe "until 20:00 · 04:00 Tokyo"
-                text.also shouldBe "Also now: Avoid caffeine until 20:00"
-                text.next shouldBe "Next: Sleep at 21:00"
+                text.also shouldBe "Also now: Avoid caffeine until 20:00 · 04:00 Tokyo"
+                text.next shouldBe "Next: Sleep at 21:00 · 05:00 Tokyo"
             }
         }
     }
@@ -368,6 +368,18 @@ class NotificationTextFormatterTest {
             text.secondary.shouldBeNull()
             text.tip.shouldBeNull()
             text.subText shouldBe "Body clock in sync"
+        }
+
+        @Test
+        fun `the public Now version leaves out what runs alongside`() {
+            val caffeine = advice(AvoidCaffeine, "2026-10-10T13:00", "2026-10-10T19:00")
+            val p = planOf(avoid, caffeine, sleep)
+
+            val text = redacting().now(NowStateCalculator.compute(p, now)!!, p, now)
+
+            text.title shouldBe "Avoid light"
+            text.also.shouldBeNull()
+            text.bigText shouldBe "until 18:00\nNext: Sleep at 18:00"
         }
 
         @Test

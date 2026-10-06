@@ -101,7 +101,7 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded, in the shade: header "Opus Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00" and "Next: Avoid light at 23:30", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded, in the shade: header "Opus Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
 On Android 12 (API 31) and later, the notification is a `DecoratedCustomViewStyle` with our own content
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
@@ -113,16 +113,16 @@ body clock, the expand button and the actions. Our part reads top to bottom:
 | Glyph | — (the label needs the room at large font sizes) | The headline's glyph on its colour chip |
 | Label and time | "See some light" … "until 19:00" | "See some light", then "until 19:00 · 11:00 Los Angeles" |
 | Progress | A bar from the block's start to its end | Same |
-| Alongside | — | "Also now: Avoid caffeine until Wed 02:00", up to two blocks, each with its own end |
-| Next | — | "Next: Avoid light at 23:30" |
+| Alongside | — | "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles", up to two blocks, each with its own end |
+| Next | — | "Next: Avoid light at 23:30 · 15:30 Los Angeles" |
 | Tip | — | The headline's tip, in italics |
 
 "until" is always the headline's **own** end, the same time the app's Now card and the widgets show (#43).
 Blocks that overlap it are never folded into that time: ones already running are listed under "Also now" with
 their own end, and the one that starts next gets the "Next" line, even when it starts before the headline ends.
 In a gap, the title is "Nothing right now" and the line says what's next; the expanded view shows a neutral clock
-chip and neither view has a bar. The collapsed view shows local times only; the expanded one adds the other zone
-as a short tail, kept on one line with no-break spaces.
+chip and neither view has a bar. The collapsed view shows local times only; in the expanded one every time
+(until, also, next) is followed by the other zone as a short tail, kept on one line with no-break spaces.
 
 Newer shades show the app icon where the small icon used to be, so in the shade the expanded chip is what names
 the advice; the small icon (status bar, AOD) is still the advice glyph. Chips and bars use the design system's advice
@@ -141,7 +141,7 @@ shade would show the device's zone, not the plan's, and a ticking chronometer is
 day.
 
 Below Android 12 the notification falls back to the standard big-text template with the same text (headline,
-"until" line, "Also now", "Next", tip) and the advice chip as its large icon.
+"until" line, "Also now", "Next", tip) and the advice chip as its large icon. It has no bar, so no progress tick.
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)

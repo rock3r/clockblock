@@ -11,6 +11,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowState
 import dev.sebastiano.clockblocker.opus.core.notifications.text.NotificationText
+import dev.sebastiano.clockblocker.opus.core.notifications.text.ZoneTime
 import java.time.Duration
 import java.time.Instant
 
@@ -52,17 +53,17 @@ internal object NowNotificationViews {
         RemoteViews(context.packageName, R.layout.notif_now_expanded).apply {
             chip(R.id.now_chip, R.id.now_glyph, state.headline?.type)
             setTextViewText(R.id.now_title, text.title)
-            // The tail ("11:00 Los Angeles") wraps as a unit, never between "Los" and "Angeles".
-            setTextViewText(R.id.now_line, text.secondary?.let { text.line.replace(it, it.unbreakable()) } ?: text.line)
+            // Lines wrap after a time's "·", never inside "11:00 Los Angeles" or before the dot.
+            setTextViewText(R.id.now_line, text.line.wrappingAfterSeparators(text.zoneTimes))
             val progress = progressOf(state, now)
             if (progress == null) {
                 setViewVisibility(R.id.now_progress, View.GONE)
             } else {
                 progress(R.id.now_progress, state.headline?.type, progress)
             }
-            row(R.id.now_also_row, R.id.now_also_chip, R.id.now_also_glyph, R.id.now_also, text.also, state.alongside.firstOrNull())
+            row(R.id.now_also_row, R.id.now_also_chip, R.id.now_also_glyph, R.id.now_also, text.also?.wrappingAfterSeparators(text.zoneTimes), state.alongside.firstOrNull())
             // In a gap the main line already says what's next.
-            row(R.id.now_next_row, R.id.now_next_chip, R.id.now_next_glyph, R.id.now_next, text.next, state.next)
+            row(R.id.now_next_row, R.id.now_next_chip, R.id.now_next_glyph, R.id.now_next, text.next?.wrappingAfterSeparators(text.zoneTimes), state.next)
             text.tip?.let {
                 setViewVisibility(R.id.now_tip, View.VISIBLE)
                 setTextViewText(R.id.now_tip, it)
@@ -103,6 +104,17 @@ internal object NowNotificationViews {
 
     private fun RemoteViews.tint(@IdRes id: Int, method: String, light: Int, dark: Int) =
         setColorStateList(id, method, ColorStateList.valueOf(light), ColorStateList.valueOf(dark))
+
+    /**
+     * "Wed 02:00 · 18:00 Los Angeles" may only wrap after the dot: the local time stays whole and keeps its dot,
+     * and the other zone's time and city stay together on the next line.
+     */
+    private fun String.wrappingAfterSeparators(times: List<ZoneTime>) = times.fold(this) { line, time ->
+        val separator = time.joined.removePrefix(time.local).removeSuffix(time.other)
+        val glued = time.local.unbreakable() + separator.trimEnd().unbreakable() + separator.takeLastWhile { it == ' ' } +
+            time.other.unbreakable()
+        line.replace(time.joined, glued)
+    }
 
     private fun String.unbreakable() = replace(' ', '\u00A0')
 

@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.core.notifications
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.Application
+import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
@@ -101,8 +102,10 @@ class NowNotificationSurface(
             cancelProgressTick()
             return NowRendering.Hidden
         }
-        // The Live Update has its own (wake-up) tick in AdviceAlarmScheduler; a gap has no bar to move.
-        if (!live && state.headline != null) armProgressTick(now) else cancelProgressTick()
+        // The Live Update has its own (wake-up) tick in AdviceAlarmScheduler; a gap has no bar to move, and neither
+        // has the plain big-text template used below API 31.
+        val hasBar = !live && state.headline != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        if (hasBar) armProgressTick(now) else cancelProgressTick()
         return if (live) NowRendering.LiveUpdate else NowRendering.Ongoing
     }
 

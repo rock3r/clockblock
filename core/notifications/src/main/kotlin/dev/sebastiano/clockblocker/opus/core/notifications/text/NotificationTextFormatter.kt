@@ -32,15 +32,20 @@ data class NotificationText(
     val details: List<String> = emptyList(),
     /** [text] with its [secondary] tail: "until 20:00 · 04:00 Tokyo". */
     val line: String = text,
+    /** Every time in [line], [also] and [next] that has an other-zone tail, so a layout can choose where to wrap. */
+    val zoneTimes: List<ZoneTime> = emptyList(),
 ) {
     /** Expanded (BigText) body: the main line with its zone tail, also-now, next, other details, then the tip. */
     val bigText: String get() = (listOf(line) + listOfNotNull(also, next) + details + listOfNotNull(tip)).joinToString("\n")
 }
 
+/** A local time and its other-zone tail as they appear in a [NotificationText]: [joined] is "02:00 · 18:00 Los Angeles". */
+data class ZoneTime(val local: String, val other: String, val joined: String)
+
 /**
  * Pure composition of notification copy from plan state. Primary times are in the plan's local time at that instant
  * ([localZoneAt]: the zone of the plan day, the same zone the plan screen and the widgets show, never the device's);
- * the main time is repeated as a short tail in the other end of the trip ([secondaryZoneFor]: the destination, or
+ * each time is followed by a short tail in the other end of the trip ([secondaryZoneFor]: the destination, or
  * home once local time is the destination's), "until 20:00 · 04:00 Tokyo" like the plan screen's Now card, so "Times
  * show local time plus a secondary zone" holds on every surface without repeating every line in both zones.
  *
@@ -76,9 +81,12 @@ class NotificationTextFormatter(
                     text = next?.let { strings.next(titleOf(it), clock.time(it.start, now)) } ?: strings.nothingNow(),
                     secondary = next?.let { n -> secondary?.let { zoneTail(it, n.start) } },
                     subText = bodyClock(plan, now),
+                    zoneTimes = listOfNotNull(next?.let { zoneTime(clock, secondary, it.start, now) }),
                 ),
             )
         }
+        val alongside = state.alongside.take(MAX_ALONGSIDE).takeUnless { redact }.orEmpty()
+        val next = state.next
         return withLine(
             NotificationText(
                 title = titleOf(headline),
@@ -86,12 +94,27 @@ class NotificationTextFormatter(
                 secondary = secondary?.let { zoneTail(it, until) },
                 tip = tipOf(headline),
                 subText = bodyClock(plan, now),
-                also = state.alongside.takeIf { it.isNotEmpty() }?.let { list ->
-                    strings.alsoNow(list.take(MAX_ALONGSIDE).joinToString(", ") { strings.labelUntil(titleOf(it), clock.time(it.end, now)) })
+                // Like tips, what runs alongside is a detail the lock screen leaves out.
+                also = alongside.takeIf { it.isNotEmpty() }?.let { list ->
+                    strings.alsoNow(list.joinToString(", ") { strings.labelUntil(titleOf(it), timeWithTail(clock, secondary, it.end, now)) })
                 },
-                next = state.next?.let { strings.next(titleOf(it), clock.time(it.start, now)) },
+                next = next?.let { strings.next(titleOf(it), timeWithTail(clock, secondary, it.start, now)) },
+                zoneTimes = (listOf(until) + alongside.map { it.end } + listOfNotNull(next?.start))
+                    .mapNotNull { zoneTime(clock, secondary, it, now) }
+                    .distinct(),
             ),
         )
+    }
+
+    /** "02:00", or with the other zone's time when there is one: "02:00 · 18:00 Los Angeles". */
+    private fun timeWithTail(clock: ClockFormat, secondary: ClockFormat?, instant: Instant, now: Instant): String =
+        zoneTime(clock, secondary, instant, now)?.joined ?: clock.time(instant, now)
+
+    private fun zoneTime(clock: ClockFormat, secondary: ClockFormat?, instant: Instant, now: Instant): ZoneTime? {
+        if (secondary == null) return null
+        val local = clock.time(instant, now)
+        val other = zoneTail(secondary, instant)
+        return ZoneTime(local, other, strings.join(local, other))
     }
 
     /** An alerting reminder. [state] is the Now state at fire time (used by wake-ups to say what's next). */
