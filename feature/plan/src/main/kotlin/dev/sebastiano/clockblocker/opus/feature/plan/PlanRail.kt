@@ -386,7 +386,7 @@ private fun ZoneSwitchRow(row: RailRow.ZoneSwitch) {
     val scheme = MaterialTheme.colorScheme
     val role = OpusTheme.adviceColors[AdviceType.Flight]
     val title = stringResource(R.string.plan_zone_switch, row.to.cityName())
-    val hours = (row.to.rules.getOffset(row.at).totalSeconds - row.from.rules.getOffset(row.at).totalSeconds) / 3600f
+    val hours = zoneDeltaHours(row.from, row.to, row.at)
     val detail = stringResource(
         R.string.plan_zone_switch_detail,
         utcLabel(row.to.rules.getOffset(row.at)),

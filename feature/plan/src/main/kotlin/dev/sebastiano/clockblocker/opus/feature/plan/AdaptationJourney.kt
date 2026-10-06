@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.PlannerConfig
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import java.time.Duration
@@ -91,13 +92,33 @@ private const val MaxChartDays = 10f
 internal fun JetLagPlan.dayOfJourney(instant: Instant): Float? =
     landing?.let { Duration.between(it, instant).toMinutes() / MinutesPerDay }
 
-/** Destination minus origin UTC offset at [instant], in hours normalised to (−12, 12] (+ = east). */
-internal fun JetLagPlan.geographicShiftHours(instant: Instant): Float {
-    val origin = ZoneId.of(originZoneId).rules.getOffset(instant).totalSeconds
-    val destination = ZoneId.of(destinationZoneId).rules.getOffset(instant).totalSeconds
-    val diff = Math.floorMod(destination - origin + 12 * 3600 - 1, 24 * 3600) - 12 * 3600 + 1
-    return diff / 3600f
+/**
+ * Destination minus origin clock offset, in hours normalised to (−12, 12] (+ = east). The origin is read at the
+ * first departure and the destination at landing, like the planner's home offset: the body clock doesn't follow
+ * a DST change at home while airborne.
+ */
+internal fun JetLagPlan.geographicShiftHours(): Float {
+    val flights = allAdvice.filter { it.type == AdviceType.Flight }
+    val departed = flights.minOfOrNull { it.start } ?: generatedAt
+    val landed = flights.maxOfOrNull { it.end } ?: generatedAt
+    val origin = ZoneId.of(originZoneId).rules.getOffset(departed).totalSeconds
+    val destination = ZoneId.of(destinationZoneId).rules.getOffset(landed).totalSeconds
+    return normalisedOffsetHours(destination - origin)
 }
+
+/** How far [to]'s clocks are ahead of [from]'s at [at], in hours normalised to (−12, 12] (date line aware). */
+internal fun zoneDeltaHours(from: ZoneId, to: ZoneId, at: Instant): Float =
+    normalisedOffsetHours(to.rules.getOffset(at).totalSeconds - from.rules.getOffset(at).totalSeconds)
+
+/** An offset difference in seconds as hours in (−12, 12]: a 24 h difference is the same clock time. */
+private fun normalisedOffsetHours(diffSeconds: Int): Float {
+    val diff = Math.floorMod(diffSeconds + HalfDaySeconds - 1, DaySeconds) - HalfDaySeconds + 1
+    return diff / SecondsPerHour
+}
+
+private const val DaySeconds = 24 * 3600
+private const val HalfDaySeconds = 12 * 3600
+private const val SecondsPerHour = 3600f
 
 /** The chart's data, or null for plans that don't adapt or have no flight. */
 internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
@@ -120,7 +141,7 @@ internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
         add(JourneyPoint(endDay, abs(misalignmentHoursAt(end)).toFloat()))
     }
 
-    val home = abs(geographicShiftHours(landed))
+    val home = abs(geographicShiftHours())
     val withoutPlan = buildList {
         add(JourneyPoint(startDay, home))
         add(JourneyPoint(0f, home))
@@ -164,7 +185,7 @@ private const val MinutesPerQuarter = 15L
  * westward one advanced), or null when it goes the direct way.
  */
 internal fun JetLagPlan.longWayRound(): LongWayRound? {
-    val geographic = geographicShiftHours(landing ?: generatedAt)
+    val geographic = geographicShiftHours()
     return when {
         kind != PlanKind.Adapt -> null
         geographic > 0f && direction == ShiftDirection.Delay -> LongWayRound.EastByDelaying
@@ -287,3 +308,4 @@ private fun LegendItem(colour: Color, dashed: Boolean, label: String) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+

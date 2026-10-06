@@ -200,7 +200,7 @@ private fun HeroComparison(plan: JetLagPlan) {
     val withText = stringResource(R.string.plan_days_short, with)
     val withoutText = stringResource(if (withoutAtHorizon) R.string.plan_days_short_horizon else R.string.plan_days_short, without)
     val description = stringResource(
-        R.string.plan_hero_description,
+        if (withoutAtHorizon) R.string.plan_hero_description_horizon else R.string.plan_hero_description,
         pluralStringResource(R.plurals.plan_days_bare, with, with),
         pluralStringResource(R.plurals.plan_days_bare, without, without),
     ) + (saved?.let { " " + pluralStringResource(R.plurals.plan_days_faster, it, it) } ?: "")
@@ -236,7 +236,7 @@ private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): St
     val atLanding = journey.withPlanAt(0f).roundToInt()
     val home = journey.withoutPlan.first().hours.roundToInt()
     return stringResource(
-        R.string.plan_journey_description,
+        if (plan.estimatedDaysWithoutPlan >= NoPlanHorizonDays) R.string.plan_journey_description_horizon else R.string.plan_journey_description,
         ZoneId.of(plan.destinationZoneId).cityName(),
         stringResource(R.string.plan_journey_hours, atLanding),
         remainingBareLabel(plan.estimatedDaysToAdapt),
@@ -252,7 +252,7 @@ private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): St
 @Composable
 private fun LongWayRoundCallout(plan: JetLagPlan, longWay: LongWayRound) {
     val city = ZoneId.of(plan.destinationZoneId).cityName()
-    val apart = formatDuration(shiftDuration(plan.geographicShiftHours(plan.landing ?: plan.generatedAt).toDouble()))
+    val apart = formatDuration(shiftDuration(plan.geographicShiftHours().toDouble()))
     val shifted = formatDuration(shiftDuration(plan.shiftHours))
     val body = when (longWay) {
         LongWayRound.EastByDelaying -> stringResource(R.string.plan_long_way_east, city, apart, shifted)
