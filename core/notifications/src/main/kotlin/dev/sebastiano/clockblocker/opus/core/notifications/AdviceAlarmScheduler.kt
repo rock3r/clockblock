@@ -12,6 +12,7 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.notifications.now.TravelPlanner
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.ReminderSelector
 import dev.sebastiano.clockblocker.opus.core.notifications.schedule.TransitionPlanner
+import dev.sebastiano.clockblocker.opus.core.notifications.text.BodyClockHeader
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -62,6 +63,12 @@ class AdviceAlarmScheduler(
     private val clock: NotificationClock,
 ) {
     private val mutex = Mutex()
+
+    /**
+     * Serializes posting a reminder with withdrawing it for lock-screen privacy, and the post re-reads the setting
+     * inside it: a reminder is never posted unredacted after privacy was turned on.
+     */
+    private val reminderMutex = Mutex()
     private var started: Job? = null
     private val alarmManager: AlarmManager? get() = application.getSystemService()
 
@@ -72,9 +79,15 @@ class AdviceAlarmScheduler(
     @Synchronized
     fun start(scope: CoroutineScope): Job = started ?: scope.launch {
         NotificationChannels.ensureCreated(application)
+        var hidingDetails: Boolean? = null
         combine(planRepository.currentPlan, settingsRepository.settings, ::Pair)
             .distinctUntilChanged()
             .collectLatest { (plan, settings) ->
+                // A reminder already on screen without a redacted public version: withdraw it the moment the user
+                // asks for privacy (the Now notification, refreshed below, keeps the current step). One an alarm
+                // already posted redacted while racing this flip stays.
+                if (hidingDetails == false && settings.hideLockScreenDetails) reminderMutex.withLock { reminders.cancelUnredacted() }
+                hidingDetails = settings.hideLockScreenDetails
                 arm(plan, settings)
                 refreshSurfaces()
             }
@@ -105,7 +118,11 @@ class AdviceAlarmScheduler(
             val snoozed = snooze?.takeIf { snoozeElapsed }?.adviceId
                 ?.let { id -> plan.allAdvice.firstOrNull { it.id == id } }
                 ?.let { ReminderSelector.snoozed(it, now) }
-            (due ?: snoozed)?.let { reminders.post(it, plan, now) }
+            (due ?: snoozed)?.let { spec ->
+                reminderMutex.withLock {
+                    reminders.post(spec, plan, now, redact = settingsRepository.settings.first().hideLockScreenDetails)
+                }
+            }
         }
         refreshSurfaces()
         arm(plan, settings)
@@ -129,7 +146,10 @@ class AdviceAlarmScheduler(
         set(manager, clock.now().plus(delay), NotificationIntents.testAlarm(application))
     }
 
-    /** Computes and arms the next alarms (plus a pending snooze and the Live Update progress tick). */
+    /**
+     * Computes and arms the next alarms, plus a pending snooze, the Live Update progress tick and the next change
+     * of the Now notification's body-clock header.
+     */
     internal suspend fun arm(plan: JetLagPlan?, settings: AppSettings): ScheduledAlarms = mutex.withLock {
         val now = clock.now()
         val planned = plan?.let { TransitionPlanner.upcoming(it, settings, now, PLAN_ALARMS) }.orEmpty().map { it.at }
@@ -137,6 +157,7 @@ class AdviceAlarmScheduler(
             snoozeStore.active(now)?.until,
             plan?.takeIf { TravelPlanner.isLiveUpdateActive(it, now) }
                 ?.let { now.plus(LIVE_UPDATE_TICK).truncatedTo(ChronoUnit.MINUTES) },
+            plan?.takeIf { settings.remindersEnabled }?.let { BodyClockHeader.nextChange(it, clock.zone(), now) },
         )
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()
@@ -173,8 +194,8 @@ class AdviceAlarmScheduler(
         /** Plan transitions held at once; the chain re-arms at every alarm. */
         const val PLAN_ALARMS: Int = TransitionPlanner.DEFAULT_LIMIT
 
-        /** Plan transitions + snooze + Live Update tick. */
-        const val MAX_ALARMS: Int = PLAN_ALARMS + 2
+        /** Plan transitions + snooze + Live Update tick + body-clock header change. */
+        const val MAX_ALARMS: Int = PLAN_ALARMS + 3
 
         /** The platform minimum window for inexact alarms (shorter windows are stretched to this anyway). */
         val FALLBACK_WINDOW: Duration = Duration.ofMinutes(10)

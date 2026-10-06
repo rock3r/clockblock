@@ -3,9 +3,11 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.PlaceSearch
 import dev.sebastiano.clockblocker.opus.core.data.ProfileRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
+import dev.sebastiano.clockblocker.opus.core.data.WidgetPinning
 import dev.sebastiano.clockblocker.opus.core.data.backup.Backup
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupCodec
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupException
@@ -53,6 +55,7 @@ val ReminderLeadOptions: List<Int> = listOf(0, 5, 10, 15, 30)
  * @property isWorking an export or import is in progress.
  * @property homeQuery the text in the home time zone search.
  * @property homeResults places matching [homeQuery].
+ * @property widgetPinningSupported the launcher accepts "add widget" requests (the Widgets card is hidden otherwise).
  */
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
@@ -63,6 +66,7 @@ data class SettingsUiState(
     val isWorking: Boolean = false,
     val homeQuery: String = "",
     val homeResults: ImmutableList<Place> = persistentListOf(),
+    val widgetPinningSupported: Boolean = false,
 )
 
 /** A backup that decoded fine and is waiting for the user to pick [ImportMode.Replace] or [ImportMode.Merge]. */
@@ -90,6 +94,9 @@ sealed interface SettingsEvent {
 
     /** Notifications are off, so the test couldn't show. */
     data object TestReminderBlocked : SettingsEvent
+
+    /** The launcher refused to add the widget. */
+    data object WidgetPinFailed : SettingsEvent
 }
 
 /**
@@ -107,12 +114,13 @@ class SettingsViewModel(
     private val backupManager: BackupManager,
     private val codec: BackupCodec,
     private val clock: Clock,
+    private val widgetPinning: WidgetPinning,
 ) : ViewModel() {
     private val permissions = MutableStateFlow(notificationPermissions.state())
 
     /** `null` until the user touches the note; then their answer. Before that, "melatonin already on" counts. */
     private val acknowledged = MutableStateFlow<Boolean?>(null)
-    private val transient = MutableStateFlow(Transient())
+    private val transient = MutableStateFlow(Transient(widgetPinningSupported = widgetPinning.isSupported()))
     private var pendingBackup: Backup? = null
     private var searchJob: Job? = null
 
@@ -137,8 +145,13 @@ class SettingsViewModel(
             isWorking = transient.isWorking,
             homeQuery = transient.homeQuery,
             homeResults = transient.homeResults,
+            widgetPinningSupported = transient.widgetPinningSupported,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(StopTimeoutMillis), SettingsUiState(permissions = permissions.value))
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(StopTimeoutMillis),
+        SettingsUiState(permissions = permissions.value, widgetPinningSupported = transient.value.widgetPinningSupported),
+    )
 
     /** The runtime permission to request for notifications (`null` below API 33). */
     val runtimePermission: String? get() = notificationPermissions.runtimePermission
@@ -148,9 +161,10 @@ class SettingsViewModel(
     fun promotedSettingsIntent(): Intent = notificationPermissions.promotedSettingsIntent()
     fun batteryOptimizationSettingsIntent(): Intent = notificationPermissions.batteryOptimizationSettingsIntent()
 
-    /** Re-reads permission state; call on resume, since it changes in system settings. */
+    /** Re-reads permission state (and launcher pin support); call on resume, since both change outside the app. */
     fun refreshPermissions() {
         permissions.value = notificationPermissions.state()
+        transient.update { it.copy(widgetPinningSupported = widgetPinning.isSupported()) }
     }
 
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
@@ -159,6 +173,12 @@ class SettingsViewModel(
     fun setNightSafeAuto(enabled: Boolean) = updateSettings { it.copy(nightSafeAuto = enabled) }
     fun setRemindersEnabled(enabled: Boolean) = updateSettings { it.copy(remindersEnabled = enabled) }
     fun setReminderLead(minutes: Int) = updateSettings { it.copy(reminderLeadMinutes = minutes.coerceAtLeast(0)) }
+    fun setHideLockScreenDetails(enabled: Boolean) = updateSettings { it.copy(hideLockScreenDetails = enabled) }
+
+    /** Asks the launcher to add [widget] to the home screen; the launcher shows its own confirmation. */
+    fun pinWidget(widget: PinnableWidget) {
+        if (!widgetPinning.requestPin(widget)) viewModelScope.launch { _events.send(SettingsEvent.WidgetPinFailed) }
+    }
 
     /** Turns the concert theme on or off; ignored until it has been unlocked from About. */
     fun setOpusModeEnabled(enabled: Boolean) = updateSettings { if (it.opusModeUnlocked) it.copy(opusModeEnabled = enabled) else it }
@@ -305,6 +325,7 @@ class SettingsViewModel(
         val isWorking: Boolean = false,
         val homeQuery: String = "",
         val homeResults: ImmutableList<Place> = persistentListOf(),
+        val widgetPinningSupported: Boolean = false,
     )
 
     private companion object {

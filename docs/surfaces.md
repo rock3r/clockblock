@@ -45,8 +45,9 @@ current plan again, decides whether a reminder is still correct, redraws everyth
 
 A few details matter:
 
-- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze and a
-  15-minute progress tick while a Live Update is showing.
+- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
+  15-minute progress tick while a Live Update is showing, and (with reminders on) the next change of the Now
+  notification's body-clock header.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
   next maintenance window, well past 10 minutes.
@@ -116,8 +117,9 @@ picks the headline:
 Melatonin is never the headline. It gets its own reminder.
 
 The Now notification has three actions: Done, "Can't do this" and "Snooze 15 min". It shows them only while the
-headline isn't a flight and hasn't been answered yet. Reminders get a set of actions that depends on their kind
-(`NotificationFactory.reminder`):
+headline isn't a flight and hasn't been answered yet. Once the headline has an outcome, it shows a single Undo
+action instead, which clears that outcome (`AdviceLogRepository.clear`) and refreshes every surface, widgets
+included. Reminders get a set of actions that depends on their kind (`NotificationFactory.reminder`):
 
 | `ReminderKind` | Actions |
 |---|---|
@@ -131,6 +133,26 @@ minutes, then posts a `Snoozed` reminder, but only if the advice is still runnin
 passed). The snooze state is kept in
 [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt).
 
+The notification's subtext (the header line) shows the body-clock offset relative to the local zone, rounded to
+the half hour: "Body 3½ h behind", "Body 2 h ahead", or "Body clock in sync" under 30 minutes. It shows the offset
+rather than a body time of day, which would change every minute. The offset itself drifts along the plan's phase
+trajectory, so the scheduler arms one extra alarm at the next instant the rounded reading changes
+(`BodyClockHeader.nextChange`, scanned in 10-minute steps up to 36 hours ahead) and re-renders the notification
+there ([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
+
+### Lock-screen redaction
+
+Every Now notification and reminder carries a public version, built by the same formatter with `redact = true`:
+no flight number, no route, no secondary-zone line, tips or "also", melatonin shown as "Plan step" with a neutral
+icon, and moments as "Unlock to see details". Times and the kind of block stay. The public version has no
+actions, because their set alone can name the advice (Done with Snooze is melatonin). When the user turns on
+`AppSettings.hideLockScreenDetails` ("Hide details on the lock screen"), the notification's visibility becomes
+`VISIBILITY_PRIVATE`, so Android shows the public version on a secure lock screen whenever the user's system
+setting hides sensitive content. With the setting off (the default), visibility stays public and the full text
+shows, as before. Turning the setting on also withdraws a reminder that is already showing, since it was posted
+without a public version. Lock-screen widgets don't honour the setting yet
+([#18](https://github.com/rock3r/clockblock/issues/18)).
+
 ### Live Update on travel days
 
 On Android 16 (API 36) and later, the Now notification becomes a Live Update during the travel day. It uses
@@ -142,6 +164,13 @@ Android's rules say a Live Update must be ongoing, started by the user and time-
 only inside the travel window and only while a real plan window is active, not just a flight marker. At other
 times the normal ongoing notification is used. Both use the same notification id, so the change happens in
 place.
+
+Its subtext adds the route and the phase of the day before the body-clock offset:
+"LHR → HND · Departs 11:30 · Body 8 h behind", then "Next flight HH:MM" between legs, "Lands HH:MM" in the air and
+"Landed" after the last arrival (`NotificationTextFormatter.travelSubText`). Phases use absolute times, not
+countdowns, because no refresh fires inside sleep windows to keep a countdown current. The route comes from the
+trip's origin and destination codes (`TripRoute`, looked up through `TripRepository`) and is dropped from the
+public version.
 
 ### Channels
 
@@ -208,14 +237,22 @@ Other widget behaviour:
 - On API 35 and later, the widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
 
+Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
+(`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with
+`AppWidgetManager.requestPinAppWidget` against the two providers, so `:feature:settings` never depends on
+`:widget`. The card is hidden when the launcher can't pin.
+
 The widget goldens are in [`widget/src/test/screenshots`](../widget/src/test/screenshots). The images on this page
 are copies of them.
 
 ## Permissions
 
 Onboarding asks for notifications and exact timing ("Reminders that actually arrive"). Settings shows the current
-state under "What Android allows", with a button to fix each one. Everything still works without them, with
-fewer or less punctual reminders.
+state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
+fix it. The summary starts (and re-opens) expanded whenever `NotificationPermissionState.isReliable` is false;
+Live Updates and battery optimisation are optional extras and never force it open; below API 36
+(`liveUpdatesSupported` false) the Live Updates row is left out, since there is nothing to fix. Everything still works
+without them, with fewer or less punctual reminders.
 
 | Permission | Why | Who controls it | Without it |
 |---|---|---|---|

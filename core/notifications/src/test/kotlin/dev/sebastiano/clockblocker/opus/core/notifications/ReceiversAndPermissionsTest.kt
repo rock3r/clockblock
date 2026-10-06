@@ -15,6 +15,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Sleep
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.notifications.receiver.AdviceActionReceiver
 import dev.sebastiano.clockblocker.opus.core.notifications.receiver.ScheduleResetReceiver
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
@@ -52,7 +53,7 @@ class ReceiversAndPermissionsTest {
     private val snooze = SnoozeStore(context)
     private val factory = NotificationFactory(context, capabilities, clock)
     private val reminders = ReminderNotifier(context, factory, capabilities)
-    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock)
+    private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())
     private val scheduler = AdviceAlarmScheduler(
         context, plans, settings, setOf(nowSurface), reminders, snooze, capabilities, clock,
     )
@@ -91,6 +92,30 @@ class ReceiversAndPermissionsTest {
         logs.logged.value["trip-1"] shouldBe listOf(AdviceLog(avoid.id, AdviceOutcome.CantDo))
         now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe
             "Noted, skip it · until 18:00 · then Sleep 18:00–02:00"
+    }
+
+    @Test
+    fun `Undo forgets the logged outcome and brings the actions back`() = runTest {
+        val widget = RecordingSurface()
+        val scheduler = AdviceAlarmScheduler(
+            context, plans, settings, setOf(nowSurface, widget), reminders, snooze, capabilities, clock,
+        )
+        fun pressWith(action: AdviceAction) {
+            AdviceActionReceiver(logs, scheduler, reminders, NotificationWorkScope(this))
+                .onReceive(context, NotificationIntents.actionIntent(context, action, "trip-1", avoid.id))
+            testScheduler.advanceUntilIdle()
+        }
+        pressWith(AdviceAction.Done)
+        now!!.actions.map { it.title.toString() } shouldContainExactly listOf("Undo")
+        val refreshesAfterDone = widget.refreshes
+
+        pressWith(AdviceAction.Undo)
+
+        logs.logged.value["trip-1"].orEmpty().shouldBeEmpty()
+        now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
+        now!!.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Can't do this", "Snooze 15 min")
+        // Every surface (widgets too) re-renders from the reverted log.
+        widget.refreshes shouldBe refreshesAfterDone + 1
     }
 
     @Test
@@ -161,6 +186,12 @@ class ReceiversAndPermissionsTest {
         permissions.state().isReliable shouldBe false
         capabilities.exact = true
         permissions.state().isReliable shouldBe true
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun `Live Updates only exist from Android 16`() {
+        permissions.state().liveUpdatesSupported shouldBe false
     }
 
     @Test

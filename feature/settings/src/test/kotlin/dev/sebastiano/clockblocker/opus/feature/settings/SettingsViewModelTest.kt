@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.settings
 
 import app.cash.turbine.test
+import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupCodec
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupManager
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
@@ -42,8 +43,9 @@ class SettingsViewModelTest {
     private val clock = Clock.fixed(DemoData.Now, ZoneOffset.UTC)
     private val codec = BackupCodec()
     private val backup = BackupManager(profiles, settings, trips, logs, codec, clock)
+    private val pinning = FakeWidgetPinning()
 
-    private fun viewModel() = SettingsViewModel(settings, profiles, permissions, FakePlaceSearch(), backup, codec, clock)
+    private fun viewModel() = SettingsViewModel(settings, profiles, permissions, FakePlaceSearch(), backup, codec, clock, pinning)
 
     @Test
     fun `state mirrors settings, profile and permissions`() = runTest {
@@ -67,6 +69,7 @@ class SettingsViewModelTest {
         vm.setNightSafeAuto(false)
         vm.setRemindersEnabled(false)
         vm.setReminderLead(5)
+        vm.setHideLockScreenDetails(true)
         settings.current shouldBe AppSettings(
             themeMode = ThemeMode.Light,
             dynamicColor = false,
@@ -74,7 +77,33 @@ class SettingsViewModelTest {
             nightSafeAuto = false,
             remindersEnabled = false,
             reminderLeadMinutes = 5,
+            hideLockScreenDetails = true,
         )
+    }
+
+    @Test
+    fun `widget pinning follows the launcher and asks it for the chosen widget`() = runTest {
+        pinning.supported = false
+        val vm = viewModel()
+        vm.state.test {
+            expectMostRecentItem().widgetPinningSupported.shouldBeFalse()
+            // The default launcher can change while the app is in the background.
+            pinning.supported = true
+            vm.refreshPermissions()
+            expectMostRecentItem().widgetPinningSupported.shouldBeTrue()
+        }
+        vm.pinWidget(PinnableWidget.NextUp)
+        pinning.requested shouldBe listOf(PinnableWidget.NextUp)
+    }
+
+    @Test
+    fun `a refused pin request is reported`() = runTest {
+        pinning.accepts = false
+        val vm = viewModel()
+        vm.events.test {
+            vm.pinWidget(PinnableWidget.TwoClocks)
+            awaitItem() shouldBe SettingsEvent.WidgetPinFailed
+        }
     }
 
     @Test

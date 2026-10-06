@@ -6,6 +6,8 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Flight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Melatonin
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.SeeBrightLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Sleep
+import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
+import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
 import dev.sebastiano.clockblocker.opus.core.notifications.advice
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowStateCalculator
 import dev.sebastiano.clockblocker.opus.core.notifications.planOf
@@ -174,6 +176,149 @@ class NotificationTextFormatterTest {
 
             formatter("Europe/London").reminder(spec, null, plan, utc("2026-10-10T13:45")).tip shouldBe
                 "tip:AvoidLight\nAlso: Sleep"
+        }
+    }
+
+    @Nested
+    inner class BodyClock {
+        private fun withBody(offsetMinutes: Int, p: JetLagPlan = plan) =
+            p.copy(phase = listOf(PhasePoint(utc("2026-10-10T00:00"), offsetMinutes, utc("2026-10-10T04:00"))))
+
+        @Test
+        fun `body clock on local time reads in sync`() {
+            // No trajectory: the body is on home (London) time, and so is the phone.
+            formatter("Europe/London").bodyClock(plan, now) shouldBe "Body clock in sync"
+        }
+
+        @Test
+        fun `after landing the body is behind local time`() {
+            formatter("Asia/Tokyo").bodyClock(plan, now) shouldBe "Body 8 h behind"
+        }
+
+        @Test
+        fun `offsets round to the nearest half hour, ahead or behind`() {
+            formatter("Europe/London").bodyClock(withBody(5 * 60 + 30), now) shouldBe "Body 4½ h ahead"
+            formatter("Europe/London").bodyClock(withBody(45), now) shouldBe "Body clock in sync"
+            formatter("Europe/London").bodyClock(withBody(20), now) shouldBe "Body ½ h behind"
+        }
+
+        @Test
+        fun `offsets take the short way round the clock`() {
+            // Body on UTC+13, phone on Los Angeles (UTC−7): 20 h ahead is 4 h behind.
+            formatter("America/Los_Angeles").bodyClock(withBody(13 * 60), now) shouldBe "Body 4 h behind"
+        }
+
+        @Test
+        fun `the next header change is where the rounded reading moves`() {
+            // Body from London time to 1 h ahead over 24 h: in sync until +30 min (12 h in), ½ h until +45 min.
+            val drifting = plan.copy(
+                phase = listOf(
+                    PhasePoint(utc("2026-10-10T00:00"), 60, utc("2026-10-10T00:00")),
+                    PhasePoint(utc("2026-10-11T00:00"), 120, utc("2026-10-11T00:00")),
+                ),
+            )
+            val london = java.time.ZoneId.of("Europe/London")
+
+            BodyClockHeader.nextChange(drifting, london, utc("2026-10-10T00:00")) shouldBe utc("2026-10-10T12:00")
+            BodyClockHeader.step(drifting, london, utc("2026-10-10T12:00")) shouldBe 1
+            BodyClockHeader.nextChange(drifting, london, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T18:00")
+        }
+
+        @Test
+        fun `a steady body clock has no next header change`() {
+            BodyClockHeader.nextChange(plan, java.time.ZoneId.of("Asia/Tokyo"), now) shouldBe null
+        }
+
+        @Test
+        fun `the Now notification carries the body clock as its subtext`() {
+            nowText("Asia/Tokyo").subText shouldBe "Body 8 h behind"
+        }
+    }
+
+    @Nested
+    inner class Travel {
+        private val ba7 = advice(Flight, "2026-10-10T12:00", "2026-10-10T18:00", detail = "BA7")
+        private val jl44 = advice(Flight, "2026-10-10T20:00", "2026-10-11T02:00", detail = "JL44")
+        private val trip = planOf(ba7, jl44, avoid, sleep)
+
+        private fun sub(at: String, route: String? = "LHR → HND") =
+            formatter("Europe/London").travelSubText(trip, utc(at), route)
+
+        @Test
+        fun `before take-off it names the route and the departure`() {
+            sub("2026-10-10T10:00") shouldBe "LHR → HND · Departs 13:00 · Body clock in sync"
+        }
+
+        @Test
+        fun `on board it says when the leg lands`() {
+            sub("2026-10-10T13:00") shouldBe "LHR → HND · Lands 19:00 · Body clock in sync"
+        }
+
+        @Test
+        fun `between legs it names the next flight`() {
+            sub("2026-10-10T19:00") shouldBe "LHR → HND · Next flight 21:00 · Body clock in sync"
+        }
+
+        @Test
+        fun `after the last landing it says landed`() {
+            sub("2026-10-11T03:00", route = null) shouldBe "Landed · Body clock in sync"
+        }
+
+        @Test
+        fun `route uses an arrow between codes`() {
+            formatter("Europe/London").route("LHR", "HND") shouldBe "LHR → HND"
+        }
+    }
+
+    @Nested
+    inner class Redaction {
+        private fun redacting(zone: String) =
+            NotificationTextFormatter(EnglishStrings, ClockFormat(ZoneId.of(zone), Locale.UK), redact = true)
+
+        @Test
+        fun `the public Now version keeps times but drops places, flight numbers and tips`() {
+            val flight = advice(Flight, "2026-10-10T12:00", "2026-10-10T23:00", detail = "BA7")
+            val p = planOf(flight, sleep)
+            val at = utc("2026-10-10T13:00")
+
+            val text = redacting("Europe/London").now(NowStateCalculator.compute(p, at)!!, p, at)
+
+            text.title shouldBe "In flight"
+            text.text shouldBe "until 18:00 · then Sleep 18:00–02:00"
+            text.secondary.shouldBeNull()
+            text.tip.shouldBeNull()
+            text.subText shouldBe "Body clock in sync"
+        }
+
+        @Test
+        fun `melatonin becomes a plain plan step without its dose`() {
+            val melatonin = advice(Melatonin, "2026-10-10T20:00", detail = "0.5 mg")
+            val spec = ReminderSpec(ReminderKind.Moment, melatonin, expiresAt = melatonin.start.plusSeconds(7200))
+
+            val text = redacting("Europe/London").reminder(spec, null, plan, utc("2026-10-10T19:45"))
+
+            text.title shouldBe "Plan step at 21:00"
+            text.text shouldBe "Unlock to see details"
+            text.bigText shouldBe "Unlock to see details"
+        }
+
+        @Test
+        fun `simultaneous melatonin is not named in other reminders`() {
+            val melatonin = advice(Melatonin, "2026-10-10T14:00", detail = "0.5 mg")
+            val spec = ReminderSpec(ReminderKind.Upcoming, avoid, alsoStarting = listOf(melatonin), expiresAt = avoid.end)
+
+            val text = redacting("Europe/London").reminder(spec, null, plan, utc("2026-10-10T13:45"))
+
+            text.title shouldBe "Avoid light at 15:00"
+            text.secondary.shouldBeNull()
+            text.bigText shouldBe "15:00–18:00"
+        }
+
+        @Test
+        fun `the travel subtext drops the route`() {
+            val flight = advice(Flight, "2026-10-10T12:00", "2026-10-10T18:00", detail = "BA7")
+            redacting("Europe/London").travelSubText(planOf(flight), utc("2026-10-10T10:00"), "LHR → HND") shouldBe
+                "Departs 13:00 · Body clock in sync"
         }
     }
 
