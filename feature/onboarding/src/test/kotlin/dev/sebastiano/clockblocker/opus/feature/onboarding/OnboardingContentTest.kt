@@ -22,6 +22,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsTags
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
@@ -197,5 +198,17 @@ class OnboardingContentTest : OpusScreenshotTest() {
             compose.onNodeWithText(context.getString(headline)).getUnclippedBoundsInRoot().top
         }
         tops.distinct() shouldHaveSize 1
+    }
+
+    /** The sleep dial has a minimum size; when it doesn't fit, it scrolls inside the step and never pushes Back/Next off. */
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xxhdpi")
+    fun `back and next stay on screen on a small phone at the largest font`() {
+        setContent(fontScale = 2f) { OnboardingContent(onboardingState(OnboardingStep.Sleep), actions, Modifier.fillMaxSize()) }
+        compose.onNodeWithTag(OnboardingTags.Back).assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
+        compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
+        actions.calls shouldContainExactly listOf("next")
     }
 }
