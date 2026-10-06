@@ -49,7 +49,6 @@ import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /** One sample of the journey chart: [day] = days since landing (negative before), [hours] = hours off destination time. */
@@ -117,12 +116,20 @@ internal fun zoneDeltaHours(from: ZoneId, to: ZoneId, at: Instant): Float =
  */
 internal fun formatZoneDelta(hours: Float): String {
     val quarters = Math.round(hours * QuartersPerHour)
-    if (quarters % 2 == 0) return formatJetLagHours(quarters / QuartersPerHour.toFloat())
-    val sign = if (quarters > 0) "+" else "\u2212"
-    val whole = abs(quarters) / QuartersPerHour
-    val fraction = if (abs(quarters) % QuartersPerHour == 1) "\u00BC" else "\u00BE"
-    return sign + (if (whole == 0) "" else "$whole") + fraction + " h"
+    if (quarters == 0) return formatQuarterHours(0f)
+    return (if (quarters > 0) "+" else "\u2212") + formatQuarterHours(hours)
 }
+
+/** "5¾ h", "½ h", "0 h": the unsigned magnitude of [hours], rounded to the nearest quarter hour. */
+internal fun formatQuarterHours(hours: Float): String {
+    val quarters = abs(Math.round(hours * QuartersPerHour))
+    val whole = quarters / QuartersPerHour
+    val fraction = QuarterFractions[quarters % QuartersPerHour]
+    val number = if (whole == 0 && fraction.isNotEmpty()) fraction else "$whole$fraction"
+    return "$number h"
+}
+
+private val QuarterFractions = listOf("", "\u00BC", "\u00BD", "\u00BE")
 
 /** An offset difference in seconds as hours in (−12, 12]: a 24 h difference is the same clock time. */
 private fun normalisedOffsetHours(diffSeconds: Int): Float {
@@ -234,7 +241,7 @@ internal fun JourneyChart(journey: AdaptationJourney, activeDay: Float?, descrip
     val measurer = rememberTextMeasurer()
     val arriveLabel = stringResource(R.string.plan_journey_arrive)
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
-    val topLabel = stringResource(R.string.plan_journey_hours, journey.maxHours.roundToInt())
+    val topLabel = stringResource(R.string.plan_journey_hours, formatQuarterHours(journey.maxHours))
     val zeroLabel = stringResource(R.string.plan_journey_in_sync)
     val target = (activeDay ?: journey.startDay).coerceIn(journey.startDay, journey.endDay)
     val dotDay by animateFloatAsState(target, motion.dataSpatial(), label = "journeyDot")

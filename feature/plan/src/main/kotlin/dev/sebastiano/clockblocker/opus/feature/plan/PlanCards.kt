@@ -247,8 +247,8 @@ private fun estimateLabel(days: Double): String = stringResource(
 
 @Composable
 private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): String {
-    val atLanding = journey.withPlanAt(0f).roundToInt()
-    val home = journey.withoutPlan.first().hours.roundToInt()
+    val atLanding = formatQuarterHours(journey.withPlanAt(0f))
+    val home = formatQuarterHours(journey.withoutPlan.first().hours)
     return stringResource(
         R.string.plan_journey_description,
         ZoneId.of(plan.destinationZoneId).cityName(),

@@ -114,7 +114,8 @@
     <string name="plan_estimate_more_than">more than %1$s</string>
     <!-- Journey chart: hours out of sync with destination time, by day. -->
     <string name="plan_journey_arrive">Arrive</string>
-    <string name="plan_journey_hours">%1$d h off</string>
+    <!-- %1$s = "5½ h" -->
+    <string name="plan_journey_hours">%1$s off</string>
     <string name="plan_journey_in_sync">In sync</string>
     <string name="plan_journey_with">With your plan</string>
     <string name="plan_journey_without">Without a plan (rough guide)</string>

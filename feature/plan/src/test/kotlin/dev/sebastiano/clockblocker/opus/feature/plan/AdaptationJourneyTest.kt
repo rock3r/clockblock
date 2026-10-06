@@ -134,4 +134,13 @@ class AdaptationJourneyTest {
         formatZoneDelta(8f) shouldBe "+8 h"
         formatZoneDelta(0f) shouldBe "0 h"
     }
+
+    @Test
+    fun `journey hour labels keep half and quarter hours`() {
+        formatQuarterHours(5.5f) shouldBe "5\u00BD h"
+        formatQuarterHours(-5.75f) shouldBe "5\u00BE h"
+        formatQuarterHours(0.25f) shouldBe "\u00BC h"
+        formatQuarterHours(8.04f) shouldBe "8 h"
+        formatQuarterHours(0f) shouldBe "0 h"
+    }
 }
