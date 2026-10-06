@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 15:59 local and 18:35 body time, and the Now card says Avoid caffeine until 20:00" width="19%" />
-  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 with Sleep 23:30 to 07:30, then Day 4, Adapted, with See bright light and See some light, each also shown in Lisbon time" width="19%" />
+  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 10:14 local and 12:35 body time, and the Now card says See some light until 12:00" width="19%" />
+  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 in Tokyo with Sleep 01:00 to 09:00, then See bright light, See some light and Avoid caffeine, each also shown in Lisbon time" width="19%" />
   <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo with departure and arrival in each airport's local time" width="19%" />
-  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 33% adapted" width="19%" />
+  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 29% adapted" width="19%" />
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
