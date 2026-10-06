@@ -21,7 +21,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Instant
-import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -29,7 +28,7 @@ import java.time.ZoneId
 class WidgetRendererTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val now = Instant.parse("2026-10-06T09:00:00Z")
-    private val active = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, ZoneId.of("Asia/Tokyo"))
+    private val active = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now)
 
     @Test
     fun `remote compose is chosen when the platform reports a supported document version`() {

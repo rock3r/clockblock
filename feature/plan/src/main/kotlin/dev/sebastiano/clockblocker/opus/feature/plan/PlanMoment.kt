@@ -5,6 +5,9 @@ import dev.sebastiano.clockblocker.opus.core.circadian.PlanDaySpan
 import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
+import dev.sebastiano.clockblocker.opus.core.circadian.displayZonesAt
+import dev.sebastiano.clockblocker.opus.core.circadian.localZoneAt
+import dev.sebastiano.clockblocker.opus.core.circadian.secondaryZoneFor
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.misalignmentFraction
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -60,9 +63,9 @@ internal val CelebrationGrace: Duration = Duration.ofDays(2)
  * and where the body clock is. Pure function of the plan and the instant ([momentAt]); the screen computes it at
  * "now" and, while the dial is being scrubbed, at the previewed instant.
  *
- * @property zone the zone the user is (expected to be) in: the current [PlanDay]'s zone; before the plan the
- *   origin, after it the destination.
- * @property secondaryZone the other end of the trip, shown small next to every time.
+ * @property zone the zone the user is (expected to be) in: the plan's local time ([localZoneAt], shared with the
+ *   widgets and the notifications so they all agree).
+ * @property secondaryZone the other end of the trip, shown small next to every time ([secondaryZoneFor]).
  * @property active the most important advice right now (highest priority), or null for free time.
  * @property concurrent other advice active at the same time (e.g. the flight while sleeping on board).
  * @property bodyAheadHours body clock minus local clock, in hours, in [-12, 12): negative = body behind.
@@ -121,11 +124,8 @@ fun JetLagPlan.activeAdviceAt(instant: Instant): List<Advice> = allAdvice
 fun JetLagPlan.momentAt(instant: Instant, upNextCount: Int = 3): PlanMoment {
     val spans = daySpans()
     val span = spans.firstOrNull { instant in it }
-    val origin = ZoneId.of(originZoneId)
-    val destination = ZoneId.of(destinationZoneId)
     val stage = stageAt(instant, spans, span)
-    val zone = span?.day?.zoneId?.let(ZoneId::of) ?: if (stage == PlanStage.Upcoming) origin else destination
-    val secondary = if (zone.id == origin.id) destination else origin
+    val (zone, secondary) = displayZonesAt(instant)
 
     val active = activeAdviceAt(instant)
     val upNext = allAdvice.filter { it.start.isAfter(instant) }.sortedBy { it.start }.take(upNextCount)
@@ -235,8 +235,6 @@ data class RailDay(
 
 /** The rail timeline at [instant] with logged [outcomes] (advice id → outcome). */
 fun JetLagPlan.railDays(instant: Instant, outcomes: Map<String, AdviceOutcome>): List<RailDay> {
-    val origin = ZoneId.of(originZoneId)
-    val destination = ZoneId.of(destinationZoneId)
     val activeIds = activeAdviceAt(instant).mapTo(HashSet()) { it.id }
     val flights = allAdvice.filter { it.type == AdviceType.Flight }
     return daySpans().map { span ->
@@ -263,7 +261,7 @@ fun JetLagPlan.railDays(instant: Instant, outcomes: Map<String, AdviceOutcome>):
             start = span.start,
             end = span.end,
             zone = zone,
-            secondaryZone = if (zone.id == origin.id) destination else origin,
+            secondaryZone = secondaryZoneFor(zone),
             items = items.toImmutableList(),
             nowIndex = nowIndex,
             nowInsideBlock = nowIndex != null && items.getOrNull(nowIndex)?.status == RailStatus.Now,

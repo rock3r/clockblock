@@ -56,7 +56,7 @@ class AdviceAlarmSchedulerTest {
     private val clock = FakeClock(utc("2026-10-10T07:00"))
     private val capabilities = FakeCapabilities()
     private val snooze = SnoozeStore(context)
-    private val factory = NotificationFactory(context, capabilities, clock)
+    private val factory = NotificationFactory(context, capabilities)
     private val reminders = ReminderNotifier(context, factory, capabilities)
     private val widget = RecordingSurface()
     private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())

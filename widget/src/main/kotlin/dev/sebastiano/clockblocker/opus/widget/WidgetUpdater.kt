@@ -41,7 +41,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
-import java.time.ZoneId
 
 /**
  * Renders every placed Opus widget from the current plan. Called by the providers (system updates, resizes),
@@ -150,7 +149,7 @@ class WidgetUpdater(
         val trip = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
         val route = trip?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
         val places = trip?.let(WidgetStateMapper::placeNames).orEmpty()
-        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route, places)
+        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
@@ -169,7 +168,6 @@ class WidgetUpdater(
         val state = WidgetStateMapper.map(
             DemoPlans.lisbonTokyo(now),
             now,
-            ZoneId.of("Asia/Tokyo"),
             route = DemoPlans.ROUTE,
             placeNames = DemoPlans.PLACE_NAMES,
         )

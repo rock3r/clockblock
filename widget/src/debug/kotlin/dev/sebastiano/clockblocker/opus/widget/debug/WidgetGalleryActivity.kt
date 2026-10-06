@@ -30,7 +30,6 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.ZoneId
 
 /**
  * DEBUG ONLY. Hosts the Opus widgets in-process so they can be checked on an emulator without a launcher:
@@ -88,7 +87,7 @@ class WidgetGalleryActivity : Activity() {
             "NoTrip" -> WidgetState.NoTrip
             in DemoPlans.Scenario.entries.map { it.name } -> {
                 val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.valueOf(scenario))
-                WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"))
+                WidgetStateMapper.map(plan, now)
             }
             else -> {
                 // Any AdviceType: the demo's current block (AvoidLight, now ± 1.5 h) becomes that type.
@@ -108,7 +107,7 @@ class WidgetGalleryActivity : Activity() {
                         },
                     )
                 }
-                WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"))
+                WidgetStateMapper.map(plan, now)
             }
         }
 

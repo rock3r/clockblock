@@ -85,6 +85,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
+import dev.sebastiano.clockblocker.opus.core.circadian.secondaryZoneFor
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
@@ -648,7 +649,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             if (target != null) {
                 val (day, advice) = target
                 val zone = ZoneId.of(day.zoneId)
-                val secondary = ZoneId.of(if (zone.id == plan.originZoneId) plan.destinationZoneId else plan.originZoneId)
+                val secondary = plan.secondaryZoneFor(zone)
                 WhySheet(advice, zone, secondary, routes[id], onDismiss = { screen.whyAdviceId = null })
             }
         }

@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
 
 class FakePlanRepository(plan: JetLagPlan? = null) : PlanRepository {
@@ -54,9 +53,8 @@ class FakeAdviceLogRepository : AdviceLogRepository {
     }
 }
 
-class FakeClock(var instant: Instant, var zoneId: ZoneId = ZoneId.of("Europe/London")) : NotificationClock {
+class FakeClock(var instant: Instant) : NotificationClock {
     override fun now(): Instant = instant
-    override fun zone(): ZoneId = zoneId
 }
 
 class FakeCapabilities(

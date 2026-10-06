@@ -22,7 +22,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
 import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
@@ -33,7 +32,7 @@ class WidgetTextsTest {
 
     private fun texts(scenario: DemoPlans.Scenario, is24: Boolean = true) = WidgetTexts.from(
         context,
-        WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), now, ZoneId.of("Asia/Tokyo")),
+        WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), now),
         is24,
     )
 
@@ -168,13 +167,13 @@ class WidgetTextsTest {
     @Test
     fun `no done while the logged outcome is unknown`() {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
-        val state = WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"), logs = null)
+        val state = WidgetStateMapper.map(plan, now, logs = null)
         WidgetTexts.from(context, state, true).done.shouldBeNull()
     }
 
     private fun redacted(scenario: DemoPlans.Scenario, at: Instant = now) = WidgetTexts.from(
         context,
-        WidgetStateMapper.redact(WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), at, ZoneId.of("Asia/Tokyo"))),
+        WidgetStateMapper.redact(WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), at)),
         true,
     )
 
@@ -232,10 +231,10 @@ class WidgetTextsTest {
     @Test
     fun `logged outcome replaces the button with a chip`() {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
-        val current = (WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo")) as WidgetState.Active).current!!
+        val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current!!
         fun with(outcome: AdviceOutcome) = WidgetTexts.from(
             context,
-            WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"), listOf(AdviceLog(current.adviceId, outcome))),
+            WidgetStateMapper.map(plan, now, listOf(AdviceLog(current.adviceId, outcome))),
             true,
         ).done.shouldNotBeNull()
 
@@ -257,7 +256,7 @@ class WidgetTextsTest {
 
     private fun withPlaces(scenario: DemoPlans.Scenario, places: Map<String, String>) = WidgetTexts.from(
         context,
-        WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), now, ZoneId.of("Asia/Tokyo"), placeNames = places),
+        WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), now, placeNames = places),
         true,
     )
 
