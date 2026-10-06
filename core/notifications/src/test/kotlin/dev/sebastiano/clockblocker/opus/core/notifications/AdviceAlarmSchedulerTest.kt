@@ -251,6 +251,38 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `a reminder handled while it is being redacted stays gone`() = runTest {
+        // Snooze, Done or Can't do this cancels the reminder while redactShowing is rebuilding it on another thread.
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val cancelled = java.util.concurrent.CountDownLatch(1)
+        var pause = false
+        val pausing = object : PlatformCapabilities by capabilities {
+            override fun areNotificationsEnabled(): Boolean {
+                if (pause) {
+                    pause = false
+                    entered.countDown()
+                    cancelled.await(500, java.util.concurrent.TimeUnit.MILLISECONDS) // never comes if cancel waits
+                }
+                return true
+            }
+        }
+        val notifier = ReminderNotifier(context, factory, pausing)
+        clock.instant = utc("2026-10-10T13:45")
+        AdviceAlarmScheduler(context, plans, settings, setOf(widget), notifier, snooze, pausing, clock)
+            .onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull()
+
+        pause = true
+        val redacting = Thread { notifier.redactShowing(utc("2026-10-10T13:50")) }.apply { start() }
+        entered.await()
+        val handling = Thread { notifier.cancel(); cancelled.countDown() }.apply { start() }
+        redacting.join()
+        handling.join()
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
     fun `turning lock-screen privacy off leaves the reminder alone`() = runTest(UnconfinedTestDispatcher()) {
         settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
         val scheduler = scheduler()

@@ -111,18 +111,24 @@ class ReminderNotifier(
     /** What the reminder on screen was built from, while this process knows it (see [redactShowing]). */
     private class Posted(val spec: ReminderSpec, val plan: JetLagPlan)
 
-    @Volatile private var lastPosted: Posted? = null
+    /**
+     * Guards the reminder slot: posting, cancelling (alarms, snooze, Done, Can't do this) and redacting never
+     * interleave, so a reminder the user just handled is never re-posted from a stale [lastPosted].
+     */
+    private val lock = Any()
+    private var lastPosted: Posted? = null
 
     /** Returns whether the reminder was posted. [redact]: hide details on the lock screen (see [NotificationFactory.now]). */
     @SuppressLint("MissingPermission")
-    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Boolean =
+    fun post(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Boolean = synchronized(lock) {
         notify(NotificationIds.REMINDER) { factory.reminder(spec, plan, now, redact) }
             .also { posted -> if (posted) lastPosted = Posted(spec, plan) }
+    }
 
     @SuppressLint("MissingPermission")
     fun postTest(): Boolean = notify(NotificationIds.TEST) { factory.test() }
 
-    fun cancel() {
+    fun cancel(): Unit = synchronized(lock) {
         lastPosted = null
         NotificationManagerCompat.from(application).cancel(NotificationIds.REMINDER)
         NotificationGroup.sync(application, factory)
@@ -135,7 +141,7 @@ class ReminderNotifier(
      * redacted, or no longer showing, is left alone.
      */
     @SuppressLint("MissingPermission")
-    fun redactShowing(now: Instant) {
+    fun redactShowing(now: Instant): Unit = synchronized(lock) {
         val showing = NotificationManagerCompat.from(application).activeNotifications
             .firstOrNull { it.id == NotificationIds.REMINDER } ?: return
         if (showing.notification.publicVersion != null) return
