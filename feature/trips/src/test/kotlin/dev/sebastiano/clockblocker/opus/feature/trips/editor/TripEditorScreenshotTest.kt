@@ -2,13 +2,17 @@ package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
+import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
 import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
@@ -44,10 +48,15 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         titles = TripTitleSuggester(),
         returnTrips = ReturnTripFactory(clock, TripTitleSuggester()),
         clock = clock,
+        planner = FakeJetLagPlanner(),
+        profiles = FakeProfileRepository.onboarded(),
+        dispatchers = AppDispatchers(main.dispatcher, main.dispatcher, main.dispatcher),
     )
 
     private fun editor(vm: TripEditorViewModel, name: String, darkTheme: Boolean = false, fontScale: Float? = null, qualifiers: String? = null) {
         setContent(darkTheme, fontScale, qualifiers) { Editor(vm) }
+        // The plan preview is debounced: let it settle so complete trips show it.
+        main.dispatcher.scheduler.advanceUntilIdle()
         capture(name)
     }
 
@@ -101,5 +110,14 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         compose.onNodeWithTag(TripsTestTags.editorFrom(0)).performTextInput("lon")
         main.dispatcher.scheduler.advanceUntilIdle()
         capture("editor_search")
+    }
+
+    @Test
+    fun popularAirports() {
+        val vm = viewModel()
+        setContent(qualifiers = "w411dp-h1200dp") { Editor(vm) }
+        compose.onNodeWithTag(TripsTestTags.editorFrom(0)).performClick()
+        main.dispatcher.scheduler.advanceUntilIdle()
+        capture("editor_popular")
     }
 }

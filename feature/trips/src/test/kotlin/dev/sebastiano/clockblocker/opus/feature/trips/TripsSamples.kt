@@ -53,6 +53,7 @@ object TripsSamples {
             upcoming = sections.getValue(TripPhase.Upcoming),
             past = sections.getValue(TripPhase.Past),
             returnCandidate = TripSummaries.returnCandidate(summaries),
+            sky = TripSummaries.sky(sections.getValue(TripPhase.InProgress), now, ZoneOffset.UTC),
         )
     }
 

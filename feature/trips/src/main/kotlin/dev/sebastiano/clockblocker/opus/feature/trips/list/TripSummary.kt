@@ -5,10 +5,13 @@ import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.misalignmentFraction
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
+import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
@@ -49,11 +52,20 @@ sealed interface TripStatus {
 data class AdaptationSnapshot(val progress: Float, val misalignment: Float, val remainingHours: Float)
 
 /**
+ * The sky painted behind the trips list's app bar: the body clock of a trip under way (what time it is inside
+ * you), otherwise the local time.
+ */
+data class TripsSky(val time: LocalTime, val bodyClock: Boolean)
+
+/**
  * Everything a trip card shows, derived from a [Trip], its (optional) [JetLagPlan] and the current time.
  *
  * @property shiftHours destination minus origin UTC offset around the trip, normalised to (−12, 12]:
  *   positive = eastward.
- * @property flightProgress 0 before the first take-off, 1 after the last landing (drives the great-circle art).
+ * @property flightProgress 0 before the first take-off, 1 after the last landing (drives the route banner).
+ * @property daysToAdapt the planner's estimate of days to adapt, for upcoming trips whose plan shifts the body
+ *   clock (null otherwise: trips under way show live progress instead).
+ * @property bodyTime body-clock time now, for trips under way with a plan.
  */
 data class TripSummary(
     val trip: Trip,
@@ -63,6 +75,8 @@ data class TripSummary(
     val shiftHours: Float,
     val flightProgress: Float,
     val adaptation: AdaptationSnapshot?,
+    val daysToAdapt: Double? = null,
+    val bodyTime: LocalTime? = null,
 ) {
     val id: String get() = trip.id
 }
@@ -124,6 +138,7 @@ object TripSummaries {
             null
         }
 
+        val shifts = plan != null && !homeTime && plan.direction != ShiftDirection.None
         return TripSummary(
             trip = trip,
             title = trip.title.ifBlank { fallbackTitle },
@@ -132,7 +147,21 @@ object TripSummaries {
             shiftHours = shiftHours(trip),
             flightProgress = flightProgress(trip, now),
             adaptation = adaptation,
+            daysToAdapt = plan?.estimatedDaysToAdapt?.takeIf { shifts && phase == TripPhase.Upcoming },
+            bodyTime = plan?.takeIf { phase == TripPhase.InProgress }?.let { now.atOffset(it.bodyOffsetAt(now)).toLocalTime() },
         )
+    }
+
+    /**
+     * The list's app bar sky: the body clock of the trip under way, else local time in [zone]. When active plans
+     * overlap (an outbound tail and a return's pre-travel days), the latest departure wins, as in the plan repository.
+     */
+    fun sky(summaries: List<TripSummary>, now: Instant, zone: ZoneId): TripsSky {
+        val body = summaries
+            .filter { it.phase == TripPhase.InProgress && it.bodyTime != null }
+            .maxByOrNull { it.trip.departure }
+            ?.bodyTime
+        return if (body != null) TripsSky(body, bodyClock = true) else TripsSky(now.atZone(zone).toLocalTime(), bodyClock = false)
     }
 
     /** Destination minus origin offset, each taken at its own end of the trip, normalised to (−12, 12]. */

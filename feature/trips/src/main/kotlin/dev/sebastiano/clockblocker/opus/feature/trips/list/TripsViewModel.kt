@@ -39,6 +39,8 @@ data class TripsUiState(
     val past: List<TripSummary> = emptyList(),
     /** Target of the FAB menu's "Return trip" shortcut, if any. */
     val returnCandidate: TripSummary? = null,
+    /** What the app bar's sky shows; null while loading. */
+    val sky: TripsSky? = null,
 ) {
     val isEmpty: Boolean get() = !loading && inProgress.isEmpty() && upcoming.isEmpty() && past.isEmpty()
 
@@ -81,7 +83,8 @@ class TripsViewModel(
     val eventFlow: Flow<TripsEvent> = events.receiveAsFlow()
 
     val state: StateFlow<TripsUiState> = combine(tripsWithPlans(), ticker.ticks()) { pairs, now ->
-        val today = now.atZone(ZoneId.systemDefault()).toLocalDate()
+        val zone = ZoneId.systemDefault()
+        val today = now.atZone(zone).toLocalDate()
         val summaries = pairs.map { (trip, plan) ->
             TripSummaries.summarize(trip, plan, now, today, titles.suggest(trip))
         }
@@ -92,6 +95,7 @@ class TripsViewModel(
             upcoming = sections.getValue(TripPhase.Upcoming),
             past = sections.getValue(TripPhase.Past),
             returnCandidate = TripSummaries.returnCandidate(summaries),
+            sky = TripSummaries.sky(sections.getValue(TripPhase.InProgress), now, zone),
         )
     }
         .distinctUntilChanged()

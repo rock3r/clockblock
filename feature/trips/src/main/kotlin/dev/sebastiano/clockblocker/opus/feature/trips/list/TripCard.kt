@@ -47,7 +47,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
-import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.GreatCircleArt
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBanner
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.routeArcDescription
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -55,6 +58,7 @@ import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.cityLabel
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.rememberDateFormatter
+import java.time.Duration
 import java.time.LocalDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -69,8 +73,8 @@ class TripCardActions(
 )
 
 /**
- * A trip as a rich card: status, route title, both ends in their own local time, a mini great-circle, the
- * time shift and, while under way, the wavy adaptation line. A 100+/day surface, so it only gets the platform
+ * A trip as a rich card: status, time shift (and, for upcoming trips, the planner's days to adapt), route title,
+ * a dot-matrix route banner, both ends in their own local time and, while under way, the wavy adaptation line. A 100+/day surface, so it only gets the platform
  * state layer (no bespoke motion).
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -127,6 +131,7 @@ internal fun TripCard(
                 ) {
                     StatusChip(summary)
                     ShiftPill(summary.shiftHours, content)
+                    summary.daysToAdapt?.let { days -> DaysToAdaptPill(days, content) }
                 }
                 Box {
                     IconButton(
@@ -142,28 +147,21 @@ internal fun TripCard(
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        summary.title,
-                        style = MaterialTheme.typography.headlineSmallEmphasized,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        routeLine(summary),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                GreatCircleArt(
-                    modifier = Modifier.size(72.dp),
-                    progress = summary.flightProgress,
-                    animated = false,
-                )
-            }
+            Text(
+                summary.title,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = 12.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            RouteBanner(summary, container, content, Modifier.padding(end = 12.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stopsLine(summary),
+                style = MaterialTheme.typography.labelLarge,
+                color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
+            )
             Spacer(Modifier.height(12.dp))
             val trip = summary.trip
             Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -257,17 +255,50 @@ internal fun statusLabel(status: TripStatus): String = when (status) {
     TripStatus.Finished -> stringResource(R.string.trip_status_finished)
 }
 
+/**
+ * **From ──✈── To** in dot-matrix codes over the card colour. While the trip is in the air the plane sits at the
+ * flight's live progress (and TalkBack hears how far along it is); otherwise it rests at the start, or at the end
+ * once landed. The arc's height follows the total travel time. Static: it only moves when progress changes.
+ */
 @Composable
-private fun routeLine(summary: TripSummary): String {
-    val legs = summary.trip.legs
-    val codes = (listOf(legs.first().origin) + legs.map { it.destination }).joinToString(" → ") { it.displayCode }
-    val stops = legs.size - 1
-    val stopsLabel = if (stops == 0) {
-        stringResource(R.string.trip_nonstop)
+private fun RouteBanner(summary: TripSummary, container: Color, content: Color, modifier: Modifier = Modifier) {
+    val trip = summary.trip
+    val origin = trip.origin.displayCode
+    val destination = trip.destination.displayCode
+    val route = routeArcDescription(origin, destination, trip.origin.cityLabel, trip.destination.cityLabel)
+    val description = if (summary.status == TripStatus.InTheAir) {
+        stringResource(R.string.trip_route_in_flight, route, (summary.flightProgress * 100).roundToInt())
     } else {
-        pluralStringResource(R.plurals.trip_stops, stops, stops)
+        route
     }
-    return "$codes · $stopsLabel"
+    // The list is a high-frequency surface (frequency gate): no bespoke motion, so the banner snaps to each minute's
+    // progress instead of animating the plane. Scoped to the banner only.
+    CompositionLocalProvider(LocalReduceMotion provides true) {
+        RouteArcBanner(
+            origin = origin,
+            destination = destination,
+            progress = summary.flightProgress,
+            apex = RouteArcDefaults.apexForDuration(Duration.between(trip.departure, trip.arrival)),
+            colors = RouteArcDefaults.colors(
+                background = container,
+                route = content.copy(alpha = 0.5f),
+                code = content,
+                caption = content.copy(alpha = SecondaryContentAlpha),
+            ),
+            contentDescription = description,
+            modifier = modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** "Nonstop", or "1 stop · via SIN" (every connection, in order). */
+@Composable
+private fun stopsLine(summary: TripSummary): String {
+    val legs = summary.trip.legs
+    val stops = legs.size - 1
+    if (stops == 0) return stringResource(R.string.trip_nonstop)
+    val via = legs.dropLast(1).joinToString(", ") { it.destination.displayCode }
+    return "${pluralStringResource(R.plurals.trip_stops, stops, stops)} · ${stringResource(R.string.trip_via, via)}"
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -322,6 +353,24 @@ private fun ShiftPill(hours: Float, content: Color) {
     ) {
         Text(
             label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            maxLines = 1,
+        )
+    }
+}
+
+/** The planner's estimate for an upcoming trip, styled like [ShiftPill] so the two read as a pair of facts. */
+@Composable
+private fun DaysToAdaptPill(days: Double, content: Color) {
+    val rounded = days.roundToInt().coerceAtLeast(1)
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, content.copy(alpha = 0.32f)),
+    ) {
+        Text(
+            pluralStringResource(R.plurals.trip_days_to_adapt, rounded, rounded),
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             maxLines = 1,

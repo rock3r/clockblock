@@ -33,7 +33,9 @@ import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -51,6 +53,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -76,6 +79,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 
@@ -96,7 +100,12 @@ internal val TwoColumnMinWidth: Dp = 720.dp
 private val SingleColumnMaxWidth: Dp = 640.dp
 
 /**
- * Stateless trips list: large flexible app bar, sectioned card grid (or the empty state) and the FAB menu.
+ * Stateless trips list: a sky-painted large flexible app bar ([TripsSkyTopBar]), sectioned card grid (or the empty
+ * state) and the FAB menu.
+ *
+ * Short windows (landscape phones, under [ShortWindowMaxHeight] tall) get a single-row app bar with the add menu in
+ * it instead of a floating button: with so little height, the FAB sat on top of the first card no matter how the
+ * list was padded (#15).
  *
  * @param showSettingsAction show a settings gear in the app bar. Off by default: the shell's navigation suite
  *   always carries a Settings destination, and a second route to it read as two different places.
@@ -111,29 +120,54 @@ fun TripsContent(
     snackbarHostState: SnackbarHostState = SnackbarHostState(),
     showSettingsAction: Boolean = false,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    BoxWithConstraints(modifier) {
+        val shortWindow = maxHeight < ShortWindowMaxHeight
+        TripsScaffold(state, callbacks, selectedTripId, snackbarHostState, showSettingsAction, shortWindow)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun TripsScaffold(
+    state: TripsUiState,
+    callbacks: TripsCallbacks,
+    selectedTripId: String?,
+    snackbarHostState: SnackbarHostState,
+    showSettingsAction: Boolean,
+    shortWindow: Boolean,
+) {
+    val scrollBehavior = if (shortWindow) {
+        TopAppBarDefaults.pinnedScrollBehavior()
+    } else {
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    }
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
-    val menuBack = rememberFabMenuBack(expanded = fabExpanded, onCollapse = { fabExpanded = false })
+    val menuBack = rememberFabMenuBack(expanded = fabExpanded && !shortWindow, onCollapse = { fabExpanded = false })
+    val canAdd = !state.loading && !state.isEmpty
+    val returnCandidate = state.returnCandidate.takeIf { callbacks.onCreateReturnTrip != null }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.trips_app_title)) },
-                subtitle = summaryLine(state)?.let { line -> { Text(line) } },
+            TripsSkyTopBar(
+                title = stringResource(R.string.trips_app_title),
+                subtitle = summaryLine(state),
+                sky = state.sky,
+                shortWindow = shortWindow,
+                scrollBehavior = scrollBehavior,
                 actions = {
+                    if (shortWindow && canAdd) AddTripMenuButton(returnCandidate, callbacks)
                     if (showSettingsAction) {
                         IconButton(onClick = callbacks.onOpenSettings, modifier = Modifier.testTag(TripsTestTags.Settings)) {
                             Icon(painterResource(R.drawable.ic_trips_settings), contentDescription = stringResource(R.string.trips_settings))
                         }
                     }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            if (!state.loading && !state.isEmpty) {
+            if (canAdd && !shortWindow) {
                 TripsFabMenu(
                     expanded = fabExpanded,
                     onExpandedChange = { open ->
@@ -141,7 +175,7 @@ fun TripsContent(
                         fabExpanded = open
                     },
                     collapseProgress = menuBack::collapseProgress,
-                    returnCandidate = state.returnCandidate.takeIf { callbacks.onCreateReturnTrip != null },
+                    returnCandidate = returnCandidate,
                     callbacks = callbacks,
                 )
             }
@@ -154,10 +188,10 @@ fun TripsContent(
                 onTryDemo = callbacks.onTryDemo,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
-            else -> TripsGrid(state, callbacks, selectedTripId, padding)
+            else -> TripsGrid(state, callbacks, selectedTripId, padding, fabClearance = !shortWindow)
         }
         FabMenuScrim(
-            visible = fabExpanded,
+            visible = fabExpanded && !shortWindow,
             collapseProgress = menuBack::collapseProgress,
             onDismiss = { fabExpanded = false },
         )
@@ -191,14 +225,57 @@ private fun FabMenuScrim(visible: Boolean, collapseProgress: () -> Float, onDism
     )
 }
 
+/**
+ * The add menu as an app bar action, for short windows where a floating button would cover the list: the same
+ * entries (and test tags) as [TripsFabMenu].
+ */
+@Composable
+private fun AddTripMenuButton(returnCandidate: TripSummary?, callbacks: TripsCallbacks) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilledTonalIconButton(
+            onClick = { open = true },
+            modifier = Modifier.testTag(TripsTestTags.Fab),
+        ) {
+            Icon(painterResource(R.drawable.ic_trips_add), contentDescription = stringResource(R.string.trips_fab_open))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.trips_new_trip)) },
+                leadingIcon = { Icon(painterResource(R.drawable.ic_trips_flight), contentDescription = null) },
+                onClick = { open = false; callbacks.onNewTrip() },
+                modifier = Modifier.testTag(TripsTestTags.NewTrip),
+            )
+            if (returnCandidate != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.trips_return_trip, returnCandidate.trip.destination.city.ifBlank { returnCandidate.trip.destination.displayCode })) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_trips_return), contentDescription = null) },
+                    onClick = { open = false; callbacks.onCreateReturnTrip?.invoke(returnCandidate.id) },
+                    modifier = Modifier.testTag(TripsTestTags.ReturnTrip),
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.trips_demo_trip)) },
+                leadingIcon = { Icon(painterResource(R.drawable.ic_trips_sparkle), contentDescription = null) },
+                onClick = { open = false; callbacks.onTryDemo() },
+                modifier = Modifier.testTag(TripsTestTags.DemoTrip),
+            )
+        }
+    }
+}
+
 @Composable
 private fun summaryLine(state: TripsUiState): String? {
-    if (state.loading || state.isEmpty) return null
+    if (state.loading) return null
+    val sky = state.sky
+    val times = rememberTimeFormatter()
     val parts = buildList {
+        if (sky != null && sky.bodyClock) add(stringResource(R.string.trips_body_clock, times.formatFull(sky.time)))
         if (state.inProgress.isNotEmpty()) add(stringResource(R.string.trips_summary_in_progress, state.inProgress.size))
         if (state.upcoming.isNotEmpty()) add(stringResource(R.string.trips_summary_upcoming, state.upcoming.size))
         if (state.past.isNotEmpty()) add(stringResource(R.string.trips_summary_past, state.past.size))
     }
+    if (parts.isEmpty()) return null
     // Wrap only between parts ("2 in progress · 1 upcoming ·" / "1 past"), never inside one ("1" / "past").
     val separator = stringResource(R.string.trips_summary_separator).replaceFirst(' ', NoBreakSpace)
     return parts.joinToString(separator) { it.replace(' ', NoBreakSpace) }
@@ -293,6 +370,7 @@ private fun TripsGrid(
     callbacks: TripsCallbacks,
     selectedTripId: String?,
     padding: PaddingValues,
+    fabClearance: Boolean,
 ) {
     val othersPresent = state.inProgress.isNotEmpty() || state.upcoming.isNotEmpty()
     var collapsed by rememberSaveable {
@@ -308,7 +386,7 @@ private fun TripsGrid(
                 start = side,
                 end = side,
                 top = padding.calculateTopPadding() + 4.dp,
-                bottom = padding.calculateBottomPadding() + FabClearance,
+                bottom = padding.calculateBottomPadding() + if (fabClearance) FabClearance else 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -521,3 +599,6 @@ internal fun TripsEmptyState(onPlanTrip: () -> Unit, onTryDemo: () -> Unit, modi
 private const val PastCollapsedThreshold = 3
 private const val FabMenuBackScale = 0.9f
 private val FabClearance = 104.dp
+
+/** Windows shorter than this (landscape phones) get the single-row app bar and no floating button. */
+internal val ShortWindowMaxHeight: Dp = 480.dp
