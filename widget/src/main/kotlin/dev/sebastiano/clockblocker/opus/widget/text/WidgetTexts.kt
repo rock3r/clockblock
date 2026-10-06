@@ -9,7 +9,9 @@ import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.state.DialMath
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
+import dev.sebastiano.clockblocker.opus.widget.state.isPrivate
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -55,6 +57,10 @@ data class WidgetTexts(
     val upcomingTemplate: String = "Up next: %1\$s",
     /** The Done action for the current block; null when there is nothing to mark (free time, flights, no plan). */
     val done: DoneText? = null,
+    /** The trip's airport codes for the dot-matrix route strip on the larger sizes; null when unknown or redacted. */
+    val route: WidgetRoute? = null,
+    /** "L I S to H N D": the route strip spoken, codes spelled out. */
+    val routeDescription: String? = null,
 ) {
     /**
      * Two-line rows at large font sizes: the first "until" line plus the [secondary] time ("until 16:30 · 08:30 in
@@ -76,7 +82,6 @@ data class WidgetTexts(
     }
 }
 
-/** One "Up next" row: always a text label next to the glyph, plus its local start time. */
 /** An "Up next" entry: start [time] in the display zone and, like every widget time, the same time in the secondary zone. */
 data class UpcomingText(
     val type: AdviceType,
@@ -85,6 +90,8 @@ data class UpcomingText(
     val secondary: String? = null,
     /** Spoken form, both zones: "Melatonin at 20:30 (12:30 in Lisbon)". */
     val spoken: String = listOfNotNull("$label at $time", secondary?.let { "($it)" }).joinToString(" "),
+    /** Glyph next to the label: the advice's own, or the neutral plan step when redacted. */
+    val glyph: GlyphKind = GlyphKind.Advice(type),
 )
 
 /**
@@ -125,6 +132,10 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
     }
 
     private fun active(s: WidgetState.Active): WidgetTexts {
+        // Redacted (lock screen): private advice reads as a neutral "Plan step" everywhere, like the notifications.
+        fun label(type: AdviceType) =
+            if (s.redacted && type.isPrivate) str(R.string.widget_advice_redacted) else this@WidgetTextFactory.label(type)
+        fun glyph(type: AdviceType) = if (s.redacted && type.isPrivate) GlyphKind.PlanStep else GlyphKind.Advice(type)
         val zone = ZoneId.of(s.displayZoneId)
         val current = s.current
         val next = s.next
@@ -137,7 +148,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         val dialDetail: String
         when {
             current != null -> {
-                glyph = GlyphKind.Advice(current.type)
+                glyph = glyph(current.type)
                 title = label(current.type)
                 val until = str(R.string.widget_until, time(current.end, zone))
                 subtitleLines = listOfNotNull(until, next?.let { str(R.string.widget_then, label(it.type)) })
@@ -147,7 +158,9 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             s.stage == WidgetState.Stage.Done || next == null -> {
                 glyph = GlyphKind.Adapted
                 title = str(R.string.widget_adapted_title)
-                subtitleLines = listOf(str(R.string.widget_adapted_subtitle, s.destinationName))
+                subtitleLines = listOf(
+                    if (s.redacted) str(R.string.widget_adapted_subtitle_redacted) else str(R.string.widget_adapted_subtitle, s.destinationName),
+                )
                 secondaryAt = null
                 dialDetail = subtitleLines.single()
             }
@@ -192,6 +205,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                 } else {
                     str(R.string.widget_starts_at_with_secondary, label, time, secondary)
                 },
+                glyph = glyph(it.type),
             )
         }
         return WidgetTexts(
@@ -228,20 +242,28 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                     )
                 }
             },
+            route = s.route,
+            routeDescription = s.route?.let { str(R.string.widget_a11y_route, spell(it.origin), spell(it.destination)) },
         )
     }
 
-    /** "Tokyo · Day 2" (city of the zone the dial shows), or just the city outside the plan's days. */
-    private fun header(s: WidgetState.Active): String {
+    /** "LIS" → "L I S", so TalkBack spells a code out (same rule as the design system's `spellOut`). */
+    private fun spell(code: String) = code.trim().uppercase().toCharArray().joinToString(" ")
+
+    /**
+     * "Tokyo · Day 2" (city of the zone the dial shows), or just the city outside the plan's days. Redacted: the day
+     * alone ("Day 2"), no header outside the plan's days.
+     */
+    private fun header(s: WidgetState.Active): String? {
         val city = DialMath.cityName(s.displayZoneId)
-        val index = s.dayIndex ?: return city
+        val index = s.dayIndex ?: return city.takeUnless { s.redacted }
         val day = when (s.dayKind) {
             DayKind.PreTrip -> str(R.string.widget_day_pre, DialMath.signed(index))
             DayKind.Travel -> str(R.string.widget_day_travel)
             DayKind.Adapted -> str(R.string.widget_day_adapted, index)
             DayKind.Arrival, null -> str(R.string.widget_day_n, index)
         }
-        return str(R.string.widget_header, city, day)
+        return if (s.redacted) day else str(R.string.widget_header, city, day)
     }
 
     fun label(type: AdviceType): String = str(

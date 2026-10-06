@@ -83,6 +83,10 @@ object CanvasOps {
             draw(Canvas(bmp), ops, half, half, half - paddingPx)
         }
 
+    /** Renders [ops] centred into a [widthPx] × [heightPx] bitmap, one unit being [unitPx] (e.g. [RouteStrip]). */
+    fun bitmap(ops: List<DrawOp>, widthPx: Int, heightPx: Int, unitPx: Float): Bitmap =
+        createBitmap(widthPx, heightPx).also { bmp -> draw(Canvas(bmp), ops, widthPx / 2f, heightPx / 2f, unitPx) }
+
     private fun Paint.stroke(width: Float) {
         if (width > 0f) {
             style = Paint.Style.STROKE

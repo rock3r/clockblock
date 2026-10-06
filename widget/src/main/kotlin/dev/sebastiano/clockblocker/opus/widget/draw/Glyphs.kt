@@ -14,6 +14,9 @@ sealed interface GlyphKind {
 
     /** No trip planned. */
     data object NoTrip : GlyphKind
+
+    /** Advice whose kind stays off the lock screen (redacted melatonin): a neutral dot, paired with "Plan step". */
+    data object PlanStep : GlyphKind
 }
 
 /**
@@ -29,7 +32,7 @@ object Glyphs {
 
     fun colors(kind: GlyphKind, p: WidgetPalette): Pair<Int, Int> = when (kind) {
         is GlyphKind.Advice -> p.advice(kind.type).let { it.container to it.onContainer }
-        GlyphKind.Free -> p.track to p.onSurfaceVariant
+        GlyphKind.Free, GlyphKind.PlanStep -> p.track to p.onSurfaceVariant
         GlyphKind.Adapted, GlyphKind.NoTrip -> p.primaryContainer to p.onPrimaryContainer
     }
 
@@ -38,7 +41,7 @@ object Glyphs {
         val shape: DrawOp = when (kind) {
             is GlyphKind.Advice -> WidgetShapes.advice(kind.type, container)
             GlyphKind.Adapted -> WidgetShapes.flower(container)
-            GlyphKind.Free, GlyphKind.NoTrip -> DrawOp.Circle(0f, 0f, 1f, container)
+            GlyphKind.Free, GlyphKind.NoTrip, GlyphKind.PlanStep -> DrawOp.Circle(0f, 0f, 1f, container)
         }
         val (scale, dy) = markFit(kind)
         return listOf(shape) + mark(kind, on, container).map { it.scaled(scale, dy) }
@@ -61,7 +64,7 @@ object Glyphs {
             AdviceType.Flight -> 0.5f to 0.08f
         }
         GlyphKind.Adapted -> 0.82f to 0f
-        GlyphKind.Free, GlyphKind.NoTrip -> 1f to 0f
+        GlyphKind.Free, GlyphKind.NoTrip, GlyphKind.PlanStep -> 1f to 0f
     }
 
     private fun mark(kind: GlyphKind, on: Int, bg: Int): List<DrawOp> = when (kind) {
@@ -104,6 +107,7 @@ object Glyphs {
             DrawOp.Line(-0.4f, 0.02f, -0.12f, 0.3f, on, 0.14f),
             DrawOp.Line(-0.12f, 0.3f, 0.42f, -0.26f, on, 0.14f),
         )
+        GlyphKind.PlanStep -> listOf(DrawOp.Circle(0f, 0f, 0.24f, on))
         GlyphKind.NoTrip -> listOf(
             DrawOp.RoundRect(-0.2f, -0.48f, 0.2f, -0.18f, 0.08f, on, stroke = 0.08f),
             DrawOp.RoundRect(-0.52f, -0.26f, 0.52f, 0.46f, 0.14f, on),

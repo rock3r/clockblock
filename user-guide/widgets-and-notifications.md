@@ -56,6 +56,10 @@ the kind of block and its times: no places, flight numbers or supplement names, 
 phone to see everything. Turning the setting on also hides the details of a reminder that's already showing,
 without buzzing again.
 
+The same setting covers widgets you place on the lock screen (on tablets and in hub mode). With it on, they show
+the plan day, the kind of block and its times, but no route, places, other-zone times or supplement names.
+Home-screen widgets still show everything.
+
 ## Widgets
 
 The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
@@ -71,15 +75,17 @@ The *Two Clocks* widget is a small version of the dial in the app. It shows the 
 clock thinks it is ("body 08:20"), the gap between them ("−7 h": your body is 7 hours behind), and the current
 block with its end time. The outer ring follows the sky through the day. The bigger sizes add a card with the
 place and plan day ("Tokyo · Day 2"), what comes next, the time in your other time zone, and a **Done** button.
-The biggest size also lists the next blocks (with their time in your other zone) and how far you've adapted.
+The biggest size also shows your route ("LIS → HND"), lists the next blocks (with their time in your other zone)
+and shows how far you've adapted.
 
 ### Next up
 
-<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
+<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time until 16:00, 08:00 in Lisbon, in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
 
 The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
-short label. Bigger sizes add a **Done** button, and the tallest and widest ones list what's up next. It says
-"Free time" when there's nothing to do, and "Clockblocked" when your plan is finished.
+short label. Bigger sizes add the time in your other zone and a **Done** button, and the tallest and widest ones
+list what's up next, next to your route ("LIS → HND"). It says "Free time" when there's nothing to do, and
+"Clockblocked" when your plan is finished.
 
 ### Good to know
 

@@ -76,13 +76,15 @@ class WidgetScreenshotTest {
         theme: WidgetTheme,
         scenario: DemoPlans.Scenario? = DemoPlans.Scenario.AvoidLight,
         logged: AdviceOutcome? = null,
+        redacted: Boolean = false,
     ): WidgetModel {
         val plan = scenario?.let { DemoPlans.lisbonTokyo(now, it) }
         val logs = buildList {
             val current = (plan?.let { WidgetStateMapper.map(it, now, zone) } as? WidgetState.Active)?.current
             if (logged != null && current != null) add(AdviceLog(current.adviceId, logged))
         }
-        val state = plan?.let { WidgetStateMapper.map(it, now, zone, logs) } ?: WidgetState.NoTrip
+        val full = plan?.let { WidgetStateMapper.map(it, now, zone, logs, route = DemoPlans.ROUTE) } ?: WidgetState.NoTrip
+        val state = if (redacted) WidgetStateMapper.redact(full) else full
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
     }
 
@@ -97,7 +99,7 @@ class WidgetScreenshotTest {
 
     @Test
     fun legacyGlyphs() {
-        val kinds = AdviceType.entries.map { GlyphKind.Advice(it) } + listOf(GlyphKind.Free, GlyphKind.Adapted, GlyphKind.NoTrip)
+        val kinds = AdviceType.entries.map { GlyphKind.Advice(it) } + listOf(GlyphKind.Free, GlyphKind.Adapted, GlyphKind.NoTrip, GlyphKind.PlanStep)
         val rows = WidgetTheme.entries.map { WidgetPalette.of(it) }.map { p ->
             sideBySide(kinds.map { CanvasOps.bitmap(Glyphs.build(it, p), 96) }, List(kinds.size) { p.surface })
         }
@@ -165,7 +167,7 @@ class WidgetScreenshotTest {
         }
     }
 
-    /** The 4×1 row and the ribbon at 150 % font size: two lines, the other zone's time kept. */
+    /** The 4×1 and 2×1 rows and the ribbon at 150 % font size: two lines, the other zone's time kept. */
     @Test
     @Config(sdk = [33])
     fun legacyFontScale() {
@@ -173,14 +175,51 @@ class WidgetScreenshotTest {
         captureRoboImage("$DIR/legacy_font_scale.png") {
             Grid(
                 listOf(
-                    listOf(legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76)),
+                    listOf(
+                        legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76),
+                        legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Medium, 176, 76),
+                    ),
                     listOf(legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Ribbon, 360, 172)),
                 ),
             )
         }
     }
 
+    /**
+     * Lock-screen instances with "Hide details on the lock screen" on: no places or route, melatonin as a neutral
+     * "Plan step" (it is up next here). Light and dark.
+     */
+    @Test
+    @Config(sdk = [33])
+    fun legacyKeyguard() {
+        captureRoboImage("$DIR/legacy_keyguard.png") {
+            Grid(
+                listOf(WidgetTheme.Light, WidgetTheme.Dark).map { theme ->
+                    listOf(
+                        legacyClocks(theme, TwoClocksLayout.Large, 360, 260, redacted = true),
+                        legacyNextUp(model(theme, redacted = true), NextUpLayout.Tall, 176, 260),
+                    )
+                },
+            )
+        }
+    }
+
     // --- Remote Compose documents, played back by the androidx player ------------------------------------------
+
+    /** Remote Compose version of [legacyKeyguard]. */
+    @Test
+    fun remoteKeyguard() {
+        captureRoboImage("$DIR/remote_keyguard.png") {
+            Grid(
+                listOf(WidgetTheme.Light, WidgetTheme.Dark).map { theme ->
+                    listOf(
+                        remoteClocks(model(theme, redacted = true), TwoClocksLayout.Large, 360, 260),
+                        remoteNextUp(model(theme, redacted = true), NextUpLayout.Tall, 176, 260),
+                    )
+                },
+            )
+        }
+    }
 
     /** Docs overview: the 2×2 dial in every theme, the 4×2 layout and the empty state. */
     @Test
@@ -330,8 +369,9 @@ class WidgetScreenshotTest {
         h: Int,
         scenario: DemoPlans.Scenario? = DemoPlans.Scenario.AvoidLight,
         logged: AdviceOutcome? = null,
+        redacted: Boolean = false,
     ): Cell {
-        val m = model(theme, scenario, logged)
+        val m = model(theme, scenario, logged, redacted)
         val density = context.resources.displayMetrics.density
         val dial = LegacyRemoteViews.dialBitmap(m, (min(w, h - 24) * density).roundToInt(), now)
         return legacy(m, w, h) { LegacyRemoteViews.twoClocks(context, m, layout, dial) }

@@ -21,6 +21,37 @@
         android:orientation="vertical"
         android:padding="10dp">
 
+        <!-- 4x3 only: "Tokyo · Day 2" with the trip's route in dot matrix at the end (the card then drops its header). -->
+        <FrameLayout
+            android:id="@+id/header_strip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/strip_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:ellipsize="end"
+                android:importantForAccessibility="no"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/widget_on_surface_variant"
+                android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/strip_route"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:importantForAccessibility="no"
+                android:visibility="gone" />
+        </FrameLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"

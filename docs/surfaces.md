@@ -153,8 +153,7 @@ shows, as before. While the setting is on, `AdviceAlarmScheduler` checks on ever
 also on the first one after a restart) for a reminder on screen without a public version. Under the same lock as
 reminder posts, `ReminderNotifier.redactShowing` rebuilds it redacted without alerting again, keeping its timeout.
 A reminder left over from an earlier process is withdrawn instead, because what it said is no longer known.
-Lock-screen widgets don't honour the setting yet
-([#18](https://github.com/rock3r/clockblock/issues/18)).
+Lock-screen widgets honour the same setting (see [Lock-screen widgets](#lock-screen-widgets)).
 
 ### Live Update on travel days
 
@@ -215,16 +214,40 @@ other time on the widgets.
 | Cells | Two Clocks | Next up |
 |---|---|---|
 | 1×1 | Dial with local time and the jet lag offset | Glyph, countdown and label |
-| 2×1 | — | Glyph, label and "until" line |
+| 2×1 | — | Glyph, label, "until" line and the other zone's time |
 | 4×1 | — | Row with the countdown, the other zone's time and Done |
 | 2×2 | Dial and a two-line caption | Countdown, label, "until / then", the other zone and Done |
 | 4×2 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 4×1 row plus three "Up next" capsules |
-| 2×3 | Dial, now card and Done | The 2×2 stack plus two "Up next" rows |
-| 4×3 | The 4×2 layout plus two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+| 2×3 | Dial, now card and Done | The 2×2 stack plus two "Up next" rows, with the route |
+| 4×3 | A header strip with the route, the 4×2 layout, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+
+At 2×1 the other zone's time gets its own line. Above 1.15× font scale the label and the "until" line fold
+into one line to fit the cell, and the other zone's time goes into that line, where a narrow cell may cut it off.
+
+The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
+([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
+designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
+Clocks header strip, next to "Tokyo · Day 2", and at the end of the "Up next" title on the 2×3 and 4×3 Next up.
+Screen readers read the codes letter by letter.
 
 ![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
+
+### Lock-screen widgets
+
+When "Hide details on the lock screen" (`AppSettings.hideLockScreenDetails`) is on, a widget placed on the lock
+screen (host category `WIDGET_CATEGORY_KEYGUARD`) shows the redacted plan, like the notification's public version:
+no route, no city or other-zone times, melatonin shown as "Plan step" with a neutral glyph, and no melatonin
+marks on the dial. The header keeps only the plan day ("Day 2"), and the adapted state says "Your body is on
+local time". Times and the kind of block stay. Home-screen widgets keep every detail.
+[`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) decides per
+widget id from the host category (a bit mask, so keyguard may come with other bits), and
+`WidgetStateMapper.redact` strips the state. If the settings can't be read in time, lock-screen widgets stay
+redacted. The scheduler refreshes every `PlanSurface` when settings change, so flipping the setting re-renders
+widgets straight away.
+
+![Redacted lock-screen widgets: Two Clocks 4×3 and Next up 2×3 in light and dark, with "Day 2" and no route](screenshots/widgets/remote_keyguard.png)
 
 ### Done
 

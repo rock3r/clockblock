@@ -213,6 +213,31 @@ class WidgetStateMapperTest {
     }
 
     @Test
+    fun `the trip route is carried for the larger sizes`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        active(WidgetStateMapper.map(tokyoDay, now, utc)).route.shouldBeNull()
+        active(WidgetStateMapper.map(tokyoDay, now, utc, route = WidgetRoute("LIS", "HND"))).route shouldBe
+            WidgetRoute("LIS", "HND")
+    }
+
+    @Test
+    fun `redacting for the lock screen drops places, the route and the melatonin dot`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        val full = active(WidgetStateMapper.map(tokyoDay, now, utc, route = WidgetRoute("LIS", "HND")))
+        val redacted = active(WidgetStateMapper.redact(full))
+
+        redacted.redacted shouldBe true
+        redacted.secondaryZoneId.shouldBeNull()
+        redacted.route.shouldBeNull()
+        redacted.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
+        // Times, block kinds and the dial stay.
+        redacted.current shouldBe full.current
+        redacted.upcoming shouldBe full.upcoming
+        redacted.arcs shouldBe full.arcs.filter { it.type != AdviceType.Melatonin }
+        WidgetStateMapper.redact(WidgetState.NoTrip) shouldBe WidgetState.NoTrip
+    }
+
+    @Test
     fun `display zone follows the plan day the user is in`() {
         val p = plan {
             day(0, "2026-10-05", lisbon) { advice(AdviceType.SeeLight, "2026-10-05T08:00", "2026-10-05T10:00") }

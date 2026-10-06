@@ -5,12 +5,17 @@ import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
+import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -22,6 +27,17 @@ object DemoPlans {
     const val TRIP_ID = "demo-lisbon-tokyo"
     private const val ORIGIN = "Europe/Lisbon"
     private const val DESTINATION = "Asia/Tokyo"
+
+    /** The demo trip's airport codes, for the route strip. */
+    val ROUTE = WidgetRoute("LIS", "HND")
+
+    /** The demo trip itself (Lisbon → Tokyo Haneda), for tests and the gallery. */
+    fun trip(): Trip {
+        val lis = Place("LIS", "Humberto Delgado", "Lisbon", "PT", ORIGIN, 38.77, -9.13)
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", DESTINATION, 35.55, 139.78)
+        val leg = FlightLeg("demo-leg", lis, hnd, LocalDateTime.parse("2026-10-04T13:00"), LocalDateTime.parse("2026-10-05T14:00"))
+        return Trip(TRIP_ID, "Lisbon → Tokyo", listOf(leg), Instant.parse("2026-09-01T00:00:00Z"))
+    }
 
     enum class Scenario { AvoidLight, SeeBrightLight, Sleep, FreeTime, Adapted }
 

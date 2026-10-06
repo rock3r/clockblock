@@ -25,8 +25,15 @@ object WidgetStateMapper {
      * @param fallbackZone zone used when the plan has no days (the device's zone).
      * @param logs outcomes logged for the plan's trip (drives the Done button's logged state); null when they could
      *   not be read, so the outcome is unknown.
+     * @param route the trip's airport codes, if the trip could be read.
      */
-    fun map(plan: JetLagPlan?, now: Instant, fallbackZone: ZoneId, logs: List<AdviceLog>? = emptyList()): WidgetState {
+    fun map(
+        plan: JetLagPlan?,
+        now: Instant,
+        fallbackZone: ZoneId,
+        logs: List<AdviceLog>? = emptyList(),
+        route: WidgetRoute? = null,
+    ): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
         val displayZoneId = displayZone(plan, now) ?: fallbackZone.id
@@ -82,6 +89,22 @@ object WidgetStateMapper {
             dayKind = day?.kind,
             dayIndex = day?.index,
             adaptation = plan.adaptationProgressAt(now),
+            route = route,
+        )
+    }
+
+    /**
+     * The lock-screen version of [state] (Settings › Hide details on the lock screen, keyguard hosts only), matching
+     * the redacted notifications: no secondary zone (it names a city), no route, and private advice (melatonin) loses
+     * its dial dot here and its name and glyph in the texts. Times and the other blocks stay.
+     */
+    fun redact(state: WidgetState): WidgetState = when (state) {
+        WidgetState.NoTrip -> state
+        is WidgetState.Active -> state.copy(
+            secondaryZoneId = null,
+            route = null,
+            arcs = state.arcs.filterNot { it.type?.isPrivate == true },
+            redacted = true,
         )
     }
 
