@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -259,7 +260,7 @@ private fun DayHeader(row: RailRow.Header) {
             DayKind.Adapted -> R.string.plan_day_kind_adapted
         },
     )
-    val offsetHours = (day.secondaryZone.rules.getOffset(day.start).totalSeconds - day.zone.rules.getOffset(day.start).totalSeconds) / 3600f
+    val offsetHours = zoneDeltaHours(day.zone, day.secondaryZone, day.start)
     val secondary = (day.secondaryZone.cityName() + " " + formatJetLagHours(offsetHours)).replace(' ', '\u00A0')
     Surface(color = scheme.surface, modifier = Modifier.fillMaxWidth().testTag(PlanTags.day(day.day.index))) {
         Row(
@@ -661,6 +662,7 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
             Column {
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(formatter.range(advice.start, advice.end, day.zone, resources), style = OpusTheme.textStyles.timeLabel)
+                Text(secondary, style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.8f))
             }
             item.outcome?.let {
                 Spacer(Modifier.width(8.dp))

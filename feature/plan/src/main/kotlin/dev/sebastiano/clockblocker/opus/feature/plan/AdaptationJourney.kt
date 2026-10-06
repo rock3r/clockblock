@@ -164,8 +164,8 @@ internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
 internal fun daysSaved(withPlan: Double, withoutPlan: Double): Int? =
     (roundDays(withoutPlan) - roundDays(withPlan)).takeIf { it > 0 }
 
-/** The model's "didn't adapt within the simulated window" value for the no-plan estimate. */
-internal val NoPlanHorizonDays: Double = PlannerConfig().estimateHorizonDays.toDouble()
+/** The model's "didn't adapt within the simulated window" value, for either estimate. */
+internal val EstimateHorizonDays: Double = PlannerConfig().estimateHorizonDays.toDouble()
 
 /** When the plan takes the long way round the clock face. */
 internal enum class LongWayRound { EastByDelaying, WestByAdvancing }

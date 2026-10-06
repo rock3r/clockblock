@@ -193,16 +193,13 @@ internal fun AdaptationCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modi
  */
 @Composable
 private fun HeroComparison(plan: JetLagPlan) {
-    val with = roundDays(plan.estimatedDaysToAdapt)
-    val withoutAtHorizon = plan.estimatedDaysWithoutPlan >= NoPlanHorizonDays
-    val without = roundDays(plan.estimatedDaysWithoutPlan)
     val saved = daysSaved(plan.estimatedDaysToAdapt, plan.estimatedDaysWithoutPlan)
-    val withText = stringResource(R.string.plan_days_short, with)
-    val withoutText = stringResource(if (withoutAtHorizon) R.string.plan_days_short_horizon else R.string.plan_days_short, without)
+    val withText = estimateShort(plan.estimatedDaysToAdapt)
+    val withoutText = estimateShort(plan.estimatedDaysWithoutPlan)
     val description = stringResource(
-        if (withoutAtHorizon) R.string.plan_hero_description_horizon else R.string.plan_hero_description,
-        pluralStringResource(R.plurals.plan_days_bare, with, with),
-        pluralStringResource(R.plurals.plan_days_bare, without, without),
+        R.string.plan_hero_description,
+        estimateLabel(plan.estimatedDaysToAdapt),
+        estimateLabel(plan.estimatedDaysWithoutPlan),
     ) + (saved?.let { " " + pluralStringResource(R.plurals.plan_days_faster, it, it) } ?: "")
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -231,17 +228,31 @@ private fun HeroComparison(plan: JetLagPlan) {
     }
 }
 
+/** "3 d", or "21+ d" when the model didn't see adaptation within its simulated window. */
+@Composable
+private fun estimateShort(days: Double): String = stringResource(
+    if (days >= EstimateHorizonDays) R.string.plan_days_short_horizon else R.string.plan_days_short,
+    roundDays(days),
+)
+
+/** "about 3 days", or "more than 21 days" at the simulation horizon (never an exact-time claim there). */
+@Composable
+private fun estimateLabel(days: Double): String = stringResource(
+    if (days >= EstimateHorizonDays) R.string.plan_estimate_more_than else R.string.plan_estimate_about,
+    remainingBareLabel(days),
+)
+
 @Composable
 private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): String {
     val atLanding = journey.withPlanAt(0f).roundToInt()
     val home = journey.withoutPlan.first().hours.roundToInt()
     return stringResource(
-        if (plan.estimatedDaysWithoutPlan >= NoPlanHorizonDays) R.string.plan_journey_description_horizon else R.string.plan_journey_description,
+        R.string.plan_journey_description,
         ZoneId.of(plan.destinationZoneId).cityName(),
         stringResource(R.string.plan_journey_hours, atLanding),
-        remainingBareLabel(plan.estimatedDaysToAdapt),
+        estimateLabel(plan.estimatedDaysToAdapt),
         stringResource(R.string.plan_journey_hours, home),
-        remainingBareLabel(plan.estimatedDaysWithoutPlan),
+        estimateLabel(plan.estimatedDaysWithoutPlan),
     )
 }
 

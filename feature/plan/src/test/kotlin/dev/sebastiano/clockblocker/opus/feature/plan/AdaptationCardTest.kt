@@ -27,16 +27,31 @@ class AdaptationCardTest {
     @Test
     fun `a no-plan estimate at the simulation horizon reads as more than, never as an exact time`() {
         // The model's sentinel for "didn't adapt within the simulated window": shown visually as "21+ d".
-        val plan = realPlan.copy(estimatedDaysWithoutPlan = NoPlanHorizonDays)
+        val plan = realPlan.copy(estimatedDaysWithoutPlan = EstimateHorizonDays)
         compose.setContent {
             OpusTheme(dynamicColor = false, reduceMotion = true) {
                 AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
             }
         }
-        val days = NoPlanHorizonDays.toInt()
+        val days = EstimateHorizonDays.toInt()
         // Both the hero comparison and the journey chart say "more than 21 days"…
         compose.onAllNodesWithContentDescription("more than $days days", substring = true).assertCountEquals(2)
         // …and neither claims "about 21 days".
+        compose.onAllNodesWithContentDescription("about $days days", substring = true, ignoreCase = true)
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun `a with-plan estimate at the simulation horizon reads as more than too`() {
+        val plan = realPlan.copy(estimatedDaysToAdapt = EstimateHorizonDays, estimatedDaysWithoutPlan = EstimateHorizonDays)
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
+            }
+        }
+        val days = EstimateHorizonDays.toInt()
+        compose.onAllNodesWithContentDescription("more than $days days with your plan", substring = true).assertCountEquals(1)
+        compose.onAllNodesWithContentDescription("in sync in more than $days days", substring = true).assertCountEquals(1)
         compose.onAllNodesWithContentDescription("about $days days", substring = true, ignoreCase = true)
             .assertCountEquals(0)
     }
