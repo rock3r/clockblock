@@ -67,6 +67,7 @@
     <string name="settings_lock_screen_description">Places, flight numbers and supplements stay off the lock screen whenever Android hides sensitive content.</string>
     <string name="settings_perm_summary_all">Everything is allowed</string>
     <string name="settings_perm_summary_all_description">Reminders arrive on time, with Live Updates on travel day.</string>
+    <string name="settings_perm_summary_all_description_no_live">Reminders arrive on time.</string>
     <string name="settings_perm_summary_ready">Reminders are ready</string>
     <plurals name="settings_perm_summary_optional">
         <item quantity="one">%1$d optional extra is off.</item>

@@ -154,6 +154,16 @@ class SettingsContentTest {
     }
 
     @Test
+    fun `without Live Updates on this Android, the row is gone and not counted as an extra`() {
+        show(settingsState(exactAlarmsAllowed = true, promotedAllowed = false, batteryOptimizationIgnored = true, liveUpdatesSupported = false))
+        compose.onNodeWithText("Everything is allowed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Reminders arrive on time.").assertIsDisplayed()
+        click(SettingsTags.PermSummary)
+        compose.onNodeWithTag(SettingsTags.PermBattery).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(SettingsTags.PermLive).assertDoesNotExist()
+    }
+
+    @Test
     fun `widget add buttons forward the widget`() {
         show()
         click(SettingsTags.pinWidget(PinnableWidget.TwoClocks))

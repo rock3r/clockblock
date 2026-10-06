@@ -30,7 +30,7 @@ how to back it up.
 | How early | When reminders arrive: on time, or 5, 10, 15 or 30 minutes before a block starts. |
 | Hide details on the lock screen | Keeps places, flight numbers and supplement names off the lock screen whenever Android hides sensitive notification content. Times and the kind of block stay. Off by default. See [On the lock screen](widgets-and-notifications.md#on-the-lock-screen). |
 | Send a test reminder | Sends a sample reminder so you can check that reminders arrive. |
-| What Android allows | A one-line summary of whether reminders can arrive on time. Tap it to see each permission: notifications, exact timing, Live Updates and battery optimisation, and tap **Allow** or **Open settings** to change one. It opens by itself when notifications or exact timing are missing. Live Updates and battery optimisation are optional extras. |
+| What Android allows | A one-line summary of whether reminders can arrive on time. Tap it to see each permission: notifications, exact timing, Live Updates (Android 16 and later) and battery optimisation, and tap **Allow** or **Open settings** to change one. It opens by itself when notifications or exact timing are missing. Live Updates and battery optimisation are optional extras. |
 | Widgets | A preview of each home-screen widget with an **Add** button that places it on your home screen. Only shown if your home screen app supports it. |
 
 On a tablet, a foldable or a large window, Settings shows two columns: your profile, tools, appearance and More

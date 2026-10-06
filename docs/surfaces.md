@@ -250,7 +250,8 @@ are copies of them.
 Onboarding asks for notifications and exact timing ("Reminders that actually arrive"). Settings shows the current
 state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
 fix it. The summary starts (and re-opens) expanded whenever `NotificationPermissionState.isReliable` is false;
-Live Updates and battery optimisation are optional extras and never force it open. Everything still works
+Live Updates and battery optimisation are optional extras and never force it open; below API 36
+(`liveUpdatesSupported` false) the Live Updates row is left out, since there is nothing to fix. Everything still works
 without them, with fewer or less punctual reminders.
 
 | Permission | Why | Who controls it | Without it |

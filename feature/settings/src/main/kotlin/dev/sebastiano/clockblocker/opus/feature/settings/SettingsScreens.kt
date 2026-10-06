@@ -793,21 +793,29 @@ private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
     }
 }
 
+private enum class PermissionKind { Notifications, Exact, Live, Battery }
+
+/** The rows that apply on this device: Live Updates only where Android has them (API 36+). */
+private val NotificationPermissionState.rows: List<PermissionKind>
+    get() = PermissionKind.entries.filter { it != PermissionKind.Live || liveUpdatesSupported }
+
 /**
- * "What Android allows": a one-line summary that expands to the four permission rows. It starts expanded, and
+ * "What Android allows": a one-line summary that expands to the permission rows. It starts expanded, and
  * expands again by itself, whenever reminders aren't dependable (notifications or exact timing missing); the
- * optional extras (Live Updates, battery) alone never force it open.
+ * optional extras (Live Updates, battery) alone never force it open. Live Updates is left out entirely where
+ * Android doesn't have it, so nothing unfixable is listed or counted.
  */
 @Composable
 private fun PermissionsSection(permissions: NotificationPermissionState, actions: SettingsActions) {
     val motion = OpusTheme.motion
+    val rows = permissions.rows
     val needsAttention = !permissions.isReliable
     var expanded by rememberSaveable { mutableStateOf(needsAttention) }
     LaunchedEffect(needsAttention) { if (needsAttention) expanded = true }
     Column {
         SectionHeader(stringResource(R.string.settings_permissions))
         SettingsGroup {
-            PermissionSummary(permissions, expanded, onToggle = { expanded = !expanded }, shape = segmentedShape(0, if (expanded) 5 else 1))
+            PermissionSummary(permissions, expanded, onToggle = { expanded = !expanded }, shape = segmentedShape(0, if (expanded) rows.size + 1 else 1))
             AnimatedVisibility(
                 visible = expanded,
                 // The rows grow in place under the summary: size and alpha share the container spring.
@@ -815,42 +823,47 @@ private fun PermissionsSection(permissions: NotificationPermissionState, actions
                 exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.containerSpatial()),
             ) {
                 SettingsGroup {
-                    PermissionRow(
-                        title = stringResource(R.string.settings_perm_notifications),
-                        description = stringResource(R.string.settings_perm_notifications_description),
-                        granted = permissions.notificationsGranted,
-                        actionLabel = stringResource(R.string.settings_perm_allow),
-                        onAction = actions::fixNotifications,
-                        shape = segmentedShape(1, 5),
-                        tag = SettingsTags.PermNotifications,
-                    )
-                    PermissionRow(
-                        title = stringResource(R.string.settings_perm_exact),
-                        description = stringResource(R.string.settings_perm_exact_description),
-                        granted = permissions.exactAlarmsAllowed,
-                        actionLabel = stringResource(R.string.settings_perm_fix),
-                        onAction = actions::fixExactAlarms,
-                        shape = segmentedShape(2, 5),
-                        tag = SettingsTags.PermExact,
-                    )
-                    PermissionRow(
-                        title = stringResource(R.string.settings_perm_live),
-                        description = stringResource(R.string.settings_perm_live_description),
-                        granted = permissions.promotedAllowed,
-                        actionLabel = stringResource(R.string.settings_perm_fix),
-                        onAction = actions::fixLiveUpdates,
-                        shape = segmentedShape(3, 5),
-                        tag = SettingsTags.PermLive,
-                    )
-                    PermissionRow(
-                        title = stringResource(R.string.settings_perm_battery),
-                        description = stringResource(R.string.settings_perm_battery_description),
-                        granted = permissions.batteryOptimizationIgnored,
-                        actionLabel = stringResource(R.string.settings_perm_fix),
-                        onAction = actions::fixBattery,
-                        shape = segmentedShape(4, 5),
-                        tag = SettingsTags.PermBattery,
-                    )
+                    rows.forEachIndexed { index, row ->
+                        val shape = segmentedShape(index + 1, rows.size + 1)
+                        when (row) {
+                            PermissionKind.Notifications -> PermissionRow(
+                                title = stringResource(R.string.settings_perm_notifications),
+                                description = stringResource(R.string.settings_perm_notifications_description),
+                                granted = permissions.notificationsGranted,
+                                actionLabel = stringResource(R.string.settings_perm_allow),
+                                onAction = actions::fixNotifications,
+                                shape = shape,
+                                tag = SettingsTags.PermNotifications,
+                            )
+                            PermissionKind.Exact -> PermissionRow(
+                                title = stringResource(R.string.settings_perm_exact),
+                                description = stringResource(R.string.settings_perm_exact_description),
+                                granted = permissions.exactAlarmsAllowed,
+                                actionLabel = stringResource(R.string.settings_perm_fix),
+                                onAction = actions::fixExactAlarms,
+                                shape = shape,
+                                tag = SettingsTags.PermExact,
+                            )
+                            PermissionKind.Live -> PermissionRow(
+                                title = stringResource(R.string.settings_perm_live),
+                                description = stringResource(R.string.settings_perm_live_description),
+                                granted = permissions.promotedAllowed,
+                                actionLabel = stringResource(R.string.settings_perm_fix),
+                                onAction = actions::fixLiveUpdates,
+                                shape = shape,
+                                tag = SettingsTags.PermLive,
+                            )
+                            PermissionKind.Battery -> PermissionRow(
+                                title = stringResource(R.string.settings_perm_battery),
+                                description = stringResource(R.string.settings_perm_battery_description),
+                                granted = permissions.batteryOptimizationIgnored,
+                                actionLabel = stringResource(R.string.settings_perm_fix),
+                                onAction = actions::fixBattery,
+                                shape = shape,
+                                tag = SettingsTags.PermBattery,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -866,7 +879,10 @@ private fun PermissionSummary(permissions: NotificationPermissionState, expanded
     val colors = MaterialTheme.colorScheme
     val motion = OpusTheme.motion
     val attention = listOf(permissions.notificationsGranted, permissions.exactAlarmsAllowed).count { !it }
-    val optionalOff = listOf(permissions.promotedAllowed, permissions.batteryOptimizationIgnored).count { !it }
+    val optionalOff = listOfNotNull(
+        permissions.promotedAllowed.takeIf { permissions.liveUpdatesSupported },
+        permissions.batteryOptimizationIgnored,
+    ).count { !it }
     val title = when {
         attention > 0 -> pluralStringResource(R.plurals.settings_perm_summary_attention, attention, attention)
         optionalOff > 0 -> stringResource(R.string.settings_perm_summary_ready)
@@ -875,7 +891,8 @@ private fun PermissionSummary(permissions: NotificationPermissionState, expanded
     val supporting = when {
         attention > 0 -> stringResource(R.string.settings_perm_summary_attention_description)
         optionalOff > 0 -> pluralStringResource(R.plurals.settings_perm_summary_optional, optionalOff, optionalOff)
-        else -> stringResource(R.string.settings_perm_summary_all_description)
+        permissions.liveUpdatesSupported -> stringResource(R.string.settings_perm_summary_all_description)
+        else -> stringResource(R.string.settings_perm_summary_all_description_no_live)
     }
     val stateLabel = stringResource(if (expanded) R.string.settings_perm_expanded else R.string.settings_perm_collapsed)
     val clickLabel = stringResource(if (expanded) R.string.settings_perm_hide else R.string.settings_perm_show)

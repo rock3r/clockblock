@@ -28,6 +28,7 @@ internal fun settingsState(
     promotedAllowed: Boolean = true,
     batteryOptimizationIgnored: Boolean = false,
     widgetPinningSupported: Boolean = true,
+    liveUpdatesSupported: Boolean = true,
 ) = SettingsUiState(
     settings = settings,
     profile = profile,
@@ -36,6 +37,7 @@ internal fun settingsState(
         exactAlarmsAllowed = exactAlarmsAllowed,
         promotedAllowed = promotedAllowed,
         batteryOptimizationIgnored = batteryOptimizationIgnored,
+        liveUpdatesSupported = liveUpdatesSupported,
     ),
     widgetPinningSupported = widgetPinningSupported,
 )
