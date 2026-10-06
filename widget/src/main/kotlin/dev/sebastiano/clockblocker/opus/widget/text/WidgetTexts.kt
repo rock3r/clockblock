@@ -61,6 +61,13 @@ data class WidgetTexts(
     val route: WidgetRoute? = null,
     /** "L I S to H N D": the route strip spoken, codes spelled out. */
     val routeDescription: String? = null,
+    /**
+     * The current block spoken, with the end time in the other zone too: "Avoid light. until 18:00 (10:00 in Lisbon)
+     * · then Sleep". What Next up's main region says, before its live countdown.
+     */
+    val spokenNow: String = "$title. $subtitle",
+    /** Words of the spoken live countdown ("1 hour 10 minutes left"). */
+    val countdownWords: CountdownWords = CountdownWords(),
 ) {
     /**
      * Two-line rows at large font sizes: the first "until" line plus the [secondary] time ("until 16:30 · 08:30 in
@@ -104,6 +111,19 @@ data class DoneText(
     val logged: AdviceOutcome?,
     val label: String,
     val contentDescription: String,
+)
+
+/**
+ * Words of the spoken countdown. The countdown is host-evaluated (it ticks on the launcher without waking the app), so
+ * it is assembled from parts rather than formatted: [leftPrefix] + "1 hour 10 minutes" + [leftSuffix].
+ */
+data class CountdownWords(
+    val hour: String = "hour",
+    val hours: String = "hours",
+    val minute: String = "minute",
+    val minutes: String = "minutes",
+    val leftPrefix: String = "",
+    val leftSuffix: String = " left",
 )
 
 internal class WidgetTextFactory(private val context: Context, private val is24Hour: Boolean) {
@@ -177,13 +197,17 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         val subtitle = subtitleLines.joinToString(" · ")
 
         val secondary = secondaryAt?.let { at ->
-            s.secondaryZoneId?.let { str(R.string.widget_secondary_time, time(at, ZoneId.of(it)), DialMath.cityName(it)) }
+            s.secondaryZoneId?.let { str(R.string.widget_secondary_time, time(at, ZoneId.of(it)), s.placeName(it)) }
         }
         val countdownEnd = current?.end?.takeIf { Duration.between(s.capturedAt, it) < Duration.ofHours(24) }
+        // Spoken: the other zone's time joins the line whose time it repeats ("until 18:00 (10:00 in Lisbon)").
+        val spokenSubtitle = subtitleLines.mapIndexed { i, line ->
+            if (i == 0 && secondary != null) str(R.string.widget_a11y_with_secondary, line, secondary) else line
+        }.joinToString(" · ")
 
         val localNow = time(s.capturedAt, zone)
         val bodyNow = time(s.capturedAt, java.time.ZoneOffset.ofTotalSeconds(s.bodyOffsetMinutes * 60))
-        val now = if (current != null) str(R.string.widget_a11y_now, title, subtitle) else "$title. $subtitle."
+        val now = if (current != null) str(R.string.widget_a11y_now, title, spokenSubtitle) else "$title. $spokenSubtitle."
         val bodyPhrase = when {
             misalignment == null -> str(R.string.widget_a11y_body_in_sync)
             s.bodyRelativeMinutes < 0 -> str(R.string.widget_a11y_body_behind, DialMath.formatHoursMagnitude(s.bodyRelativeMinutes))
@@ -194,7 +218,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             val label = label(it.type)
             val time = time(it.start, zone)
             val secondary =
-                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), DialMath.cityName(z.id)) }
+                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), s.placeName(z.id)) }
             UpcomingText(
                 type = it.type,
                 label = label,
@@ -244,6 +268,21 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             },
             route = s.route,
             routeDescription = s.route?.let { str(R.string.widget_a11y_route, spell(it.origin), spell(it.destination)) },
+            spokenNow = "$title. $spokenSubtitle",
+            countdownWords = countdownWords(),
+        )
+    }
+
+    private fun countdownWords(): CountdownWords {
+        // "%1$s left" split around its placeholder: the duration itself is assembled on the host.
+        val (prefix, suffix) = str(R.string.widget_a11y_time_left, PLACEHOLDER).split(PLACEHOLDER, limit = 2)
+        return CountdownWords(
+            hour = str(R.string.widget_a11y_hour),
+            hours = str(R.string.widget_a11y_hours),
+            minute = str(R.string.widget_a11y_minute),
+            minutes = str(R.string.widget_a11y_minutes),
+            leftPrefix = prefix,
+            leftSuffix = suffix,
         )
     }
 
@@ -251,11 +290,11 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
     private fun spell(code: String) = code.trim().uppercase().toCharArray().joinToString(" ")
 
     /**
-     * "Tokyo · Day 2" (city of the zone the dial shows), or just the city outside the plan's days. Redacted: the day
-     * alone ("Day 2"), no header outside the plan's days.
+     * "Tokyo · Day 2" (the trip's city in the zone the dial shows, see [WidgetState.Active.placeName]), or just the
+     * city outside the plan's days. Redacted: the day alone ("Day 2"), no header outside the plan's days.
      */
     private fun header(s: WidgetState.Active): String? {
-        val city = DialMath.cityName(s.displayZoneId)
+        val city = s.placeName(s.displayZoneId)
         val index = s.dayIndex ?: return city.takeUnless { s.redacted }
         val day = when (s.dayKind) {
             DayKind.PreTrip -> str(R.string.widget_day_pre, DialMath.signed(index))
@@ -285,4 +324,9 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
     private fun time(instant: Instant, zone: ZoneId): String = timeFormat.format(instant.atZone(zone))
 
     private fun str(id: Int, vararg args: Any): String = context.getString(id, *args)
+
+    private companion object {
+        /** Stands in for the host-assembled duration while splitting a template around it. */
+        const val PLACEHOLDER = "\u0000"
+    }
 }

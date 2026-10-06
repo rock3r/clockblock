@@ -29,4 +29,5 @@ dependencies {
     testImplementation(projects.core.testing)
     testImplementation(libs.androidx.compose.remote.player.compose)
     testImplementation(libs.androidx.compose.remote.player.core)
+    testImplementation(libs.androidx.compose.remote.player.view)
 }

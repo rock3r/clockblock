@@ -13,6 +13,7 @@ import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -30,6 +31,9 @@ object DemoPlans {
 
     /** The demo trip's airport codes, for the route strip. */
     val ROUTE = WidgetRoute("LIS", "HND")
+
+    /** The demo trip's cities per zone (see [WidgetStateMapper.placeNames]). */
+    val PLACE_NAMES: Map<String, String> by lazy { WidgetStateMapper.placeNames(trip()) }
 
     /** The demo trip itself (Lisbon → Tokyo Haneda), for tests and the gallery. */
     fun trip(): Trip {

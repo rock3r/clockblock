@@ -17,6 +17,7 @@ import androidx.compose.remote.creation.CreationDisplayInfo
 import androidx.compose.remote.creation.RemoteComposeWriterAndroid
 import androidx.compose.remote.creation.platform.AndroidxRcPlatformServices
 import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
+import dev.sebastiano.clockblocker.opus.widget.text.CountdownWords
 import java.lang.reflect.Constructor
 import java.text.DecimalFormat
 
@@ -115,6 +116,25 @@ internal object HostText {
     fun countdownWidest(totalMinutes: Int, compact: Boolean = false): String {
         val hours = totalMinutes.coerceAtLeast(0) / 60
         return if (hours == 0) "59m" else "${hours}h${if (compact) "" else " "}59m"
+    }
+
+    /**
+     * The same live countdown, spoken: "1 hour 10 minutes left", "45 minutes left". Words, so a screen reader doesn't
+     * have to guess what "1h 10m" means. Same clock and clamping as [countdown].
+     */
+    fun countdownSpoken(totalMinutes: Int, capturedUtcMinute: Int, words: CountdownWords): RemoteString {
+        val raw = totalMinutes.toFloat().rf - HostTime.minutesSince(capturedUtcMinute)
+        val left = selectIfLt(raw, 0f.rf, 0f.rf, raw)
+        val hours = floor(left / 60f.rf)
+        val minutes = floor(left % 60f.rf)
+        // Singular for exactly one: below 1 (zero) and from 2 on it is plural.
+        fun unit(value: RemoteFloat, one: String, many: String): RemoteString =
+            selectIfLt(value, 1f.rf, " $many".rs, selectIfLt(value, 2f.rf, " $one".rs, " $many".rs))
+        val minutePart = minutes.toRemoteString(oneDigit) + unit(minutes, words.minute, words.minutes)
+        val hourPart = hours.toRemoteString(oneDigit) + unit(hours, words.hour, words.hours) + " ".rs
+        val duration = selectIfLt(left, 60f.rf, minutePart, hourPart + minutePart)
+        val prefixed = if (words.leftPrefix.isEmpty()) duration else words.leftPrefix.rs + duration
+        return if (words.leftSuffix.isEmpty()) prefixed else prefixed + words.leftSuffix.rs
     }
 }
 

@@ -92,7 +92,11 @@ list what's up next, next to your route ("LIS → HND"). It says "Free time" whe
 - Tap a widget to open the plan. With no trip planned, the widgets say "No trip · Plan one", and a tap opens the
   new trip screen.
 - Tap **Done** on a widget to mark the current block as done, just like the button on the notification. The button
-  then turns into "✓ Done" (or "Skipped" if you skipped it elsewhere).
+  then turns into "✓ Done" (or "Skipped" if you skipped it elsewhere). Tapping it after that opens the plan.
+- The widgets name places after your trip, the same as the route: a trip from SFO says "San Francisco", not the
+  name of its time zone.
+- With a screen reader, the widgets read out the times in both zones. On Android 16 and newer, *Next up* also says
+  how long the current block has left.
 - The widgets follow the app's theme. When "Night-safe automatically" is on and your plan says to avoid light or
   sleep, they switch to a black and amber look that won't light up a dark room.
 - The widgets update when your plan changes and at each block boundary. They don't drain your battery by checking
