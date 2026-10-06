@@ -182,5 +182,3 @@ Full attributions are in [NOTICE](NOTICE) and in the app under About → Licence
 
 Copyright 2026 Sebastiano Poggi and contributors. Licensed under the [Apache License, Version 2.0](LICENSE).
 Bundled fonts and data keep their own licences; see [NOTICE](NOTICE).
-
-"Timeshifter" is a trademark of its owner. Clockblock isn't affiliated with or endorsed by Timeshifter.
