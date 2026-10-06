@@ -140,15 +140,20 @@ internal class PlanScreenState(
      * The day picked in the day strip (`PlanDay.index`) and the trip it was picked on. Keyed by trip because the
      * top-level current plan can switch trip under the same screen, and a day index means nothing on another trip.
      */
-    private var selection: Pair<String, Int>? by mutableStateOf(null)
+    private var selection: DayPick? by mutableStateOf(null)
 
     /** The day picked on [tripId] (null = live, or the pick belonged to another trip). */
-    fun selectedDay(tripId: String): Int? = selection?.takeIf { it.first == tripId }?.second
+    fun selectedDay(tripId: String): Int? = selection?.takeIf { it.tripId == tripId }?.index
 
-    /** Picks [index] on [tripId], or goes back to live when [index] is null. */
-    fun pickDay(tripId: String, index: Int?) {
-        selection = index?.let { tripId to it }
+    /** Whether the day picked on [tripId] was still to come when picked (such a pick expires once its day starts). */
+    fun pickedFuture(tripId: String): Boolean = selection?.takeIf { it.tripId == tripId }?.future == true
+
+    /** Picks [index] on [tripId] ([future]: that day hasn't started yet), or goes back to live when [index] is null. */
+    fun pickDay(tripId: String, index: Int?, future: Boolean = false) {
+        selection = index?.let { DayPick(tripId, it, future) }
     }
+
+    private data class DayPick(val tripId: String, val index: Int, val future: Boolean)
 
     /**
      * Counts picks in the day strip: the two-pane rail follows each one (an event, so a pick mid-scroll counts).
@@ -359,11 +364,12 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     // A day picked in the strip anchors everything to that day at the current time of day; the dial's scrub is
     // relative to that anchor and springs back to it.
     val selectedDay = screen.selectedDay(plan.tripId)
-    val dayBase = remember(railDays, selectedDay, state.now, state.moment.zone) {
-        selectedDayBase(railDays, selectedDay, state.now, state.moment.zone)
+    val pickedFuture = screen.pickedFuture(plan.tripId)
+    val dayBase = remember(railDays, selectedDay, pickedFuture, state.now, state.moment.zone) {
+        selectedDayBase(railDays, selectedDay, state.now, state.moment.zone, pickedFuture)
     }
-    // A pick that is (or has become) today, or that the plan no longer has, is live: forget it, so a screen left
-    // open can't jump back to it once that day is past.
+    // A pick that is (or has become) today, a look ahead whose day has come (even while the app was away), or a
+    // day the plan no longer has, is live: forget it, so the screen can't jump back to it once that day is past.
     if (selectedDay != null && dayBase == null) {
         SideEffect { screen.pickDay(plan.tripId, null) }
     }
@@ -713,7 +719,8 @@ private class PlanSections(
                         selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
                         onSelect = { index ->
                             screen.preview = null
-                            screen.pickDay(state.plan.tripId, index)
+                            val future = model.days.firstOrNull { it.day.index == index }?.start?.isAfter(state.now) == true
+                            screen.pickDay(state.plan.tripId, index, future)
                             screen.dayPicks++
                         },
                         modifier = width,

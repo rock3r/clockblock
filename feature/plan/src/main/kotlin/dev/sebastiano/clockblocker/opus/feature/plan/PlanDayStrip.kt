@@ -85,10 +85,12 @@ internal fun RailDay.at(time: LocalTime): Instant {
 
 /**
  * The instant the screen is anchored to while the day strip has [selectedDay] (a `PlanDay.index`) picked, or
- * null for live: nothing picked, today picked, or a day the plan no longer has.
+ * null for live: nothing picked, today picked, a day the plan no longer has, or a look ahead ([pickedFuture]: the
+ * day was still to come when picked) whose day has since started. A deliberate look back at a past day stays.
  */
-internal fun selectedDayBase(days: List<RailDay>, selectedDay: Int?, now: Instant, nowZone: ZoneId): Instant? {
+internal fun selectedDayBase(days: List<RailDay>, selectedDay: Int?, now: Instant, nowZone: ZoneId, pickedFuture: Boolean = false): Instant? {
     val day = days.firstOrNull { it.day.index == selectedDay } ?: return null
+    if (pickedFuture && !now.isBefore(day.start)) return null
     return day.previewInstant(now, nowZone).takeUnless { it == now }
 }
 

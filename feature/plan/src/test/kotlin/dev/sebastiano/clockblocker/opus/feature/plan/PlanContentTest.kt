@@ -320,6 +320,31 @@ class PlanContentTest {
     }
 
     @Test
+    fun `a future pick expires once its day has passed, even unobserved, while a past pick stays`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The app sleeps through all of Day 3 and wakes on Day 4: the future pick is spent, so the screen is live.
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+
+        // A deliberate look back at a past day is kept as time moves on.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)).plus(Duration.ofHours(1)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsSelected()
+        compose.onNode(nowHeading).assertDoesNotExist()
+    }
+
+    @Test
     fun `a nested melatonin chip keeps its dose`() {
         // A melatonin moment inside today's bright-light block (09:00–12:30 UTC) rides as a chip, not a row.
         val dose = Advice("melatonin-test", AdviceType.Melatonin, Instant.parse("2026-06-17T11:00:00Z"), Instant.parse("2026-06-17T11:00:00Z"), AdviceReason.MelatoninDelays, "0.5 mg")

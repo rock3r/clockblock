@@ -52,6 +52,15 @@ class DayStripTest {
     }
 
     @Test
+    fun `a pick made while its day was ahead expires once that day is past, a past pick does not`() {
+        val day4 = Instant.parse("2026-06-19T10:00:00Z") // 11:00 London on Day 4
+        selectedDayBase(days, selectedDay = 3, now = day4, nowZone = london, pickedFuture = true).shouldBeNull()
+        selectedDayBase(days, selectedDay = 3, now = day4, nowZone = london, pickedFuture = false) shouldBe Instant.parse("2026-06-18T10:00:00Z")
+        // Still ahead: a future pick previews as usual.
+        selectedDayBase(days, selectedDay = 3, now = now, nowZone = london, pickedFuture = true) shouldBe Instant.parse("2026-06-18T10:00:00Z")
+    }
+
+    @Test
     fun `the pill's body offset is taken at the day's local noon, and fades as the plan works`() {
         val pre = dayStripOffsets(realPlan, days)
         val first = pre.getValue(days.first().day.index)
