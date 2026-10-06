@@ -65,7 +65,7 @@ class AdviceAlarmScheduler(
     private val mutex = Mutex()
 
     /**
-     * Serializes posting a reminder with withdrawing it for lock-screen privacy, and the post re-reads the setting
+     * Serializes posting a reminder with redacting it for lock-screen privacy, and the post re-reads the setting
      * inside it: a reminder is never posted unredacted after privacy was turned on.
      */
     private val reminderMutex = Mutex()
@@ -79,15 +79,13 @@ class AdviceAlarmScheduler(
     @Synchronized
     fun start(scope: CoroutineScope): Job = started ?: scope.launch {
         NotificationChannels.ensureCreated(application)
-        var hidingDetails: Boolean? = null
         combine(planRepository.currentPlan, settingsRepository.settings, ::Pair)
             .distinctUntilChanged()
             .collectLatest { (plan, settings) ->
-                // A reminder already on screen without a redacted public version: withdraw it the moment the user
-                // asks for privacy (the Now notification, refreshed below, keeps the current step). One an alarm
-                // already posted redacted while racing this flip stays.
-                if (hidingDetails == false && settings.hideLockScreenDetails) reminderMutex.withLock { reminders.cancelUnredacted() }
-                hidingDetails = settings.hideLockScreenDetails
+                // With privacy on, a reminder on screen without a redacted public version is rebuilt redacted (the
+                // Now notification, refreshed below, follows the setting by itself). Checked on every emission, not
+                // only when the setting flips, so a process that died before redacting reconciles on its next start.
+                if (settings.hideLockScreenDetails) reminderMutex.withLock { reminders.redactShowing(clock.now()) }
                 arm(plan, settings)
                 refreshSurfaces()
             }
