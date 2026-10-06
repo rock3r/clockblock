@@ -12,6 +12,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.Instant
 
 class AdaptationJourneyTest {
@@ -76,5 +77,14 @@ class AdaptationJourneyTest {
         // The real planner delays an 11 h eastward trip.
         PlanFixtures.longWayPlan.longWayRound() shouldBe LongWayRound.EastByDelaying
         PlanFixtures.longWayPlan.journey().shouldNotBeNull()
+    }
+
+    @Test
+    fun `shift durations keep half and quarter hour zones`() {
+        shiftDuration(10.5) shouldBe Duration.ofMinutes(630)
+        shiftDuration(-5.75) shouldBe Duration.ofMinutes(345)
+        shiftDuration(13.0) shouldBe Duration.ofHours(13)
+        // Float noise snaps to the nearest quarter hour rather than surfacing odd minutes.
+        shiftDuration(10.4999) shouldBe Duration.ofMinutes(630)
     }
 }

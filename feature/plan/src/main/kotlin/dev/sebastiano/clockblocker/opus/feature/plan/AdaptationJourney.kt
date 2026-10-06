@@ -48,6 +48,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /** One sample of the journey chart: [day] = days since landing (negative before), [hours] = hours off destination time. */
 internal data class JourneyPoint(val day: Float, val hours: Float)
@@ -147,6 +148,16 @@ internal val NoPlanHorizonDays: Double = PlannerConfig().estimateHorizonDays.toD
 
 /** When the plan takes the long way round the clock face. */
 internal enum class LongWayRound { EastByDelaying, WestByAdvancing }
+
+/**
+ * A shift in hours (either sign) as a duration snapped to the nearest quarter hour, so half- and quarter-hour
+ * zones read as they are ("10 h 30 min") without float noise surfacing as odd minutes.
+ */
+internal fun shiftDuration(hours: Double): Duration =
+    Duration.ofMinutes((abs(hours) * QuartersPerHour).roundToLong() * MinutesPerQuarter)
+
+private const val QuartersPerHour = 4
+private const val MinutesPerQuarter = 15L
 
 /**
  * The long way round: the plan moves the body clock the opposite way to the map (an eastward trip delayed, a

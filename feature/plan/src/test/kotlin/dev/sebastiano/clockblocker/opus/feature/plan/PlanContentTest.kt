@@ -2,6 +2,9 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
@@ -224,6 +227,29 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
         compose.waitForIdle()
         compose.onNode(nowHeading).assertExists()
+    }
+
+    @Test
+    fun `a day picked on one trip does not carry over when the current plan switches trip`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // Same days (so Day 3 exists on the new plan too), different trip.
+        val other = "other-trip"
+        state = ready(
+            PlanFixtures.MidAdaptation,
+            plan = realPlan.copy(tripId = other),
+            trip = PlanFixtures.trip.copy(id = other),
+        )
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
     }
 
     @Test

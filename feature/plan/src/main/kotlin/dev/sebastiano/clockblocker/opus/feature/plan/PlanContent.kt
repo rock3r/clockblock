@@ -133,8 +133,19 @@ internal class PlanScreenState(
     /** Instant the dial is being scrubbed to (null = now, or the picked day's anchor). */
     var preview: Instant? by mutableStateOf(null)
 
-    /** The day picked in the day strip (`PlanDay.index`; null = live). */
-    var selectedDay: Int? by mutableStateOf(null)
+    /**
+     * The day picked in the day strip (`PlanDay.index`) and the trip it was picked on. Keyed by trip because the
+     * top-level current plan can switch trip under the same screen, and a day index means nothing on another trip.
+     */
+    private var selection: Pair<String, Int>? by mutableStateOf(null)
+
+    /** The day picked on [tripId] (null = live, or the pick belonged to another trip). */
+    fun selectedDay(tripId: String): Int? = selection?.takeIf { it.first == tripId }?.second
+
+    /** Picks [index] on [tripId], or goes back to live when [index] is null. */
+    fun pickDay(tripId: String, index: Int?) {
+        selection = index?.let { tripId to it }
+    }
 
     /** A day was just picked in the strip: the two-pane rail follows it. */
     var dayPicked: Boolean by mutableStateOf(false)
@@ -338,11 +349,12 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val railDays = remember(plan, state.now, state.outcomes) { plan.railDays(state.now, state.outcomes) }
     // A day picked in the strip anchors everything to that day at the current time of day; the dial's scrub is
     // relative to that anchor and springs back to it.
-    val dayBase = remember(railDays, screen.selectedDay, state.now, state.moment.zone) {
-        selectedDayBase(railDays, screen.selectedDay, state.now, state.moment.zone)
+    val selectedDay = screen.selectedDay(plan.tripId)
+    val dayBase = remember(railDays, selectedDay, state.now, state.moment.zone) {
+        selectedDayBase(railDays, selectedDay, state.now, state.moment.zone)
     }
     val anchor = dayBase ?: state.now
-    val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == screen.selectedDay }?.zone ?: state.moment.zone
+    val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone
     val preview = screen.preview?.takeIf { it != anchor } ?: dayBase
     val shown = remember(plan, state.moment, preview) { if (preview == null) state.moment else plan.momentAt(preview) }
     val todayIndex = remember(railDays, state.now) {
@@ -490,7 +502,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                 canWhy = shown.active != null || shown.upNext.isNotEmpty(),
                                 onNow = {
                                     screen.preview = null
-                                    screen.selectedDay = null
+                                    screen.pickDay(plan.tripId, null)
                                     scope.launch {
                                         val now = rows.nowRowIndex()
                                         if (now >= 0) {
@@ -523,7 +535,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     LaunchedEffect(screen.dayPicked) {
                         if (!screen.dayPicked) return@LaunchedEffect
                         screen.dayPicked = false
-                        val picked = railDays.firstOrNull { it.day.index == screen.selectedDay }
+                        val picked = railDays.firstOrNull { it.day.index == selectedDay }
                         if (picked == null) {
                             val now = rows.nowRowIndex()
                             if (now >= 0) scrollRail(now, nowOffsetPx)
@@ -679,10 +691,10 @@ private class PlanSections(
                     days = model.days,
                     offsets = model.offsets,
                     todayIndex = model.todayIndex,
-                    selectedIndex = screen.selectedDay?.takeIf { picked -> model.days.any { it.day.index == picked } },
+                    selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
                     onSelect = { index ->
                         screen.preview = null
-                        screen.selectedDay = index
+                        screen.pickDay(state.plan.tripId, index)
                         screen.dayPicked = true
                     },
                     modifier = width,

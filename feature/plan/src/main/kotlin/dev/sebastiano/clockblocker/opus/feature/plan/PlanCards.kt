@@ -252,10 +252,8 @@ private fun journeyDescription(plan: JetLagPlan, journey: AdaptationJourney): St
 @Composable
 private fun LongWayRoundCallout(plan: JetLagPlan, longWay: LongWayRound) {
     val city = ZoneId.of(plan.destinationZoneId).cityName()
-    val geographic = abs(plan.geographicShiftHours(plan.landing ?: plan.generatedAt)).roundToInt()
-    val moved = abs(plan.shiftHours).roundToInt()
-    val apart = stringResource(R.string.plan_duration_h, geographic)
-    val shifted = stringResource(R.string.plan_duration_h, moved)
+    val apart = formatDuration(shiftDuration(plan.geographicShiftHours(plan.landing ?: plan.generatedAt).toDouble()))
+    val shifted = formatDuration(shiftDuration(plan.shiftHours))
     val body = when (longWay) {
         LongWayRound.EastByDelaying -> stringResource(R.string.plan_long_way_east, city, apart, shifted)
         LongWayRound.WestByAdvancing -> stringResource(R.string.plan_long_way_west, city, apart, shifted)
