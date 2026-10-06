@@ -47,6 +47,10 @@ Unlisted motion → `OpusTheme.motion.containerSpatial()` for movement, `colour(
 | Hierarchy push/pop (shared axis X, 30 dp, RTL-mirrored) | `navigationSpatial()` = Standard defaultSpatial (no bounce; snaps on reduce) + fades | OBSERVED |
 | Predictive back (seekable) | exit scale 0.9 + slide away from swipe edge on `navigationSpatial()`, fade on `colour()` | OBSERVED |
 | List-detail pane enter/exit, pane bounds | `navigationFadeIn()` / `navigationFadeOut()`; bounds `navigationSpatial()` | OBSERVED |
+| Dot-matrix airport code picked (`IataCode`, `· · ·` → `SFO`) | dots turn to the new characters left to right, cell by cell and column by column, on `colour()` (~180 ms); first composition sits at rest | OBSERVED |
+| Rolling readouts (`RollingText` / `RollingTimeText` / `RollingMetricText`) | only the changed run of characters rolls vertically, on `dataSpatial()` (no bounce: the readout is data), with a cross-fade from the same progress; up when the value grows, down when it shrinks; units and unchanged digits stay still; not used for per-frame values (scrubbing) | OBSERVED |
+| Dial jet-lag pill on a day change | rolls once from the old offset to the new one, driven by the inner ring's own `dialDayRotation()` progress (one event), instead of counting through every half hour | OBSERVED |
+| Route arc banner: destination picked | flat dotted horizon springs up into the dashed arc on `containerSpatial()` (the dots stretch into dashes as it lifts); the plane glides to its position on `dataSpatial()`; destination code reveals as above | OBSERVED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
@@ -63,6 +67,7 @@ on-screen time, not opens, is what gates its motion.
 | Plan screen at rest (glyphs, wave, sky, dial) | continuous on-screen time | Nothing loops; one ambient cycle on change, then still |
 | Plan screen open | 5–15/day | Navigation transition only; no entrance choreography |
 | New trip saved → its plan opens | a few/month | `CONFIRM` haptic on save + "first light" rise (the only plan entrance choreography) |
+| Airport picked in the trip editor | a few/month | Dot-matrix reveal + route arc apex spring (`containerSpatial`); the plane stays on `dataSpatial` |
 | Advice glyph morph | a few/day (advice boundaries) | `glyphMorph` (Expressive) + one ambient cycle |
 | Dial scrub / back to now | daily | `dataSpatial`, hour haptics |
 | Body-clock sky | continuous | Repaint only; no animation of its own |
@@ -86,9 +91,16 @@ on-screen time, not opens, is what gates its motion.
 - Loading indicator becomes a still Sunny with the same "Working out your plan" semantics.
 - Confetti is skipped; `onFinished` fires immediately. The celebration goes straight to its overlay.
 - Easter eggs are off (`easterEggs` is false under reduce motion and inside sleep windows).
-- Screenshot goldens render with reduce motion on, proving each static carrier.
+- Dot-matrix codes, rolling readouts, the dial's jet-lag pill and the route arc (apex and plane) snap to their
+  end state; the still picture carries the whole meaning.
+- Screenshot goldens render with reduce motion on, proving each static carrier. `_mid` goldens
+  (`snapMidChange`) freeze one frame mid-transition with motion on.
 
 ## Not in this codebase
-- Rolling digits on time changes (design.md mentions them; not implemented).
+- Rolling digits on every minute tick: `RollingTimeText` exists, but clocks that stay on screen (the dial centre)
+  don't roll each minute (frequency gate), and scrubbed readouts change every frame, so they never roll.
+- Variable-weight pulse on the scrubbed readout (`wght 400 → 650`): skipped. Each weight is its own Typeface
+  instance of the variable font, so animating it would create and re-measure typefaces mid-gesture on a daily
+  surface, for no extra meaning (the hand and the cards already show the preview).
 - Predictive-back shared element (plan → trip circle): owned by `:app` / `:feature:plan`.
 - `wdth`-axis typographic motion (the bundled Google Sans Flex subset drops `wdth`).
