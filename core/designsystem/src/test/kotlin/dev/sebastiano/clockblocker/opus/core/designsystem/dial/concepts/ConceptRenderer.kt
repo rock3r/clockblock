@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
@@ -109,6 +110,18 @@ private fun DrawScope.render(op: DialOp, measurer: TextMeasurer) {
             }
             clipPath(path) { op.ops.forEach { render(it, measurer) } }
         }
+        is DialOp.SweepRing -> drawCircle(
+            brush = Brush.sweepGradient(op.colors + op.colors.first(), center = Offset(op.cx * d, op.cy * d)),
+            radius = op.r * d,
+            center = Offset(op.cx * d, op.cy * d),
+            style = Stroke(op.width * d),
+        )
+        is DialOp.GradientBar -> drawRoundRect(
+            brush = Brush.horizontalGradient(op.colors, startX = op.left * d, endX = op.right * d),
+            topLeft = Offset(op.left * d, op.top * d),
+            size = Size((op.right - op.left) * d, (op.bottom - op.top) * d),
+            cornerRadius = CornerRadius(op.radius * d),
+        )
     }
 }
 

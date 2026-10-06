@@ -32,16 +32,10 @@ object TwoStrips {
     private fun axisFor(s: ConceptState, left: Float, right: Float) =
         Axis(left, right, (Math.floorDiv((s.localMinute - 360f).toInt(), 60) * 60).toFloat().mod(1440f))
 
-    /** A sky bar: 96 quarter-hour rects clipped to a rounded bar. */
+    /** A sky bar: one gradient op sampled every 5 min. */
     private fun Ops.bar(ax: Axis, top: Float, bottom: Float, sunrise: Float, sunset: Float, p: ConceptPalette) {
-        val segs = mutableListOf<DialOp>()
-        val n = 288
-        for (i in 0 until n) {
-            val m0 = ax.start + i * 5f
-            val x0 = ax.left + i * ax.width / n
-            segs += DialOp.Rect(x0, top, x0 + ax.width / n + 0.4f, bottom, 0f, p.sky(m0 + 2.5f, sunrise, sunset))
-        }
-        add(DialOp.Clip(ax.left, top, ax.right, bottom, (bottom - top) / 2.4f, segs))
+        val colors = (0 until 288).map { i -> p.sky(ax.start + i * 5f + 2.5f, sunrise, sunset) }
+        add(DialOp.GradientBar(ax.left, top, ax.right, bottom, (bottom - top) / 2.4f, colors))
     }
 
     /** The longest stretch of the bar inside [from, to) (local minutes), excluding [avoid] ± [gap] dp. */

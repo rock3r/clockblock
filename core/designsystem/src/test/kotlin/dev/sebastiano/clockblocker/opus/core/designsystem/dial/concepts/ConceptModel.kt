@@ -227,4 +227,25 @@ sealed interface DialOp {
         val radius: Float,
         val ops: List<DialOp>,
     ) : DialOp
+
+    /**
+     * A ring filled with a sweep gradient: [colors] spread evenly over the full turn starting at 3 o'clock.
+     * Compose: Brush.sweepGradient. RC: RemotePaint shader if the host takes it, else [segments] (constant arcs).
+     */
+    data class SweepRing(val cx: Float, val cy: Float, val r: Float, val width: Float, val colors: List<Color>) : DialOp {
+        fun segments(): List<Arc> {
+            val step = 360f / colors.size
+            return colors.mapIndexed { i, c -> Arc(cx, cy, r, width, i * step, step + 0.35f, c) }
+        }
+    }
+
+    /** A rounded bar filled with a left-to-right gradient of evenly spaced [colors]. RC: shader or segment rects. */
+    data class GradientBar(
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val radius: Float,
+        val colors: List<Color>,
+    ) : DialOp
 }

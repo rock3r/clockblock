@@ -6,17 +6,18 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 /** Building blocks shared by the concepts. Each emits plain [DialOp]s, so every renderer gets the same marks. */
 internal typealias Ops = MutableList<DialOp>
 
-/** A 24 h sky ring: 288 constant-colour arcs (RC-safe: no sweep shader needed), noon at the top. */
+/** A 24 h sky ring, noon at the top: one sweep-gradient op sampled every 2° (5 min of sky per sample). */
 internal fun Ops.skyRing(
     cx: Float, cy: Float, r: Float, w: Float,
     sunrise: Float, sunset: Float, p: ConceptPalette,
-    segments: Int = 288,
+    samples: Int = 180,
 ) {
-    val step = 360f / segments
-    for (i in 0 until segments) {
-        val mid = (i + 0.5f) * 1440f / segments
-        add(DialOp.Arc(cx, cy, r, w, 90f + i * step, step + 0.35f, p.sky(mid, sunrise, sunset)))
+    val colors = (0 until samples).map { i ->
+        val canvasDeg = (i + 0.5f) * 360f / samples
+        val minute = ((canvasDeg - 90f) * 4f).mod(1440f)
+        p.sky(minute, sunrise, sunset)
     }
+    add(DialOp.SweepRing(cx, cy, r, w, colors))
 }
 
 /** Midpoint (local minutes) of the night that runs sunset → sunrise, and of the day. */
