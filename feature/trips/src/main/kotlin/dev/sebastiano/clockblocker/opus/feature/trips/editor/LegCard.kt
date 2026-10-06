@@ -300,8 +300,14 @@ private fun RoutePair(
     actions: TripEditorActions,
 ) {
     var focusedEnd by remember { mutableStateOf<LegEnd?>(null) }
+    val focusManager = LocalFocusManager.current
     val fromRef = PlaceFieldRef(index, LegEnd.Origin)
     val toRef = PlaceFieldRef(index, LegEnd.Destination)
+    // After the destination, move on to the departure date. The date is a picker button, which can't take focus in
+    // touch mode: then drop focus instead, so the keyboard goes away rather than coming back after every picker.
+    fun leaveDestination() {
+        if (!focus.departureDate.requestFocus()) focusManager.clearFocus()
+    }
     fun onFocus(end: LegEnd, ref: PlaceFieldRef, focused: Boolean) {
         if (focused) {
             focusedEnd = end
@@ -337,7 +343,7 @@ private fun RoutePair(
             onFocusChange = { onFocus(LegEnd.Destination, toRef, it) },
             onImeAction = {
                 actions.pickTopResult(toRef)
-                focus.departureDate.requestFocus()
+                leaveDestination()
             },
             tag = TripsTestTags.editorTo(index),
             focusRequester = focus.to,
@@ -373,7 +379,7 @@ private fun RoutePair(
                     now = now,
                     onSelect = { place ->
                         actions.onPlaceSelected(visible.field, place)
-                        if (visible.field.end == LegEnd.Origin) focus.to.requestFocus() else focus.departureDate.requestFocus()
+                        if (visible.field.end == LegEnd.Origin) focus.to.requestFocus() else leaveDestination()
                     },
                     modifier = Modifier.padding(top = 4.dp),
                 )
