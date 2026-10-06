@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.measureRolling
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.rollDirection
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawHatch
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.AdviceColors
@@ -119,7 +122,7 @@ fun TwoClocksDial(
     val view = LocalView.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
-    val measurer = rememberTextMeasurer(cacheSize = 32)
+    val measurer = rememberTextMeasurer(cacheSize = 48)
     val formatter = rememberTimeFormatter()
     val nightSafe = OpusTheme.variant == OpusThemeVariant.NightSafe
     val sunColor = advice[AdviceType.SeeBrightLight].color
@@ -144,9 +147,15 @@ fun TwoClocksDial(
     val bodyAhead = remember { Animatable(state.bodyAheadMinutes) }
     var wasAligned by remember { mutableStateOf(state.isAligned) }
     val currentOnRingsAligned by rememberUpdatedState(onRingsAligned)
+    // The wedge pill rolls from the old offset's label to the new one as the ring turns (draw phase, see wedgeLabel).
+    var labelFrom by remember { mutableFloatStateOf(state.bodyAheadMinutes) }
+    var labelTo by remember { mutableFloatStateOf(state.bodyAheadMinutes) }
     LaunchedEffect(state.bodyAheadMinutes, state.isAligned) {
         val target = bodyAhead.value + DialGeometry.minuteDelta(bodyAhead.value, state.bodyAheadMinutes)
+        labelFrom = bodyAhead.value
+        labelTo = target
         if (reduce) bodyAhead.snapTo(target) else bodyAhead.animateTo(target, motion.dialDayRotation())
+        labelFrom = target
         if (state.isAligned && !wasAligned) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
             currentOnRingsAligned?.invoke()
@@ -325,7 +334,13 @@ fun TwoClocksDial(
         painter.hand(displayMinute, colors.onSurface, colors.surfaceContainerLow)
         painter.sun(displayMinute, s.sunriseMinute, s.sunsetMinute, sunColor, moonColor, colors.surfaceContainerLow)
         if (!s.isAligned) {
-            painter.wedgeLabel(ahead, wedgeLabelText(ahead), measurer, colors.primary, colors.onPrimary, textStyles.timeLabel)
+            // One event with the ring: the label's roll progress is the rotation's own progress.
+            val span = labelTo - labelFrom
+            val roll = if (abs(span) < 0.5f) 1f else ((ahead - labelFrom) / span).coerceIn(0f, 1f)
+            painter.wedgeLabel(
+                ahead, wedgeLabelText(labelFrom), wedgeLabelText(labelTo), roll, measurer,
+                colors.primary, colors.onPrimary, textStyles.timeLabel,
+            )
         }
         val displayTime = DialGeometry.timeOf(displayMinute)
         painter.readouts(
@@ -571,16 +586,31 @@ private class DialPainter(val scope: DrawScope, val center: Offset, val u: Float
         }
     }
 
-    fun wedgeLabel(ahead: Float, text: String, measurer: TextMeasurer, bg: Color, fg: Color, style: TextStyle) = with(scope) {
+    /**
+     * The jet-lag pill, rolling from [from] to [to] at [progress] (1 = at rest on [to]). Rolls up when the body
+     * clock moves later (the number grows), down when it moves earlier.
+     */
+    fun wedgeLabel(
+        ahead: Float,
+        from: String,
+        to: String,
+        progress: Float,
+        measurer: TextMeasurer,
+        bg: Color,
+        fg: Color,
+        style: TextStyle,
+    ) = with(scope) {
         val mid = (-ahead / 2f).mod(DialGeometry.MinutesPerDay)
         val p = point(DialGeometry.angleForMinute(mid), (LightLane + RestLane) / 2f)
-        val layout = measurer.measure(text, style.copy(fontSize = (11f * u / density / fontScale).sp, color = fg))
+        val labelStyle = style.copy(fontSize = (11f * u / density / fontScale).sp, color = fg)
+        val layout = measurer.measureRolling(from, to, labelStyle, rollDirection(from, to))
         val padH = 7f * u
         val padV = 2.5f * u
-        val w = layout.size.width + padH * 2
-        val h = layout.size.height + padV * 2
+        val textW = layout.width(progress)
+        val w = textW + padH * 2
+        val h = layout.height + padV * 2
         drawRoundRect(bg, Offset(p.x - w / 2f, p.y - h / 2f), Size(w, h), androidx.compose.ui.geometry.CornerRadius(h / 2f))
-        drawText(layout, topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f))
+        layout.draw(this, Offset(p.x - textW / 2f, p.y - layout.height / 2f), progress)
     }
 
     fun nowTick(minute: Float, color: Color) = with(scope) {

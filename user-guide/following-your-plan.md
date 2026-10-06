@@ -13,7 +13,7 @@ On a tablet or a wide screen, the trips list and the plan appear side by side, w
 
 ## The plan screen
 
-<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. The dial shows 15:59 local and 18:35 body. The Now card says Avoid caffeine, 4 h 1 min left, until 20:00, which is 04:00 Tokyo time the next day, with a Done button." width="300" />
+<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. The dial shows 10:14 local and 12:35 body. The Now card says See some light, 1 h 46 min left, until 12:00, which is 20:00 Tokyo time, with a Done button." width="300" />
 
 From top to bottom:
 
@@ -86,7 +86,7 @@ claims it's faster. See [the science](../docs/science.md) for details.
 
 ### The timeline
 
-<img src="images/timeline.png" alt="The Your plan timeline: Day 3, arrival in Tokyo, with Sleep 23:30 to 07:30; Day 4, Adapted, with See bright light 07:30 to 10:30 and See some light 10:30 to 14:30. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
+<img src="images/timeline.png" alt="The Your plan timeline: Day 3, arrival in Tokyo, with Sleep 01:00 to 09:00, See bright light 09:00 to 12:00, See some light 12:00 to 16:00 and Avoid caffeine from 15:30. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
 adapted. Each block shows its local time and, underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
