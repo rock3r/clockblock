@@ -63,6 +63,12 @@ class AdviceAlarmScheduler(
     private val clock: NotificationClock,
 ) {
     private val mutex = Mutex()
+
+    /**
+     * Serializes posting a reminder with withdrawing it for lock-screen privacy, and the post re-reads the setting
+     * inside it: a reminder is never posted unredacted after privacy was turned on.
+     */
+    private val reminderMutex = Mutex()
     private var started: Job? = null
     private val alarmManager: AlarmManager? get() = application.getSystemService()
 
@@ -79,7 +85,7 @@ class AdviceAlarmScheduler(
             .collectLatest { (plan, settings) ->
                 // A reminder already on screen was posted without a redacted public version: withdraw it the
                 // moment the user asks for privacy (the Now notification, refreshed below, keeps the current step).
-                if (hidingDetails == false && settings.hideLockScreenDetails) reminders.cancel()
+                if (hidingDetails == false && settings.hideLockScreenDetails) reminderMutex.withLock { reminders.cancel() }
                 hidingDetails = settings.hideLockScreenDetails
                 arm(plan, settings)
                 refreshSurfaces()
@@ -111,7 +117,11 @@ class AdviceAlarmScheduler(
             val snoozed = snooze?.takeIf { snoozeElapsed }?.adviceId
                 ?.let { id -> plan.allAdvice.firstOrNull { it.id == id } }
                 ?.let { ReminderSelector.snoozed(it, now) }
-            (due ?: snoozed)?.let { reminders.post(it, plan, now, settings.hideLockScreenDetails) }
+            (due ?: snoozed)?.let { spec ->
+                reminderMutex.withLock {
+                    reminders.post(spec, plan, now, redact = settingsRepository.settings.first().hideLockScreenDetails)
+                }
+            }
         }
         refreshSurfaces()
         arm(plan, settings)

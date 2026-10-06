@@ -175,6 +175,30 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `privacy turned on while an alarm is handled still redacts the reminder`() = runTest {
+        // The alarm reads settings first with privacy off; the user turns it on before the reminder is posted.
+        val stored = settings.current
+        val racing = object : dev.sebastiano.clockblocker.opus.core.data.SettingsRepository {
+            var reads = 0
+            override val settings: kotlinx.coroutines.flow.Flow<AppSettings> = kotlinx.coroutines.flow.flow {
+                val current = stored.value
+                emit(if (reads++ == 0) current else current.copy(hideLockScreenDetails = true))
+            }
+            override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
+        }
+        val scheduler = AdviceAlarmScheduler(
+            context, plans, racing, setOf(widget), reminders, snooze, capabilities, clock,
+        )
+        clock.instant = utc("2026-10-10T13:45")
+
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+
+        val n = reminder.shouldNotBeNull()
+        n.visibility shouldBe Notification.VISIBILITY_PRIVATE
+        n.publicVersion.shouldNotBeNull()
+    }
+
+    @Test
     fun `turning lock-screen privacy off leaves the reminder alone`() = runTest(UnconfinedTestDispatcher()) {
         settings.current.value = settings.current.value.copy(hideLockScreenDetails = true)
         val scheduler = scheduler()
