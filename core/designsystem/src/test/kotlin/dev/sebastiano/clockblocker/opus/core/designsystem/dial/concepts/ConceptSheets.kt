@@ -192,14 +192,14 @@ fun ComparisonSheet() {
             )
             listOf(false, true).forEach { dark ->
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Panel(dark, "Today", Modifier.width(390.dp)) {
+                    Panel(dark, "Today", Modifier.width(440.dp)) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Box(Modifier.size(328.dp)) { TwoClocksDial(TodayDialState, Modifier.size(328.dp)) }
                             Caption("Full · 328 dp")
                         }
                     }
                     Concept.All.forEach { c ->
-                        Panel(dark, c.name, Modifier.width(390.dp)) {
+                        Panel(dark, c.name, Modifier.width(440.dp)) {
                             Column(Modifier.height(if (c == Concept.Strips) 352.dp else 352.dp), verticalArrangement = Arrangement.Center) {
                                 Specimen(c, mid, c.full, "Full · ${dp(c.full)}", dark, widget = false)
                             }
@@ -208,7 +208,7 @@ fun ComparisonSheet() {
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Panel(false, "Today · small", Modifier.width(390.dp)) {
+                Panel(false, "Today · small", Modifier.width(440.dp)) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             Modifier.background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(26.dp)).padding(12.dp),
@@ -218,7 +218,7 @@ fun ComparisonSheet() {
                     Spacer(Modifier.width(1.dp))
                 }
                 Concept.All.forEach { c ->
-                    Panel(false, "${c.name} · small", Modifier.width(390.dp)) {
+                    Panel(false, "${c.name} · small", Modifier.width(440.dp)) {
                         Specimen(c, mid, c.simple, "Simple", false, widget = true)
                         Specimen(c, mid, c.glance, "Glance", false, widget = true)
                     }

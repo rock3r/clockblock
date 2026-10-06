@@ -45,6 +45,6 @@ class DialConceptsScreenshotTest {
     fun twoStrips() = sheet("concept_3_two_strips") { ConceptSheet(Concept.Strips) }
 
     @Test
-    @Config(qualifiers = "w1720dp-h1400dp-hdpi")
+    @Config(qualifiers = "w1880dp-h1400dp-hdpi")
     fun comparison() = sheet("concepts_comparison") { ComparisonSheet() }
 }

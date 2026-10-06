@@ -51,9 +51,9 @@ object TwoStrips {
         return split.maxBy { it.second - it.first }
     }
 
-    private fun Ops.barLabel(text: String, spot: Pair<Float, Float>, y: Float, spec: TextSpec, color: Color) {
-        if (approxTextWidth(text, spec) > spot.second - spot.first - 8f) return
-        add(DialOp.Text(text, (spot.first + spot.second) / 2f, y, spec, color))
+    private fun Ops.barLabel(text: String, spot: Pair<Float, Float>, y: Float, spec: TextSpec, color: Color, vararg shorter: String) {
+        val fit = (listOf(text) + shorter).firstOrNull { approxTextWidth(it, spec) <= spot.second - spot.first - 8f } ?: return
+        add(DialOp.Text(fit, (spot.first + spot.second) / 2f, y, spec, color))
     }
 
     private fun Ops.nowLine(x: Float, y0: Float, y1: Float, width: Float, p: ConceptPalette) {
@@ -112,10 +112,10 @@ object TwoStrips {
         val bodyLbl = lbl.copy(slanted = true)
         val lc = (localTop + localBottom) / 2f
         val bc = (bodyTop + bodyBottom) / 2f
-        barLabel("${s.city} night", labelSpot(ax, s.sunsetMinute, s.sunriseMinute, nowX, 6f), lc, lbl, p.onNight)
-        barLabel("${s.city} day", labelSpot(ax, s.sunriseMinute, s.sunsetMinute, nowX, 6f), lc, lbl, p.onDay)
-        barLabel("your body's night", labelSpot(ax, s.bodySunset(), s.bodySunrise(), nowX, 6f), bc, bodyLbl, p.onNight)
-        barLabel("your body's day", labelSpot(ax, s.bodySunrise(), s.bodySunset(), nowX, 6f), bc, bodyLbl, p.onDay)
+        barLabel("${s.city} night", labelSpot(ax, s.sunsetMinute, s.sunriseMinute, nowX, 6f), lc, lbl, p.onNight, "night")
+        barLabel("${s.city} day", labelSpot(ax, s.sunriseMinute, s.sunsetMinute, nowX, 6f), lc, lbl, p.onDay, "day")
+        barLabel("your body's night", labelSpot(ax, s.bodySunset(), s.bodySunrise(), nowX, 6f), bc, bodyLbl, p.onNight, "body's night", "night")
+        barLabel("your body's day", labelSpot(ax, s.bodySunrise(), s.bodySunset(), nowX, 6f), bc, bodyLbl, p.onDay, "body's day", "day")
 
         // Hour rows: each clock's own hours under its bar. The now readouts replace the hours they'd overlap.
         val hourSpec = TextSpec(9.5f, weight = 500)
@@ -171,11 +171,10 @@ object TwoStrips {
     private fun Ops.glance(s: ConceptState, p: ConceptPalette, w: Float, h: Float) {
         val ax = axisFor(s, 6f, w - 6f)
         val nowX = ax.x(s.localMinute)
-        add(DialOp.Text(hhmm(s.localMinute), w / 2f, 17f, TextSpec(19f, weight = 500), p.ink))
-        bar(ax, 32f, 44f, s.sunriseMinute, s.sunsetMinute, p)
-        bar(ax, 48f, 60f, s.bodySunrise(), s.bodySunset(), p)
-        nowLine(nowX, 29f, 63f, 1.8f, p)
-        add(DialOp.Text(if (s.aligned) "in sync" else hhmm(s.bodyMinute), w / 2f, 72f, TextSpec(11f, weight = 560, slanted = true), p.body))
-        if (!s.aligned) add(DialOp.Text(s.offsetSigned(), w / 2f, 83f, TextSpec(8.5f, weight = 650, slanted = true, tabular = false), p.inkMuted))
+        add(DialOp.Text(hhmm(s.localMinute), w / 2f, 18f, TextSpec(20f, weight = 500), p.ink))
+        bar(ax, 34f, 46f, s.sunriseMinute, s.sunsetMinute, p)
+        bar(ax, 50f, 62f, s.bodySunrise(), s.bodySunset(), p)
+        nowLine(nowX, 31f, 65f, 1.8f, p)
+        add(DialOp.Text(if (s.aligned) "in sync" else hhmm(s.bodyMinute), w / 2f, 77f, TextSpec(if (s.aligned) 13f else 16f, weight = 560, slanted = true), p.body))
     }
 }
