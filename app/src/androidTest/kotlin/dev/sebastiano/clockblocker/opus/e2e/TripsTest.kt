@@ -33,14 +33,14 @@ class TripsTest : OpusE2eTest() {
         pickPlace(TripsTestTags.editorFrom(0), "lis", "LIS")
         pickPlace(TripsTestTags.editorTo(0), "hnd", "HND")
 
-        awaitTag(TripsTestTags.editorDepartureDate(0)).scrollToIfScrollable().performClick()
+        openPicker(TripsTestTags.editorDepartureDate(0))
         pickDateInOpenPicker(departureDay())
         confirmTimePicker(TripsTestTags.editorDepartureTime(0))
         // With both airports and the departure set, the editor estimates the arrival from the distance (next morning
         // in Tokyo) and labels it as an estimate.
         awaitTag(TripsTestTags.editorArrivalEstimate(0)).scrollToIfScrollable().assertIsDisplayed()
         // Landing on the departure day itself would be before take-off: the validator flags it and offers a fix.
-        awaitTag(TripsTestTags.editorArrivalDate(0)).scrollToIfScrollable().performClick()
+        openPicker(TripsTestTags.editorArrivalDate(0))
         // The picker opens on the estimate's month, which is next month when the departure is the month's last day.
         if (departureDay().plusDays(1).month != departureDay().month) {
             await(hasContentDescription("previous month", substring = true, ignoreCase = true) and hasClickAction())
@@ -48,7 +48,7 @@ class TripsTest : OpusE2eTest() {
         }
         pickDateInOpenPicker(departureDay())
         awaitGone(TripsTestTags.editorArrivalEstimate(0))
-        awaitTag(TripsTestTags.editorFix(0)).scrollToIfScrollable().performClick()
+        awaitTag(TripsTestTags.editorFix(0)).scrollIntoViewAndClick()
         awaitGone(TripsTestTags.editorFix(0))
 
         awaitTag(TripsTestTags.EditorSave).assertIsEnabled().performClick()
@@ -70,7 +70,7 @@ class TripsTest : OpusE2eTest() {
     fun demoTripFromEmptyStateOpensItsPlan() {
         seedOnboarded()
         launch()
-        awaitTag(TripsTestTags.EmptyDemoTrip, LongTimeoutMillis).scrollToIfScrollable().performClick()
+        awaitTag(TripsTestTags.EmptyDemoTrip, LongTimeoutMillis).scrollIntoViewAndClick()
 
         awaitTag("route_plan", LongTimeoutMillis).assertIsDisplayed()
         awaitTag(PlanTags.Dial, LongTimeoutMillis).assertIsDisplayed()

@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.e2e
 
 import android.os.SystemClock
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
@@ -45,10 +47,35 @@ val SemanticsNodeInteraction.stateDescription: String?
 val SemanticsNodeInteraction.editableText: String
     get() = fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text.orEmpty()
 
-/** Scrolls [this] into view when it sits in a scrollable container; a no-op for nodes that are always visible. */
+/**
+ * Scrolls [this] into view when it sits in a scrollable container; a no-op for nodes that are always visible.
+ *
+ * `performScrollTo` stops as soon as the node's bottom touches the scroll container's bottom edge, which can leave
+ * the target right in the system gesture-navigation inset at the bottom of the screen. When the node sits near the
+ * bottom of a vertical scroll container and has room above it, nudge the container a little further so the tap
+ * lands well clear of the bottom edge.
+ */
 fun SemanticsNodeInteraction.scrollToIfScrollable(): SemanticsNodeInteraction = apply {
     runCatching { performScrollTo() }
+    runCatching {
+        val node = fetchSemanticsNode()
+        val scrollable = generateSequence(node.parent) { it.parent }.firstOrNull {
+            it.config.contains(SemanticsActions.ScrollBy) && it.config.contains(SemanticsProperties.VerticalScrollAxisRange)
+        } ?: return@runCatching
+        val viewport = scrollable.boundsInRoot
+        val box = node.boundsInRoot
+        val clearance = (viewport.height * 0.15f).coerceAtMost(BottomEdgeClearancePx)
+        val extraDy = minOf(box.bottom - (viewport.bottom - clearance), box.top - (viewport.top + clearance))
+        val scrollBy = scrollable.config.getOrNull(SemanticsActions.ScrollBy)?.action
+        if (extraDy > 1f && scrollBy != null) {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            instrumentation.runOnMainSync { scrollBy(0f, extraDy) }
+            instrumentation.waitForIdleSync()
+        }
+    }
 }
+
+private const val BottomEdgeClearancePx = 160f
 
 /** A demo trip (SFO → LHR) together with the advice its plan's Now card shows right now. */
 data class ActiveTrip(val trip: Trip, val plan: JetLagPlan, val advice: Advice)
