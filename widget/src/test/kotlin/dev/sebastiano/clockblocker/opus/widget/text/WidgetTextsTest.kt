@@ -133,6 +133,15 @@ class WidgetTextsTest {
     }
 
     @Test
+    fun `up next rows show their time in the secondary zone too`() {
+        // Demo: shown in Tokyo, secondary Lisbon (8 h behind in October).
+        val row = texts(DemoPlans.Scenario.AvoidLight).upcoming.first()
+        val (h, m) = row.time.split(":").map { it.toInt() }
+        val lisbon = "%02d:%02d".format(Math.floorMod(h - 8, 24), m)
+        row.secondary shouldBe "$lisbon in Lisbon"
+    }
+
+    @Test
     fun `adaptation reads as a percentage`() {
         val t = texts(DemoPlans.Scenario.AvoidLight)
         val fraction = t.adaptation.shouldNotBeNull()

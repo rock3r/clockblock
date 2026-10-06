@@ -58,7 +58,7 @@ The *Two Clocks* widget is a small version of the dial in the app. It shows the 
 clock thinks it is ("body 08:20"), the gap between them ("−7 h": your body is 7 hours behind), and the current
 block with its end time. The outer ring follows the sky through the day. The bigger sizes add a card with the
 place and plan day ("Tokyo · Day 2"), what comes next, the time in your other time zone, and a **Done** button.
-The biggest size also lists the next blocks and how far you've adapted.
+The biggest size also lists the next blocks (with their time in your other zone) and how far you've adapted.
 
 ### Next up
 

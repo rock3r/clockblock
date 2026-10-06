@@ -177,7 +177,8 @@ short label. When the plan has no advice left, it shows "Clockblocked".
 
 Each widget picks a layout for the space it gets. On API 31+ the launcher picks from the size map and swaps
 layouts while the user resizes. On older launchers the app picks the largest layout that fits the reported size.
-Both backends have the same layouts.
+Both backends have the same layouts. Every "Up next" entry shows its start time in the other zone too, like every
+other time on the widgets.
 
 | Cells | Two Clocks | Next up |
 |---|---|---|
@@ -187,7 +188,7 @@ Both backends have the same layouts.
 | 2×2 | Dial and a two-line caption | Countdown, label, "until / then", the other zone and Done |
 | 4×2 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 4×1 row plus three "Up next" capsules |
 | 2×3 | Dial, now card and Done | The 2×2 stack plus two "Up next" rows |
-| 4×3 | The 4×2 layout plus three "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+| 4×3 | The 4×2 layout plus two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
 
 ![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 

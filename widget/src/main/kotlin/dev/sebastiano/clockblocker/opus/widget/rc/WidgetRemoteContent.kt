@@ -84,8 +84,11 @@ private const val NEXT_UP_TINT = 0.35f
 /** Width share of the Done column next to a weight-1 main region (rows only take weights: see [NextUpRemote]). */
 private const val DONE_WEIGHT = 0.3f
 
-/** Up next rows in the 2×3 / 4×3 Next up stack (three plus the bar only fit the 4×3 Two Clocks). */
-internal const val TALL_UP_NEXT_ROWS = 2
+/**
+ * "Up next" rows in the stacked layouts. Each row has two lines (time + label, then the secondary-zone time), so two
+ * rows fit; the 2×3 / 4×3 Next up stack shows the adaptation bar only when nothing is up next.
+ */
+internal const val UP_NEXT_ROWS = 2
 
 /** Above this font scale the 4×1 row drops its secondary-zone line (it would be clipped). */
 internal const val MAX_THREE_LINE_FONT_SCALE = 1.15f
@@ -312,7 +315,7 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
                         model,
                         RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = 10.rdp, end = 0.rdp, bottom = 0.rdp),
                         rows = true,
-                        maxRows = TALL_UP_NEXT_ROWS,
+                        barWithRows = false,
                     )
                 }
             }
@@ -442,18 +445,23 @@ private fun NowStack(model: WidgetModel, withThen: Boolean = true) {
 }
 
 /**
- * "Up next": the next blocks (glyph + start time + label, never a glyph alone) and the adaptation bar. [rows] lists
- * them vertically (at most [maxRows]; with fewer than three rows the adaptation bar only shows when nothing is up
- * next, the bar and three rows don't fit a 2×3 cell); otherwise they sit side by side as capsules (4×2 ribbon).
- * Opens the plan like the main region.
+ * "Up next": the next blocks (glyph + start time + label, never a glyph alone, with the secondary-zone time below)
+ * and the adaptation bar. [rows] lists at most [maxRows] vertically; the bar shows when [barWithRows] or when nothing
+ * is up next. Otherwise they sit side by side as capsules (4×2 ribbon). Opens the plan like the main region.
  */
 @RemoteComposable
 @Composable
-private fun UpNext(model: WidgetModel, modifier: RemoteModifier, rows: Boolean, maxRows: Int = 3) {
+private fun UpNext(
+    model: WidgetModel,
+    modifier: RemoteModifier,
+    rows: Boolean,
+    maxRows: Int = UP_NEXT_ROWS,
+    barWithRows: Boolean = true,
+) {
     val p = model.palette
     val texts = model.texts.let { t ->
         val upcoming = t.upcoming.take(if (rows) maxRows else 3)
-        val bar = !rows || maxRows >= 3 || upcoming.isEmpty()
+        val bar = !rows || barWithRows || upcoming.isEmpty()
         t.copy(upcoming = upcoming, adaptation = t.adaptation.takeIf { bar }, adaptationLabel = t.adaptationLabel.takeIf { bar })
     }
     if (texts.upcoming.isEmpty() && texts.adaptation == null) return
@@ -469,16 +477,14 @@ private fun UpNext(model: WidgetModel, modifier: RemoteModifier, rows: Boolean, 
             texts.upcoming.forEach { item ->
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth(), verticalAlignment = RemoteAlignment.CenterVertically) {
                     Glyph(GlyphKind.Advice(item.type), p, 20)
-                    Label(
-                        "${item.time}  ${item.label}".rs,
-                        p.onSurface,
-                        13,
-                        modifier = RemoteModifier.weight(1f).padding(start = 8.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
-                    )
+                    RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 8.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
+                        Label("${item.time}  ${item.label}".rs, p.onSurface, 13, maxLines = 1)
+                        item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+                    }
                 }
             }
         } else if (texts.upcoming.isNotEmpty()) {
-            RemoteRow(modifier = RemoteModifier.fillMaxWidth().height(32.rdp), verticalAlignment = RemoteAlignment.CenterVertically) {
+            RemoteRow(modifier = RemoteModifier.fillMaxWidth().height(40.rdp), verticalAlignment = RemoteAlignment.CenterVertically) {
                 texts.upcoming.forEachIndexed { i, item ->
                     RemoteRow(
                         modifier = RemoteModifier
@@ -491,12 +497,10 @@ private fun UpNext(model: WidgetModel, modifier: RemoteModifier, rows: Boolean, 
                         verticalAlignment = RemoteAlignment.CenterVertically,
                     ) {
                         Glyph(GlyphKind.Advice(item.type), p, 18)
-                        Label(
-                            "${item.time} ${item.label}".rs,
-                            p.onSurface,
-                            11,
-                            modifier = RemoteModifier.weight(1f).padding(start = 4.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
-                        )
+                        RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 4.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
+                            Label("${item.time} ${item.label}".rs, p.onSurface, 11, maxLines = 1)
+                            item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 10, maxLines = 1) }
+                        }
                     }
                 }
             }

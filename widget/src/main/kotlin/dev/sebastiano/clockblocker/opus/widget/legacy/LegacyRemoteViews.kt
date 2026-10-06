@@ -20,7 +20,7 @@ import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.rc.DeepLinkIntents
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.MAX_THREE_LINE_FONT_SCALE
-import dev.sebastiano.clockblocker.opus.widget.rc.TALL_UP_NEXT_ROWS
+import dev.sebastiano.clockblocker.opus.widget.rc.UP_NEXT_ROWS
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
 import dev.sebastiano.clockblocker.opus.widget.state.DialMath
@@ -211,7 +211,7 @@ object LegacyRemoteViews {
                 val tall = layout == NextUpLayout.Tall
                 setViewVisibility(R.id.spacer_middle, if (tall) View.GONE else View.VISIBLE)
                 setViewVisibility(R.id.spacer_end, if (tall) View.VISIBLE else View.GONE)
-                upNext(context, model, show = tall, maxRows = TALL_UP_NEXT_ROWS)
+                upNext(context, model, show = tall, barWithRows = false)
             }
             if (layout == NextUpLayout.Ribbon) capsules(context, model)
             setContentDescription(R.id.main, "${texts.title}. ${texts.subtitle}")
@@ -236,20 +236,22 @@ object LegacyRemoteViews {
         setTextViewText(R.id.done_label, done.label)
         setTextColor(R.id.done_label, if (logged) p.onSurfaceVariant else p.onPrimary)
         setContentDescription(R.id.done, done.contentDescription)
-        if (!logged) {
-            setOnClickPendingIntent(R.id.done, NotificationIntents.widgetDone(context, done.tripId, done.adviceId))
-        }
+        // Explicitly cleared once logged: hosts reapply same-layout updates, so an old listener would survive.
+        setOnClickPendingIntent(
+            R.id.done,
+            if (logged) null else NotificationIntents.widgetDone(context, done.tripId, done.adviceId),
+        )
     }
 
     /**
-     * "Up next" rows and the adaptation bar (`widget_up_next_legacy.xml`). Same rule as the Remote Compose `UpNext`:
-     * with fewer than three rows the bar only shows when nothing is up next.
+     * "Up next" rows and the adaptation bar (`widget_up_next_legacy.xml`). Same rules as the Remote Compose `UpNext`:
+     * at most [UP_NEXT_ROWS] two-line rows, and the bar shows when [barWithRows] or when nothing is up next.
      */
-    private fun RemoteViews.upNext(context: Context, model: WidgetModel, show: Boolean, maxRows: Int = 3) {
+    private fun RemoteViews.upNext(context: Context, model: WidgetModel, show: Boolean, barWithRows: Boolean = true) {
         val p = model.palette
         val texts = model.texts.let { t ->
-            val upcoming = t.upcoming.take(maxRows)
-            val bar = maxRows >= 3 || upcoming.isEmpty()
+            val upcoming = t.upcoming.take(UP_NEXT_ROWS)
+            val bar = barWithRows || upcoming.isEmpty()
             t.copy(upcoming = upcoming, adaptation = t.adaptation.takeIf { bar }, adaptationLabel = t.adaptationLabel.takeIf { bar })
         }
         if (!show || (texts.upcoming.isEmpty() && texts.adaptation == null)) {
@@ -261,16 +263,17 @@ object LegacyRemoteViews {
         setViewVisibility(R.id.up_next_title, if (texts.upcoming.isEmpty()) View.GONE else View.VISIBLE)
         val density = context.resources.displayMetrics.density
         listOf(
-            Triple(R.id.row_0, R.id.row_0_glyph, R.id.row_0_text),
-            Triple(R.id.row_1, R.id.row_1_glyph, R.id.row_1_text),
-            Triple(R.id.row_2, R.id.row_2_glyph, R.id.row_2_text),
-        ).forEachIndexed { i, (row, glyph, text) ->
+            listOf(R.id.row_0, R.id.row_0_glyph, R.id.row_0_text, R.id.row_0_secondary),
+            listOf(R.id.row_1, R.id.row_1_glyph, R.id.row_1_text, R.id.row_1_secondary),
+            listOf(R.id.row_2, R.id.row_2_glyph, R.id.row_2_text, R.id.row_2_secondary),
+        ).forEachIndexed { i, (row, glyph, text, secondary) ->
             val item = texts.upcoming.getOrNull(i)
             setViewVisibility(row, if (item != null) View.VISIBLE else View.GONE)
             if (item != null) {
                 setImageViewBitmap(glyph, glyphBitmap(GlyphKind.Advice(item.type), p, (20 * density).toInt()))
                 setTextViewText(text, "${item.time}  ${item.label}")
                 setTextColor(text, p.onSurface)
+                text(secondary, item.secondary, p.onSurfaceVariant)
             }
         }
         val fraction = texts.adaptation
@@ -297,10 +300,10 @@ object LegacyRemoteViews {
         setViewVisibility(R.id.capsules, if (texts.upcoming.isEmpty()) View.INVISIBLE else View.VISIBLE)
         val density = context.resources.displayMetrics.density
         listOf(
-            listOf(R.id.cap_0, R.id.cap_0_bg, R.id.cap_0_glyph, R.id.cap_0_text),
-            listOf(R.id.cap_1, R.id.cap_1_bg, R.id.cap_1_glyph, R.id.cap_1_text),
-            listOf(R.id.cap_2, R.id.cap_2_bg, R.id.cap_2_glyph, R.id.cap_2_text),
-        ).forEachIndexed { i, (cap, bg, glyph, text) ->
+            listOf(R.id.cap_0, R.id.cap_0_bg, R.id.cap_0_glyph, R.id.cap_0_text, R.id.cap_0_secondary),
+            listOf(R.id.cap_1, R.id.cap_1_bg, R.id.cap_1_glyph, R.id.cap_1_text, R.id.cap_1_secondary),
+            listOf(R.id.cap_2, R.id.cap_2_bg, R.id.cap_2_glyph, R.id.cap_2_text, R.id.cap_2_secondary),
+        ).forEachIndexed { i, (cap, bg, glyph, text, secondary) ->
             val item = texts.upcoming.getOrNull(i)
             setViewVisibility(cap, if (item != null) View.VISIBLE else View.INVISIBLE)
             if (item != null) {
@@ -308,6 +311,7 @@ object LegacyRemoteViews {
                 setImageViewBitmap(glyph, glyphBitmap(GlyphKind.Advice(item.type), p, (18 * density).toInt()))
                 setTextViewText(text, "${item.time} ${item.label}")
                 setTextColor(text, p.onSurface)
+                text(secondary, item.secondary, p.onSurfaceVariant)
             }
         }
         texts.upcomingDescription?.let { setContentDescription(R.id.capsules, it) }

@@ -63,7 +63,8 @@ data class WidgetTexts(
 }
 
 /** One "Up next" row: always a text label next to the glyph, plus its local start time. */
-data class UpcomingText(val type: AdviceType, val label: String, val time: String)
+/** An "Up next" entry: start [time] in the display zone and, like every widget time, the same time in the secondary zone. */
+data class UpcomingText(val type: AdviceType, val label: String, val time: String, val secondary: String? = null)
 
 /**
  * The widget Done button. While [logged] is null it is a button that logs [adviceId] as done; once something is
@@ -154,7 +155,15 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             s.bodyRelativeMinutes < 0 -> str(R.string.widget_a11y_body_behind, DialMath.formatHoursMagnitude(s.bodyRelativeMinutes))
             else -> str(R.string.widget_a11y_body_ahead, DialMath.formatHoursMagnitude(s.bodyRelativeMinutes))
         }
-        val upcoming = s.upcoming.map { UpcomingText(it.type, label(it.type), time(it.start, zone)) }
+        val secondaryZone = s.secondaryZoneId?.let { ZoneId.of(it) }
+        val upcoming = s.upcoming.map {
+            UpcomingText(
+                it.type,
+                label(it.type),
+                time(it.start, zone),
+                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), DialMath.cityName(z.id)) },
+            )
+        }
         return WidgetTexts(
             glyph = glyph,
             title = title,

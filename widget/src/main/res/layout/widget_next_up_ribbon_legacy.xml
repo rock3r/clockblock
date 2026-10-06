@@ -108,7 +108,7 @@
         <LinearLayout
             android:id="@+id/capsules"
             android:layout_width="match_parent"
-            android:layout_height="32dp"
+            android:layout_height="40dp"
             android:layout_marginHorizontal="5dp"
             android:orientation="horizontal">
 
@@ -140,16 +140,34 @@
                         android:layout_height="18dp"
                         android:importantForAccessibility="no" />
 
-                    <TextView
-                        android:id="@+id/cap_0_text"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
                         android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textColor="@color/widget_on_surface"
-                        android:textSize="11sp" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/cap_0_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/cap_0_secondary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface_variant"
+                            android:textSize="10sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
                 </LinearLayout>
             </FrameLayout>
 
@@ -181,16 +199,34 @@
                         android:layout_height="18dp"
                         android:importantForAccessibility="no" />
 
-                    <TextView
-                        android:id="@+id/cap_1_text"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
                         android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textColor="@color/widget_on_surface"
-                        android:textSize="11sp" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/cap_1_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/cap_1_secondary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface_variant"
+                            android:textSize="10sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
                 </LinearLayout>
             </FrameLayout>
 
@@ -222,16 +258,34 @@
                         android:layout_height="18dp"
                         android:importantForAccessibility="no" />
 
-                    <TextView
-                        android:id="@+id/cap_2_text"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
                         android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:textColor="@color/widget_on_surface"
-                        android:textSize="11sp" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/cap_2_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/cap_2_secondary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:textColor="@color/widget_on_surface_variant"
+                            android:textSize="10sp"
+                            android:visibility="gone" />
+                    </LinearLayout>
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
