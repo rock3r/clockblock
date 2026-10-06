@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo: the Two Clocks dial shows 10:14 local and 12:35 body time, and the Now card says See some light until 12:00" width="19%" />
-  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: Day 3 in Tokyo with Sleep 01:00 to 09:00, then See bright light, See some light and Avoid caffeine, each also shown in Lisbon time" width="19%" />
-  <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo with departure and arrival in each airport's local time" width="19%" />
-  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow, 29% adapted" width="19%" />
+  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo on pre-trip day −1: a strip of day pills, the Two Clocks dial showing 14:52 local and 17:25 body time, and the Now card saying Avoid caffeine until 20:00" width="19%" />
+  <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: the end of the travel day with in-flight Avoid light and a Peak fatigue chip, a Switching to Tokyo time divider, then Day 1 in Tokyo with Sleep and See bright light, each also shown in Lisbon time" width="19%" />
+  <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo under a boarding-pass card, departing Wed 7 Oct at 09:00 Lisbon time, with the arrival, Thu 8 Oct at 07:25 Tokyo time, estimated from the flight distance" width="19%" />
+  <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow: LIS and HND joined by an arc, 32% adapted" width="19%" />
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
@@ -61,11 +61,11 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
 
 <p align="center">
   <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two Clocks widgets: the small dial in light, dark and night-safe shows 15:20 local, body 08:20, −7 h, with Avoid light until 16:30, next to the empty state, No trip, Plan one; below, the wide version adds a Tokyo · Day 2 card and a Done button" width="48%" />
-  <img src="docs/screenshots/plan-tablet.png" alt="The plan on a tablet in landscape: the dial and a See bright light Now card on the left, the Day 2 timeline on the right" width="48%" />
+  <img src="docs/screenshots/plan-tablet.png" alt="The plan on a tablet in landscape: the header and day strip, the dial and a See bright light Now card on the left, the Day 2 timeline on the right" width="48%" />
 </p>
 
 The *Two Clocks* widget (left) shows the dial from the app on your home screen. On a tablet (right), the plan
-uses two columns: the dial and the Now card beside the day's timeline.
+uses two columns: the day strip, the dial and the Now card beside the day's timeline.
 
 ## The science
 
@@ -115,7 +115,7 @@ You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties
 
 The debug build needs no API keys, no backend and no signing setup. The app runs on Android 10 (API 29) and later.
 
-The project is built test-first: about 840 JVM tests, 158 screenshot goldens and 22 end-to-end tests at the time
+The project is built test-first: about 1,070 JVM tests, 199 screenshot goldens and 22 end-to-end tests at the time
 of writing. CI runs them on every pull request; one widget e2e test is skipped on the CI emulator's API level
 ([#2](https://github.com/rock3r/clockblock/issues/2)). See [docs/testing.md](docs/testing.md).
 

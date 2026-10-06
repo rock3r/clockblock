@@ -13,7 +13,7 @@ On a tablet or a wide screen, the trips list and the plan appear side by side, w
 
 ## The plan screen
 
-<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. The dial shows 10:14 local and 12:35 body. The Now card says See some light, 1 h 46 min left, until 12:00, which is 20:00 Tokyo time, with a Done button." width="300" />
+<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. Below the header, a strip of day pills with Pre −1 picked. The dial shows 14:52 local and 17:25 body. The Now card says Avoid caffeine, 5 h 8 min left, until 20:00, with a Done button." width="300" />
 
 From top to bottom:
 
@@ -86,7 +86,7 @@ claims it's faster. See [the science](../docs/science.md) for details.
 
 ### The timeline
 
-<img src="images/timeline.png" alt="The Your plan timeline: Day 3, arrival in Tokyo, with Sleep 01:00 to 09:00, See bright light 09:00 to 12:00, See some light 12:00 to 16:00 and Avoid caffeine from 15:30. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
+<img src="images/timeline.png" alt="The Your plan timeline at the end of the travel day: Avoid light 22:45 to 01:00, marked In flight, with a Peak fatigue chip inside it, then a divider saying Switching to Tokyo time, UTC+9, +8 h from Lisbon. Below, Day 1, Thu 8 Oct, marked Arrival, with Sleep 09:00 to 10:00 and See bright light 10:00 to 15:00. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
 adapted. Each block shows its local time and, underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
@@ -150,7 +150,7 @@ or during your body's night when no light is planned, the plan screen turns dark
 
 ## Other things you may see
 
-<img src="images/plan-upcoming.png" alt="A plan that hasn't started: Your plan starts Thu 11 Jun. Nothing to do yet. First up: Avoid light, Thu 11 Jun at 20:00. Below, 0% adapted, about 3 days to go." width="280" />
+<img src="images/plan-upcoming.png" alt="A plan that hasn't started: San Francisco to London, starts Thu 11 Jun, body in sync, with day pills from Pre −4 and the dial at 09:00. The card says Your plan starts Thu 11 Jun. Nothing to do yet. First up: Avoid light, Thu 11 Jun at 20:00. Below, 3 d with your plan against 6 d without a plan, ~3 days faster." width="280" />
 
 Instead of a Now card, the plan sometimes shows a message. The picture shows a plan that starts in a few days.
 

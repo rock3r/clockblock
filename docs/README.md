@@ -40,5 +40,5 @@ app, read the [user guide](../user-guide/README.md) instead.
 ## Screenshots
 
 [screenshots/](screenshots/) holds the images used by the README and these pages. Most are copies of the
-Roborazzi goldens in each module's `src/test/screenshots/` folder. The ones in `screenshots/device/` were taken
-on a real phone.
+Roborazzi goldens in each module's `src/test/screenshots/` folder. The ones in `screenshots/device/` and
+`screenshots/widgets-on-device.png` are captures of the running app on an Android emulator.

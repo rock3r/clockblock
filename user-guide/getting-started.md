@@ -26,7 +26,7 @@ body. Tap **Get started**.
 
 ### 2. Where's home?
 
-<img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and shows Lisbon Humberto Delgado as a result." width="280" />
+<img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and lists Lisbon Humberto Delgado first, then Lismore, Budapest Liszt Ferenc and more, each with its local time and UTC offset." width="280" />
 
 The app picks your phone's time zone and marks it "Phone's time zone". If home is somewhere else, search for a
 city or a three-letter airport code and pick the right place. You can change it later in Settings.

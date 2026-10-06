@@ -101,7 +101,7 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![Two Opus Clockblock notifications grouped in the shade: a test reminder, and the Now notification "See some light until 20:00, then Avoid caffeine"](../user-guide/images/notification.png)
+![Two Opus Clockblock notifications grouped in the shade: a test reminder, and the Now notification "Avoid caffeine until 17:00 · then Avoid light"](../user-guide/images/notification.png)
 
 The screenshot shows the app's notifications grouped in the shade. The second line is the Now notification: the
 current advice, when it ends and what comes next. The first line is the test reminder from Settings.

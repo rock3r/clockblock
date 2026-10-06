@@ -18,7 +18,7 @@ how to back it up.
 
 ## Appearance and reminders
 
-<img src="images/settings-reminders.png" alt="Settings: Theme with System, Light and Dark; Dynamic colour on; Reduce motion off; Night-safe automatically on. Below, Reminders on, How early set to 15 min, and Send a test reminder." width="300" />
+<img src="images/settings-reminders.png" alt="Settings: Theme with System, Light and Dark; Dynamic colour off; Reduce motion off; Night-safe automatically on. Below, Reminders on, How early set to 15 min, Hide details on the lock screen off, and Send a test reminder." width="300" />
 
 | Setting | What it does |
 |---|---|
