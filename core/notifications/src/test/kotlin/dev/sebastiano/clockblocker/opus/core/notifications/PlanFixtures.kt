@@ -29,19 +29,24 @@ fun advice(
     detail = detail,
 )
 
-/** A plan with all [advice] on one travel day (days don't matter to notifications, only instants do). */
+/**
+ * A plan with all [advice] on one travel day. The day's zone ([dayZone]) is the plan's local time, which every
+ * notification shows its times in.
+ */
 fun planOf(
     vararg advice: Advice,
     tripId: String = "trip-1",
     origin: String = "Europe/London",
     destination: String = "Asia/Tokyo",
-): JetLagPlan = planOfDays(listOf(advice.toList()), tripId, origin, destination)
+    dayZone: String = destination,
+): JetLagPlan = planOfDays(listOf(advice.toList()), tripId, origin, destination, dayZone)
 
 fun planOfDays(
     days: List<List<Advice>>,
     tripId: String = "trip-1",
     origin: String = "Europe/London",
     destination: String = "Asia/Tokyo",
+    dayZone: String = destination,
 ): JetLagPlan = JetLagPlan(
     tripId = tripId,
     generatedAt = Instant.EPOCH,
@@ -51,7 +56,7 @@ fun planOfDays(
     originZoneId = origin,
     destinationZoneId = destination,
     days = days.mapIndexed { index, list ->
-        PlanDay(index, DayKind.Travel, LocalDate.of(2026, 10, 10).plusDays(index.toLong()), destination, list)
+        PlanDay(index, DayKind.Travel, LocalDate.of(2026, 10, 10).plusDays(index.toLong()), dayZone, list)
     },
     phase = emptyList(),
     estimatedDaysToAdapt = 3.0,
