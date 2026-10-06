@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.widget
 
 import android.app.Application
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
@@ -16,7 +17,10 @@ import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
+import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContain
@@ -24,6 +28,8 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain as shouldContainText
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -55,13 +61,20 @@ class WidgetUpdaterTest {
         shadowOf(manager).setAllowedToBindAppWidgets(true)
     }
 
-    private fun place(kind: WidgetKind, id: Int, widthDp: Int = 300, heightDp: Int = 60): Int {
+    private fun place(
+        kind: WidgetKind,
+        id: Int,
+        widthDp: Int = 300,
+        heightDp: Int = 60,
+        category: Int = AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+    ): Int {
         manager.bindAppWidgetIdIfAllowed(id, WidgetUpdater.componentName(app, kind)).shouldBeTrue()
         manager.updateAppWidgetOptions(
             id,
             Bundle().apply {
                 putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, widthDp)
                 putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, heightDp)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, category)
             },
         )
         return id
@@ -206,5 +219,56 @@ class WidgetUpdaterTest {
         logs.log(plan.tripId, current.adviceId, AdviceOutcome.Skipped)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
         texts(next) shouldContain app.getString(R.string.widget_skipped)
+    }
+
+    @Test
+    fun `the 2x1 size shows the time in the other zone`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val next = place(WidgetKind.NextUp, 11, widthDp = 180, heightDp = 70)
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        texts(next).joinToString("\n") shouldContainText "in Lisbon"
+    }
+
+    @Test
+    fun `keyguard widgets hide places and supplements when the setting is on`() = runBlocking<Unit> {
+        // Melatonin is up next on the 4×3 Two Clocks; at the moment itself it is the current block.
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val settings = FakeSettingsRepository(AppSettings(hideLockScreenDetails = true))
+        val updater = WidgetUpdater(app, plans, settings).apply { clock = Clock.fixed(now, ZoneOffset.UTC) }
+        val keyguard = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD
+        val lock = place(WidgetKind.TwoClocks, 21, widthDp = 300, heightDp = 300, category = keyguard)
+        val home = place(WidgetKind.TwoClocks, 22, widthDp = 300, heightDp = 300)
+        updater.update(WidgetKind.TwoClocks, intArrayOf(lock, home))
+
+        val locked = texts(lock).joinToString("\n")
+        locked shouldNotContain "Lisbon"
+        locked shouldNotContain "Tokyo"
+        locked shouldNotContain app.getString(R.string.widget_advice_melatonin)
+        locked shouldContainText app.getString(R.string.widget_advice_redacted)
+        // The same widget on the home screen keeps every detail.
+        texts(home).joinToString("\n") shouldContainText "in Lisbon"
+        texts(home).joinToString("\n") shouldContainText app.getString(R.string.widget_advice_melatonin)
+    }
+
+    @Test
+    fun `keyguard widgets keep their details while the setting is off`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val lock = place(WidgetKind.NextUp, 23, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
+        updater.update(WidgetKind.NextUp, intArrayOf(lock))
+        texts(lock).joinToString("\n") shouldContainText "in Lisbon"
+    }
+
+    @Test
+    fun `the trip's airport codes reach the state`() = runBlocking<Unit> {
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        plans.current.value = plan
+        val trips = FakeTripRepository(listOf(DemoPlans.trip()))
+        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), tripRepository = trips).apply {
+            clock = Clock.fixed(now, ZoneOffset.UTC)
+        }
+        updater.state(plan, AppSettings(), keyguard = false).shouldBeInstanceOf<WidgetState.Active>().route shouldBe
+            WidgetRoute("LIS", "HND")
+        updater.state(plan, AppSettings(hideLockScreenDetails = true), keyguard = true)
+            .shouldBeInstanceOf<WidgetState.Active>().route shouldBe null
     }
 }

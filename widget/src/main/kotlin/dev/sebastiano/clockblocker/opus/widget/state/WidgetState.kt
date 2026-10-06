@@ -53,6 +53,13 @@ sealed interface WidgetState {
         val dayIndex: Int? = null,
         /** Share of the planned shift the body clock has completed, 0..1 (see `adaptationProgressAt`). */
         val adaptation: Float? = null,
+        /** The trip's airport codes, drawn in the dot-matrix face on the larger sizes; null when unknown. */
+        val route: WidgetRoute? = null,
+        /**
+         * Shown on a lock screen with "Hide details on the lock screen" on (see [WidgetStateMapper.redact]): no places,
+         * route or supplement names. Times and block kinds stay.
+         */
+        val redacted: Boolean = false,
     ) : WidgetState {
         /**
          * Local (display) time minus body time, minutes: "+300" = local time is 5 h ahead of your body. Drives the dial
@@ -81,6 +88,19 @@ sealed interface WidgetState {
         Done,
     }
 }
+
+/** Origin and destination codes of the trip ("LIS", "HND"): IATA codes, or the city's first letters. */
+data class WidgetRoute(val origin: String, val destination: String)
+
+/** Advice whose name stays off the lock screen when details are hidden (same rule as the notifications). */
+val AdviceType.isPrivate: Boolean get() = this == AdviceType.Melatonin
+
+/**
+ * The advice the widget background and cards lean towards: the current block, unless it is private and the widget is
+ * redacted (its colour would give it away).
+ */
+val WidgetState.tintType: AdviceType?
+    get() = (this as? WidgetState.Active)?.let { s -> s.current?.type?.takeUnless { s.redacted && it.isPrivate } }
 
 /** One piece of advice as the widgets show it. */
 data class AdviceSlot(

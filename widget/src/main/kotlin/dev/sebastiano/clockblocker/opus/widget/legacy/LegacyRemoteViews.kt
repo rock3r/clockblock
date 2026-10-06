@@ -15,6 +15,7 @@ import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.CanvasOps
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs
+import dev.sebastiano.clockblocker.opus.widget.draw.RouteStrip
 import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.rc.DeepLinkIntents
@@ -24,12 +25,15 @@ import dev.sebastiano.clockblocker.opus.widget.rc.UP_NEXT_ROWS
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
 import dev.sebastiano.clockblocker.opus.widget.state.DialMath
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
+import dev.sebastiano.clockblocker.opus.widget.state.tintType
 import dev.sebastiano.clockblocker.opus.widget.text.TextFit
 import java.time.Duration
 import java.time.Instant
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -76,10 +80,13 @@ object LegacyRemoteViews {
                 setViewVisibility(R.id.dial_detail, if (captions && texts.dialDetail != null) View.VISIBLE else View.GONE)
             }
             val card = effective == TwoClocksLayout.Tall || wide
-            if (card) nowCard(model) else if (!wide) setViewVisibility(R.id.card, View.GONE)
+            val large = effective == TwoClocksLayout.Large
+            if (card) nowCard(model, withHeader = !large) else if (!wide) setViewVisibility(R.id.card, View.GONE)
             done(context, model, show = card)
             if (wide) {
-                upNext(context, model, show = effective == TwoClocksLayout.Large)
+                // 4×3: the header moves out of the card into a full-width strip with the route (as on Remote Compose).
+                headerStrip(context, model, show = large)
+                upNext(context, model, show = large)
             }
             setContentDescription(R.id.main, texts.contentDescription)
             setOnClickPendingIntent(R.id.main, DeepLinkIntents.pendingIntent(context, texts.deepLink))
@@ -125,12 +132,12 @@ object LegacyRemoteViews {
     }
 
     /** "Tokyo · Day 2", label, until / then and the secondary zone, on a card tinted towards the current advice. */
-    private fun RemoteViews.nowCard(model: WidgetModel) {
+    private fun RemoteViews.nowCard(model: WidgetModel, withHeader: Boolean = true) {
         val p = model.palette
         val texts = model.texts
         setViewVisibility(R.id.card, View.VISIBLE)
-        setInt(R.id.card_bg, "setColorFilter", p.card((model.state as? WidgetState.Active)?.current?.type, CARD_TINT))
-        text(R.id.card_header, texts.header, p.onSurfaceVariant)
+        setInt(R.id.card_bg, "setColorFilter", p.card(model.state.tintType, CARD_TINT))
+        text(R.id.card_header, texts.header?.takeIf { withHeader }, p.onSurfaceVariant)
         text(R.id.card_title, texts.title, p.onSurface)
         text(R.id.card_line1, texts.subtitleLines.getOrNull(0), p.onSurfaceVariant)
         text(R.id.card_line2, texts.subtitleLines.getOrNull(1), p.onSurfaceVariant)
@@ -160,7 +167,7 @@ object LegacyRemoteViews {
         val small = layout == NextUpLayout.Small
         val stack = layout == NextUpLayout.Square || layout == NextUpLayout.Tall
         return RemoteViews(context.packageName, res).apply {
-            tintBackground(p.tinted((model.state as? WidgetState.Active)?.current?.type, NEXT_UP_TINT))
+            tintBackground(p.tinted(model.state.tintType, NEXT_UP_TINT))
             setImageViewBitmap(R.id.glyph, glyphBitmap(texts.glyph, p, (glyphDp * density).toInt()))
             setTextViewText(R.id.title, texts.title)
             setTextColor(R.id.title, p.onSurface)
@@ -169,9 +176,10 @@ object LegacyRemoteViews {
                 setTextViewTextSize(R.id.title, TypedValue.COMPLEX_UNIT_SP, TextFit.smallLabelSp(context, texts.title).toFloat())
             }
             val millisLeft = texts.countdownEnd?.let { Duration.between(now, it).toMillis() }?.takeIf { it > 0 }
-            // Same rule as Remote Compose: at large font sizes the 4×1 row has two lines, the second one folds in the
-            // other zone's time, and the countdown gives that line its room.
-            val twoLines = layout == NextUpLayout.Wide && context.resources.configuration.fontScale > MAX_THREE_LINE_FONT_SCALE
+            // Same rule as Remote Compose: at large font sizes the one-row sizes (2×1, 4×1) have two lines, the second
+            // one folds in the other zone's time, and the 4×1 countdown gives that line its room.
+            val oneRow = layout == NextUpLayout.Medium || layout == NextUpLayout.Wide
+            val twoLines = oneRow && context.resources.configuration.fontScale > MAX_THREE_LINE_FONT_SCALE
             val showCountdown = millisLeft != null && layout != NextUpLayout.Medium && !twoLines
             if (showCountdown) {
                 setChronometer(R.id.countdown, SystemClock.elapsedRealtime() + millisLeft!!, null, true)
@@ -202,8 +210,7 @@ object LegacyRemoteViews {
                 else -> {
                     setTextViewText(R.id.subtitle, if (twoLines) texts.subtitleWithSecondary else texts.subtitle)
                     setTextColor(R.id.subtitle, p.onSurfaceVariant)
-                    val roomForSecondary = layout == NextUpLayout.Ribbon || (layout == NextUpLayout.Wide && !twoLines)
-                    text(R.id.secondary, texts.secondary.takeIf { roomForSecondary }, p.onSurfaceVariant)
+                    text(R.id.secondary, texts.secondary.takeIf { !twoLines }, p.onSurfaceVariant)
                 }
             }
             if (!small) done(context, model, show = layout != NextUpLayout.Medium)
@@ -211,13 +218,45 @@ object LegacyRemoteViews {
                 val tall = layout == NextUpLayout.Tall
                 setViewVisibility(R.id.spacer_middle, if (tall) View.GONE else View.VISIBLE)
                 setViewVisibility(R.id.spacer_end, if (tall) View.VISIBLE else View.GONE)
-                upNext(context, model, show = tall, barWithRows = false)
+                upNext(context, model, show = tall, barWithRows = false, withRoute = true)
             }
             if (layout == NextUpLayout.Ribbon) capsules(context, model)
             setContentDescription(R.id.main, "${texts.title}. ${texts.subtitle}")
             setOnClickPendingIntent(R.id.main, DeepLinkIntents.pendingIntent(context, texts.deepLink))
         }
     }
+
+    /** "Tokyo · Day 2" with the route at the end (`header_strip`, 4×3 Two Clocks). Same rules as `HeaderStrip`. */
+    private fun RemoteViews.headerStrip(context: Context, model: WidgetModel, show: Boolean) {
+        val texts = model.texts
+        if (!show || (texts.header == null && texts.route == null)) {
+            setViewVisibility(R.id.header_strip, View.GONE)
+            return
+        }
+        setViewVisibility(R.id.header_strip, View.VISIBLE)
+        text(R.id.strip_header, texts.header, model.palette.onSurfaceVariant)
+        val routeWidthPx = routeImage(context, model, R.id.strip_route, texts.route)
+        // The route overlays the end of the line: keep the text clear of it.
+        setViewPadding(R.id.strip_header, 0, 0, if (routeWidthPx > 0) routeWidthPx + dp(context, 8) else 0, 0)
+        setContentDescription(R.id.header_strip, listOfNotNull(texts.header, texts.routeDescription).joinToString(". "))
+    }
+
+    /** The [route] in dot matrix into the image view [id] (hidden when null); returns its width in px, 0 when hidden. */
+    private fun RemoteViews.routeImage(context: Context, model: WidgetModel, id: Int, route: WidgetRoute?): Int {
+        if (route == null) {
+            setViewVisibility(id, View.GONE)
+            return 0
+        }
+        val pitch = RouteStrip.PITCH_DP * context.resources.displayMetrics.density
+        val w = ceil(RouteStrip.WIDTH * pitch).toInt()
+        val h = ceil(RouteStrip.HEIGHT * pitch).toInt()
+        val p = model.palette
+        setImageViewBitmap(id, CanvasOps.bitmap(RouteStrip.build(route, p.onSurface, p.onSurfaceVariant), w, h, pitch))
+        setViewVisibility(id, View.VISIBLE)
+        return w
+    }
+
+    private fun dp(context: Context, value: Int) = (value * context.resources.displayMetrics.density).roundToInt()
 
     /**
      * The Done button: a filled button that fires the notification module's Done broadcast, or, once something is
@@ -247,7 +286,13 @@ object LegacyRemoteViews {
      * "Up next" rows and the adaptation bar (`widget_up_next_legacy.xml`). Same rules as the Remote Compose `UpNext`:
      * at most [UP_NEXT_ROWS] two-line rows, and the bar shows when [barWithRows] or when nothing is up next.
      */
-    private fun RemoteViews.upNext(context: Context, model: WidgetModel, show: Boolean, barWithRows: Boolean = true) {
+    private fun RemoteViews.upNext(
+        context: Context,
+        model: WidgetModel,
+        show: Boolean,
+        barWithRows: Boolean = true,
+        withRoute: Boolean = false,
+    ) {
         val p = model.palette
         val texts = model.texts.let { t ->
             val upcoming = t.upcoming.take(UP_NEXT_ROWS)
@@ -260,17 +305,18 @@ object LegacyRemoteViews {
         }
         setViewVisibility(R.id.up_next, View.VISIBLE)
         setTextColor(R.id.up_next_title, p.onSurfaceVariant)
-        setViewVisibility(R.id.up_next_title, if (texts.upcoming.isEmpty()) View.GONE else View.VISIBLE)
+        setViewVisibility(R.id.up_next_header, if (texts.upcoming.isEmpty()) View.GONE else View.VISIBLE)
+        val route = texts.route?.takeIf { withRoute && texts.upcoming.isNotEmpty() }
+        routeImage(context, model, R.id.up_next_route, route)
         val density = context.resources.displayMetrics.density
         listOf(
             listOf(R.id.row_0, R.id.row_0_glyph, R.id.row_0_text, R.id.row_0_secondary),
             listOf(R.id.row_1, R.id.row_1_glyph, R.id.row_1_text, R.id.row_1_secondary),
-            listOf(R.id.row_2, R.id.row_2_glyph, R.id.row_2_text, R.id.row_2_secondary),
         ).forEachIndexed { i, (row, glyph, text, secondary) ->
             val item = texts.upcoming.getOrNull(i)
             setViewVisibility(row, if (item != null) View.VISIBLE else View.GONE)
             if (item != null) {
-                setImageViewBitmap(glyph, glyphBitmap(GlyphKind.Advice(item.type), p, (20 * density).toInt()))
+                setImageViewBitmap(glyph, glyphBitmap(item.glyph, p, (20 * density).toInt()))
                 setTextViewText(text, "${item.time}  ${item.label}")
                 setTextColor(text, p.onSurface)
                 text(secondary, item.secondary, p.onSurfaceVariant)
@@ -288,7 +334,8 @@ object LegacyRemoteViews {
         }
         setContentDescription(
             R.id.up_next,
-            listOfNotNull(texts.upcomingDescription, texts.adaptationLabel).joinToString(". "),
+            listOfNotNull(texts.routeDescription?.takeIf { route != null }, texts.upcomingDescription, texts.adaptationLabel)
+                .joinToString(". "),
         )
         setOnClickPendingIntent(R.id.up_next, DeepLinkIntents.pendingIntent(context, texts.deepLink))
     }
@@ -308,7 +355,7 @@ object LegacyRemoteViews {
             setViewVisibility(cap, if (item != null) View.VISIBLE else View.INVISIBLE)
             if (item != null) {
                 setInt(bg, "setColorFilter", p.surfaceContainer)
-                setImageViewBitmap(glyph, glyphBitmap(GlyphKind.Advice(item.type), p, (18 * density).toInt()))
+                setImageViewBitmap(glyph, glyphBitmap(item.glyph, p, (18 * density).toInt()))
                 setTextViewText(text, "${item.time} ${item.label}")
                 setTextColor(text, p.onSurface)
                 text(secondary, item.secondary, p.onSurfaceVariant)

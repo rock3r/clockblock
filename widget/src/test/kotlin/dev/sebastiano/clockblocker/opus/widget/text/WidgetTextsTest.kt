@@ -172,6 +172,47 @@ class WidgetTextsTest {
         WidgetTexts.from(context, state, true).done.shouldBeNull()
     }
 
+    private fun redacted(scenario: DemoPlans.Scenario, at: Instant = now) = WidgetTexts.from(
+        context,
+        WidgetStateMapper.redact(WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), at, ZoneId.of("Asia/Tokyo"))),
+        true,
+    )
+
+    @Test
+    fun `on the lock screen places and supplements are hidden, times and labels stay`() {
+        val full = texts(DemoPlans.Scenario.AvoidLight)
+        val t = redacted(DemoPlans.Scenario.AvoidLight)
+        t.title shouldBe full.title
+        t.subtitle shouldBe full.subtitle.replace("Melatonin", "Plan step")
+        t.header shouldBe "Day 2"
+        t.secondary.shouldBeNull()
+        // Up next: melatonin becomes a neutral plan step, with its time; no other zone anywhere.
+        val first = t.upcoming.first()
+        first.label shouldBe "Plan step"
+        first.glyph shouldBe GlyphKind.PlanStep
+        first.time shouldBe full.upcoming.first().time
+        t.upcoming.all { it.secondary == null } shouldBe true
+        listOf(t.contentDescription, t.upcomingDescription.orEmpty(), t.subtitle).forEach {
+            it shouldNotContain "Lisbon"
+            it shouldNotContain "Tokyo"
+            it shouldNotContain "Melatonin"
+        }
+    }
+
+    @Test
+    fun `a redacted current melatonin reads as a plan step`() {
+        // The demo's melatonin is a moment 3.5 h after the hour.
+        val t = redacted(DemoPlans.Scenario.AvoidLight, at = now.plusSeconds(3 * 3600 + 1800))
+        t.title shouldBe "Plan step"
+        t.glyph shouldBe GlyphKind.PlanStep
+        t.done.shouldNotBeNull().contentDescription shouldBe "Mark Plan step as done"
+    }
+
+    @Test
+    fun `the redacted adapted line names no city`() {
+        redacted(DemoPlans.Scenario.Adapted).subtitle shouldNotContain "Tokyo"
+    }
+
     @Test
     fun `adaptation reads as a percentage`() {
         val t = texts(DemoPlans.Scenario.AvoidLight)

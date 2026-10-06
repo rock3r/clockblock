@@ -26,6 +26,7 @@ import androidx.compose.remote.creation.compose.modifier.height
 import androidx.compose.remote.creation.compose.modifier.padding
 import androidx.compose.remote.creation.compose.modifier.semantics
 import androidx.compose.remote.creation.compose.modifier.size
+import androidx.compose.remote.creation.compose.modifier.width
 import androidx.compose.remote.creation.compose.shapes.RemoteRoundedCornerShape
 import androidx.compose.remote.creation.compose.state.RemotePaint
 import androidx.compose.remote.creation.compose.state.RemoteString
@@ -45,13 +46,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs
+import dev.sebastiano.clockblocker.opus.widget.draw.RouteStrip
 import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.state.DialMath
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
+import dev.sebastiano.clockblocker.opus.widget.state.tintType
 import dev.sebastiano.clockblocker.opus.widget.text.DoneText
 import dev.sebastiano.clockblocker.opus.widget.text.TextFit
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 import java.time.Duration
 
@@ -91,8 +96,8 @@ private const val DONE_WEIGHT = 0.3f
 internal const val UP_NEXT_ROWS = 2
 
 /**
- * Above this font scale the 4×1 row has two lines: the secondary-zone time joins the "until" line (three lines would
- * be clipped) and the countdown gives up its slot.
+ * Above this font scale the one-row (2×1 / 4×1) Next up has two lines: the secondary-zone time joins the "until" line
+ * (three lines would be clipped) and the 4×1 countdown gives up its slot.
  */
 internal const val MAX_THREE_LINE_FONT_SCALE = 1.15f
 
@@ -131,7 +136,12 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
             }
         }
         else -> Surface(p.surface) {
+            val large = layout == TwoClocksLayout.Large
             RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(10.rdp)) {
+                // 4×3: "Tokyo · Day 2" moves out of the card into a full-width strip, with the route in dot matrix.
+                if (large) {
+                    HeaderStrip(model, RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 0.rdp, end = 2.rdp, bottom = 6.rdp))
+                }
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth().weight(1f), verticalAlignment = RemoteAlignment.CenterVertically) {
                     MainRegion(model, texts.contentDescription, RemoteModifier.fillMaxHeight().weight(1f)) {
                         RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
@@ -142,6 +152,7 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                                 model,
                                 // Gap as padding, not spacedBy(): weight children ignore arrangement spacing.
                                 RemoteModifier.weight(1.15f).padding(start = 10.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
+                                withHeader = !large,
                             )
                         }
                     }
@@ -152,7 +163,7 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                         )
                     }
                 }
-                if (layout == TwoClocksLayout.Large) {
+                if (large) {
                     UpNext(model, RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 8.rdp, end = 2.rdp, bottom = 0.rdp), rows = true)
                 }
             }
@@ -196,10 +207,10 @@ private fun SquareDial(model: WidgetModel) {
 /** "Tokyo · Day 2", the label, until / then and the secondary zone on a card tinted towards the current advice. */
 @RemoteComposable
 @Composable
-private fun NowCard(model: WidgetModel, modifier: RemoteModifier) {
+private fun NowCard(model: WidgetModel, modifier: RemoteModifier, withHeader: Boolean = true) {
     val p = model.palette
     val texts = model.texts
-    val type = (model.state as? WidgetState.Active)?.current?.type
+    val type = model.state.tintType
     RemoteColumn(
         modifier = modifier
             .clip(RemoteRoundedCornerShape(InnerRadius))
@@ -207,11 +218,50 @@ private fun NowCard(model: WidgetModel, modifier: RemoteModifier) {
             .padding(horizontal = 10.rdp, vertical = 8.rdp),
         verticalArrangement = RemoteArrangement.spacedBy(1.rdp),
     ) {
-        texts.header?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+        texts.header?.takeIf { withHeader }?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
         // One line on purpose: a wrapped title pushes the secondary-zone line out of the card.
         Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
         texts.subtitleLines.forEach { Label(it.rs, p.onSurfaceVariant, 12, maxLines = 1) }
         texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+    }
+}
+
+/**
+ * "Tokyo · Day 2" with the trip's route in dot matrix at the end. Nothing when there is neither, e.g. a redacted
+ * lock-screen widget outside the plan's days.
+ */
+@RemoteComposable
+@Composable
+private fun HeaderStrip(model: WidgetModel, modifier: RemoteModifier) {
+    val p = model.palette
+    val texts = model.texts
+    val route = texts.route
+    val header = texts.header
+    if (route == null && header == null) return
+    val description = listOfNotNull(header, texts.routeDescription).joinToString(". ")
+    RemoteBox(modifier = modifier.semantics { contentDescription = description.rs }, contentAlignment = RemoteAlignment.CenterStart) {
+        header?.let {
+            // The route is overlaid, not a trailing Row child (see NextUpRemote): keep the text clear of it.
+            val end = if (route != null) RouteWidthDp + 8 else 0
+            Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1, modifier = RemoteModifier.fillMaxWidth().padding(end = end.rdp))
+        }
+        if (route != null) {
+            RemoteBox(modifier = RemoteModifier.fillMaxWidth(), contentAlignment = RemoteAlignment.CenterEnd) { RouteDots(route, p) }
+        }
+    }
+}
+
+private val RouteWidthDp = ceil(RouteStrip.WIDTH * RouteStrip.PITCH_DP).toInt()
+private val RouteHeightDp = ceil(RouteStrip.HEIGHT * RouteStrip.PITCH_DP).toInt()
+
+/** The route strip ([RouteStrip]): origin and destination codes in the design system's dot-matrix face. */
+@RemoteComposable
+@Composable
+private fun RouteDots(route: WidgetRoute, palette: WidgetPalette) {
+    val ops = RouteStrip.build(route, palette.onSurface, palette.onSurfaceVariant)
+    RemoteCanvas(modifier = RemoteModifier.width(RouteWidthDp.rdp).height(RouteHeightDp.rdp)) {
+        val unit = (width / RouteStrip.WIDTH.toFloat().rf).min(height / RouteStrip.HEIGHT.toFloat().rf)
+        drawOps(ops, width / 2f.rf, height / 2f.rf, unit)
     }
 }
 
@@ -275,7 +325,7 @@ private fun DialWithReadouts(model: WidgetModel, size: DialSize) {
 fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium) {
     val p = model.palette
     val texts = model.texts
-    val type = (model.state as? WidgetState.Active)?.current?.type
+    val type = model.state.tintType
     val bg = p.tinted(type, NEXT_UP_TINT)
     val description = "${texts.title}. ${texts.subtitle}"
     when (layout) {
@@ -284,7 +334,7 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
             description,
             RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(bg).rc),
         ) {
-            if (layout == NextUpLayout.Small) SmallNextUp(model) else NowRow(model, showCountdown = false)
+            if (layout == NextUpLayout.Small) SmallNextUp(model) else NowRow(model, showCountdown = false, tight = true)
         }
         NextUpLayout.Wide -> Surface(bg) {
             // Rows only take weights: alpha20's RemoteRow hands a weight(1f) sibling the space of trailing fixed-size
@@ -319,6 +369,8 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
                         RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = 10.rdp, end = 0.rdp, bottom = 0.rdp),
                         rows = true,
                         barWithRows = false,
+                        // The trip's route in dot matrix at the end of the "Up next" title: no extra line in 2×3.
+                        withRoute = true,
                     )
                 }
             }
@@ -379,17 +431,20 @@ private fun SmallNextUp(model: WidgetModel) {
     }
 }
 
-/** Glyph, label, until/then (+ secondary zone) in a row, with the countdown overlaid at the end. */
+/**
+ * Glyph, label, until/then and the secondary zone in a row, with the countdown overlaid at the end. [tight] marks the
+ * one-row sizes (2×1, 4×1): above [MAX_THREE_LINE_FONT_SCALE] they fold the secondary zone into the second line.
+ */
 @RemoteComposable
 @Composable
 private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int = 14, tight: Boolean = false) {
     val p = model.palette
     val texts = model.texts
     val fontScale = LocalContext.current.resources.configuration.fontScale
-    // A 4×1 row fits three lines only near the default font size. Larger text gets two lines: the label, then
+    // A one-row widget fits three lines only near the default font size. Larger text gets two lines: the label, then
     // "until 16:30 · 08:30 in Lisbon" (the other zone's time stays, "then …" goes). The countdown gives its slot to
     // that line: the end time already says when, and the label and times matter more than the duration.
-    val twoLines = showCountdown && tight && fontScale > MAX_THREE_LINE_FONT_SCALE
+    val twoLines = tight && fontScale > MAX_THREE_LINE_FONT_SCALE
     val countdown = countdownText(model)?.takeIf { showCountdown && !twoLines }
     // The countdown is sp-sized: keep its slot in step so the label never runs under it.
     val countdownSlot = (COUNTDOWN_TEXT_DP * fontScale.coerceAtLeast(1f)).roundToInt() + endPadding + 12
@@ -409,7 +464,7 @@ private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int =
             ) {
                 Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
                 Label((if (twoLines) texts.subtitleWithSecondary else texts.subtitle).rs, p.onSurfaceVariant, 12, maxLines = 1)
-                if (showCountdown && !twoLines) {
+                if (!twoLines) {
                     texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
                 }
             }
@@ -463,6 +518,7 @@ private fun UpNext(
     rows: Boolean,
     maxRows: Int = UP_NEXT_ROWS,
     barWithRows: Boolean = true,
+    withRoute: Boolean = false,
 ) {
     val p = model.palette
     val texts = model.texts.let { t ->
@@ -471,18 +527,29 @@ private fun UpNext(
         t.copy(upcoming = upcoming, adaptation = t.adaptation.takeIf { bar }, adaptationLabel = t.adaptationLabel.takeIf { bar })
     }
     if (texts.upcoming.isEmpty() && texts.adaptation == null) return
-    val description = listOfNotNull(texts.upcomingDescription, texts.adaptationLabel).joinToString(". ")
+    val route = texts.route?.takeIf { withRoute && rows && texts.upcoming.isNotEmpty() }
+    val description = listOfNotNull(
+        texts.routeDescription?.takeIf { route != null },
+        texts.upcomingDescription,
+        texts.adaptationLabel,
+    ).joinToString(". ")
     RemoteColumn(
         modifier = modifier.clickable(deepLinkAction(texts.deepLink)).semantics { contentDescription = description.rs },
         verticalArrangement = RemoteArrangement.spacedBy(4.rdp),
     ) {
         if (rows) {
             if (texts.upcoming.isNotEmpty()) {
-                Label(LocalContext.current.getString(R.string.widget_up_next).rs, p.onSurfaceVariant, 11, weight = FontWeight.SemiBold)
+                RemoteBox(modifier = RemoteModifier.fillMaxWidth(), contentAlignment = RemoteAlignment.CenterStart) {
+                    Label(LocalContext.current.getString(R.string.widget_up_next).rs, p.onSurfaceVariant, 11, weight = FontWeight.SemiBold)
+                    // Overlaid at the end, not a trailing Row child (see NextUpRemote).
+                    route?.let {
+                        RemoteBox(modifier = RemoteModifier.fillMaxWidth(), contentAlignment = RemoteAlignment.CenterEnd) { RouteDots(it, p) }
+                    }
+                }
             }
             texts.upcoming.forEach { item ->
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth(), verticalAlignment = RemoteAlignment.CenterVertically) {
-                    Glyph(GlyphKind.Advice(item.type), p, 20)
+                    Glyph(item.glyph, p, 20)
                     RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 8.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
                         Label("${item.time}  ${item.label}".rs, p.onSurface, 13, maxLines = 1)
                         item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
@@ -502,7 +569,7 @@ private fun UpNext(
                             .padding(horizontal = 6.rdp, vertical = 0.rdp),
                         verticalAlignment = RemoteAlignment.CenterVertically,
                     ) {
-                        Glyph(GlyphKind.Advice(item.type), p, 18)
+                        Glyph(item.glyph, p, 18)
                         RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 4.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
                             Label("${item.time} ${item.label}".rs, p.onSurface, 11, maxLines = 1)
                             item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 10, maxLines = 1) }

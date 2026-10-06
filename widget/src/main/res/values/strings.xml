@@ -26,6 +26,12 @@
     <string name="widget_no_trip_full">No trip — plan one</string>
     <string name="widget_adapted_title">Clockblocked</string>
     <string name="widget_adapted_subtitle">Your body is on %1$s time</string>
+    <!-- Lock screen with details hidden: no city. -->
+    <string name="widget_adapted_subtitle_redacted">Your body is on local time</string>
+    <!-- Lock screen with details hidden: private advice (melatonin) without its name. Same wording as the notifications. -->
+    <string name="widget_advice_redacted">Plan step</string>
+    <!-- Route strip, codes spelled out: "L I S to H N D". -->
+    <string name="widget_a11y_route">%1$s to %2$s</string>
     <string name="widget_until">until %1$s</string>
     <string name="widget_until_then">until %1$s · then %2$s</string>
     <string name="widget_then">then %1$s</string>

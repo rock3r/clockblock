@@ -8,19 +8,23 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
+import dev.sebastiano.clockblocker.opus.core.data.TripRepository
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
 import dev.zacsweers.metro.AppScope
@@ -43,8 +47,13 @@ import java.time.ZoneId
  * Renders every placed Opus widget from the current plan. Called by the providers (system updates, resizes),
  * by [WidgetPlanSurface] (advice boundaries, plan changes) and the debug gallery.
  *
- * [planRepository] / [settingsRepository] / [adviceLogRepository] are Metro *optional* bindings (default values):
- * until the data layer contributes them, widgets show the empty state instead of breaking the app graph.
+ * [planRepository] / [settingsRepository] / [adviceLogRepository] / [tripRepository] are Metro *optional* bindings
+ * (default values): until the data layer contributes them, widgets show the empty state instead of breaking the app
+ * graph.
+ *
+ * Instances on a lock screen (`OPTION_APPWIDGET_HOST_CATEGORY` = keyguard) render the redacted state while Settings ›
+ * Hide details on the lock screen is on. The scheduler refreshes every surface when settings change, so flipping the
+ * setting re-renders them.
  */
 @SingleIn(AppScope::class)
 @Inject
@@ -53,6 +62,7 @@ class WidgetUpdater(
     private val planRepository: PlanRepository = NoPlanRepository,
     private val settingsRepository: SettingsRepository = DefaultSettingsRepository,
     private val adviceLogRepository: AdviceLogRepository = NoAdviceLogRepository,
+    private val tripRepository: TripRepository = NoTripRepository,
 ) {
     internal var clock: Clock = Clock.systemDefaultZone()
     internal var rendererFactory: (Context, Boolean) -> WidgetRenderer = { ctx, legacy -> WidgetRenderer(ctx, legacy) }
@@ -103,12 +113,15 @@ class WidgetUpdater(
         val plan = withTimeoutOrNull(READ_TIMEOUT_MS) { planRepository.currentPlan.first() }
         val settings = withTimeoutOrNull(READ_TIMEOUT_MS) { settingsRepository.settings.first() } ?: AppSettings()
         val logs = plan?.let { withTimeoutOrNull(READ_TIMEOUT_MS) { adviceLogRepository.logs(it.tripId).first() } }
-        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs)
+        val state = state(plan, settings, keyguard = false, logs = logs)
+        val redacted by lazy { WidgetStateMapper.redact(state) }
         val renderer = rendererFactory(application, false)
         val theme = theme(settings, state, application.resources.configuration)
         appWidgetIds.forEach { id ->
             try {
-                val views = renderer.render(kind, state, theme, sizeOf(id), clock.instant())
+                val options = manager.getAppWidgetOptions(id)
+                val shown = if (settings.hideLockScreenDetails && isKeyguard(options)) redacted else state
+                val views = renderer.render(kind, shown, theme, sizeOf(options), clock.instant())
                 manager.updateAppWidget(id, views)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update $kind widget $id", e)
@@ -118,6 +131,19 @@ class WidgetUpdater(
             application,
             enabled = renderer.backend == WidgetBackend.Legacy && ids(WidgetKind.TwoClocks).isNotEmpty(),
         )
+    }
+
+    /** The state to render for [plan]: with the trip's route, redacted on a [keyguard] host when the setting asks. */
+    internal suspend fun state(
+        plan: JetLagPlan?,
+        settings: AppSettings,
+        keyguard: Boolean,
+        logs: List<AdviceLog>? = emptyList(),
+    ): WidgetState {
+        val route = plan?.let { p -> withTimeoutOrNull(READ_TIMEOUT_MS) { tripRepository.trip(p.tripId).first() } }
+            ?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
+        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route)
+        return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
     /**
@@ -132,7 +158,7 @@ class WidgetUpdater(
         val key = previewKey(version, night)
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
-        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, ZoneId.of("Asia/Tokyo"))
+        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, ZoneId.of("Asia/Tokyo"), route = DemoPlans.ROUTE)
         val renderer = rendererFactory(application, false)
         // The picker is not the plan: always the regular palette, never night-safe.
         val theme = if (night) WidgetTheme.Dark else WidgetTheme.Light
@@ -152,8 +178,11 @@ class WidgetUpdater(
 
     fun ids(kind: WidgetKind): IntArray = manager.getAppWidgetIds(componentName(application, kind))
 
-    private fun sizeOf(id: Int): WidgetSizeDp? {
-        val options = manager.getAppWidgetOptions(id) ?: return null
+    private fun isKeyguard(options: Bundle?): Boolean =
+        options?.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY) == AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD
+
+    private fun sizeOf(options: Bundle?): WidgetSizeDp? {
+        if (options == null) return null
         val w = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
         val h = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
         return if (w > 0 && h > 0) WidgetSizeDp(w.toFloat(), h.toFloat()) else null
@@ -202,6 +231,14 @@ internal object NoAdviceLogRepository : AdviceLogRepository {
     override fun logs(tripId: String): Flow<List<AdviceLog>> = flowOf(emptyList())
     override suspend fun log(tripId: String, adviceId: String, outcome: AdviceOutcome) = Unit
     override suspend fun clear(tripId: String, adviceId: String) = Unit
+}
+
+/** Used until a real [TripRepository] is bound: no trip, so no route strip. */
+internal object NoTripRepository : TripRepository {
+    override val trips: Flow<List<Trip>> = flowOf(emptyList())
+    override fun trip(id: String): Flow<Trip?> = flowOf(null)
+    override suspend fun upsert(trip: Trip) = Unit
+    override suspend fun delete(id: String) = Unit
 }
 
 /** Used until a real [PlanRepository] is bound: no plan, widgets show "No trip — plan one". */
