@@ -60,7 +60,7 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
 - JSON backup and restore, and calendar (ICS) export of any plan.
 
 <p align="center">
-  <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two Clocks widgets in light and dark, small and wide: the dial shows 15:20 local, body 08:20, −7 h, with Avoid light until 16:30; the bottom row shows the empty state, No trip, Plan one" width="48%" />
+  <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two Clocks widgets: the small dial in light, dark and night-safe shows 15:20 local, body 08:20, −7 h, with Avoid light until 16:30, next to the empty state, No trip, Plan one; below, the wide version adds a Tokyo · Day 2 card and a Done button" width="48%" />
   <img src="docs/screenshots/plan-tablet.png" alt="The plan on a tablet in landscape: the dial and a See bright light Now card on the left, the Day 2 timeline on the right" width="48%" />
 </p>
 

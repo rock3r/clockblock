@@ -74,8 +74,6 @@ data class WidgetPalette(
     }
 
     companion object {
-        fun of(dark: Boolean): WidgetPalette = if (dark) Dark else Light
-
         fun of(theme: WidgetTheme): WidgetPalette = when (theme) {
             WidgetTheme.Light -> Light
             WidgetTheme.Dark -> Dark
