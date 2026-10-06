@@ -50,6 +50,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBanner
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.routeArcDescription
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -270,20 +271,24 @@ private fun RouteBanner(summary: TripSummary, container: Color, content: Color, 
     } else {
         route
     }
-    RouteArcBanner(
-        origin = origin,
-        destination = destination,
-        progress = summary.flightProgress,
-        apex = RouteArcDefaults.apexForDuration(Duration.between(trip.departure, trip.arrival)),
-        colors = RouteArcDefaults.colors(
-            background = container,
-            route = content.copy(alpha = 0.5f),
-            code = content,
-            caption = content.copy(alpha = SecondaryContentAlpha),
-        ),
-        contentDescription = description,
-        modifier = modifier.fillMaxWidth(),
-    )
+    // The list is a high-frequency surface (frequency gate): no bespoke motion, so the banner snaps to each minute's
+    // progress instead of animating the plane. Scoped to the banner only.
+    CompositionLocalProvider(LocalReduceMotion provides true) {
+        RouteArcBanner(
+            origin = origin,
+            destination = destination,
+            progress = summary.flightProgress,
+            apex = RouteArcDefaults.apexForDuration(Duration.between(trip.departure, trip.arrival)),
+            colors = RouteArcDefaults.colors(
+                background = container,
+                route = content.copy(alpha = 0.5f),
+                code = content,
+                caption = content.copy(alpha = SecondaryContentAlpha),
+            ),
+            contentDescription = description,
+            modifier = modifier.fillMaxWidth(),
+        )
+    }
 }
 
 /** "Nonstop", or "1 stop · via SIN" (every connection, in order). */

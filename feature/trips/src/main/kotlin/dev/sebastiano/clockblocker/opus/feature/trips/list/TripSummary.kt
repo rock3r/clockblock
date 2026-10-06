@@ -152,9 +152,15 @@ object TripSummaries {
         )
     }
 
-    /** The list's app bar sky: the first trip under way with a known body clock, else local time in [zone]. */
+    /**
+     * The list's app bar sky: the body clock of the trip under way, else local time in [zone]. When active plans
+     * overlap (an outbound tail and a return's pre-travel days), the latest departure wins, as in the plan repository.
+     */
     fun sky(summaries: List<TripSummary>, now: Instant, zone: ZoneId): TripsSky {
-        val body = summaries.firstNotNullOfOrNull { it.bodyTime.takeIf { _ -> it.phase == TripPhase.InProgress } }
+        val body = summaries
+            .filter { it.phase == TripPhase.InProgress && it.bodyTime != null }
+            .maxByOrNull { it.trip.departure }
+            ?.bodyTime
         return if (body != null) TripsSky(body, bodyClock = true) else TripsSky(now.atZone(zone).toLocalTime(), bodyClock = false)
     }
 

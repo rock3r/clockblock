@@ -39,8 +39,10 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun ShiftPreviewCard(preview: ShiftPreview, modifier: Modifier = Modifier) {
-    val noShift = preview.direction == ShiftDirection.None || abs(preview.shiftHours) < MinShiftHours
+    // A home-time plan reports no shift (direction None, 0 h) by design, so it's checked first: otherwise a long-haul
+    // short stay would read as "no jet lag".
     val homeTime = preview.strategy == AdaptationStrategy.StayOnHomeTime
+    val noShift = !homeTime && (preview.direction == ShiftDirection.None || abs(preview.shiftHours) < MinShiftHours)
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -54,7 +56,7 @@ internal fun ShiftPreviewCard(preview: ShiftPreview, modifier: Modifier = Modifi
                     style = MaterialTheme.typography.titleMediumEmphasized,
                     modifier = Modifier.semantics { heading() },
                 )
-                if (!noShift) {
+                if (!noShift && !homeTime) {
                     val hours = formatHoursMagnitude(preview.shiftHours.toFloat())
                     val shift = stringResource(
                         if (preview.shiftHours > 0) R.string.editor_preview_east else R.string.editor_preview_west,
@@ -66,7 +68,7 @@ internal fun ShiftPreviewCard(preview: ShiftPreview, modifier: Modifier = Modifi
                         ShiftDirection.None -> null
                     }
                     Text(
-                        listOfNotNull(shift, direction.takeUnless { homeTime }).joinToString(" · "),
+                        listOfNotNull(shift, direction).joinToString(" · "),
                         style = OpusTheme.textStyles.timeTitle,
                     )
                 }
