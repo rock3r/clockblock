@@ -160,7 +160,7 @@ class WidgetTextsTest {
 
         with(AdviceOutcome.Done).let {
             it.logged shouldBe AdviceOutcome.Done
-            it.label shouldBe "Done"
+            it.label shouldBe "✓ Done"
             it.contentDescription shouldBe "Avoid light: done"
         }
         with(AdviceOutcome.Skipped).label shouldBe "Skipped"

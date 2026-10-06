@@ -67,7 +67,7 @@ data class UpcomingText(val type: AdviceType, val label: String, val time: Strin
 
 /**
  * The widget Done button. While [logged] is null it is a button that logs [adviceId] as done; once something is
- * logged it becomes a non-interactive chip in the same footprint ("Done" / "Skipped").
+ * logged it becomes a non-interactive chip in the same footprint ("✓ Done" / "Skipped").
  */
 data class DoneText(
     val tripId: String,
@@ -181,7 +181,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                 when (s.currentOutcome) {
                     null -> DoneText(s.tripId, c.adviceId, null, str(R.string.widget_done), str(R.string.widget_a11y_done_action, label))
                     AdviceOutcome.Done ->
-                        DoneText(s.tripId, c.adviceId, AdviceOutcome.Done, str(R.string.widget_done), str(R.string.widget_a11y_done_logged, label))
+                        DoneText(s.tripId, c.adviceId, AdviceOutcome.Done, str(R.string.widget_done_logged), str(R.string.widget_a11y_done_logged, label))
                     AdviceOutcome.Skipped, AdviceOutcome.CantDo -> DoneText(
                         s.tripId,
                         c.adviceId,

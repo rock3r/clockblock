@@ -45,6 +45,7 @@
     <string name="widget_adapted_percent">%1$d%% adapted</string>
     <string name="widget_up_next">Up next</string>
     <string name="widget_done">Done</string>
+    <string name="widget_done_logged">✓ Done</string>
     <string name="widget_skipped">Skipped</string>
 
     <!-- Accessibility -->

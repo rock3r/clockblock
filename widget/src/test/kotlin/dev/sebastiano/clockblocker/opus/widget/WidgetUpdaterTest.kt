@@ -89,7 +89,7 @@ class WidgetUpdaterTest {
 
     @Test
     fun `without a plan both widgets show the empty state`() = runBlocking<Unit> {
-        val clocks = place(WidgetKind.TwoClocks, 1)
+        val clocks = place(WidgetKind.TwoClocks, 1, widthDp = 176, heightDp = 176)
         val next = place(WidgetKind.NextUp, 2)
         updater.updateAll()
         texts(clocks) shouldContain app.getString(R.string.widget_no_trip_full)

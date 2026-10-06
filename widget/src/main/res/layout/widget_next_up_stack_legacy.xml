@@ -57,8 +57,9 @@
                 android:id="@+id/title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
+                android:includeFontPadding="false"
                 android:maxLines="2"
                 android:text="@string/widget_loading"
                 android:textColor="@color/widget_on_surface"
@@ -69,6 +70,8 @@
                 android:id="@+id/line1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_on_surface_variant"
@@ -78,6 +81,8 @@
                 android:id="@+id/line2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_on_surface_variant"
@@ -88,6 +93,8 @@
                 android:id="@+id/secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_on_surface_variant"
@@ -95,7 +102,7 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <View
+        <FrameLayout
             android:id="@+id/spacer_middle"
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -117,7 +124,7 @@
             android:layout_marginTop="10dp"
             android:visibility="gone" />
 
-        <View
+        <FrameLayout
             android:id="@+id/spacer_end"
             android:layout_width="match_parent"
             android:layout_height="0dp"

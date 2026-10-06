@@ -52,6 +52,7 @@ import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.text.DoneText
 import dev.sebastiano.clockblocker.opus.widget.text.TextFit
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
+import kotlin.math.roundToInt
 import java.time.Duration
 
 /** Everything one capture needs. */
@@ -73,7 +74,8 @@ private val CornerRadius = 24.rdp
 private val InnerRadius = 16.rdp
 
 // Room reserved at the end of wide Next up for the overlaid countdown (fits "23h 59m" at 18 sp).
-private val CountdownSlot = 96.rdp
+/** Width of the widest overlaid countdown ("23h 59m" at 18 sp) at font scale 1; grows with the font scale. */
+private const val COUNTDOWN_TEXT_DP = 68
 
 /** How much a card leans towards the current advice colour (the text stays on-surface, so keep it light). */
 private const val CARD_TINT = 0.6f
@@ -81,6 +83,12 @@ private const val NEXT_UP_TINT = 0.35f
 
 /** Width share of the Done column next to a weight-1 main region (rows only take weights: see [NextUpRemote]). */
 private const val DONE_WEIGHT = 0.3f
+
+/** Up next rows in the 2×3 / 4×3 Next up stack (three plus the bar only fit the 4×3 Two Clocks). */
+internal const val TALL_UP_NEXT_ROWS = 2
+
+/** Above this font scale the 4×1 row drops its secondary-zone line (it would be clipped). */
+internal const val MAX_THREE_LINE_FONT_SCALE = 1.15f
 
 /** Two Clocks widget: 24 h dial with host-driven hand, local/body time readouts and the next action. */
 @RemoteComposable
@@ -277,7 +285,7 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
             // children (that pushed the countdown off the card), so Done is a weighted column, never a fixed one.
             RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
                 MainRegion(model, description, RemoteModifier.fillMaxHeight().weight(1f)) {
-                    NowRow(model, showCountdown = true, endPadding = if (texts.done != null) 4 else 14)
+                    NowRow(model, showCountdown = true, endPadding = if (texts.done != null) 4 else 14, tight = true)
                 }
                 if (texts.done != null) {
                     DoneRegion(
@@ -294,10 +302,18 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
                     model,
                     description,
                     if (nowWeight > 0f) RemoteModifier.fillMaxWidth().weight(1f) else RemoteModifier.fillMaxWidth(),
-                ) { NowStack(model) }
+                ) {
+                    // Up next already says what comes next: the tall stack drops its "then …" line for the room.
+                    NowStack(model, withThen = layout != NextUpLayout.Tall || texts.upcoming.isEmpty())
+                }
                 DoneRegion(model, RemoteModifier.fillMaxWidth().height(DoneHeight).padding(start = 0.rdp, top = 6.rdp, end = 0.rdp, bottom = 0.rdp))
                 if (layout == NextUpLayout.Tall) {
-                    UpNext(model, RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = 10.rdp, end = 0.rdp, bottom = 0.rdp), rows = true)
+                    UpNext(
+                        model,
+                        RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = 10.rdp, end = 0.rdp, bottom = 0.rdp),
+                        rows = true,
+                        maxRows = TALL_UP_NEXT_ROWS,
+                    )
                 }
             }
         }
@@ -360,15 +376,18 @@ private fun SmallNextUp(model: WidgetModel) {
 /** Glyph, label, until/then (+ secondary zone) in a row, with the countdown overlaid at the end. */
 @RemoteComposable
 @Composable
-private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int = 14) {
+private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int = 14, tight: Boolean = false) {
     val p = model.palette
     val texts = model.texts
     val countdown = countdownText(model)?.takeIf { showCountdown }
+    val fontScale = LocalContext.current.resources.configuration.fontScale
+    // The countdown is sp-sized: keep its slot in step so the label never runs under it.
+    val countdownSlot = (COUNTDOWN_TEXT_DP * fontScale.coerceAtLeast(1f)).roundToInt() + endPadding + 12
     RemoteBox(modifier = RemoteModifier.fillMaxSize(), contentAlignment = RemoteAlignment.Center) {
         RemoteRow(
             modifier = RemoteModifier
                 .fillMaxSize()
-                .padding(start = 12.rdp, top = 8.rdp, end = if (countdown != null) CountdownSlot else endPadding.rdp, bottom = 8.rdp),
+                .padding(start = 12.rdp, top = 8.rdp, end = if (countdown != null) countdownSlot.rdp else endPadding.rdp, bottom = 8.rdp),
             verticalAlignment = RemoteAlignment.CenterVertically,
         ) {
             Glyph(texts.glyph, p, 40)
@@ -380,7 +399,10 @@ private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int =
             ) {
                 Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
                 Label(texts.subtitle.rs, p.onSurfaceVariant, 12, maxLines = 1)
-                if (showCountdown) texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+                // A 4×1 row has room for three lines only at default-ish font sizes; larger text keeps label + time.
+                if (showCountdown && (!tight || fontScale <= MAX_THREE_LINE_FONT_SCALE)) {
+                    texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+                }
             }
         }
         if (countdown != null) {
@@ -399,7 +421,7 @@ private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int =
 /** 2×2 / 2×3: glyph + countdown, then label, until/then and the secondary zone stacked. */
 @RemoteComposable
 @Composable
-private fun NowStack(model: WidgetModel) {
+private fun NowStack(model: WidgetModel, withThen: Boolean = true) {
     val p = model.palette
     val texts = model.texts
     RemoteColumn(modifier = RemoteModifier.fillMaxWidth(), verticalArrangement = RemoteArrangement.spacedBy(2.rdp)) {
@@ -412,20 +434,28 @@ private fun NowStack(model: WidgetModel) {
             }
         }
         Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 2, modifier = RemoteModifier.fillMaxWidth())
-        texts.subtitleLines.forEach { Label(it.rs, p.onSurfaceVariant, 12, maxLines = 1, modifier = RemoteModifier.fillMaxWidth()) }
+        texts.subtitleLines.take(if (withThen) 2 else 1).forEach {
+            Label(it.rs, p.onSurfaceVariant, 12, maxLines = 1, modifier = RemoteModifier.fillMaxWidth())
+        }
         texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1, modifier = RemoteModifier.fillMaxWidth()) }
     }
 }
 
 /**
  * "Up next": the next blocks (glyph + start time + label, never a glyph alone) and the adaptation bar. [rows] lists
- * them vertically; otherwise they sit side by side as capsules (4×2 ribbon). Opens the plan like the main region.
+ * them vertically (at most [maxRows]; with fewer than three rows the adaptation bar only shows when nothing is up
+ * next, the bar and three rows don't fit a 2×3 cell); otherwise they sit side by side as capsules (4×2 ribbon).
+ * Opens the plan like the main region.
  */
 @RemoteComposable
 @Composable
-private fun UpNext(model: WidgetModel, modifier: RemoteModifier, rows: Boolean) {
+private fun UpNext(model: WidgetModel, modifier: RemoteModifier, rows: Boolean, maxRows: Int = 3) {
     val p = model.palette
-    val texts = model.texts
+    val texts = model.texts.let { t ->
+        val upcoming = t.upcoming.take(if (rows) maxRows else 3)
+        val bar = !rows || maxRows >= 3 || upcoming.isEmpty()
+        t.copy(upcoming = upcoming, adaptation = t.adaptation.takeIf { bar }, adaptationLabel = t.adaptationLabel.takeIf { bar })
+    }
     if (texts.upcoming.isEmpty() && texts.adaptation == null) return
     val description = listOfNotNull(texts.upcomingDescription, texts.adaptationLabel).joinToString(". ")
     RemoteColumn(
@@ -537,7 +567,7 @@ private fun DoneRegion(model: WidgetModel, modifier: RemoteModifier) {
             contentAlignment = RemoteAlignment.Center,
         ) {
             Label(
-                (if (logged) "\u2713 ${done.label}" else done.label).rs,
+                done.label.rs,
                 if (logged) p.onSurfaceVariant else p.onPrimary,
                 14,
                 weight = FontWeight.SemiBold,

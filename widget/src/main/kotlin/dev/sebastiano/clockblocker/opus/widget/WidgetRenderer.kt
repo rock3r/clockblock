@@ -131,15 +131,15 @@ class WidgetRenderer(
             SizeF(240f, 220f) to TwoClocksLayout.Large,
         )
 
-        /** 1×1, 2×1, 4×1, 2×2, 2×3, 4×2 (ribbon) and 4×3 (the 2×3 layout, wider). */
+        /** 1×1, 2×1, 4×1, 2×2, 4×2 (ribbon), 2×3 and 4×3 (the 2×3 layout, wider). Smallest area first. */
         val NEXT_UP_SIZES: Map<SizeF, NextUpLayout> = linkedMapOf(
             SizeF(40f, 40f) to NextUpLayout.Small,
             SizeF(110f, 40f) to NextUpLayout.Medium,
             SizeF(240f, 40f) to NextUpLayout.Wide,
             SizeF(110f, 110f) to NextUpLayout.Square,
-            SizeF(110f, 200f) to NextUpLayout.Tall,
             SizeF(240f, 110f) to NextUpLayout.Ribbon,
-            SizeF(240f, 200f) to NextUpLayout.Tall,
+            SizeF(110f, 250f) to NextUpLayout.Tall,
+            SizeF(240f, 250f) to NextUpLayout.Tall,
         )
 
         /** Pre-API 31 selection: the largest layout that fits the reported size (smallest if unknown). */
