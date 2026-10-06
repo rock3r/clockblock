@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -378,6 +380,24 @@ class PlanContentTest {
         width = 1280.dp
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the floating toolbar follows the Now card when a resize reorders the hero`() {
+        // 880 dp tall: strip, dial, Now card. 700 dp: dial, Now card, strip (keeps Done above the fold).
+        var height by mutableStateOf(880.dp)
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                Box(Modifier.size(400.dp, height)) { PlanContent(midAdaptation, actions) }
+            }
+        }
+        compose.onNodeWithTag(PlanTags.Toolbar).assertDoesNotExist()
+
+        // The list keeps the strip at the top, so the dial and Now card are now scrolled away above it.
+        height = 700.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NowCard).assertIsNotDisplayed()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
     }
 
     @Test

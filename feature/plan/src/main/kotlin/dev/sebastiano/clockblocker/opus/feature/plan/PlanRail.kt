@@ -340,7 +340,7 @@ private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeCol
     val color = MaterialTheme.colorScheme.primary
     val sky = OpusTheme.sky
     val time = formatter.formatFull(row.instant.atZone(row.day.zone).toLocalTime())
-    val band = row.bandAt?.let { at -> remember(at) { sky.gradientAt(renderer.bodyHour(at)).mid } }
+    val band = row.bandAt?.let { at -> remember(at, sky) { sky.gradientAt(renderer.bodyHour(at)).mid } }
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(IntrinsicSize.Min).testTag(PlanTags.NowMarker),
         verticalAlignment = Alignment.CenterVertically,
@@ -455,8 +455,9 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     val inFlightText = stringResource(R.string.plan_in_flight)
     val outcomeText = row.item.outcome?.let { outcomeLabel(it) }
     val nowText = stringResource(R.string.plan_now)
-    val bodyTop = remember(advice.start) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
-    val bodyBottom = remember(row.bandEnd) { sky.gradientAt(renderer.bodyHour(row.bandEnd)).mid }
+    // Keyed on the palette too, so Night-safe's sky cross-fade reaches rows already on screen.
+    val bodyTop = remember(advice.start, sky) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
+    val bodyBottom = remember(row.bandEnd, sky) { sky.gradientAt(renderer.bodyHour(row.bandEnd)).mid }
     val rowShape = RoundedCornerShape(24.dp)
     Row(
         Modifier

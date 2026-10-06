@@ -480,8 +480,10 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 // card already has its own "Why?", so it only appears once the Now card has scrolled away. That
                 // also keeps it from covering the Done button at rest. One owner for its motion: this visibility
                 // (no scroll-driven exit-always on top), on the calm navigation tier rather than a bouncy spring.
-                val toolbarVisible by remember(expanded) {
-                    derivedStateOf { expanded || screen.list.firstVisibleItemIndex > heroKeys.indexOf(PlanSections.KeyNow) }
+                // Keyed on the Now card's index too: a height change can move the strip above or below it.
+                val nowIndex = heroKeys.indexOf(PlanSections.KeyNow)
+                val toolbarVisible by remember(expanded, nowIndex) {
+                    derivedStateOf { expanded || screen.list.firstVisibleItemIndex > nowIndex }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
                     val scrim = MaterialTheme.colorScheme.surface
