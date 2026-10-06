@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,13 +18,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -63,45 +68,56 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
+import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
+import dev.sebastiano.clockblocker.opus.core.notifications.NotificationPermissionState
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeHelperDialog
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSky
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDial
@@ -119,8 +135,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
-import androidx.compose.ui.platform.LocalConfiguration
 
 /** Test tags for the e2e suite. */
 object SettingsTags {
@@ -140,6 +154,8 @@ object SettingsTags {
     const val PermLive = "settings_perm_live"
     const val PermBattery = "settings_perm_battery"
     const val TestReminder = "settings_test_reminder"
+    const val LockScreen = "settings_lock_screen"
+    const val PermSummary = "settings_perm_summary"
     const val Export = "settings_export"
     const val Import = "settings_import"
     const val ImportReplace = "settings_import_replace"
@@ -155,6 +171,9 @@ object SettingsTags {
 
     /** `settings_home_result_LHR` etc. */
     fun homeResult(place: Place): String = "settings_home_result_${place.code.ifBlank { place.city }}"
+
+    /** `settings_pin_TwoClocks`, `settings_pin_NextUp`: the widget card's Add buttons. */
+    fun pinWidget(widget: PinnableWidget): String = "settings_pin_${widget.name}"
 }
 
 /** Everything the Settings UI can ask for. The route binds it to [SettingsViewModel]; tests use no-ops. */
@@ -172,6 +191,8 @@ interface SettingsActions {
     fun setOpusModeEnabled(enabled: Boolean)
     fun setRemindersEnabled(enabled: Boolean)
     fun setReminderLead(minutes: Int)
+    fun setHideLockScreenDetails(enabled: Boolean)
+    fun pinWidget(widget: PinnableWidget)
     fun fixNotifications()
     fun fixExactAlarms()
     fun fixLiveUpdates()
@@ -199,6 +220,8 @@ interface SettingsActions {
         override fun setOpusModeEnabled(enabled: Boolean) = Unit
         override fun setRemindersEnabled(enabled: Boolean) = Unit
         override fun setReminderLead(minutes: Int) = Unit
+        override fun setHideLockScreenDetails(enabled: Boolean) = Unit
+        override fun pinWidget(widget: PinnableWidget) = Unit
         override fun fixNotifications() = Unit
         override fun fixExactAlarms() = Unit
         override fun fixLiveUpdates() = Unit
@@ -262,6 +285,8 @@ fun SettingsScreen(
             override fun setOpusModeEnabled(enabled: Boolean) = viewModel.setOpusModeEnabled(enabled)
             override fun setRemindersEnabled(enabled: Boolean) = viewModel.setRemindersEnabled(enabled)
             override fun setReminderLead(minutes: Int) = viewModel.setReminderLead(minutes)
+            override fun setHideLockScreenDetails(enabled: Boolean) = viewModel.setHideLockScreenDetails(enabled)
+            override fun pinWidget(widget: PinnableWidget) = viewModel.pinWidget(widget)
             override fun fixNotifications() {
                 val permission = viewModel.runtimePermission
                 // Once denied twice the system stops asking; the settings screen is the only way back.
@@ -322,6 +347,7 @@ private fun SettingsEvent.message(context: Context): String = with(context.resou
         )
         SettingsEvent.TestReminderSent -> getString(R.string.settings_event_test_sent)
         SettingsEvent.TestReminderBlocked -> getString(R.string.settings_event_test_blocked)
+        SettingsEvent.WidgetPinFailed -> getString(R.string.settings_event_widget_failed)
     }
 }
 
@@ -329,7 +355,9 @@ private enum class ProfileEditor { None, Home, Sleep, Chronotype }
 
 /**
  * Stateless Settings UI: a large flexible app bar over grouped, segmented rows. Profile edits open focused
- * editors (sleep dial, chronotype cards, home search); everything else changes in place.
+ * editors (sleep dial, chronotype cards, home search); everything else changes in place. From [TwoPaneMinWidth]
+ * the sections split into two balanced columns: you, the app's look and More on the left; reminders, widgets
+ * and data on the right.
  *
  * @param dynamicColorSupported shows the dynamic colour switch (API 31+).
  * @param now the instant used for GMT offset labels (fixed in screenshot tests; offsets move with DST).
@@ -351,8 +379,9 @@ fun SettingsContent(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                // Wider than the content column: the bar narrows to line its title up with the rows.
-                val wide = maxWidth > ContentMaxWidth
+                // Wider than the content: the bar narrows to line its title up with the rows.
+                val contentWidth = if (maxWidth >= TwoPaneMinWidth) TwoPaneMaxWidth else ContentMaxWidth
+                val wide = maxWidth > contentWidth
                 LargeFlexibleTopAppBar(
                     title = { Text(stringResource(R.string.settings_title)) },
                     navigationIcon = { if (onBack != null) BackButton(onBack) },
@@ -362,47 +391,51 @@ fun SettingsContent(
                     } else {
                         TopAppBarDefaults.topAppBarColors()
                     },
-                    modifier = if (wide) Modifier.widthIn(max = ContentMaxWidth) else Modifier,
+                    modifier = if (wide) Modifier.widthIn(max = contentWidth) else Modifier,
                 )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .testTag(SettingsTags.List),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Column(Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().padding(horizontal = 16.dp)) {
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            val twoPane = maxWidth >= TwoPaneMinWidth
+            val you: @Composable ColumnScope.() -> Unit = {
                 state.profile?.let { profile ->
                     ProfileSection(profile, state.melatoninAcknowledged, actions, now, onEdit = { editor = it })
                 }
                 AppearanceSection(state, actions, dynamicColorSupported)
+            }
+            val system: @Composable ColumnScope.() -> Unit = {
                 RemindersSection(state, actions)
+                if (state.widgetPinningSupported) WidgetsSection(actions)
                 DataSection(actions, busy = state.isWorking)
-                SectionHeader(stringResource(R.string.settings_section_more))
-                SettingsGroup {
-                    SettingsRow(
-                        title = stringResource(R.string.settings_replay),
-                        supporting = stringResource(R.string.settings_replay_description),
-                        onClick = actions::replayOnboarding,
-                        shape = segmentedShape(0, 2),
-                        tag = SettingsTags.ReplayOnboarding,
-                    )
-                    SettingsRow(
-                        title = stringResource(R.string.settings_about),
-                        supporting = stringResource(R.string.settings_about_description),
-                        onClick = actions::openAbout,
-                        shape = segmentedShape(1, 2),
-                        tag = SettingsTags.About,
-                    )
-                }
+            }
+            val end: @Composable ColumnScope.() -> Unit = {
                 Spacer(Modifier.size(24.dp))
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            }
+            Box(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag(SettingsTags.List),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                if (twoPane) {
+                    Row(
+                        Modifier.widthIn(max = TwoPaneMaxWidth).fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(TwoPaneGutter),
+                    ) {
+                        // "More" closes the shorter left column, so the two land at about the same height.
+                        Column(Modifier.weight(1f)) { you(); MoreSection(actions); end() }
+                        Column(Modifier.weight(1f)) { system(); end() }
+                    }
+                } else {
+                    Column(Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().padding(horizontal = 16.dp)) {
+                        you()
+                        system()
+                        MoreSection(actions)
+                        end()
+                    }
+                }
             }
         }
     }
@@ -450,6 +483,32 @@ fun SettingsContent(
 }
 
 private val ContentMaxWidth = 720.dp
+
+/** Expanded width class: from here Settings lays its sections out in two columns. */
+private val TwoPaneMinWidth = 840.dp
+private val TwoPaneMaxWidth = 1200.dp
+private val TwoPaneGutter = 24.dp
+
+@Composable
+private fun MoreSection(actions: SettingsActions) {
+    SectionHeader(stringResource(R.string.settings_section_more))
+    SettingsGroup {
+        SettingsRow(
+            title = stringResource(R.string.settings_replay),
+            supporting = stringResource(R.string.settings_replay_description),
+            onClick = actions::replayOnboarding,
+            shape = segmentedShape(0, 2),
+            tag = SettingsTags.ReplayOnboarding,
+        )
+        SettingsRow(
+            title = stringResource(R.string.settings_about),
+            supporting = stringResource(R.string.settings_about_description),
+            onClick = actions::openAbout,
+            shape = segmentedShape(1, 2),
+            tag = SettingsTags.About,
+        )
+    }
+}
 
 @Composable
 internal fun BackButton(onBack: () -> Unit) {
@@ -675,10 +734,10 @@ private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
             description = stringResource(R.string.settings_reminders_enabled_description),
             checked = settings.remindersEnabled,
             onCheckedChange = actions::setRemindersEnabled,
-            shape = segmentedShape(0, 3),
+            shape = segmentedShape(0, 4),
             tag = SettingsTags.RemindersEnabled,
         )
-        Surface(shape = segmentedShape(1, 3), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Surface(shape = segmentedShape(1, 4), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp).graphicsLayer { alpha = if (settings.remindersEnabled) 1f else 0.38f }) {
                 Text(stringResource(R.string.settings_lead), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Text(
@@ -703,10 +762,18 @@ private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
                 )
             }
         }
+        ToolSwitchRow(
+            title = stringResource(R.string.settings_lock_screen),
+            description = stringResource(R.string.settings_lock_screen_description),
+            checked = settings.hideLockScreenDetails,
+            onCheckedChange = actions::setHideLockScreenDetails,
+            shape = segmentedShape(2, 4),
+            tag = SettingsTags.LockScreen,
+        )
         SettingsRow(
             title = stringResource(R.string.settings_test_reminder),
             supporting = stringResource(R.string.settings_test_reminder_description),
-            shape = segmentedShape(2, 3),
+            shape = segmentedShape(3, 4),
             tag = "${SettingsTags.TestReminder}_row",
             trailing = {
                 FilledTonalButton(onClick = actions::sendTestReminder, modifier = Modifier.heightIn(min = 48.dp).testTag(SettingsTags.TestReminder)) {
@@ -722,49 +789,227 @@ private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
         enter = expandVertically(motion.containerSpatial()) + fadeIn(motion.containerSpatial()),
         exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.containerSpatial()),
     ) {
-        Column {
-            SectionHeader(stringResource(R.string.settings_permissions))
-            SettingsGroup {
-                PermissionRow(
-                    title = stringResource(R.string.settings_perm_notifications),
-                    description = stringResource(R.string.settings_perm_notifications_description),
-                    granted = permissions.notificationsGranted,
-                    actionLabel = stringResource(R.string.settings_perm_allow),
-                    onAction = actions::fixNotifications,
-                    shape = segmentedShape(0, 4),
-                    tag = SettingsTags.PermNotifications,
-                )
-                PermissionRow(
-                    title = stringResource(R.string.settings_perm_exact),
-                    description = stringResource(R.string.settings_perm_exact_description),
-                    granted = permissions.exactAlarmsAllowed,
-                    actionLabel = stringResource(R.string.settings_perm_fix),
-                    onAction = actions::fixExactAlarms,
-                    shape = segmentedShape(1, 4),
-                    tag = SettingsTags.PermExact,
-                )
-                PermissionRow(
-                    title = stringResource(R.string.settings_perm_live),
-                    description = stringResource(R.string.settings_perm_live_description),
-                    granted = permissions.promotedAllowed,
-                    actionLabel = stringResource(R.string.settings_perm_fix),
-                    onAction = actions::fixLiveUpdates,
-                    shape = segmentedShape(2, 4),
-                    tag = SettingsTags.PermLive,
-                )
-                PermissionRow(
-                    title = stringResource(R.string.settings_perm_battery),
-                    description = stringResource(R.string.settings_perm_battery_description),
-                    granted = permissions.batteryOptimizationIgnored,
-                    actionLabel = stringResource(R.string.settings_perm_fix),
-                    onAction = actions::fixBattery,
-                    shape = segmentedShape(3, 4),
-                    tag = SettingsTags.PermBattery,
-                )
+        PermissionsSection(permissions, actions)
+    }
+}
+
+/**
+ * "What Android allows": a one-line summary that expands to the four permission rows. It starts expanded, and
+ * expands again by itself, whenever reminders aren't dependable (notifications or exact timing missing); the
+ * optional extras (Live Updates, battery) alone never force it open.
+ */
+@Composable
+private fun PermissionsSection(permissions: NotificationPermissionState, actions: SettingsActions) {
+    val motion = OpusTheme.motion
+    val needsAttention = !permissions.isReliable
+    var expanded by rememberSaveable { mutableStateOf(needsAttention) }
+    LaunchedEffect(needsAttention) { if (needsAttention) expanded = true }
+    Column {
+        SectionHeader(stringResource(R.string.settings_permissions))
+        SettingsGroup {
+            PermissionSummary(permissions, expanded, onToggle = { expanded = !expanded }, shape = segmentedShape(0, if (expanded) 5 else 1))
+            AnimatedVisibility(
+                visible = expanded,
+                // The rows grow in place under the summary: size and alpha share the container spring.
+                enter = expandVertically(motion.containerSpatial()) + fadeIn(motion.containerSpatial()),
+                exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.containerSpatial()),
+            ) {
+                SettingsGroup {
+                    PermissionRow(
+                        title = stringResource(R.string.settings_perm_notifications),
+                        description = stringResource(R.string.settings_perm_notifications_description),
+                        granted = permissions.notificationsGranted,
+                        actionLabel = stringResource(R.string.settings_perm_allow),
+                        onAction = actions::fixNotifications,
+                        shape = segmentedShape(1, 5),
+                        tag = SettingsTags.PermNotifications,
+                    )
+                    PermissionRow(
+                        title = stringResource(R.string.settings_perm_exact),
+                        description = stringResource(R.string.settings_perm_exact_description),
+                        granted = permissions.exactAlarmsAllowed,
+                        actionLabel = stringResource(R.string.settings_perm_fix),
+                        onAction = actions::fixExactAlarms,
+                        shape = segmentedShape(2, 5),
+                        tag = SettingsTags.PermExact,
+                    )
+                    PermissionRow(
+                        title = stringResource(R.string.settings_perm_live),
+                        description = stringResource(R.string.settings_perm_live_description),
+                        granted = permissions.promotedAllowed,
+                        actionLabel = stringResource(R.string.settings_perm_fix),
+                        onAction = actions::fixLiveUpdates,
+                        shape = segmentedShape(3, 5),
+                        tag = SettingsTags.PermLive,
+                    )
+                    PermissionRow(
+                        title = stringResource(R.string.settings_perm_battery),
+                        description = stringResource(R.string.settings_perm_battery_description),
+                        granted = permissions.batteryOptimizationIgnored,
+                        actionLabel = stringResource(R.string.settings_perm_fix),
+                        onAction = actions::fixBattery,
+                        shape = segmentedShape(4, 5),
+                        tag = SettingsTags.PermBattery,
+                    )
+                }
             }
         }
     }
 }
+
+/**
+ * The always-visible line of "What Android allows": an icon plus words for the overall state (never colour
+ * alone), and a chevron that turns on the data tier. The whole row toggles the details.
+ */
+@Composable
+private fun PermissionSummary(permissions: NotificationPermissionState, expanded: Boolean, onToggle: () -> Unit, shape: Shape) {
+    val colors = MaterialTheme.colorScheme
+    val motion = OpusTheme.motion
+    val attention = listOf(permissions.notificationsGranted, permissions.exactAlarmsAllowed).count { !it }
+    val optionalOff = listOf(permissions.promotedAllowed, permissions.batteryOptimizationIgnored).count { !it }
+    val title = when {
+        attention > 0 -> pluralStringResource(R.plurals.settings_perm_summary_attention, attention, attention)
+        optionalOff > 0 -> stringResource(R.string.settings_perm_summary_ready)
+        else -> stringResource(R.string.settings_perm_summary_all)
+    }
+    val supporting = when {
+        attention > 0 -> stringResource(R.string.settings_perm_summary_attention_description)
+        optionalOff > 0 -> pluralStringResource(R.plurals.settings_perm_summary_optional, optionalOff, optionalOff)
+        else -> stringResource(R.string.settings_perm_summary_all_description)
+    }
+    val stateLabel = stringResource(if (expanded) R.string.settings_perm_expanded else R.string.settings_perm_collapsed)
+    val clickLabel = stringResource(if (expanded) R.string.settings_perm_hide else R.string.settings_perm_show)
+    // Reports state (open/closed), so no bounce; read in the draw phase so turning never recomposes the row.
+    val rotation = animateFloatAsState(if (expanded) 180f else 0f, motion.dataSpatial(), label = "permChevron")
+    Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .clip(shape)
+                .clickable(onClickLabel = clickLabel, onClick = onToggle)
+                .semantics { stateDescription = stateLabel }
+                .heightIn(min = 64.dp)
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .testTag(SettingsTags.PermSummary),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painterResource(if (attention > 0) R.drawable.settings_ic_warning else R.drawable.settings_ic_check),
+                contentDescription = null,
+                tint = if (attention > 0) colors.error else colors.primary,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                Text(supporting, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            }
+            Spacer(Modifier.width(16.dp))
+            Icon(
+                painterResource(R.drawable.settings_ic_expand_more),
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = rotation.value },
+            )
+        }
+    }
+}
+
+/**
+ * One-tap widget pinning: a still preview of each widget, its name and what it shows, and an Add button that
+ * asks the launcher to place it. Only shown when the launcher supports pinning.
+ */
+@Composable
+private fun WidgetsSection(actions: SettingsActions) {
+    SectionHeader(stringResource(R.string.settings_section_widgets))
+    Surface(shape = segmentedShape(0, 1), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                stringResource(R.string.settings_widgets_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val gap = 12.dp
+                // Side by side while each tile keeps a comfortable measure for its text; stacked otherwise (large
+                // fonts, narrow windows), so names and descriptions never squeeze.
+                val sideBySide = (maxWidth - gap) / 2 >= WidgetTileMinWidth * LocalDensity.current.fontScale
+                if (sideBySide) {
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        PinnableWidget.entries.forEach { widget ->
+                            WidgetTile(widget, onAdd = { actions.pinWidget(widget) }, modifier = Modifier.weight(1f).fillMaxHeight())
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                        PinnableWidget.entries.forEach { widget ->
+                            WidgetTile(widget, onAdd = { actions.pinWidget(widget) }, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetTile(widget: PinnableWidget, onAdd: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val name = stringResource(
+        when (widget) {
+            PinnableWidget.TwoClocks -> R.string.settings_widget_two_clocks
+            PinnableWidget.NextUp -> R.string.settings_widget_next_up
+        },
+    )
+    val description = stringResource(
+        when (widget) {
+            PinnableWidget.TwoClocks -> R.string.settings_widget_two_clocks_description
+            PinnableWidget.NextUp -> R.string.settings_widget_next_up_description
+        },
+    )
+    val addDescription = stringResource(R.string.settings_widget_add_description, name)
+    Surface(shape = MaterialTheme.shapes.large, color = colors.surfaceContainerHighest, modifier = modifier) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.fillMaxWidth().height(WidgetPreviewHeight), contentAlignment = Alignment.Center) {
+                when (widget) {
+                    PinnableWidget.TwoClocks -> TwoClocksArt(Modifier.size(WidgetPreviewHeight), progress = 0.35f, animated = false)
+                    PinnableWidget.NextUp -> NextUpPreview()
+                }
+            }
+            Text(name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            Spacer(Modifier.weight(1f))
+            FilledTonalButton(
+                onClick = onAdd,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .semantics { contentDescription = addDescription }
+                    .testTag(SettingsTags.pinWidget(widget)),
+            ) {
+                Text(stringResource(R.string.settings_widget_add))
+            }
+        }
+    }
+}
+
+/** A still, miniature Next up row: the glyph, its label and a countdown, as the widget shows them (a short label, so it fits a tile). */
+@Composable
+private fun NextUpPreview() {
+    val colors = MaterialTheme.colorScheme
+    Surface(shape = MaterialTheme.shapes.medium, color = colors.surfaceContainerLow, modifier = Modifier.clearAndSetSemantics { }) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            AdviceGlyph(AdviceType.Nap, active = true, size = 28.dp)
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(AdviceType.Nap.label(), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, maxLines = 1)
+                Text(stringResource(R.string.settings_widget_preview_countdown), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+private val WidgetPreviewHeight = 72.dp
+private val WidgetTileMinWidth = 148.dp
 
 @Composable
 private fun DataSection(actions: SettingsActions, busy: Boolean) {

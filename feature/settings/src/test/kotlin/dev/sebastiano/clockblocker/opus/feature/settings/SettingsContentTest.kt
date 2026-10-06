@@ -9,8 +9,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
@@ -64,6 +66,8 @@ private class RecordingSettingsActions : SettingsActions {
     override fun cancelImport() { calls += "cancelImport" }
     override fun replayOnboarding() { calls += "replay" }
     override fun openAbout() { calls += "about" }
+    override fun setHideLockScreenDetails(enabled: Boolean) { calls += "lock:$enabled" }
+    override fun pinWidget(widget: PinnableWidget) { calls += "pin:$widget" }
 }
 
 /** The stateless Settings UI forwards each interaction to [SettingsActions]. */
@@ -116,6 +120,51 @@ class SettingsContentTest {
         click("${SettingsTags.PermBattery}_fix")
         click(SettingsTags.RemindersEnabled)
         actions.calls shouldContainExactly listOf("lead:30", "test", "fix:notifications", "fix:exact", "fix:battery", "reminders:false")
+    }
+
+    @Test
+    fun `lock screen switch forwards`() {
+        show()
+        click(SettingsTags.LockScreen)
+        actions.calls shouldContainExactly listOf("lock:true")
+    }
+
+    @Test
+    fun `permission details start collapsed when reminders are dependable and expand on tap`() {
+        show(settingsState(exactAlarmsAllowed = true))
+        compose.onNodeWithTag(SettingsTags.PermSummary).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(SettingsTags.PermBattery).assertDoesNotExist()
+        compose.onNodeWithText("Reminders are ready").assertIsDisplayed()
+        click(SettingsTags.PermSummary)
+        click("${SettingsTags.PermBattery}_fix")
+        actions.calls shouldContainExactly listOf("fix:battery")
+    }
+
+    @Test
+    fun `permission details open by themselves when something needs attention`() {
+        show(settingsState(exactAlarmsAllowed = false))
+        compose.onNodeWithText("1 needs your attention").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("${SettingsTags.PermExact}_fix").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `summary says everything is allowed when it is`() {
+        show(settingsState(exactAlarmsAllowed = true, batteryOptimizationIgnored = true))
+        compose.onNodeWithText("Everything is allowed").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `widget add buttons forward the widget`() {
+        show()
+        click(SettingsTags.pinWidget(PinnableWidget.TwoClocks))
+        click(SettingsTags.pinWidget(PinnableWidget.NextUp))
+        actions.calls shouldContainExactly listOf("pin:TwoClocks", "pin:NextUp")
+    }
+
+    @Test
+    fun `widgets card is hidden when the launcher cannot pin`() {
+        show(settingsState(widgetPinningSupported = false))
+        compose.onNodeWithTag(SettingsTags.pinWidget(PinnableWidget.TwoClocks)).assertDoesNotExist()
     }
 
     @Test
@@ -212,6 +261,26 @@ class AboutContentTest {
         compose.onNodeWithTag(AboutTags.Source).performScrollTo().performClick()
         compose.onNodeWithTag(AboutTags.Licenses).performScrollTo().performClick()
         calls shouldContainExactly listOf("version", "version", "version", "source", "licences")
+    }
+
+    @Test
+    fun `licence cards open their project pages`() {
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize(), onOpenUrl = { opened += it })
+            }
+        }
+        compose.onNodeWithTag(AboutTags.credit(SourceUrl)).performScrollTo().performClick()
+        compose.onNodeWithTag(AboutTags.credit("https://github.com/ZacSweers/metro")).performScrollTo().performClick()
+        compose.onNodeWithText("github.com/ZacSweers/metro").assertIsDisplayed()
+        opened shouldContainExactly listOf(SourceUrl, "https://github.com/ZacSweers/metro")
+    }
+
+    @Test
+    fun `display urls drop the scheme, www and trailing slash`() {
+        displayUrl("https://www.iana.org/time-zones") shouldBe "iana.org/time-zones"
+        displayUrl("https://ourairports.com/data/") shouldBe "ourairports.com/data"
     }
 
     @Test

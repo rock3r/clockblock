@@ -63,6 +63,34 @@
     <string name="settings_test_reminder">Send a test reminder</string>
     <string name="settings_send">Send</string>
     <string name="settings_test_reminder_description">See what a nudge looks like, and check it arrives.</string>
+    <string name="settings_lock_screen">Hide details on the lock screen</string>
+    <string name="settings_lock_screen_description">Places, flight numbers and supplements stay off the lock screen whenever Android hides sensitive content.</string>
+    <string name="settings_perm_summary_all">Everything is allowed</string>
+    <string name="settings_perm_summary_all_description">Reminders arrive on time, with Live Updates on travel day.</string>
+    <string name="settings_perm_summary_ready">Reminders are ready</string>
+    <plurals name="settings_perm_summary_optional">
+        <item quantity="one">%1$d optional extra is off.</item>
+        <item quantity="other">%1$d optional extras are off.</item>
+    </plurals>
+    <plurals name="settings_perm_summary_attention">
+        <item quantity="one">%1$d needs your attention</item>
+        <item quantity="other">%1$d need your attention</item>
+    </plurals>
+    <string name="settings_perm_summary_attention_description">Without it, reminders may not arrive, or arrive late.</string>
+    <string name="settings_perm_expanded">Expanded</string>
+    <string name="settings_perm_collapsed">Collapsed</string>
+    <string name="settings_perm_show">Show details</string>
+    <string name="settings_perm_hide">Hide details</string>
+
+    <string name="settings_section_widgets">Widgets</string>
+    <string name="settings_widgets_intro">Your plan on the home screen, without opening the app.</string>
+    <string name="settings_widget_two_clocks">Two Clocks</string>
+    <string name="settings_widget_two_clocks_description">Local time and your body clock on one dial.</string>
+    <string name="settings_widget_next_up">Next up</string>
+    <string name="settings_widget_next_up_description">What to do now, with a countdown.</string>
+    <string name="settings_widget_add">Add</string>
+    <string name="settings_widget_add_description">Add the %1$s widget to the home screen</string>
+    <string name="settings_widget_preview_countdown">1 h 10 m</string>
 
     <string name="settings_export">Export a backup</string>
     <string name="settings_export_description">Profile, settings, trips and check-ins, as a JSON file you keep.</string>
@@ -93,6 +121,7 @@
     <string name="settings_event_unreadable">Couldn\'t read that file.</string>
     <string name="settings_event_test_sent">Test reminder sent. Check your notifications.</string>
     <string name="settings_event_test_blocked">Notifications are off, so nothing can show. Allow them first.</string>
+    <string name="settings_event_widget_failed">Your home screen app couldn\'t add the widget. Add it from its widget list instead.</string>
 
     <!-- About -->
     <string name="about_title">About</string>
@@ -142,6 +171,7 @@
     <string name="opus_title_dismiss">Bravo</string>
 
     <!-- Licences -->
+    <string name="licenses_open">Open the %1$s page</string>
     <string name="licenses_title">Licences</string>
     <string name="licenses_intro">Opus Clockblock stands on other people\'s generous work. Thank you.</string>
     <string name="licenses_section_app">The app</string>
