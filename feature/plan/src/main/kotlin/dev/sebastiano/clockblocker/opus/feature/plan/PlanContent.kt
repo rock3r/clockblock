@@ -150,7 +150,10 @@ internal class PlanScreenState(
         selection = index?.let { tripId to it }
     }
 
-    /** Counts picks in the day strip: the two-pane rail follows each one (an event, so a pick mid-scroll counts). */
+    /**
+     * Counts picks in the day strip: the two-pane rail follows each one (an event, so a pick mid-scroll counts).
+     * One pane leaves them unfollowed, so a pick made there is shown once a resize brings the rail into view.
+     */
     var dayPicks: Int by mutableIntStateOf(0)
 
     /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
@@ -587,13 +590,13 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     }
                     LaunchedEffect(Unit) {
                         if (!screen.scrolledToNow) {
+                            // A day already picked (in one pane, before a resize) is the follow-up's to show.
                             val now = rows.nowRowIndex()
-                            if (now > 0) screen.rail.scrollToItem(1 + now, nowOffsetPx)
+                            if (now > 0 && dayBase == null) screen.rail.scrollToItem(1 + now, nowOffsetPx)
                             screen.scrolledToNow = true
                         }
                     }
                 } else {
-                    LaunchedEffect(screen.dayPicks) { screen.dayPicksFollowed = screen.dayPicks }
                     LazyColumn(
                         state = screen.list,
                         // Padding (not contentPadding) on top so sticky day headers pin below the header.

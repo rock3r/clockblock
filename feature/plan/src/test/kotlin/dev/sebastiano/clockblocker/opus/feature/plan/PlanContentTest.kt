@@ -2,9 +2,12 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
@@ -336,6 +340,23 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `a day picked in one pane is followed by the rail once two panes appear`() {
+        var width by mutableStateOf(400.dp)
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                Box(Modifier.width(width)) { PlanContent(midAdaptation, actions) }
+            }
+        }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+
+        width = 1280.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
     }
 
     @Test
