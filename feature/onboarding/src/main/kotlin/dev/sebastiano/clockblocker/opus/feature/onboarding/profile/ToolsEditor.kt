@@ -5,6 +5,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -34,6 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
@@ -50,7 +56,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
@@ -72,6 +80,11 @@ object ToolsTags {
  * The tool toggles: caffeine, sleeping on planes, pre-departure adjustment and melatonin. Melatonin is off by
  * default and sits behind an expandable safety note; it can only be switched on once the note is acknowledged
  * (tapping the switch before that opens the note instead).
+ *
+ * Each row leads with the glyph of the advice it unlocks (Caffeine, Sleep, See light, Melatonin). Switching a tool
+ * on morphs the glyph from its resting circle into the advice shape and tints the row with that advice's container
+ * colour, so the choice reads at a glance; the switch and the text label still carry it on their own (and under
+ * reduce motion the morph snaps).
  */
 @Composable
 fun ToolsEditor(
@@ -91,6 +104,7 @@ fun ToolsEditor(
             onCheckedChange = { onProfileChange(profile.copy(useCaffeine = it)) },
             shape = segmentedShape(0, 4),
             tag = ToolsTags.Caffeine,
+            glyph = AdviceType.Caffeine,
         )
         ToolSwitchRow(
             title = stringResource(R.string.tool_planes),
@@ -99,6 +113,7 @@ fun ToolsEditor(
             onCheckedChange = { onProfileChange(profile.copy(canSleepOnPlanes = it)) },
             shape = segmentedShape(1, 4),
             tag = ToolsTags.Planes,
+            glyph = AdviceType.Sleep,
         )
         ToolSwitchRow(
             title = stringResource(R.string.tool_adjust_before),
@@ -107,29 +122,33 @@ fun ToolsEditor(
             onCheckedChange = { onProfileChange(profile.copy(adjustBeforeDeparture = it)) },
             shape = segmentedShape(2, 4),
             tag = ToolsTags.AdjustBefore,
+            glyph = AdviceType.SeeLight,
         )
-        Surface(shape = segmentedShape(3, 4), color = MaterialTheme.colorScheme.surfaceContainer) {
-            Column {
-                ToolSwitchRow(
-                    title = stringResource(R.string.tool_melatonin),
-                    description = stringResource(
-                        if (profile.useMelatonin) R.string.tool_melatonin_on_description else R.string.tool_melatonin_description,
-                    ),
-                    checked = profile.useMelatonin,
-                    onCheckedChange = { wanted ->
-                        if (wanted && !melatoninAcknowledged) noteOpen = true else onMelatoninChange(wanted)
-                    },
-                    shape = segmentedShape(0, 1),
-                    tag = ToolsTags.Melatonin,
-                    container = MaterialTheme.colorScheme.surfaceContainer,
-                )
-                MelatoninNote(
-                    open = noteOpen,
-                    onToggle = { noteOpen = !noteOpen },
-                    acknowledged = melatoninAcknowledged,
-                    onAcknowledge = onAcknowledgeMelatonin,
-                )
-            }
+        // Melatonin's card holds the row and its safety note, so the whole card takes the tint.
+        val melatoninShape = segmentedShape(3, 4)
+        val melatoninColors = rememberToolRowColors(AdviceType.Melatonin, profile.useMelatonin, MaterialTheme.colorScheme.surfaceContainer)
+        Column(Modifier.clip(melatoninShape).drawBehind { drawRect(melatoninColors.container()) }) {
+            ToolSwitchRowContent(
+                title = stringResource(R.string.tool_melatonin),
+                description = stringResource(
+                    if (profile.useMelatonin) R.string.tool_melatonin_on_description else R.string.tool_melatonin_description,
+                ),
+                checked = profile.useMelatonin,
+                onCheckedChange = { wanted ->
+                    if (wanted && !melatoninAcknowledged) noteOpen = true else onMelatoninChange(wanted)
+                },
+                shape = segmentedShape(0, 1),
+                tag = ToolsTags.Melatonin,
+                enabled = true,
+                glyph = AdviceType.Melatonin,
+                colors = melatoninColors,
+            )
+            MelatoninNote(
+                open = noteOpen,
+                onToggle = { noteOpen = !noteOpen },
+                acknowledged = melatoninAcknowledged,
+                onAcknowledge = onAcknowledgeMelatonin,
+            )
         }
     }
 }
@@ -204,7 +223,13 @@ private fun NoteBullet(text: String) {
     }
 }
 
-/** A full-width row with title, supporting text and a trailing switch; the whole row toggles (48 dp+). */
+/**
+ * A full-width row with title, supporting text and a trailing switch; the whole row toggles (48 dp+).
+ *
+ * With a [glyph], the row leads with that advice's [AdviceGlyph] and becomes semantic: switched on, the glyph
+ * morphs into the advice shape (`glyphMorph`, snapping under reduce motion) and the row takes the advice
+ * container colour (`colour()`); the text label and the switch carry the state on their own.
+ */
 @Composable
 fun ToolSwitchRow(
     title: String,
@@ -216,28 +241,116 @@ fun ToolSwitchRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
+    glyph: AdviceType? = null,
 ) {
-    Surface(shape = shape, color = container, modifier = modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .clip(shape)
-                .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
-                .heightIn(min = 64.dp)
-                .padding(horizontal = 20.dp, vertical = 14.dp)
-                .testTag(tag),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                if (description != null) {
-                    Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (glyph == null) {
+        Surface(shape = shape, color = container, modifier = modifier.fillMaxWidth()) {
+            Row(
+                Modifier
+                    .clip(shape)
+                    .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+                    .heightIn(min = 64.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .testTag(tag),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    if (description != null) {
+                        Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
+                Spacer(Modifier.width(16.dp))
+                Switch(checked = checked, onCheckedChange = null, enabled = enabled)
             }
-            Spacer(Modifier.width(16.dp))
-            Switch(checked = checked, onCheckedChange = null, enabled = enabled)
         }
+    } else {
+        val colors = rememberToolRowColors(glyph, checked, container)
+        ToolSwitchRowContent(
+            title = title,
+            description = description,
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            shape = shape,
+            tag = tag,
+            enabled = enabled,
+            glyph = glyph,
+            colors = colors,
+            modifier = modifier.clip(shape).drawBehind { drawRect(colors.container()) },
+        )
     }
 }
+
+/**
+ * A tool row's colours, animated on `OpusMotion.colour()` between the neutral container (off) and the advice
+ * container (on). They are read through lambdas in the draw phase, so the cross-fade never recomposes the row.
+ */
+@Stable
+internal class ToolRowColors(
+    private val containerState: State<Color>,
+    private val contentState: State<Color>,
+    private val supportingState: State<Color>,
+) {
+    fun container(): Color = containerState.value
+    fun content(): Color = contentState.value
+    fun supporting(): Color = supportingState.value
+}
+
+@Composable
+internal fun rememberToolRowColors(glyph: AdviceType, checked: Boolean, offContainer: Color): ToolRowColors {
+    val scheme = MaterialTheme.colorScheme
+    val role = OpusTheme.adviceColors[glyph]
+    val motion = OpusTheme.motion
+    val container = animateColorAsState(if (checked) role.container else offContainer, motion.colour(), label = "toolContainer")
+    val content = animateColorAsState(if (checked) role.onContainer else scheme.onSurface, motion.colour(), label = "toolContent")
+    val supporting = animateColorAsState(
+        if (checked) role.onContainer.copy(alpha = SupportingOnTint) else scheme.onSurfaceVariant,
+        motion.colour(),
+        label = "toolSupporting",
+    )
+    return remember(container, content, supporting) { ToolRowColors(container, content, supporting) }
+}
+
+/** The inside of a glyph tool row; the caller draws the (tinted) container behind it. */
+@Composable
+internal fun ToolSwitchRowContent(
+    title: String,
+    description: String?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    shape: Shape,
+    tag: String,
+    enabled: Boolean,
+    glyph: AdviceType,
+    colors: ToolRowColors,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            .heightIn(min = 64.dp)
+            .padding(start = 16.dp, end = 20.dp, top = 14.dp, bottom = 14.dp)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AdviceGlyph(glyph, active = checked, size = ToolGlyphSize)
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            BasicText(title, style = MaterialTheme.typography.titleMedium, color = { colors.content() })
+            if (description != null) {
+                BasicText(description, style = MaterialTheme.typography.bodyMedium, color = { colors.supporting() })
+            }
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+/** Supporting text on a tinted row: the advice ink, a step quieter than the title (still well above 4.5:1). */
+private const val SupportingOnTint = 0.8f
+private val ToolGlyphSize = 40.dp
 
 /**
  * Effort as an M3 Expressive connected button group (Gentle / Balanced / Max) with a one-line explanation of the

@@ -24,7 +24,7 @@ enum class SleepHandle {
 object SleepDialMath {
     const val MinutesPerDay: Int = 1440
 
-    /** Values snap to 5 minutes while dragging. */
+    /** Drags move in 5-minute steps (from where the gesture started, see [SleepDrag]). */
     const val SnapMinutes: Int = 5
 
     /** Haptic tick and keyboard/TalkBack step. */
@@ -55,6 +55,25 @@ object SleepDialMath {
         val drag = SleepDrag(handle, window)
         drag.moveBy(deltaMinutes.toFloat())
         return drag.window
+    }
+
+    /**
+     * Sets one end of [window] to an exact [time] (the time picker; no snapping) and keeps the other end. The pick
+     * always wins: when it would leave less than [MinDurationMinutes] (including a bedtime at or just after wake),
+     * the other end moves out to give the shortest night instead.
+     */
+    fun withTime(window: SleepWindow, handle: SleepHandle, time: LocalTime): SleepWindow {
+        val picked = minuteOf(time)
+        val candidate = when (handle) {
+            SleepHandle.Bedtime -> SleepWindow(bedtime = time, wake = window.wake)
+            SleepHandle.Wake -> SleepWindow(bedtime = window.bedtime, wake = time)
+            SleepHandle.Both -> return window
+        }
+        if (durationMinutes(candidate) in MinDurationMinutes..MaxDurationMinutes) return candidate
+        return when (handle) {
+            SleepHandle.Bedtime -> SleepWindow(bedtime = time, wake = timeOf(picked + MinDurationMinutes))
+            else -> SleepWindow(bedtime = timeOf(picked - MinDurationMinutes), wake = time)
+        }
     }
 
     /** True when going from [old] to [new] crossed a [StepMinutes] boundary (haptic tick). */
@@ -90,11 +109,16 @@ object SleepDialMath {
 /**
  * One drag gesture. Accumulates unwrapped minutes so the clamp at [SleepDialMath.MaxDurationMinutes] behaves like
  * a wall: dragging further builds up [overshootMinutes] (drawn as rubber-band resistance) instead of wrapping.
+ *
+ * The *movement* snaps to [SleepDialMath.SnapMinutes], not the absolute time: a window that starts on the grid
+ * stays on it, and an exact minute from the time picker (say 06:13) stays exact (06:28 after "15 minutes later").
+ * Sliding the whole arc keeps the duration to the minute.
  */
 class SleepDrag(val handle: SleepHandle, start: SleepWindow) {
-    private var bed: Float = SleepDialMath.minuteOf(start.bedtime).toFloat()
-    private val fixedWake: Float = bed + SleepDialMath.durationMinutes(start)
-    private var rawDuration: Float = SleepDialMath.durationMinutes(start).toFloat()
+    private val startBed: Int = SleepDialMath.minuteOf(start.bedtime)
+    private val startDuration: Int = SleepDialMath.durationMinutes(start)
+    private var rawDuration: Float = startDuration.toFloat()
+    private var rawShift: Float = 0f
 
     /** How far past the longest window the user has pushed (only the wake handle builds this up). */
     var overshootMinutes: Float = 0f
@@ -110,28 +134,28 @@ class SleepDrag(val handle: SleepHandle, start: SleepWindow) {
 
     fun moveBy(deltaMinutes: Float): SleepWindow {
         if (!deltaMinutes.isFinite()) return window
-        val min = SleepDialMath.MinDurationMinutes.toFloat()
-        val max = SleepDialMath.MaxDurationMinutes.toFloat()
+        val min = SleepDialMath.MinDurationMinutes
+        val max = SleepDialMath.MaxDurationMinutes
         when (handle) {
             SleepHandle.Wake -> {
                 rawDuration += deltaMinutes
                 overshootMinutes = (rawDuration - max).coerceAtLeast(0f)
                 if (overshootMinutes >= SleepDialMath.EggOvershootMinutes) eggFired = true
             }
-            SleepHandle.Bedtime -> {
-                rawDuration -= deltaMinutes
-                bed = fixedWake - rawDuration.coerceIn(min, max)
-            }
-            SleepHandle.Both -> bed += deltaMinutes
+            SleepHandle.Bedtime -> rawDuration -= deltaMinutes
+            SleepHandle.Both -> rawShift += deltaMinutes
         }
-        val duration = rawDuration.coerceIn(min, max)
-        val bedSnapped = SleepDialMath.snap(bed)
-        val durationSnapped = SleepDialMath.snap(duration).let { if (it == 0) SleepDialMath.MinutesPerDay else it }
-            .coerceIn(SleepDialMath.MinDurationMinutes, SleepDialMath.MaxDurationMinutes)
-        window = SleepWindow(
-            bedtime = SleepDialMath.timeOf(bedSnapped),
-            wake = SleepDialMath.timeOf(bedSnapped + durationSnapped),
-        )
+        // Snap first, clamp last: an off-grid window one minute from a limit can still reach it.
+        val duration = (startDuration + snapDelta(rawDuration - startDuration)).coerceIn(min, max)
+        val bed = when (handle) {
+            SleepHandle.Wake -> startBed
+            // The wake end stays put: bedtime is whatever is left before it.
+            SleepHandle.Bedtime -> startBed + startDuration - duration
+            SleepHandle.Both -> startBed + snapDelta(rawShift)
+        }
+        window = SleepWindow(bedtime = SleepDialMath.timeOf(bed), wake = SleepDialMath.timeOf(bed + duration))
         return window
     }
+
+    private fun snapDelta(minutes: Float): Int = (minutes / SleepDialMath.SnapMinutes).roundToInt() * SleepDialMath.SnapMinutes
 }
