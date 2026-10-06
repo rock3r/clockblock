@@ -36,10 +36,14 @@ departure airport. If you're already away from home, enter the trip from where y
 
 ### 3. When do you usually sleep?
 
-<img src="images/sleep.png" alt="Step 3 of 6, When do you usually sleep: a round dial with a moon at bedtime 23:00 and a sun at wake 07:00, 8 hours of sleep in the middle." width="280" />
+<img src="images/sleep.png" alt="Step 3 of 6, When do you usually sleep: a round dial with a moon at bedtime and a sun at wake-up, 8 hours of sleep in the middle. Below the dial, two buttons: Bedtime 23:00 and Wake 07:00." width="280" />
 
 Drag the moon to your usual bedtime and the sun to your usual wake-up time. Use your normal nights, not your best
 ones. The app uses this to estimate where your body clock is today.
+
+Under the dial, the **Bedtime** and **Wake** buttons show the two times and follow the dial as you drag. To enter
+an exact time instead, tap either one: a time picker opens. Its keyboard button lets you type the time. If the
+time you pick would make the night shorter than an hour, the other end moves to keep one hour of sleep.
 
 ### 4. Lark, owl, or in between?
 
@@ -51,9 +55,10 @@ The app asks when you fall asleep and wake up with no alarm, and suggests an ans
 
 ### 5. Your tools
 
-<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Start adjusting before I leave are on; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
+<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Start adjusting before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
 
-Pick what you're happy to use:
+Pick what you're happy to use. Each switch has the symbol of the advice it adds to your plan. When a switch is
+on, its row takes that advice's colour.
 
 | Switch | What it changes |
 |---|---|
