@@ -57,6 +57,17 @@ class RailRowsTest {
     }
 
     @Test
+    fun `a short flight inside a longer block keeps its own row, with its route`() {
+        val sleep = advice("sleep", AdviceType.Sleep, "01:00", "09:00")
+        val hop = advice("hop", AdviceType.Flight, "02:00", "03:00")
+        val blocks = rows(plan(PlanDay(1, DayKind.Arrival, day2, "UTC", listOf(sleep, hop))), at("00:00"))
+            .filterIsInstance<RailRow.Block>()
+
+        blocks.map { it.item.advice.id } shouldContainExactly listOf("sleep", "hop")
+        blocks[0].children.shouldBeEmpty()
+    }
+
+    @Test
     fun `a more important block inside a longer one keeps its own row`() {
         val noCoffee = advice("no-coffee", AdviceType.AvoidCaffeine, "17:00", "23:00")
         val dark = advice("dark", AdviceType.AvoidLight, "22:00", "23:00")

@@ -129,10 +129,11 @@ internal sealed interface RailRow {
 /**
  * Whether [child] rides inside [parent]'s row: it starts inside [parent], ends no later (moments just need to start
  * inside), and is less important (higher [AdviceType] ordinal), so an important block is never demoted into a
- * chip. Nothing nests under a flight: blocks on board get their own rows and an "In flight" badge.
+ * chip. Nothing nests under a flight (blocks on board get their own rows and an "In flight" badge), and a flight
+ * never becomes a chip either: its row carries the route and flight number.
  */
 internal fun nestsInside(child: Advice, parent: Advice): Boolean {
-    if (parent.type == AdviceType.Flight || child.type.ordinal <= parent.type.ordinal) return false
+    if (AdviceType.Flight in setOf(parent.type, child.type) || child.type.ordinal <= parent.type.ordinal) return false
     if (child.start.isBefore(parent.start) || !child.start.isBefore(parent.end)) return false
     return child.type.isMoment || child.start == child.end || !child.end.isAfter(parent.end)
 }
