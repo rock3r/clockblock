@@ -34,6 +34,7 @@ object TripsTestTags {
     const val DiscardConfirm = "editor_discard_confirm"
     const val DiscardKeep = "editor_discard_keep"
     const val PickerConfirm = "editor_picker_ok"
+    const val EditorPreview = "editor_preview"
 
     fun editorLeg(index: Int) = "editor_leg_$index"
     fun editorFrom(index: Int) = "editor_from_$index"
@@ -43,6 +44,8 @@ object TripsTestTags {
     fun editorArrivalDate(index: Int) = "editor_arrival_date_$index"
     fun editorArrivalTime(index: Int) = "editor_arrival_time_$index"
     fun editorFlightNumber(index: Int) = "editor_flight_number_$index"
+    fun editorSwap(index: Int) = "editor_swap_$index"
+    fun editorArrivalEstimate(index: Int) = "editor_arrival_estimate_$index"
     fun editorRemoveLeg(index: Int) = "editor_remove_leg_$index"
     fun editorIssue(index: Int) = "editor_issue_$index"
     fun editorFix(index: Int) = "editor_fix_$index"

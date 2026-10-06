@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
@@ -54,6 +55,8 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
 
     private fun editor(vm: TripEditorViewModel, name: String, darkTheme: Boolean = false, fontScale: Float? = null, qualifiers: String? = null) {
         setContent(darkTheme, fontScale, qualifiers) { Editor(vm) }
+        // The plan preview is debounced: let it settle so complete trips show it.
+        main.dispatcher.scheduler.advanceUntilIdle()
         capture(name)
     }
 
@@ -107,5 +110,14 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         compose.onNodeWithTag(TripsTestTags.editorFrom(0)).performTextInput("lon")
         main.dispatcher.scheduler.advanceUntilIdle()
         capture("editor_search")
+    }
+
+    @Test
+    fun popularAirports() {
+        val vm = viewModel()
+        setContent(qualifiers = "w411dp-h1200dp") { Editor(vm) }
+        compose.onNodeWithTag(TripsTestTags.editorFrom(0)).performClick()
+        main.dispatcher.scheduler.advanceUntilIdle()
+        capture("editor_popular")
     }
 }
