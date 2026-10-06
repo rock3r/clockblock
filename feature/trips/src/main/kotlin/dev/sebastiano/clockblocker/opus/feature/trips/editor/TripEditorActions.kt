@@ -29,6 +29,12 @@ interface TripEditorActions {
     fun delayLeg(legIndex: Int, delay: Duration)
     fun onPlaceQueryChange(field: PlaceFieldRef, query: String)
     fun onPlaceSelected(field: PlaceFieldRef, place: Place)
+
+    /** An airport field gained focus: an empty one offers popular airports. */
+    fun onPlaceFieldFocused(field: PlaceFieldRef)
+
+    /** Swaps a leg's From and To. */
+    fun swapPlaces(legIndex: Int)
     fun pickTopResult(field: PlaceFieldRef): Boolean
     fun dismissSearch()
     fun save()
@@ -52,6 +58,8 @@ interface TripEditorActions {
         override fun delayLeg(legIndex: Int, delay: Duration) = Unit
         override fun onPlaceQueryChange(field: PlaceFieldRef, query: String) = Unit
         override fun onPlaceSelected(field: PlaceFieldRef, place: Place) = Unit
+        override fun onPlaceFieldFocused(field: PlaceFieldRef) = Unit
+        override fun swapPlaces(legIndex: Int) = Unit
         override fun pickTopResult(field: PlaceFieldRef): Boolean = false
         override fun dismissSearch() = Unit
         override fun save() = Unit

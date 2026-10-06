@@ -11,7 +11,10 @@ import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
+import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
 import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
@@ -50,6 +53,9 @@ class TripEditorFlowTest : TripsScreenshotTest() {
             titles = TripTitleSuggester(),
             returnTrips = ReturnTripFactory(clock, TripTitleSuggester()),
             clock = clock,
+            planner = FakeJetLagPlanner(),
+            profiles = FakeProfileRepository.onboarded(),
+            dispatchers = AppDispatchers(main.dispatcher, main.dispatcher, main.dispatcher),
         )
         setContent { TripEditorRoute(viewModel = vm, onDone = { done += it }, onBack = { backs++ }) }
         settle()
