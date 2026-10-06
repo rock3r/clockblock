@@ -80,7 +80,7 @@ class ContrastAuditTest {
     fun `active advice glyphs stand out from every background they sit on`() = assertSoftly {
         // Graphical objects need 3:1 (WCAG 1.4.11). The active glyph is drawn on its own advice container (Now card,
         // checked tool rows, the rail's "now" chip) and on plain surfaces (Settings previews, rail rows).
-        listOf("light" to (AdviceColors.Light to OpusLightColors), "dark" to (AdviceColors.Dark to OpusDarkColors))
+        listOf("light" to (AdviceColors.Light to ClockblockLightColors), "dark" to (AdviceColors.Dark to ClockblockDarkColors))
             .forEach { (name, theme) ->
                 val (palette, s) = theme
                 AdviceType.entries.forEach { type ->
