@@ -106,4 +106,24 @@ object NotificationIntents {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
+
+    /** Request code of the widgets' Done broadcast (notification actions use `source * 10 + action`, < 30). */
+    private const val WIDGET_DONE_REQUEST_CODE: Int = 100
+
+    /**
+     * Done from a home-screen widget: the same broadcast as the notification's Done button, so the outcome is logged
+     * once and every surface (Now notification, widgets) refreshes through the scheduler.
+     *
+     * The advice is part of the token's identity (a data URI; extras don't count), so rendering another advice's
+     * button, e.g. the picker previews' demo plan, can never rewrite the extras of a live widget's button.
+     */
+    fun widgetDone(context: Context, tripId: String, adviceId: String): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        WIDGET_DONE_REQUEST_CODE,
+        actionIntent(context, AdviceAction.Done, tripId, adviceId)
+            .setData(Uri.Builder().scheme(WIDGET_DONE_SCHEME).appendPath(tripId).appendPath(adviceId).build()),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private const val WIDGET_DONE_SCHEME = "widget-done"
 }

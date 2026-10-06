@@ -1,6 +1,9 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
+import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
+import dev.sebastiano.clockblocker.opus.core.circadian.currentDay
 import dev.sebastiano.clockblocker.opus.core.model.Advice
+import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
 import java.time.Instant
@@ -20,8 +23,10 @@ object WidgetStateMapper {
 
     /**
      * @param fallbackZone zone used when the plan has no days (the device's zone).
+     * @param logs outcomes logged for the plan's trip (drives the Done button's logged state); null when they could
+     *   not be read, so the outcome is unknown.
      */
-    fun map(plan: JetLagPlan?, now: Instant, fallbackZone: ZoneId): WidgetState {
+    fun map(plan: JetLagPlan?, now: Instant, fallbackZone: ZoneId, logs: List<AdviceLog>? = emptyList()): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
         val displayZoneId = displayZone(plan, now) ?: fallbackZone.id
@@ -51,6 +56,11 @@ object WidgetStateMapper {
         }
 
         val secondary = listOf(plan.destinationZoneId, plan.originZoneId).firstOrNull { it != displayZoneId }
+        val upcoming = all
+            .filter { it.start.isAfter(now) && it != current }
+            .sortedWith(compareBy<Advice> { it.start }.thenBy { it.type.ordinal })
+            .take(UPCOMING_COUNT)
+        val day = plan.currentDay(now)
 
         return WidgetState.Active(
             tripId = plan.tripId,
@@ -66,8 +76,16 @@ object WidgetStateMapper {
             cbtMinMinute = cbtMinMinute,
             stage = stage,
             destinationName = DialMath.cityName(plan.destinationZoneId),
+            upcoming = upcoming.map { it.toSlot(displayZone) },
+            currentOutcome = current?.let { c -> logs?.lastOrNull { it.adviceId == c.id }?.outcome },
+            outcomeKnown = logs != null,
+            dayKind = day?.kind,
+            dayIndex = day?.index,
+            adaptation = plan.adaptationProgressAt(now),
         )
     }
+
+    private const val UPCOMING_COUNT = 3
 
     /** The zone of the latest plan day that has started by [now] (first day before the plan starts). */
     private fun displayZone(plan: JetLagPlan, now: Instant): String? {

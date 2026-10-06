@@ -64,25 +64,30 @@ you want onto the screen. You can resize both widgets.
 
 ### Two Clocks
 
-<img src="images/widget-two-clocks.png" alt="Two Clocks widgets in light and dark, small and wide. The dial shows 15:20 local time, body 08:20, −7 h, with Avoid light until 16:30. The wide version adds then Melatonin and 08:30 in Lisbon. The bottom row shows the empty state: No trip, Plan one." width="480" />
+<img src="images/widget-two-clocks.png" alt="Two Clocks widgets. Top row: the small dial in light, dark and night-safe (black and amber), showing 15:20 local time, body 08:20, −7 h, and Avoid light until 16:30, then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with a card saying Tokyo · Day 2, Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, and a Done button." width="480" />
 
 The *Two Clocks* widget is a small version of the dial in the app. It shows the local time, the time your body
 clock thinks it is ("body 08:20"), the gap between them ("−7 h": your body is 7 hours behind), and the current
-block with its end time. The wide version also shows what comes next and the time in your other time zone.
+block with its end time. The outer ring follows the sky through the day. The bigger sizes add a card with the
+place and plan day ("Tokyo · Day 2"), what comes next, the time in your other time zone, and a **Done** button.
+The biggest size also lists the next blocks (with their time in your other zone) and how far you've adapted.
 
 ### Next up
 
-<img src="images/widget-next-up.png" alt="Next up widgets in light and dark: a row saying Avoid light until 16:30, then Melatonin, with a 1h 10m countdown; Free time; small tiles with Sleep 5h40m and Avoid light 1h10m; Clockblocked; and No trip, Plan one." width="480" />
+<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
 
 The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
-short label. It says "Free time" when there's nothing to do, and "Clockblocked" when your plan is finished.
+short label. Bigger sizes add a **Done** button, and the tallest and widest ones list what's up next. It says
+"Free time" when there's nothing to do, and "Clockblocked" when your plan is finished.
 
 ### Good to know
 
 - Tap a widget to open the plan. With no trip planned, the widgets say "No trip · Plan one", and a tap opens the
   new trip screen.
+- Tap **Done** on a widget to mark the current block as done, just like the button on the notification. The button
+  then turns into "✓ Done" (or "Skipped" if you skipped it elsewhere).
 - The widgets follow the app's theme. When "Night-safe automatically" is on and your plan says to avoid light or
-  sleep, they turn dark too.
+  sleep, they switch to a black and amber look that won't light up a dark room.
 - The widgets update when your plan changes and at each block boundary. They don't drain your battery by checking
   all the time.
 

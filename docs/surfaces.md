@@ -191,16 +191,56 @@ The `:widget` module provides two widgets. Both can be placed on the home screen
 category too, which matters on tablets and in hub mode. On phones, the lock-screen view of the plan is the Now
 notification.
 
-![Two Clocks widgets in light and dark at 2×2 and 4×2, plus the empty state "No trip, Plan one"](screenshots/widgets/remote_two_clocks.png)
+![Two Clocks widgets: the 2×2 dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 4×2 layout with its now card and Done button](screenshots/widgets/remote_two_clocks.png)
 
-The *Two Clocks* widget shows local time and the body clock on one dial ("body 08:20, −7 h"), with the current
-advice and when it ends. The wider size adds what comes next and the time in the other zone. With no trip, it
-shows "No trip" and "Plan one".
+The *Two Clocks* widget shows local time and the body clock on one dial ("body 08:20, −7 h"). The outer ring
+follows the sky over the local day. Inside it, two lanes show light advice and rest advice. The body ring marks
+biological night and the body-temperature minimum. With no trip, the dial says "No trip" and "Plan one".
 
-![Next up widgets in several sizes: a full row with a countdown, compact 1×1 tiles, "Free time", "Clockblocked" and the empty state](screenshots/widgets/remote_next_up.png)
+![Next up widgets: 4×1 rows with a countdown and Done, 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
-The *Next up* widget shows the current advice with a countdown. The smallest size shows only the countdown and a
+The *Next up* widget shows the current advice with a countdown. The 1×1 tile shows only the countdown and a
 short label. When the plan has no advice left, it shows "Clockblocked".
+
+### Sizes
+
+Each widget picks a layout for the space it gets. On API 31+ the launcher picks from the size map and swaps
+layouts while the user resizes. On older launchers the app picks the largest layout that fits the reported size.
+Both backends have the same layouts. Every "Up next" entry shows its start time in the other zone too, like every
+other time on the widgets.
+
+| Cells | Two Clocks | Next up |
+|---|---|---|
+| 1×1 | Dial with local time and the jet lag offset | Glyph, countdown and label |
+| 2×1 | — | Glyph, label and "until" line |
+| 4×1 | — | Row with the countdown, the other zone's time and Done |
+| 2×2 | Dial and a two-line caption | Countdown, label, "until / then", the other zone and Done |
+| 4×2 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 4×1 row plus three "Up next" capsules |
+| 2×3 | Dial, now card and Done | The 2×2 stack plus two "Up next" rows |
+| 4×3 | The 4×2 layout plus two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+
+![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
+
+![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
+
+### Done
+
+The larger layouts have a Done button (48 dp tall) for the current advice. It sends the same broadcast as the
+notification's Done action
+([`NotificationIntents.widgetDone`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationIntents.kt)),
+so the advice log, notifications and widgets all update the same way. Once something is logged for that advice,
+the button turns into a chip in the same spot: "✓ Done", or "Skipped" for skipped and can't-do. Free time,
+flights and the empty state have no Done button.
+
+The button and the rest of the widget are separate tap targets that don't overlap, so each tap has one target. On
+Remote Compose the button is a second host action; on classic `RemoteViews` it is its own
+`setOnClickPendingIntent`.
+
+### Themes
+
+Widgets follow the app's theme setting (light, dark or system). When "Night-safe automatically" is on and the
+current advice is avoid light or sleep, they switch to night-safe: true black, dim amber text and buttons, no
+tinted cards, and dimmed advice colours and sky.
 
 ### How widgets render
 
@@ -223,19 +263,21 @@ animates the dial hand itself. Otherwise it falls back to classic `RemoteViews` 
 [`LegacyRefresh`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/legacy/LegacyRefresh.kt)
 redraws that bitmap about every 15 minutes with an inexact alarm that doesn't wake the device.
 
-![The RemoteViews fallback: the Two Clocks dial, a Next up row and a 1×1 tile, in light and dark](screenshots/widgets/legacy_widgets.png)
+![The RemoteViews fallback: the 2×2 Two Clocks widget in light, dark and night-safe, a 4×1 Next up row, 1×1 tiles and the empty state](screenshots/widgets/legacy_widgets.png)
 
-The fallback looks almost the same. The countdown is a system `Chronometer` instead of a drawn number.
+The fallback looks almost the same. The countdown is a system `Chronometer` instead of a drawn number, and the
+clocks are system `TextClock`s. The goldens `legacy_two_clocks_buckets.png` and `legacy_next_up_buckets.png` cover
+every size.
 
 Other widget behaviour:
 
 - Widgets refresh when the scheduler refreshes `PlanSurface`s, and also on their own system broadcasts (update,
   resize, time set, zone change, locale change). `updatePeriodMillis` is 0: there is no polling.
 - Tapping a widget opens the plan through a deep link. In the empty state, it opens the trip editor.
-- Widgets follow the app's theme setting. When "Night-safe automatically" is on and the plan says to avoid light
-  or sleep, they turn dark.
 - On API 35 and later, the widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
+  They are published again when the app version or the system night mode changes, so the picker matches the
+  current theme.
 
 Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
 (`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with

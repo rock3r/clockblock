@@ -49,7 +49,7 @@ object DemoPlans {
             advice(AdviceType.SeeLight, 14.0 + shift, 16.0 + shift, AdviceReason.LightAdvancesClock),
         )
         val tokyo = ZoneId.of(DESTINATION)
-        val day = PlanDay(2, DayKind.Arrival, now.atZone(tokyo).toLocalDate().minusDays(1), DESTINATION, advice)
+        val day = PlanDay(2, DayKind.Arrival, now.atZone(tokyo).toLocalDate(), DESTINATION, advice)
         // Body clock: home (Lisbon, +1 h in summer) drifting east; about 7 h behind Tokyo today.
         val phase = listOf(
             PhasePoint(at(-24.0), 90, at(-24.0 + 9.0)),

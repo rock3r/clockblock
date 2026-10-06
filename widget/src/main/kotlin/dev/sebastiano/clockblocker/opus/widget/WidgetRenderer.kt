@@ -6,7 +6,9 @@ import android.util.Log
 import android.util.SizeF
 import android.widget.RemoteViews
 import androidx.compose.remote.creation.profile.Profile
+import dev.sebastiano.clockblocker.opus.core.notifications.NotificationIntents
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
+import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRemoteViews
 import dev.sebastiano.clockblocker.opus.widget.rc.DeepLinkIntents
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
@@ -44,17 +46,17 @@ class WidgetRenderer(
     val backend: WidgetBackend
         get() = if (!forceLegacy && profileProvider() != null) WidgetBackend.RemoteCompose else WidgetBackend.Legacy
 
-    fun model(state: WidgetState, dark: Boolean): WidgetModel =
-        WidgetModel(state, textsTransform(WidgetTexts.from(context, state)), WidgetPalette.of(dark))
+    fun model(state: WidgetState, theme: WidgetTheme): WidgetModel =
+        WidgetModel(state, textsTransform(WidgetTexts.from(context, state)), WidgetPalette.of(theme))
 
     suspend fun render(
         kind: WidgetKind,
         state: WidgetState,
-        dark: Boolean,
+        theme: WidgetTheme,
         size: WidgetSizeDp? = null,
         now: Instant = Instant.now(),
     ): RemoteViews {
-        val model = model(state, dark)
+        val model = model(state, theme)
         val profile = profileProvider().takeUnless { forceLegacy }
         if (profile != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             try {
@@ -68,18 +70,23 @@ class WidgetRenderer(
 
     private suspend fun renderRemoteCompose(kind: WidgetKind, model: WidgetModel, profile: Profile): RemoteViews {
         val click = DeepLinkIntents.pendingIntent(context, model.texts.deepLink)
+        val done = model.texts.done?.takeIf { it.logged == null }?.let {
+            NotificationIntents.widgetDone(context, it.tripId, it.adviceId)
+        }
         return when (kind) {
             WidgetKind.TwoClocks -> RemoteComposeRenderer.responsive(
                 context,
                 profile,
                 TWO_CLOCKS_SIZES,
                 click,
+                done,
             ) { layout -> TwoClocksRemote(model, layout) }
             WidgetKind.NextUp -> RemoteComposeRenderer.responsive(
                 context,
                 profile,
                 NEXT_UP_SIZES,
                 click,
+                done,
             ) { layout -> NextUpRemote(model, layout) }
         }
     }
@@ -88,9 +95,11 @@ class WidgetRenderer(
         val density = context.resources.displayMetrics.density
         return when (kind) {
             WidgetKind.TwoClocks -> {
+                // One bitmap for every responsive layout (RemoteViews dedupes identical bitmap instances), sized for
+                // the largest dial the reported size can show.
                 val dialDp = size?.let { min(it.width, it.height - 24f) } ?: 150f
-                val px = (dialDp * density).roundToInt()
-                responsiveLegacy(TWO_CLOCKS_SIZES, size) { LegacyRemoteViews.twoClocks(context, model, px, now) }
+                val dial = LegacyRemoteViews.dialBitmap(model, (dialDp * density).roundToInt(), now)
+                responsiveLegacy(TWO_CLOCKS_SIZES, size) { layout -> LegacyRemoteViews.twoClocks(context, model, layout, dial) }
             }
             WidgetKind.NextUp ->
                 responsiveLegacy(NEXT_UP_SIZES, size) { layout ->
@@ -101,34 +110,44 @@ class WidgetRenderer(
 
     private fun <L> responsiveLegacy(sizes: Map<SizeF, L>, size: WidgetSizeDp?, build: (L) -> RemoteViews): RemoteViews {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Two Clocks has identical legacy layouts for both sizes: one RemoteViews is enough.
-            val distinct = sizes.entries.distinctBy { (_, layout) -> layout.legacyKey() }
-            if (distinct.size == 1) return build(distinct.single().value)
-            return RemoteViews(sizes.mapValues { (_, layout) -> build(layout) })
+            val built = mutableMapOf<L, RemoteViews>()
+            return RemoteViews(sizes.mapValues { (_, layout) -> built.getOrPut(layout) { build(layout) } })
         }
         return build(pick(sizes, size))
     }
 
-    private fun Any?.legacyKey(): Any? = if (this is TwoClocksLayout) TwoClocksLayout.Square else this
-
     companion object {
         private const val TAG = "OpusWidget"
 
+        /**
+         * Responsive buckets, smallest area first. The host shows the largest that fits (API 31+); [pick] does the same
+         * on older hosts. Thresholds sit below typical launcher cell sizes: 1×1 (Compact), 2×2, 2×3, 4×2, 4×3.
+         */
         val TWO_CLOCKS_SIZES: Map<SizeF, TwoClocksLayout> = linkedMapOf(
-            SizeF(100f, 100f) to TwoClocksLayout.Square,
-            SizeF(260f, 110f) to TwoClocksLayout.Wide,
+            SizeF(90f, 90f) to TwoClocksLayout.Compact,
+            SizeF(120f, 120f) to TwoClocksLayout.Square,
+            SizeF(240f, 110f) to TwoClocksLayout.Wide,
+            SizeF(120f, 230f) to TwoClocksLayout.Tall,
+            SizeF(240f, 220f) to TwoClocksLayout.Large,
         )
 
+        /** 1×1, 2×1, 4×1, 2×2, 4×2 (ribbon), 2×3 and 4×3 (the 2×3 layout, wider). Smallest area first. */
         val NEXT_UP_SIZES: Map<SizeF, NextUpLayout> = linkedMapOf(
             SizeF(40f, 40f) to NextUpLayout.Small,
             SizeF(110f, 40f) to NextUpLayout.Medium,
-            SizeF(250f, 40f) to NextUpLayout.Wide,
+            SizeF(240f, 40f) to NextUpLayout.Wide,
+            SizeF(110f, 110f) to NextUpLayout.Square,
+            SizeF(240f, 110f) to NextUpLayout.Ribbon,
+            SizeF(110f, 250f) to NextUpLayout.Tall,
+            SizeF(240f, 250f) to NextUpLayout.Tall,
         )
 
         /** Pre-API 31 selection: the largest layout that fits the reported size (smallest if unknown). */
         fun <L> pick(sizes: Map<SizeF, L>, size: WidgetSizeDp?): L {
             if (size == null) return sizes.values.first()
-            return sizes.entries.lastOrNull { (s, _) -> s.width <= size.width && s.height <= size.height }?.value
+            return sizes.entries
+                .filter { (s, _) -> s.width <= size.width && s.height <= size.height }
+                .maxByOrNull { (s, _) -> s.width * s.height }?.value
                 ?: sizes.values.first()
         }
     }
