@@ -30,6 +30,10 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain as shouldContainText
 import io.kotest.matchers.string.shouldNotContain
+import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -260,6 +264,25 @@ class WidgetUpdaterTest {
         val lock = place(WidgetKind.NextUp, 24, category = category)
         updater.update(WidgetKind.NextUp, intArrayOf(lock))
         texts(lock).joinToString("\n") shouldNotContain "Lisbon"
+    }
+
+    @Test
+    fun `keyguard widgets stay redacted when the settings can't be read in time`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val stuck = object : SettingsRepository {
+            override val settings: Flow<AppSettings> = flow { awaitCancellation() }
+            override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
+        }
+        val updater = WidgetUpdater(app, plans, stuck).apply {
+            clock = Clock.fixed(now, ZoneOffset.UTC)
+            readTimeoutMs = 50
+        }
+        val lock = place(WidgetKind.NextUp, 25, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
+        val home = place(WidgetKind.NextUp, 26)
+        updater.update(WidgetKind.NextUp, intArrayOf(lock, home))
+        // Privacy fails closed on the lock screen; the home screen keeps its details.
+        texts(lock).joinToString("\n") shouldNotContain "Lisbon"
+        texts(home).joinToString("\n") shouldContainText "in Lisbon"
     }
 
     @Test

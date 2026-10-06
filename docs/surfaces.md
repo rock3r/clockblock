@@ -242,8 +242,10 @@ no route, no city or other-zone times, melatonin shown as "Plan step" with a neu
 marks on the dial. The header keeps only the plan day ("Day 2"), and the adapted state says "Your body is on
 local time". Times and the kind of block stay. Home-screen widgets keep every detail.
 [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) decides per
-widget id from the host category, and `WidgetStateMapper.redact` strips the state. The scheduler refreshes every
-`PlanSurface` when settings change, so flipping the setting re-renders widgets straight away.
+widget id from the host category (a bit mask, so keyguard may come with other bits), and
+`WidgetStateMapper.redact` strips the state. If the settings can't be read in time, lock-screen widgets stay
+redacted. The scheduler refreshes every `PlanSurface` when settings change, so flipping the setting re-renders
+widgets straight away.
 
 ![Redacted lock-screen widgets: Two Clocks 4×3 and Next up 2×3 in light and dark, with "Day 2" and no route](screenshots/widgets/remote_keyguard.png)
 

@@ -65,6 +65,7 @@ class WidgetUpdater(
     private val tripRepository: TripRepository = NoTripRepository,
 ) {
     internal var clock: Clock = Clock.systemDefaultZone()
+    internal var readTimeoutMs: Long = READ_TIMEOUT_MS
     internal var rendererFactory: (Context, Boolean) -> WidgetRenderer = { ctx, legacy -> WidgetRenderer(ctx, legacy) }
 
     private val mutex = Mutex()
@@ -110,9 +111,12 @@ class WidgetUpdater(
     }
 
     private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
-        val plan = withTimeoutOrNull(READ_TIMEOUT_MS) { planRepository.currentPlan.first() }
-        val settings = withTimeoutOrNull(READ_TIMEOUT_MS) { settingsRepository.settings.first() } ?: AppSettings()
-        val logs = plan?.let { withTimeoutOrNull(READ_TIMEOUT_MS) { adviceLogRepository.logs(it.tripId).first() } }
+        val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
+        val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
+        val settings = read ?: AppSettings()
+        // Privacy fails closed: when the settings can't be read in time, lock-screen widgets stay redacted.
+        val hideOnLockScreen = read?.hideLockScreenDetails ?: true
+        val logs = plan?.let { withTimeoutOrNull(readTimeoutMs) { adviceLogRepository.logs(it.tripId).first() } }
         val state = state(plan, settings, keyguard = false, logs = logs)
         val redacted by lazy { WidgetStateMapper.redact(state) }
         val renderer = rendererFactory(application, false)
@@ -120,7 +124,7 @@ class WidgetUpdater(
         appWidgetIds.forEach { id ->
             try {
                 val options = manager.getAppWidgetOptions(id)
-                val shown = if (settings.hideLockScreenDetails && isKeyguard(options)) redacted else state
+                val shown = if (hideOnLockScreen && isKeyguard(options)) redacted else state
                 val views = renderer.render(kind, shown, theme, sizeOf(options), clock.instant())
                 manager.updateAppWidget(id, views)
             } catch (e: Exception) {
@@ -140,7 +144,7 @@ class WidgetUpdater(
         keyguard: Boolean,
         logs: List<AdviceLog>? = emptyList(),
     ): WidgetState {
-        val route = plan?.let { p -> withTimeoutOrNull(READ_TIMEOUT_MS) { tripRepository.trip(p.tripId).first() } }
+        val route = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
             ?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
         val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
