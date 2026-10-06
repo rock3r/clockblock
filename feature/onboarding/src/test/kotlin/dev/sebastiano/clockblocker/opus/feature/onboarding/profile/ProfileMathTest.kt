@@ -88,6 +88,46 @@ class SleepDialMathTest {
     }
 
     @Test
+    fun `a picked time sets that end to the exact minute and keeps the other end`() {
+        SleepDialMath.withTime(default, SleepHandle.Bedtime, LocalTime.of(22, 47)) shouldBe
+            SleepWindow(LocalTime.of(22, 47), LocalTime.of(7, 0))
+        SleepDialMath.withTime(default, SleepHandle.Wake, LocalTime.of(6, 13)) shouldBe
+            SleepWindow(LocalTime.of(23, 0), LocalTime.of(6, 13))
+        // Across midnight the other way: a 01:30 bedtime is a later night, not a 29 h one.
+        SleepDialMath.withTime(default, SleepHandle.Bedtime, LocalTime.of(1, 30)) shouldBe
+            SleepWindow(LocalTime.of(1, 30), LocalTime.of(7, 0))
+    }
+
+    @Test
+    fun `a picked time too close to the other end keeps the pick and pushes the other end out to the shortest night`() {
+        // Bedtime 06:30 with wake 07:00 would be 30 minutes: wake moves to 07:30.
+        SleepDialMath.withTime(default, SleepHandle.Bedtime, LocalTime.of(6, 30)) shouldBe
+            SleepWindow(LocalTime.of(6, 30), LocalTime.of(7, 30))
+        // Wake 23:20 right after a 23:00 bedtime: bedtime moves back to 22:20.
+        SleepDialMath.withTime(default, SleepHandle.Wake, LocalTime.of(23, 20)) shouldBe
+            SleepWindow(LocalTime.of(22, 20), LocalTime.of(23, 20))
+        // Bedtime picked at (or just after) wake time reads as the shortest night, not a full day.
+        SleepDialMath.withTime(default, SleepHandle.Bedtime, LocalTime.of(7, 0)) shouldBe
+            SleepWindow(LocalTime.of(7, 0), LocalTime.of(8, 0))
+        SleepDialMath.withTime(default, SleepHandle.Wake, LocalTime.of(23, 2)) shouldBe
+            SleepWindow(LocalTime.of(22, 2), LocalTime.of(23, 2))
+    }
+
+    @Test
+    fun `any picked time keeps the window within limits and keeps the pick`() = runTest {
+        checkAll(Arb.int(0, 287), Arb.int(12, 287), Arb.int(0, 1439)) { bedStep, durStep, picked ->
+            val start = SleepWindow(SleepDialMath.timeOf(bedStep * 5), SleepDialMath.timeOf(bedStep * 5 + durStep * 5))
+            val time = SleepDialMath.timeOf(picked)
+            listOf(SleepHandle.Bedtime, SleepHandle.Wake).forEach { handle ->
+                val window = SleepDialMath.withTime(start, handle, time)
+                val d = SleepDialMath.durationMinutes(window)
+                (d in SleepDialMath.MinDurationMinutes..SleepDialMath.MaxDurationMinutes).shouldBeTrue()
+                (if (handle == SleepHandle.Bedtime) window.bedtime else window.wake) shouldBe time
+            }
+        }
+    }
+
+    @Test
     fun `picks the nearer handle, then the arc, then nothing`() {
         SleepDialMath.pick(23 * 60f + 10f, default, 40f) shouldBe SleepHandle.Bedtime
         SleepDialMath.pick(6 * 60f + 45f, default, 40f) shouldBe SleepHandle.Wake

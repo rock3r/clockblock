@@ -57,6 +57,25 @@ object SleepDialMath {
         return drag.window
     }
 
+    /**
+     * Sets one end of [window] to an exact [time] (the time picker; no snapping) and keeps the other end. The pick
+     * always wins: when it would leave less than [MinDurationMinutes] (including a bedtime at or just after wake),
+     * the other end moves out to give the shortest night instead.
+     */
+    fun withTime(window: SleepWindow, handle: SleepHandle, time: LocalTime): SleepWindow {
+        val picked = minuteOf(time)
+        val candidate = when (handle) {
+            SleepHandle.Bedtime -> SleepWindow(bedtime = time, wake = window.wake)
+            SleepHandle.Wake -> SleepWindow(bedtime = window.bedtime, wake = time)
+            SleepHandle.Both -> return window
+        }
+        if (durationMinutes(candidate) in MinDurationMinutes..MaxDurationMinutes) return candidate
+        return when (handle) {
+            SleepHandle.Bedtime -> SleepWindow(bedtime = time, wake = timeOf(picked + MinDurationMinutes))
+            else -> SleepWindow(bedtime = timeOf(picked - MinDurationMinutes), wake = time)
+        }
+    }
+
     /** True when going from [old] to [new] crossed a [StepMinutes] boundary (haptic tick). */
     fun crossedStep(old: Int, new: Int): Boolean = old / StepMinutes != new / StepMinutes
 
