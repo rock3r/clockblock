@@ -51,9 +51,9 @@ import java.time.ZoneId
  * (default values): until the data layer contributes them, widgets show the empty state instead of breaking the app
  * graph.
  *
- * Instances on a lock screen (`OPTION_APPWIDGET_HOST_CATEGORY` = keyguard) render the redacted state while Settings ›
- * Hide details on the lock screen is on. The scheduler refreshes every surface when settings change, so flipping the
- * setting re-renders them.
+ * Instances on a lock screen (`OPTION_APPWIDGET_HOST_CATEGORY` includes the keyguard bit) render the redacted state
+ * while Settings › Hide details on the lock screen is on. The scheduler refreshes every surface when settings change,
+ * so flipping the setting re-renders them.
  */
 @SingleIn(AppScope::class)
 @Inject
@@ -178,8 +178,11 @@ class WidgetUpdater(
 
     fun ids(kind: WidgetKind): IntArray = manager.getAppWidgetIds(componentName(application, kind))
 
-    private fun isKeyguard(options: Bundle?): Boolean =
-        options?.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY) == AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD
+    /** The host category is a bit mask, so a lock-screen host may report keyguard together with another category. */
+    private fun isKeyguard(options: Bundle?): Boolean {
+        val category = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY) ?: 0
+        return (category and AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD) != 0
+    }
 
     private fun sizeOf(options: Bundle?): WidgetSizeDp? {
         if (options == null) return null

@@ -251,6 +251,18 @@ class WidgetUpdaterTest {
     }
 
     @Test
+    fun `a host category that includes the keyguard bit counts as the lock screen`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val settings = FakeSettingsRepository(AppSettings(hideLockScreenDetails = true))
+        val updater = WidgetUpdater(app, plans, settings).apply { clock = Clock.fixed(now, ZoneOffset.UTC) }
+        // The host category is a bit mask; a host may report keyguard together with another category.
+        val category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD or AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN
+        val lock = place(WidgetKind.NextUp, 24, category = category)
+        updater.update(WidgetKind.NextUp, intArrayOf(lock))
+        texts(lock).joinToString("\n") shouldNotContain "Lisbon"
+    }
+
+    @Test
     fun `keyguard widgets keep their details while the setting is off`() = runBlocking<Unit> {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val lock = place(WidgetKind.NextUp, 23, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
