@@ -51,6 +51,8 @@ class PureLogicTest {
         Math.round(sc * 60) shouldBe 4 * 60 + 47L
         Chronotypes.fromMsfSc(sc) shouldBe ChronotypeClass.Neutral
         Chronotypes.fromMsfSc(2.5) shouldBe ChronotypeClass.Early
+        Chronotypes.fromMsfSc(18.0) shouldBe ChronotypeClass.Early
+        Chronotypes.fromMsfSc(23.0) shouldBe ChronotypeClass.Early
         Chronotypes.fromMsfSc(5.5) shouldBe ChronotypeClass.Late
     }
 

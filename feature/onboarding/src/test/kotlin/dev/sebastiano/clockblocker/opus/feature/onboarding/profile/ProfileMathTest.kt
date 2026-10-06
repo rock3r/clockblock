@@ -228,6 +228,10 @@ class ChronotypeEstimateTest {
 
     @Test
     fun `five bands agree with the planner's three classes`() = runTest {
+        // 18:00 is the wrap boundary between late-afternoon mid-sleep and very early evening mid-sleep (issue #26).
+        for (boundary in listOf(0.0, 2.0, 3.0, 5.0, 6.0, 17.999, 18.0, 23.999)) {
+            ChronotypeEstimate.fromMidSleepHours(boundary).toClass() shouldBe Chronotypes.fromMsfSc(boundary)
+        }
         checkAll(Arb.int(0, 23_999).map { it / 1000.0 }) { h ->
             ChronotypeEstimate.fromMidSleepHours(h).toClass() shouldBe Chronotypes.fromMsfSc(h)
         }

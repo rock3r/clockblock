@@ -53,10 +53,11 @@ object Chronotypes {
 
     /** MSF_sc tertiles (§8.2): before 03:00 → early, after 05:00 → late. */
     fun fromMsfSc(msfScHours: Double, earlyBefore: Double = 3.0, lateAfter: Double = 5.0): ChronotypeClass {
-        // Mid-sleep in the evening (e.g. 23:00 for very early sleepers) counts as before 03:00.
-        val h = CircadianMath.norm12(msfScHours - 12.0) + 12.0
+        // Mid-sleep in the evening (18:00–24:00, e.g. 23:00 for very early sleepers) counts as before midnight:
+        // map to [-6, 18), matching ChronotypeEstimate.fromMidSleepHours.
+        val h = CircadianMath.mod24(msfScHours + 6.0) - 6.0
         return when {
-            h < earlyBefore || h > 18.0 -> ChronotypeClass.Early
+            h < earlyBefore -> ChronotypeClass.Early
             h > lateAfter -> ChronotypeClass.Late
             else -> ChronotypeClass.Neutral
         }

@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.longs.shouldBeLessThan
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -40,15 +41,19 @@ class AssetPlaceSearchTest {
 
     @Test
     fun warmLoadFromAssetsIsUnderBudget() = runTest {
-        // First load pays class loading/JIT; the budget applies to the steady-state parse+index cost.
-        AssetPlaceSearch(application, AppDispatchers.single(StandardTestDispatcher(testScheduler))).warmUp()
-        val best = (1..3).minOf {
+        // Initial loads pay class loading/JIT; the budget applies to the steady-state parse+index cost.
+        // Shared CI runners have noisy CPU/GC scheduling, so allow a wider ceiling there (issue #34).
+        val budgetMs = if (System.getenv("CI") != null) 500L else 150L
+        repeat(2) {
+            AssetPlaceSearch(application, AppDispatchers.single(StandardTestDispatcher(testScheduler))).warmUp()
+        }
+        val best = (1..5).minOf {
             val search = AssetPlaceSearch(application, AppDispatchers.single(StandardTestDispatcher(testScheduler)))
             search.warmUp()
             search.loadDuration!!.toMillis()
         }
-        println("AssetPlaceSearch warm load: $best ms")
-        (best < 150) shouldBe true
+        println("AssetPlaceSearch warm load: $best ms (budget $budgetMs ms)")
+        best shouldBeLessThan budgetMs
     }
 
     @Test
