@@ -83,7 +83,7 @@ class WidgetScreenshotTest {
             val current = (plan?.let { WidgetStateMapper.map(it, now, zone) } as? WidgetState.Active)?.current
             if (logged != null && current != null) add(AdviceLog(current.adviceId, logged))
         }
-        val full = plan?.let { WidgetStateMapper.map(it, now, zone, logs, route = DemoPlans.ROUTE) } ?: WidgetState.NoTrip
+        val full = plan?.let { WidgetStateMapper.map(it, now, zone, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES) } ?: WidgetState.NoTrip
         val state = if (redacted) WidgetStateMapper.redact(full) else full
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
     }

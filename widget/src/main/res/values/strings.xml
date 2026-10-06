@@ -66,4 +66,12 @@
     <string name="widget_a11y_body_ahead">Your body clock is %1$s ahead of local time.</string>
     <string name="widget_a11y_body_in_sync">Your body clock is in sync with local time.</string>
     <string name="widget_a11y_now">Now: %1$s %2$s.</string>
+    <!-- "until 18:00 (10:00 in Lisbon)": a time with the same time in the other zone. -->
+    <string name="widget_a11y_with_secondary">%1$s (%2$s)</string>
+    <!-- Spoken live countdown, assembled on the launcher: "1 hour 10 minutes left". -->
+    <string name="widget_a11y_time_left">%1$s left</string>
+    <string name="widget_a11y_hour">hour</string>
+    <string name="widget_a11y_hours">hours</string>
+    <string name="widget_a11y_minute">minute</string>
+    <string name="widget_a11y_minutes">minutes</string>
 </resources>

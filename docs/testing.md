@@ -1,6 +1,6 @@
 # Testing and CI
 
-The project is built test-first. There are about 1,070 JVM tests (plain JUnit and Robolectric), 199 committed
+The project is built test-first. There are about 1,080 JVM tests (plain JUnit and Robolectric), 199 committed
 screenshot goldens and 22 end-to-end tests that run on an emulator. Every pull request runs them in GitHub
 Actions, except one e2e test that the API 36 emulator skips (see [CI](#ci)), and Codex reviews the change.
 
@@ -33,8 +33,8 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:plan` | 131 | 28 |
 | `:feature:settings` | 71 | 30 |
 | `:feature:trips` | 97 | 25 |
-| `:widget` | 95 | 14 |
-| **Total** | **1066** | **199** |
+| `:widget` | 109 | 14 |
+| **Total** | **1080** | **199** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 
