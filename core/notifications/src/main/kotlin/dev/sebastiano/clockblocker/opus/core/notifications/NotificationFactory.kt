@@ -124,10 +124,17 @@ class NotificationFactory(
      *
      * @param redact see [now]; a melatonin reminder also swaps its pill icon for the plain clock.
      */
-    fun reminder(spec: ReminderSpec, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
+    fun reminder(
+        spec: ReminderSpec,
+        plan: JetLagPlan,
+        now: Instant,
+        redact: Boolean = false,
+        onlyAlertOnce: Boolean = false,
+    ): Notification {
         val state = NowStateCalculator.compute(plan, now)
         fun build(publicText: Boolean) =
             reminderBuilder(spec, plan, now, formatter(publicText).reminder(spec, state, plan, now), redacted = redact)
+                .setOnlyAlertOnce(onlyAlertOnce)
         return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
 

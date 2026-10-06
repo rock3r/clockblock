@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -79,6 +80,7 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.cityLabel
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.formatDuration
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.rememberDateFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
@@ -108,14 +110,24 @@ internal fun TripEditorRoute(
             }
         }
     }
+    val now by produceState(initialValue = Instant.now()) {
+        while (true) {
+            val current = Instant.now()
+            delay(MillisPerMinute - current.toEpochMilli() % MillisPerMinute)
+            value = Instant.now()
+        }
+    }
     TripEditorContent(
         state = state,
         actions = viewModel,
         onClose = onBack,
         onDiscard = { onDone(null) },
         modifier = modifier,
+        now = now,
     )
 }
+
+private const val MillisPerMinute = 60_000L
 
 /** Stateless full-screen editor. [now] drives the UTC offsets shown next to airports. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -245,6 +257,10 @@ private fun EditorBody(
     }
     val details: @Composable () -> Unit = {
         TripDetails(state, actions, onPick)
+        state.preview?.let { preview ->
+            Spacer(Modifier.height(16.dp))
+            ShiftPreviewCard(preview)
+        }
         if (!state.canSave && !state.saving) {
             Spacer(Modifier.height(16.dp))
             Text(

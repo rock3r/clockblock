@@ -149,8 +149,11 @@ actions, because their set alone can name the advice (Done with Snooze is melato
 `AppSettings.hideLockScreenDetails` ("Hide details on the lock screen"), the notification's visibility becomes
 `VISIBILITY_PRIVATE`, so Android shows the public version on a secure lock screen whenever the user's system
 setting hides sensitive content. With the setting off (the default), visibility stays public and the full text
-shows, as before. Turning the setting on also withdraws a reminder that is already showing, since it was posted
-without a public version. Lock-screen widgets honour the same setting (see [Lock-screen widgets](#lock-screen-widgets)).
+shows, as before. While the setting is on, `AdviceAlarmScheduler` checks on every plan or settings emission (so
+also on the first one after a restart) for a reminder on screen without a public version. Under the same lock as
+reminder posts, `ReminderNotifier.redactShowing` rebuilds it redacted without alerting again, keeping its timeout.
+A reminder left over from an earlier process is withdrawn instead, because what it said is no longer known.
+Lock-screen widgets honour the same setting (see [Lock-screen widgets](#lock-screen-widgets)).
 
 ### Live Update on travel days
 

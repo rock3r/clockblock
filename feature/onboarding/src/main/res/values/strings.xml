@@ -35,6 +35,14 @@
     <string name="sleep_body">Drag the moon to bedtime and the sun to wake-up. Your usual nights, not your best ones.</string>
     <string name="sleep_bedtime">Bedtime</string>
     <string name="sleep_wake">Wake</string>
+    <string name="sleep_pick_bedtime">set bedtime</string>
+    <string name="sleep_pick_wake">set wake-up time</string>
+    <string name="sleep_picker_bedtime_title">Bedtime</string>
+    <string name="sleep_picker_wake_title">Wake-up time</string>
+    <string name="sleep_picker_ok">OK</string>
+    <string name="sleep_picker_cancel">Cancel</string>
+    <string name="sleep_picker_mode_keyboard">Type the time</string>
+    <string name="sleep_picker_mode_dial">Pick on a clock face</string>
     <string name="sleep_duration_hours_minutes">%1$d h %2$02d m</string>
     <string name="sleep_duration_hours">%1$d h</string>
     <string name="sleep_duration_caption">of sleep</string>

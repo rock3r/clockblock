@@ -2,8 +2,12 @@ package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.circadian.JetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.data.PlaceSearch
+import dev.sebastiano.clockblocker.opus.core.data.ProfileRepository
 import dev.sebastiano.clockblocker.opus.core.data.TripRepository
+import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
+import dev.sebastiano.clockblocker.opus.core.data.trip.FlightEstimates
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripIssue
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
@@ -30,8 +34,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -50,6 +56,10 @@ sealed interface TripEditorEvent {
  * Full-screen trip editor. Holds an [EditorForm] of local wall-clock times per airport, validates it live with
  * [TripValidator] (inline issues + one-tap fixes), searches airports offline, and saves through
  * [TripRepository] (plans re-derive automatically from there).
+ *
+ * While editing it also fills untouched arrivals from the flight distance ([FlightEstimates]), offers popular
+ * airports for empty airport fields, and previews the plan for a complete draft with the same [JetLagPlanner] the
+ * saved trip will use.
  */
 @AssistedInject
 class TripEditorViewModel(
@@ -60,6 +70,9 @@ class TripEditorViewModel(
     private val titles: TripTitleSuggester,
     private val returnTrips: ReturnTripFactory,
     private val clock: Clock,
+    private val planner: JetLagPlanner,
+    private val profiles: ProfileRepository,
+    private val dispatchers: AppDispatchers,
 ) : ViewModel(), TripEditorActions {
 
     private val _state = MutableStateFlow(TripEditorUiState())
@@ -72,6 +85,10 @@ class TripEditorViewModel(
     private var original: Trip? = null
     private var outbound: Trip? = null
     private var searchJob: Job? = null
+    private var popularJob: Job? = null
+    private var popularPlaces: List<Place>? = null
+    private var previewJob: Job? = null
+    private var previewTrip: Trip? = null
 
     init {
         viewModelScope.launch { load() }
@@ -103,6 +120,7 @@ class TripEditorViewModel(
         }
         baseline = form
         _state.value = derive(TripEditorUiState(loading = false, mode = mode), form)
+        schedulePreview(_state.value)
     }
 
     private fun formOf(trip: Trip, titleEdited: Boolean): EditorForm {
@@ -120,7 +138,32 @@ class TripEditorViewModel(
     // region Form edits
 
     private fun editForm(transform: (EditorForm) -> EditorForm) {
-        _state.update { current -> if (current.loading) current else derive(current, transform(current.form)) }
+        _state.update { current ->
+            if (current.loading) current else derive(current, transform(current.form).let(::withEstimatedArrivals))
+        }
+        schedulePreview(_state.value)
+    }
+
+    /**
+     * Fills every leg whose arrival the user hasn't touched with the distance-based estimate, or clears a stale
+     * estimate when its inputs are gone. Arrivals the user set (or that came from a saved trip) are never changed.
+     */
+    private fun withEstimatedArrivals(form: EditorForm): EditorForm {
+        val legs = form.legs.map { leg ->
+            if (!leg.arrivalUntouched) return@map leg
+            val from = leg.origin.place
+            val to = leg.destination.place
+            val departure = leg.departureLocal
+            if (from != null && to != null && departure != null && from != to) {
+                val arrival = FlightEstimates.arrivalLocal(from, to, departure)
+                leg.copy(arrivalDate = arrival.toLocalDate(), arrivalTime = arrival.toLocalTime(), arrivalEstimated = true)
+            } else if (leg.arrivalEstimated) {
+                leg.copy(arrivalDate = null, arrivalTime = null, arrivalEstimated = false)
+            } else {
+                leg
+            }
+        }
+        return if (legs == form.legs) form else form.copy(legs = legs)
     }
 
     private fun editLeg(index: Int, transform: (LegDraft) -> LegDraft) = editForm { form ->
@@ -144,11 +187,13 @@ class TripEditorViewModel(
 
     override fun onDepartureTimeChange(legIndex: Int, time: LocalTime) = editLeg(legIndex) { it.copy(departureTime = time) }
 
-    override fun onArrivalDateChange(legIndex: Int, date: LocalDate) = editLeg(legIndex) { it.copy(arrivalDate = date) }
+    override fun onArrivalDateChange(legIndex: Int, date: LocalDate) = editLeg(legIndex) {
+        it.copy(arrivalDate = date, arrivalEstimated = false)
+    }
 
     override fun onArrivalTimeChange(legIndex: Int, time: LocalTime) = editLeg(legIndex) { leg ->
         // First arrival time entered without a date: assume the departure date (the validator then offers +1 day).
-        leg.copy(arrivalTime = time, arrivalDate = leg.arrivalDate ?: leg.departureDate)
+        leg.copy(arrivalTime = time, arrivalDate = leg.arrivalDate ?: leg.departureDate, arrivalEstimated = false)
     }
 
     override fun onReturnDateChange(date: LocalDate) = editForm { it.copy(returnDate = date, returnTime = it.returnTime ?: DefaultReturnTime) }
@@ -180,13 +225,18 @@ class TripEditorViewModel(
 
     /** One-tap fix from a validation issue (e.g. "Arrives next day?"). */
     override fun applySuggestedArrival(legIndex: Int, arrival: LocalDateTime) = editLeg(legIndex) {
-        it.copy(arrivalDate = arrival.toLocalDate(), arrivalTime = arrival.toLocalTime())
+        it.copy(arrivalDate = arrival.toLocalDate(), arrivalTime = arrival.toLocalTime(), arrivalEstimated = false)
     }
 
     /** Fix for a disconnected itinerary: depart from the airport the previous flight lands at. */
     override fun useConnectingOrigin(legIndex: Int) {
         val previous = _state.value.legs.getOrNull(legIndex - 1)?.destination?.place ?: return
         editLeg(legIndex) { it.copy(origin = PlaceInput.of(previous)) }
+    }
+
+    override fun swapPlaces(legIndex: Int) {
+        dismissSearch()
+        editLeg(legIndex) { it.copy(origin = it.destination, destination = it.origin) }
     }
 
     /**
@@ -212,11 +262,19 @@ class TripEditorViewModel(
     override fun onPlaceQueryChange(field: PlaceFieldRef, query: String) {
         editLeg(field.legIndex) { it.withPlace(field.end, PlaceInput(query, place = null)) }
         searchJob?.cancel()
+        popularJob?.cancel()
         if (query.isBlank()) {
+            // Still in the field, now empty again: back to the popular airports.
             _state.update { it.copy(search = null) }
+            showPopular(field)
             return
         }
-        _state.update { it.copy(search = PlaceSearchState(field, query, it.search?.takeIf { s -> s.field == field }?.results.orEmpty(), searching = true)) }
+        _state.update { current ->
+            // Keep the previous matches on screen while the new search runs (see pickTopResult), but never the
+            // popular picks: they don't match what's typed.
+            val previous = current.search?.takeIf { s -> s.field == field && !s.popular }?.results.orEmpty()
+            current.copy(search = PlaceSearchState(field, query, previous, searching = true))
+        }
         searchJob = viewModelScope.launch {
             delay(SearchDebounceMillis)
             val results = places.search(query.trim(), SearchLimit)
@@ -232,6 +290,7 @@ class TripEditorViewModel(
 
     override fun onPlaceSelected(field: PlaceFieldRef, place: Place) {
         searchJob?.cancel()
+        popularJob?.cancel()
         editForm { form ->
             val legs = form.legs.toMutableList()
             legs[field.legIndex] = legs[field.legIndex].withPlace(field.end, PlaceInput.of(place))
@@ -253,7 +312,7 @@ class TripEditorViewModel(
      * just before this is called.
      */
     override fun pickTopResult(field: PlaceFieldRef): Boolean {
-        val search = _state.value.search?.takeIf { it.field == field } ?: return false
+        val search = _state.value.search?.takeIf { it.field == field && !it.popular && it.query.isNotBlank() } ?: return false
         val top = search.results.firstOrNull() ?: return false
         onPlaceSelected(field, top)
         return true
@@ -261,7 +320,32 @@ class TripEditorViewModel(
 
     override fun dismissSearch() {
         searchJob?.cancel()
+        popularJob?.cancel()
         _state.update { it.copy(search = null) }
+    }
+
+    override fun onPlaceFieldFocused(field: PlaceFieldRef) {
+        val input = _state.value.legs.getOrNull(field.legIndex)?.place(field.end) ?: return
+        if (input.place != null || input.query.isNotBlank()) return
+        if (_state.value.search?.field == field) return
+        searchJob?.cancel()
+        showPopular(field)
+    }
+
+    /** Offers [PopularAirports] under an empty [field], minus the airport already at the leg's other end. */
+    private fun showPopular(field: PlaceFieldRef) {
+        popularJob?.cancel()
+        popularJob = viewModelScope.launch {
+            val all = popularPlaces ?: PopularAirports.Codes.mapNotNull { places.byCode(it) }.also { popularPlaces = it }
+            _state.update { current ->
+                val leg = current.legs.getOrNull(field.legIndex) ?: return@update current
+                val input = leg.place(field.end)
+                if (input.place != null || input.query.isNotBlank()) return@update current
+                val other = leg.place(if (field.end == LegEnd.Origin) LegEnd.Destination else LegEnd.Origin).place
+                val results = all.filter { it != other }.take(PopularLimit)
+                current.copy(search = PlaceSearchState(field, "", results, searching = false, popular = true))
+            }
+        }
     }
 
     // endregion
@@ -320,6 +404,52 @@ class TripEditorViewModel(
         }
     }
 
+    /**
+     * Re-plans the draft (debounced, off the main thread) when what the planner sees changed: legs, strategy or
+     * return. Titles and flight numbers don't move the plan, so typing them never re-runs it. The previous preview
+     * stays up while a new one is computed, and goes away as soon as the draft can't be planned.
+     */
+    private fun schedulePreview(state: TripEditorUiState) {
+        val trip = if (!state.loading && state.complete && !state.hasErrors) previewTripOf(state) else null
+        if (trip == previewTrip) return
+        previewTrip = trip
+        previewJob?.cancel()
+        if (trip == null) {
+            _state.update { it.copy(preview = null) }
+            return
+        }
+        previewJob = viewModelScope.launch {
+            delay(PreviewDebounceMillis)
+            val profile = profiles.profile.first() ?: return@launch
+            val plan = withContext(dispatchers.default) { runCatching { planner.plan(trip, profile, clock.instant()) }.getOrNull() }
+                ?: return@launch
+            val preview = ShiftPreview(
+                shiftHours = plan.shiftHours,
+                direction = plan.direction,
+                strategy = plan.strategy,
+                daysToAdapt = plan.estimatedDaysToAdapt,
+                daysWithoutPlan = plan.estimatedDaysWithoutPlan,
+            )
+            _state.update { if (previewTrip == trip) it.copy(preview = preview) else it }
+        }
+    }
+
+    private fun previewTripOf(state: TripEditorUiState): Trip? {
+        val legs = state.legs.map { it.toFlightLeg()?.copy(flightNumber = null) ?: return null }
+        if (legs.isEmpty()) return null
+        val returnDeparture = state.form.returnDate?.let { date ->
+            date.atTime(state.form.returnTime ?: DefaultReturnTime).atZone(legs.last().destination.zone).toInstant()
+        }
+        return Trip(
+            id = original?.id ?: PreviewTripId,
+            title = "",
+            legs = legs,
+            createdAt = original?.createdAt ?: PlaceholderInstant,
+            strategyOverride = state.form.strategy,
+            returnDeparture = returnDeparture,
+        )
+    }
+
     /** Title suggestions only need the route, so incomplete legs with both airports still count. */
     private fun routeOnly(legs: List<LegDraft>): List<FlightLeg> = legs.mapNotNull { leg ->
         val from = leg.origin.place ?: return@mapNotNull null
@@ -337,6 +467,10 @@ class TripEditorViewModel(
     companion object {
         const val SearchDebounceMillis: Long = 120
         const val SearchLimit: Int = 6
+        const val PopularLimit: Int = 8
+        const val PreviewDebounceMillis: Long = 300
+        private const val PreviewTripId = "preview"
+        private val PlaceholderInstant: Instant = Instant.EPOCH
         const val MaxFlightNumberLength: Int = 8
         val DelayWindowBeforeDeparture: Duration = Duration.ofHours(48)
         val DefaultReturnTime: LocalTime = LocalTime.of(12, 0)

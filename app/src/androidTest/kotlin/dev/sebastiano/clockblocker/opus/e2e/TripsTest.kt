@@ -3,6 +3,8 @@ package dev.sebastiano.clockblocker.opus.e2e
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -34,8 +36,18 @@ class TripsTest : OpusE2eTest() {
         awaitTag(TripsTestTags.editorDepartureDate(0)).scrollToIfScrollable().performClick()
         pickDateInOpenPicker(departureDay())
         confirmTimePicker(TripsTestTags.editorDepartureTime(0))
-        // 09:00 in Tokyo on the departure day is before 09:00 in Lisbon: the validator flags it and offers a fix.
-        confirmTimePicker(TripsTestTags.editorArrivalTime(0))
+        // With both airports and the departure set, the editor estimates the arrival from the distance (next morning
+        // in Tokyo) and labels it as an estimate.
+        awaitTag(TripsTestTags.editorArrivalEstimate(0)).scrollToIfScrollable().assertIsDisplayed()
+        // Landing on the departure day itself would be before take-off: the validator flags it and offers a fix.
+        awaitTag(TripsTestTags.editorArrivalDate(0)).scrollToIfScrollable().performClick()
+        // The picker opens on the estimate's month, which is next month when the departure is the month's last day.
+        if (departureDay().plusDays(1).month != departureDay().month) {
+            await(hasContentDescription("previous month", substring = true, ignoreCase = true) and hasClickAction())
+                .performClick()
+        }
+        pickDateInOpenPicker(departureDay())
+        awaitGone(TripsTestTags.editorArrivalEstimate(0))
         awaitTag(TripsTestTags.editorFix(0)).scrollToIfScrollable().performClick()
         awaitGone(TripsTestTags.editorFix(0))
 

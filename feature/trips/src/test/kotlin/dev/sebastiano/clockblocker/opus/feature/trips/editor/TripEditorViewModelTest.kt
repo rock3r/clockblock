@@ -8,7 +8,12 @@ import dev.sebastiano.clockblocker.opus.core.data.trip.TripIssue
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
+import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
+import dev.sebastiano.clockblocker.opus.core.data.trip.FlightEstimates
+import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
 import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
@@ -38,6 +43,9 @@ class TripEditorViewModelTest {
     private val trips = FakeTripRepository.withDemoTrips()
     private val search = FakePlaceSearch()
 
+    private val planner = FakeJetLagPlanner()
+    private val profiles = FakeProfileRepository.onboarded()
+
     private fun viewModel(args: TripEditorArgs = TripEditorArgs()) = TripEditorViewModel(
         args = args,
         trips = trips,
@@ -46,6 +54,9 @@ class TripEditorViewModelTest {
         titles = TripTitleSuggester(),
         returnTrips = ReturnTripFactory(clock, TripTitleSuggester()),
         clock = clock,
+        planner = planner,
+        profiles = profiles,
+        dispatchers = AppDispatchers(main.dispatcher, main.dispatcher, main.dispatcher),
     )
 
     private val from0 = PlaceFieldRef(0, LegEnd.Origin)
@@ -295,4 +306,167 @@ class TripEditorViewModelTest {
         viewModel().state.value.canReportDelay shouldBe false
         viewModel(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId)).state.value.canReportDelay shouldBe false
     }
+
+    // region Arrival estimate
+
+    private fun TripEditorViewModel.fillLisbonTokyoDeparture() {
+        onPlaceSelected(from0, DemoData.LIS)
+        onPlaceSelected(to0, DemoData.HND)
+        onDepartureDateChange(0, LocalDate.of(2026, 7, 1))
+        onDepartureTimeChange(0, LocalTime.of(10, 0))
+    }
+
+    @Test
+    fun `an untouched arrival is estimated from the distance once airports and departure are set`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.onPlaceSelected(from0, DemoData.LIS)
+        vm.onPlaceSelected(to0, DemoData.HND)
+        vm.onDepartureDateChange(0, LocalDate.of(2026, 7, 1))
+        vm.state.value.legs[0].arrivalLocal.shouldBeNull()
+
+        vm.onDepartureTimeChange(0, LocalTime.of(10, 0))
+        val leg = vm.state.value.legs[0]
+        leg.arrivalEstimated shouldBe true
+        leg.arrivalLocal shouldBe FlightEstimates.arrivalLocal(DemoData.LIS, DemoData.HND, LocalDateTime.of(2026, 7, 1, 10, 0))
+        vm.state.value.canSave shouldBe true
+    }
+
+    @Test
+    fun `the estimate follows the departure until the user sets the arrival`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        vm.onDepartureTimeChange(0, LocalTime.of(12, 0))
+        vm.state.value.legs[0].arrivalLocal shouldBe
+            FlightEstimates.arrivalLocal(DemoData.LIS, DemoData.HND, LocalDateTime.of(2026, 7, 1, 12, 0))
+
+        vm.onArrivalTimeChange(0, LocalTime.of(7, 30))
+        vm.state.value.legs[0].arrivalEstimated shouldBe false
+        vm.onDepartureTimeChange(0, LocalTime.of(9, 0))
+        vm.state.value.legs[0].arrivalTime shouldBe LocalTime.of(7, 30)
+    }
+
+    @Test
+    fun `an estimate is withdrawn when an airport is cleared`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        vm.onPlaceQueryChange(to0, "Toky")
+        val leg = vm.state.value.legs[0]
+        leg.arrivalLocal.shouldBeNull()
+        leg.arrivalEstimated shouldBe false
+    }
+
+    @Test
+    fun `saved trips keep their arrival times`() = runTest(main.dispatcher) {
+        val original = trips.current.single { it.id == DemoData.SfoLhrId }
+        val vm = viewModel(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        vm.onDepartureTimeChange(0, LocalTime.of(6, 0))
+        vm.state.value.legs[0].arrivalLocal shouldBe original.legs[0].arrivalLocal
+    }
+
+    // endregion
+
+    @Test
+    fun `swap exchanges From and To and re-estimates the arrival`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        vm.swapPlaces(0)
+        val leg = vm.state.value.legs[0]
+        leg.origin.place shouldBe DemoData.HND
+        leg.destination.place shouldBe DemoData.LIS
+        leg.arrivalLocal shouldBe FlightEstimates.arrivalLocal(DemoData.HND, DemoData.LIS, LocalDateTime.of(2026, 7, 1, 10, 0))
+    }
+
+    // region Popular airports
+
+    @Test
+    fun `focusing an empty airport field offers popular airports, minus the other end`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.onPlaceSelected(from0, DemoData.LHR)
+        vm.onPlaceFieldFocused(to0)
+        advanceUntilIdle()
+        val popular = vm.state.value.search.shouldNotBeNull()
+        popular.field shouldBe to0
+        popular.popular shouldBe true
+        popular.query shouldBe ""
+        popular.results.map { it.code }.take(3) shouldContainExactly listOf("JFK", "LAX", "SFO")
+        popular.results.none { it.code == "LHR" } shouldBe true
+        // Enter on an empty field never picks a suggestion.
+        vm.pickTopResult(to0) shouldBe false
+    }
+
+    @Test
+    fun `focusing a filled field offers nothing`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.onPlaceSelected(from0, DemoData.LHR)
+        vm.onPlaceFieldFocused(from0)
+        advanceUntilIdle()
+        vm.state.value.search.shouldBeNull()
+    }
+
+    @Test
+    fun `clearing the query brings the popular airports back, and typing replaces them`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.onPlaceQueryChange(from0, "to")
+        advanceUntilIdle()
+        vm.onPlaceQueryChange(from0, "")
+        advanceUntilIdle()
+        vm.state.value.search.shouldNotBeNull().popular shouldBe true
+
+        vm.onPlaceQueryChange(from0, "lis")
+        // Popular picks never linger under a typed query while its search runs.
+        vm.state.value.search.shouldNotBeNull().results.shouldBeEmpty()
+        advanceUntilIdle()
+        vm.state.value.search.shouldNotBeNull().results.first().code shouldBe "LIS"
+    }
+
+    // endregion
+
+    // region Shift preview
+
+    @Test
+    fun `a complete draft gets the planner's shift preview`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        advanceUntilIdle()
+        val preview = vm.state.value.preview.shouldNotBeNull()
+        preview.shiftHours shouldBe 8.0
+        preview.direction shouldBe ShiftDirection.Advance
+        preview.strategy shouldBe AdaptationStrategy.Adapt
+        preview.daysToAdapt shouldBe 8.0 / 1.5
+        preview.daysWithoutPlan shouldBe 8.0
+    }
+
+    @Test
+    fun `the preview follows the strategy and goes away when the draft is incomplete`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        vm.onStrategyChange(AdaptationStrategy.StayOnHomeTime)
+        advanceUntilIdle()
+        vm.state.value.preview.shouldNotBeNull().strategy shouldBe AdaptationStrategy.StayOnHomeTime
+
+        vm.onPlaceQueryChange(to0, "Toky")
+        vm.state.value.preview.shouldBeNull()
+    }
+
+    @Test
+    fun `title edits don't re-run the planner`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        advanceUntilIdle()
+        val calls = planner.calls
+        vm.onTitleChange("Conference")
+        advanceUntilIdle()
+        planner.calls shouldBe calls
+    }
+
+    @Test
+    fun `no preview without a profile`() = runTest(main.dispatcher) {
+        profiles.set(null)
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        advanceUntilIdle()
+        vm.state.value.preview.shouldBeNull()
+    }
+
+    // endregion
 }

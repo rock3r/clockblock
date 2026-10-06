@@ -11,7 +11,7 @@ how to back it up.
 | Setting | What it does |
 |---|---|
 | Home time zone | Where home is. Search for a city or airport. Plans don't use it yet: they start from the trip's first departure airport. |
-| Usual sleep | Your normal bedtime and wake-up time. |
+| Usual sleep | Your normal bedtime and wake-up time, on the same dial as setup. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
 | Chronotype | Lark, owl or in between. |
 | Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#5-your-tools). |
 | How hard the plan pushes | Gentle, Balanced or Max. |

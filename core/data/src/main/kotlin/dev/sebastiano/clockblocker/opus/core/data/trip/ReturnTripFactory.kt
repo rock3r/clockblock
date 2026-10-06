@@ -7,7 +7,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.UUID
-import kotlin.math.roundToLong
 
 /**
  * Turns an outbound trip into a prefilled return trip: legs reversed (B→A, connections kept), flight
@@ -69,15 +68,12 @@ class ReturnTripFactory(
         val d = leg.duration
         if (d > Duration.ZERO) return d
         // The outbound leg itself is invalid: estimate from distance at airliner speed plus taxi time.
-        val km = TripValidator.distanceKm(leg.origin, leg.destination)
-        return Duration.ofMinutes((km / EstimatedSpeedKmh * 60).roundToLong()).plus(TaxiAllowance)
+        return FlightEstimates.blockTime(leg.origin, leg.destination)
     }
 
     companion object {
         val DefaultStay: Duration = Duration.ofDays(7)
         val MinLayover: Duration = Duration.ofMinutes(45)
         val DefaultLayover: Duration = Duration.ofHours(2)
-        private const val EstimatedSpeedKmh = 800.0
-        private val TaxiAllowance: Duration = Duration.ofMinutes(30)
     }
 }

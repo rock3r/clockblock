@@ -75,6 +75,13 @@
     <string name="trip_undo">Undo</string>
     <string name="trip_duplicated">Trip duplicated</string>
     <string name="trip_swipe_delete">Delete</string>
+    <plurals name="trip_days_to_adapt">
+        <item quantity="one">~%1$d day to adapt</item>
+        <item quantity="other">~%1$d days to adapt</item>
+    </plurals>
+    <string name="trip_via">via %1$s</string>
+    <string name="trip_route_in_flight">%1$s, %2$d%% of the way</string>
+    <string name="trips_body_clock">Body clock %1$s</string>
 
     <!-- Durations. -->
     <string name="duration_hours_minutes">%1$d h %2$d m</string>
@@ -101,6 +108,11 @@
     <string name="editor_place_pick_hint">Pick a match below, or press Enter for the top one</string>
     <string name="editor_place_no_results">No airport or city matches “%1$s”.</string>
     <string name="editor_place_result_description">%1$s, %2$s, %3$s, %4$s, %5$s</string>
+    <string name="editor_place_result_time">%1$s local time</string>
+    <string name="editor_place_popular">Popular airports</string>
+    <string name="editor_swap">Swap From and To</string>
+    <string name="editor_arrival_estimated">Estimated from the flight distance. Adjust it to your ticket.</string>
+    <string name="editor_arrival_estimated_short">estimated</string>
     <string name="editor_departs">Departs</string>
     <string name="editor_arrives">Arrives</string>
     <string name="editor_local_time_in">local time in %1$s</string>
@@ -139,6 +151,24 @@
     <string name="editor_strategy_auto_explanation">Adapts to your destination, unless you fly back within 72 hours: then you stay on home time.</string>
     <string name="editor_strategy_adapt_explanation">Moves your body clock to destination time, even for a short stay.</string>
     <string name="editor_strategy_home_explanation">Keeps your body clock at home. Best for quick trips.</string>
+
+    <!-- Shift preview. -->
+    <string name="editor_preview_title">Your shift preview</string>
+    <string name="editor_preview_east">%1$s east</string>
+    <string name="editor_preview_west">%1$s west</string>
+    <string name="editor_preview_earlier">shift earlier</string>
+    <string name="editor_preview_later">shift later</string>
+    <string name="editor_preview_no_shift">No jet lag expected: these places keep nearly the same hours.</string>
+    <string name="editor_preview_home">Short trip: the plan keeps your body clock on home time.</string>
+    <plurals name="editor_preview_days">
+        <item quantity="one">About %1$d day to adapt with the plan</item>
+        <item quantity="other">About %1$d days to adapt with the plan</item>
+    </plurals>
+    <plurals name="editor_preview_without">
+        <item quantity="one">about %1$d day without one</item>
+        <item quantity="other">about %1$d days without one</item>
+    </plurals>
+    <string name="editor_preview_note">Estimated by the planner from the flights above. Save to see the full plan.</string>
 
     <!-- I'm delayed. -->
     <string name="editor_delay_title">I\'m delayed</string>

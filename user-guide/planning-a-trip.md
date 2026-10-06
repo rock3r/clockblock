@@ -10,12 +10,19 @@ a plan straight away. You can change the trip at any time, and the plan follows.
 With no trips, the screen says "Where to next?". Tap **Plan a trip** to add your own, or **Try a demo trip** to
 see an example plan for a flight from San Francisco to London a few days from now.
 
-Once you have trips, they're grouped as **In progress**, **Upcoming** and **Past**. Each card shows the route,
-the flight times, how many hours the time changes ("+8 h east"), and either the day of the plan ("Day 2 of 4")
-or when it starts ("Starts in 8 days"). Trips in progress also show how far your body clock has adapted.
+Once you have trips, they're grouped as **In progress**, **Upcoming** and **Past**. Each card shows the airport
+codes with the route drawn as an arc between them, the flight times, any stops ("1 stop · via SIN"), how many hours
+the time changes ("+8 h east"), and either the day of the plan ("Day 2 of 4") or when it starts ("Starts in 8
+days"). Upcoming trips also say about how many days the plan needs to adapt you ("~5 days to adapt"). Trips in
+progress show how far your body clock has adapted, and while you're in the air the plane on the arc shows how far
+along the flight is.
+
+During a trip, the sky behind the screen title follows your body clock, and the subtitle shows your body clock
+time.
 
 To add another trip, tap the **+** button. It offers **New trip**, **Return from** the destination of the trip
-you're on (or the last one you took), and **Try a demo trip**.
+you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a phone in landscape, the
+**+** button sits in the top bar instead, so it never covers a trip card.
 
 <img src="images/add-menu.png" alt="The Trips screen with the add menu open: New trip, Return from London and Try a demo trip." width="280" />
 
@@ -24,16 +31,23 @@ you're on (or the last one you took), and **Try a demo trip**.
 <img src="images/trip-editor.png" alt="The New trip screen: Flight 1 from Lisbon to Tokyo, with Date and Time fields for departure (local time in Lisbon) and arrival (local time in Tokyo), an optional flight number, Add connecting flight, and Trip details with the title Lisbon to Tokyo." width="280" />
 
 1. Under **From**, type a city, an airport name or a three-letter code (for example LIS) and pick the airport.
-   The search works offline.
-2. Do the same under **To**.
+   The search works offline. Before you type, the list offers a few popular airports. Each result shows the
+   country's flag, the airport's current local time (with a sun or moon for day or night) and its UTC offset.
+2. Do the same under **To**. Picked the airports the wrong way round? Tap the swap button next to them.
 3. Set the departure date and time. Use the **local time at the departure airport**, as printed on your ticket.
    The label reminds you: "Departs · local time in Lisbon".
-4. Set the arrival date and time in the **local time at the arrival airport**.
+4. Check the arrival date and time, in the **local time at the arrival airport**. Once both airports and the
+   departure are set, the app fills in an estimate from the flight distance, marked "Estimated from the flight
+   distance". Change it to the time on your ticket. Once you've set the arrival yourself, the app leaves it alone.
 5. Add the flight number if you like. It's optional and only used as a label.
 6. If you change planes, tap **Add connecting flight** and repeat for each flight.
 7. Tap **Save**.
 
 The app works out the time difference and the flight duration for you, including daylight-saving changes.
+
+When the flights are complete, **Your shift preview** under the trip details shows what the plan will do: how
+many hours you shift and in which direction, and about how many days it takes to adapt with the plan compared
+with no plan. It updates as you edit. Save to see the full plan.
 
 If you stay at a stop for three days or more, the plan treats that stop as a destination of its own and adapts
 you to it before the next flight.
