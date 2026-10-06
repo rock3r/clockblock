@@ -7,6 +7,11 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 /**
  * One semantic advice colour mapped to M3 roles. [color] is the vivid mark (dial arcs, glyph fill), [onColor]
  * is legible on it; [container]/[onContainer] are for cards and chips.
+ *
+ * [outline] is the active glyph's edge, for the vivid colours that are too pale to read on their own against
+ * the container and surfaces they sit on (WCAG 1.4.11, 3:1 for graphical objects): a deeper tone of the same
+ * hue, so the glyph keeps its colour identity. It is fully transparent (no edge drawn) where [color] already
+ * stands out.
  */
 @Immutable
 data class AdviceColorRole(
@@ -14,7 +19,11 @@ data class AdviceColorRole(
     val onColor: Color,
     val container: Color,
     val onContainer: Color,
-)
+    val outline: Color = color.copy(alpha = 0f),
+) {
+    /** Whether the active glyph draws an [outline] edge. */
+    val hasOutline: Boolean get() = outline.alpha > 0f
+}
 
 /**
  * Colour-blind safety: every advice type also has a pattern so meaning never rests on hue alone
@@ -73,6 +82,7 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
                 onColor = ColorMath.harmonize(r.onColor, primary),
                 container = ColorMath.harmonize(r.container, primary),
                 onContainer = ColorMath.harmonize(r.onContainer, primary),
+                outline = ColorMath.harmonize(r.outline, primary),
             )
         },
     )
@@ -85,6 +95,8 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
                 onColor = Color.Black,
                 container = ColorMath.dim(r.container, 0.55f, 0.6f),
                 onContainer = ColorMath.dim(r.onContainer, 0.72f, 0.45f),
+                // Dimmed like the inks, so an edge stays an edge; alpha (edge or no edge) is kept.
+                outline = ColorMath.dim(r.outline, 0.72f, 0.45f),
             )
         },
     )
@@ -99,13 +111,13 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
     companion object {
         val Light: AdviceColors = AdviceColors(
             mapOf(
-                AdviceType.SeeBrightLight to role(0xFFFFB000, 0xFF261900, 0xFFFFDEA0, 0xFF261900),
-                AdviceType.SeeLight to role(0xFFFFD57E, 0xFF261900, 0xFFFFEFD3, 0xFF261900),
+                AdviceType.SeeBrightLight to role(0xFFFFB000, 0xFF261900, 0xFFFFDEA0, 0xFF261900, outline = 0xFF8A5A00),
+                AdviceType.SeeLight to role(0xFFFFD57E, 0xFF261900, 0xFFFFEFD3, 0xFF261900, outline = 0xFF8F6400),
                 AdviceType.AvoidLight to role(0xFF3B2F5C, 0xFFFFFFFF, 0xFFE8DEFF, 0xFF1F1640),
                 AdviceType.Sleep to role(0xFF1E2A78, 0xFFFFFFFF, 0xFFDEE0FF, 0xFF00105C),
-                AdviceType.Nap to role(0xFF7C8CFF, 0xFF1A1F66, 0xFFE0E3FF, 0xFF1A1F66),
-                AdviceType.OptionalNap to role(0xFF9AA6FF, 0xFF1A1F66, 0xFFEDEEFF, 0xFF1A1F66),
-                AdviceType.Melatonin to role(0xFFB69DF8, 0xFF25005A, 0xFFEADDFF, 0xFF25005A),
+                AdviceType.Nap to role(0xFF7C8CFF, 0xFF1A1F66, 0xFFE0E3FF, 0xFF1A1F66, outline = 0xFF4A58D0),
+                AdviceType.OptionalNap to role(0xFF9AA6FF, 0xFF1A1F66, 0xFFEDEEFF, 0xFF1A1F66, outline = 0xFF5560D8),
+                AdviceType.Melatonin to role(0xFFB69DF8, 0xFF25005A, 0xFFEADDFF, 0xFF25005A, outline = 0xFF7552C4),
                 AdviceType.Caffeine to role(0xFFB5652B, 0xFFFFFFFF, 0xFFFFDBC8, 0xFF331200),
                 AdviceType.AvoidCaffeine to role(0xFFB5652B, 0xFFFFFFFF, 0xFFFFF1EA, 0xFF6B3A12),
                 AdviceType.PeakFatigue to role(0xFFE5483D, 0xFFFFFFFF, 0xFFFFDAD5, 0xFF410001),
@@ -118,7 +130,7 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
                 AdviceType.SeeBrightLight to role(0xFFFFB000, 0xFF261900, 0xFF5C4300, 0xFFFFDEA0),
                 AdviceType.SeeLight to role(0xFFE9C77F, 0xFF261900, 0xFF3F2E00, 0xFFFFDEA0),
                 AdviceType.AvoidLight to role(0xFFC9B8FF, 0xFF1F1640, 0xFF362B5E, 0xFFE8DEFF),
-                AdviceType.Sleep to role(0xFF5867D6, 0xFFFFFFFF, 0xFF2B3A8F, 0xFFDEE0FF),
+                AdviceType.Sleep to role(0xFF5867D6, 0xFFFFFFFF, 0xFF2B3A8F, 0xFFDEE0FF, outline = 0xFFAAB4FF),
                 AdviceType.Nap to role(0xFF9AA6FF, 0xFF1A1F66, 0xFF3A4399, 0xFFE0E3FF),
                 AdviceType.OptionalNap to role(0xFFB4BCFF, 0xFF1A1F66, 0xFF2E3570, 0xFFE0E3FF),
                 AdviceType.Melatonin to role(0xFFC7B3FF, 0xFF25005A, 0xFF4F378B, 0xFFEADDFF),
@@ -129,7 +141,14 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
             ),
         )
 
-        private fun role(color: Long, on: Long, container: Long, onContainer: Long) =
-            AdviceColorRole(Color(color), Color(on), Color(container), Color(onContainer))
+        /** [outline] null = the fill already reaches 3:1 on its backgrounds, so no edge is drawn. */
+        private fun role(color: Long, on: Long, container: Long, onContainer: Long, outline: Long? = null) =
+            AdviceColorRole(
+                color = Color(color),
+                onColor = Color(on),
+                container = Color(container),
+                onContainer = Color(onContainer),
+                outline = outline?.let { Color(it) } ?: Color(color).copy(alpha = 0f),
+            )
     }
 }
