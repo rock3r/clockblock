@@ -50,6 +50,7 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /** One sample of the journey chart: [day] = days since landing (negative before), [hours] = hours off destination time. */
@@ -200,8 +201,10 @@ internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
 internal fun daysSaved(withPlan: Double, withoutPlan: Double): DaysSaved? {
     if (withPlan >= EstimateHorizonDays) return null
     val censored = withoutPlan >= EstimateHorizonDays
-    // A lower bound must not round up, so a censored estimate floors the raw difference.
-    val days = if (censored) floor(withoutPlan - withPlan).toInt() else roundDays(withoutPlan) - roundDays(withPlan)
+    // Never overstate: a censored lower bound floors the raw difference; otherwise the claim is the smaller of the
+    // rounded modelled difference and the gap between the two visible "N d" labels.
+    val raw = withoutPlan - withPlan
+    val days = if (censored) floor(raw).toInt() else min(raw.roundToInt(), roundDays(withoutPlan) - roundDays(withPlan))
     return days.takeIf { it > 0 }?.let { DaysSaved(it, atLeast = censored) }
 }
 

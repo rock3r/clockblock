@@ -68,7 +68,11 @@ class AdaptationJourneyTest {
 
     @Test
     fun `the comparison only claims days saved when the plan is faster`() {
-        daysSaved(withPlan = 3.2, withoutPlan = 8.6) shouldBe DaysSaved(6, atLeast = false)
+        // Never more than the modelled difference (5.4 → 5) nor than the visible "3 d" vs "9 d" (6).
+        daysSaved(withPlan = 3.2, withoutPlan = 8.6) shouldBe DaysSaved(5, atLeast = false)
+        daysSaved(withPlan = 2.6, withoutPlan = 6.3) shouldBe DaysSaved(3, atLeast = false)
+        // Straddling a rounding boundary ("3 d" vs "4 d") is half an hour, not a day.
+        daysSaved(withPlan = 3.49, withoutPlan = 3.51).shouldBeNull()
         daysSaved(withPlan = 4.0, withoutPlan = 4.2).shouldBeNull()
         daysSaved(withPlan = 5.0, withoutPlan = 3.0).shouldBeNull()
     }
