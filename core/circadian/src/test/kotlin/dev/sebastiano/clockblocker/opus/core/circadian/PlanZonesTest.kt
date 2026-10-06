@@ -40,6 +40,17 @@ class PlanZonesTest {
     }
 
     @Test
+    fun `an evening arrival switches to the destination at landing, not at midnight`() {
+        // LHR 14:00 → JFK 19:00: the travel day runs to midnight in New York, but the traveller is on New York time.
+        val evening = Fixtures.trip(Fixtures.leg("1", LHR, Fixtures.JFK, "2026-05-02T14:00", "2026-05-02T19:00"))
+        val plan = DefaultJetLagPlanner().plan(evening, profile(LHR), NOW)
+
+        plan.localZoneAt(evening.arrival.minusSeconds(1)) shouldBe LHR.zone
+        plan.localZoneAt(evening.arrival) shouldBe Fixtures.JFK.zone
+        plan.localZoneAt(evening.arrival.plusSeconds(3 * 3600)) shouldBe Fixtures.JFK.zone
+    }
+
+    @Test
     fun `before the plan it is the first day's zone, after it the last day's`() {
         plan.localZoneAt(Instant.parse("2026-01-01T00:00:00Z")) shouldBe SFO.zone
         plan.localZoneAt(Instant.parse("2027-01-01T00:00:00Z")) shouldBe LHR.zone

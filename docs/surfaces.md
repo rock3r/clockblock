@@ -136,8 +136,9 @@ passed). The snooze state is kept in
 Every time in a notification (Now, the travel-day Live Update and its status chip, reminders) is in the plan's
 local zone, never the device's: `JetLagPlan.localZoneAt` in
 [`PlanZones.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/PlanZones.kt)
-returns the zone of the plan day containing the instant (the travel day keeps the departure zone until landing;
-before the plan the first day's zone, after it the last day's). The secondary-zone line uses `secondaryZoneFor`:
+returns the zone of the plan day containing the instant. The travel day keeps the departure zone until the last
+landing, then switches to the next day's zone, even after an evening arrival whose travel day runs to midnight.
+Before the plan it returns the first day's zone, after it the last day's. The secondary-zone line uses `secondaryZoneFor`:
 the destination, or home once local time is the destination's, left out when it has the same UTC offset right
 now. The plan screen (`PlanMoment`, the rail) and the widgets (`WidgetStateMapper`) call the same two functions,
 so all three surfaces agree on what "local" means even when the phone's zone is elsewhere. `NotificationClock`
