@@ -57,4 +57,11 @@ object DialMath {
 
     /** "Asia/Tokyo" → "Tokyo", "America/Argentina/Buenos_Aires" → "Buenos Aires". */
     fun cityName(zoneId: String): String = ZoneLabels.city(zoneId)
+
+    /** "−2" (true minus sign) / "+1" / "0", for pre-trip day labels. */
+    fun signed(value: Int): String = when {
+        value < 0 -> "\u2212${-value}"
+        value > 0 -> "+$value"
+        else -> "0"
+    }
 }

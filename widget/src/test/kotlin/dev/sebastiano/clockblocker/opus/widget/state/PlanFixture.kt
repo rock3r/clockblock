@@ -24,9 +24,9 @@ class PlanFixture(
     private val phase = mutableListOf<PhasePoint>()
     private var counter = 0
 
-    fun day(index: Int, date: String, zone: String, block: DayScope.() -> Unit) {
+    fun day(index: Int, date: String, zone: String, kind: DayKind = DayKind.Arrival, block: DayScope.() -> Unit) {
         val scope = DayScope(ZoneId.of(zone)).apply(block)
-        days += PlanDay(index, DayKind.Arrival, LocalDate.parse(date), zone, scope.advice)
+        days += PlanDay(index, kind, LocalDate.parse(date), zone, scope.advice)
     }
 
     fun phase(at: Instant, bodyOffsetMinutes: Int, cbtMin: Instant) {

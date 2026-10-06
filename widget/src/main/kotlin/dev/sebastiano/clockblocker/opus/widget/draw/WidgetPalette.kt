@@ -39,6 +39,8 @@ data class WidgetPalette(
     val outline: Int,
     val track: Int,
     val primary: Int,
+    /** Text on a filled [primary] button (the widget Done button). */
+    val onPrimary: Int,
     val primaryContainer: Int,
     val onPrimaryContainer: Int,
     val wedge: Int,
@@ -65,6 +67,12 @@ data class WidgetPalette(
         return mix(surface, advice(type).container, amount)
     }
 
+    /** A card inside the widget: [surfaceContainer], leaning towards the advice container like [tinted]. */
+    fun card(type: AdviceType?, amount: Float = 0.6f): Int {
+        if (type == null || theme == WidgetTheme.NightSafe) return surfaceContainer
+        return mix(surfaceContainer, advice(type).container, amount)
+    }
+
     companion object {
         fun of(dark: Boolean): WidgetPalette = if (dark) Dark else Light
 
@@ -83,6 +91,7 @@ data class WidgetPalette(
             outline = 0xFFC8C5D0.toInt(),
             track = 0xFFECE9F4.toInt(),
             primary = 0xFF4F46E5.toInt(),
+            onPrimary = 0xFFFFFFFF.toInt(),
             primaryContainer = 0xFFE2DFFF.toInt(),
             onPrimaryContainer = 0xFF100069.toInt(),
             wedge = 0x264F46E5,
@@ -117,6 +126,7 @@ data class WidgetPalette(
             outline = 0xFF47464F.toInt(),
             track = 0xFF24232B.toInt(),
             primary = 0xFFC3C0FF.toInt(),
+            onPrimary = 0xFF1F1A75.toInt(),
             primaryContainer = 0xFF3730A3.toInt(),
             onPrimaryContainer = 0xFFE2DFFF.toInt(),
             wedge = 0x33C3C0FF,
@@ -140,6 +150,7 @@ data class WidgetPalette(
             outline = 0xFF4A3E33.toInt(),
             track = 0xFF18130E.toInt(),
             primary = 0xFFA9640A.toInt(),
+            onPrimary = 0xFF120A00.toInt(),
             primaryContainer = 0xFF2E1C06.toInt(),
             onPrimaryContainer = 0xFFD9B88C.toInt(),
             wedge = 0x33A9640A,

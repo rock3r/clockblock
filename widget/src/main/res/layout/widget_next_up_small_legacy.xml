@@ -1,50 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Classic RemoteViews Next up, 1x1: glyph (+ countdown) on top, label below; never an icon alone.
      The countdown shares the glyph's row so a two-line label never pushes it out of the cell. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="4dp">
+    android:background="@drawable/widget_bg">
+
+    <ImageView
+        android:id="@+id/bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_shape_fill" />
 
     <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:id="@+id/main"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="4dp">
 
-        <ImageView
-            android:id="@+id/glyph"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:importantForAccessibility="no"
-            android:src="@drawable/widget_glyph_placeholder" />
-
-        <Chronometer
-            android:id="@+id/countdown"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="3dp"
-            android:countDown="true"
-            android:maxLines="1"
-            android:textColor="@color/widget_primary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-    </LinearLayout>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="2"
-        android:textColor="@color/widget_on_surface"
-        android:textSize="11sp"
-        android:textStyle="bold" />
-</LinearLayout>
+            <ImageView
+                android:id="@+id/glyph"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_glyph_placeholder" />
+
+            <Chronometer
+                android:id="@+id/countdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:countDown="true"
+                android:maxLines="1"
+                android:textColor="@color/widget_primary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:textColor="@color/widget_on_surface"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</FrameLayout>

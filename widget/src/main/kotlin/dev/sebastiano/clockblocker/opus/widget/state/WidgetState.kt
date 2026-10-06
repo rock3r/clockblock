@@ -1,6 +1,8 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import java.time.Instant
 
 /**
@@ -39,6 +41,16 @@ sealed interface WidgetState {
         val stage: Stage,
         /** City-ish name of the destination derived from its IANA id, e.g. "Tokyo". */
         val destinationName: String,
+        /** "Up next" queue for the larger sizes: up to three blocks starting after [capturedAt], excluding [current]. */
+        val upcoming: List<AdviceSlot> = emptyList(),
+        /** What the user logged for [current] (Done from the widget, notification or app), if anything. */
+        val currentOutcome: AdviceOutcome? = null,
+        /** Kind of the plan day [capturedAt] falls in (null outside the plan's days). */
+        val dayKind: DayKind? = null,
+        /** Index of that day relative to departure: −2, −1, 0 (travel), 1, 2… */
+        val dayIndex: Int? = null,
+        /** Share of the planned shift the body clock has completed, 0..1 (see `adaptationProgressAt`). */
+        val adaptation: Float? = null,
     ) : WidgetState {
         /**
          * Local (display) time minus body time, minutes: "+300" = local time is 5 h ahead of your body. Drives the dial

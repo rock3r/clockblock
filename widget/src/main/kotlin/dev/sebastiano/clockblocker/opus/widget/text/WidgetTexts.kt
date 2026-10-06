@@ -2,7 +2,9 @@ package dev.sebastiano.clockblocker.opus.widget.text
 
 import android.content.Context
 import android.text.format.DateFormat
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
@@ -13,6 +15,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Resolved, localised text for one widget render. */
 data class WidgetTexts(
@@ -41,12 +44,38 @@ data class WidgetTexts(
     val is24Hour: Boolean,
     /** "body", prefix of the body-clock readout. */
     val bodyPrefix: String = "body",
+    /** "Tokyo · Day 2": where the dial's times are shown and which plan day it is. Null without a plan. */
+    val header: String? = null,
+    /** "Up next" rows for the larger sizes (label + start time, local). */
+    val upcoming: List<UpcomingText> = emptyList(),
+    /** Share of the planned shift completed, 0..1, and its label ("59% adapted"). */
+    val adaptation: Float? = null,
+    val adaptationLabel: String? = null,
+    /** "Up next: Melatonin at 20:30, Sleep at 22:00": spoken for the queue region. */
+    val upcomingDescription: String? = null,
+    /** The Done action for the current block; null when there is nothing to mark (free time, flights, no plan). */
+    val done: DoneText? = null,
 ) {
     companion object {
         fun from(context: Context, state: WidgetState, is24Hour: Boolean = DateFormat.is24HourFormat(context)) =
             WidgetTextFactory(context, is24Hour).texts(state)
     }
 }
+
+/** One "Up next" row: always a text label next to the glyph, plus its local start time. */
+data class UpcomingText(val type: AdviceType, val label: String, val time: String)
+
+/**
+ * The widget Done button. While [logged] is null it is a button that logs [adviceId] as done; once something is
+ * logged it becomes a non-interactive chip in the same footprint ("Done" / "Skipped").
+ */
+data class DoneText(
+    val tripId: String,
+    val adviceId: String,
+    val logged: AdviceOutcome?,
+    val label: String,
+    val contentDescription: String,
+)
 
 internal class WidgetTextFactory(private val context: Context, private val is24Hour: Boolean) {
     private val locale: Locale = context.resources.configuration.locales[0]
@@ -125,6 +154,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             s.bodyRelativeMinutes < 0 -> str(R.string.widget_a11y_body_behind, DialMath.formatHoursMagnitude(s.bodyRelativeMinutes))
             else -> str(R.string.widget_a11y_body_ahead, DialMath.formatHoursMagnitude(s.bodyRelativeMinutes))
         }
+        val upcoming = s.upcoming.map { UpcomingText(it.type, label(it.type), time(it.start, zone)) }
         return WidgetTexts(
             glyph = glyph,
             title = title,
@@ -139,7 +169,42 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             contentDescription = str(R.string.widget_a11y_two_clocks, localNow, bodyNow, bodyPhrase, now),
             is24Hour = is24Hour,
             bodyPrefix = str(R.string.widget_body_prefix),
+            header = header(s),
+            upcoming = upcoming,
+            adaptation = s.adaptation,
+            adaptationLabel = s.adaptation?.let { str(R.string.widget_adapted_percent, (it * 100).roundToInt()) },
+            upcomingDescription = upcoming.takeIf { it.isNotEmpty() }?.let { rows ->
+                str(R.string.widget_a11y_up_next, rows.joinToString { str(R.string.widget_starts_at, it.label, it.time) })
+            },
+            done = current?.takeIf { it.type != AdviceType.Flight }?.let { c ->
+                val label = label(c.type)
+                when (s.currentOutcome) {
+                    null -> DoneText(s.tripId, c.adviceId, null, str(R.string.widget_done), str(R.string.widget_a11y_done_action, label))
+                    AdviceOutcome.Done ->
+                        DoneText(s.tripId, c.adviceId, AdviceOutcome.Done, str(R.string.widget_done), str(R.string.widget_a11y_done_logged, label))
+                    AdviceOutcome.Skipped, AdviceOutcome.CantDo -> DoneText(
+                        s.tripId,
+                        c.adviceId,
+                        s.currentOutcome,
+                        str(R.string.widget_skipped),
+                        str(R.string.widget_a11y_skipped_logged, label),
+                    )
+                }
+            },
         )
+    }
+
+    /** "Tokyo · Day 2" (city of the zone the dial shows), or just the city outside the plan's days. */
+    private fun header(s: WidgetState.Active): String {
+        val city = DialMath.cityName(s.displayZoneId)
+        val index = s.dayIndex ?: return city
+        val day = when (s.dayKind) {
+            DayKind.PreTrip -> str(R.string.widget_day_pre, DialMath.signed(index))
+            DayKind.Travel -> str(R.string.widget_day_travel)
+            DayKind.Adapted -> str(R.string.widget_day_adapted, index)
+            DayKind.Arrival, null -> str(R.string.widget_day_n, index)
+        }
+        return str(R.string.widget_header, city, day)
     }
 
     fun label(type: AdviceType): String = str(

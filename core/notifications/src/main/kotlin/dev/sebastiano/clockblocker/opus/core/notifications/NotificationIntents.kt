@@ -106,4 +106,18 @@ object NotificationIntents {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
+
+    /** Request code of the widgets' Done broadcast (notification actions use `source * 10 + action`, < 30). */
+    private const val WIDGET_DONE_REQUEST_CODE: Int = 100
+
+    /**
+     * Done from a home-screen widget: the same broadcast as the notification's Done button, so the outcome is logged
+     * once and every surface (Now notification, widgets) refreshes through the scheduler.
+     */
+    fun widgetDone(context: Context, tripId: String, adviceId: String): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        WIDGET_DONE_REQUEST_CODE,
+        actionIntent(context, AdviceAction.Done, tripId, adviceId),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 }

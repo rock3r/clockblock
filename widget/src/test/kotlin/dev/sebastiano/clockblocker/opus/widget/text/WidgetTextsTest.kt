@@ -2,6 +2,8 @@ package dev.sebastiano.clockblocker.opus.widget.text
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
@@ -20,6 +22,7 @@ import org.robolectric.annotation.Config
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -113,5 +116,61 @@ class WidgetTextsTest {
     @Test
     fun `content description speaks both clocks`() {
         texts(DemoPlans.Scenario.AvoidLight).contentDescription shouldContain "Avoid light"
+    }
+
+    @Test
+    fun `header names the place and the plan day`() {
+        texts(DemoPlans.Scenario.AvoidLight).header shouldBe "Tokyo · Day 2"
+        WidgetTexts.from(context, WidgetState.NoTrip, true).header.shouldBeNull()
+    }
+
+    @Test
+    fun `up next rows carry a label and a start time`() {
+        val rows = texts(DemoPlans.Scenario.AvoidLight).upcoming
+        rows.map { it.type } shouldBe listOf(AdviceType.Melatonin, AdviceType.Sleep, AdviceType.SeeLight)
+        rows.first().label shouldBe "Melatonin"
+        rows.first().time.length shouldBe 5 // "HH:mm"
+    }
+
+    @Test
+    fun `adaptation reads as a percentage`() {
+        val t = texts(DemoPlans.Scenario.AvoidLight)
+        val fraction = t.adaptation.shouldNotBeNull()
+        t.adaptationLabel shouldBe "${(fraction * 100).roundToInt()}% adapted"
+    }
+
+    @Test
+    fun `done is offered for the current block and reads its label`() {
+        val done = texts(DemoPlans.Scenario.AvoidLight).done.shouldNotBeNull()
+        done.logged.shouldBeNull()
+        done.label shouldBe "Done"
+        done.contentDescription shouldBe "Mark Avoid light as done"
+        done.tripId shouldBe DemoPlans.TRIP_ID
+    }
+
+    @Test
+    fun `logged outcome replaces the button with a chip`() {
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val current = (WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo")) as WidgetState.Active).current!!
+        fun with(outcome: AdviceOutcome) = WidgetTexts.from(
+            context,
+            WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"), listOf(AdviceLog(current.adviceId, outcome))),
+            true,
+        ).done.shouldNotBeNull()
+
+        with(AdviceOutcome.Done).let {
+            it.logged shouldBe AdviceOutcome.Done
+            it.label shouldBe "Done"
+            it.contentDescription shouldBe "Avoid light: done"
+        }
+        with(AdviceOutcome.Skipped).label shouldBe "Skipped"
+        with(AdviceOutcome.CantDo).label shouldBe "Skipped"
+    }
+
+    @Test
+    fun `no done without something to do`() {
+        texts(DemoPlans.Scenario.FreeTime).done.shouldBeNull()
+        texts(DemoPlans.Scenario.Adapted).done.shouldBeNull()
+        WidgetTexts.from(context, WidgetState.NoTrip, true).done.shouldBeNull()
     }
 }

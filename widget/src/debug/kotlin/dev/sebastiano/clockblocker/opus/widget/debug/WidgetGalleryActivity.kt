@@ -22,6 +22,7 @@ import dev.sebastiano.clockblocker.opus.widget.WidgetRenderer
 import dev.sebastiano.clockblocker.opus.widget.WidgetSizeDp
 import dev.sebastiano.clockblocker.opus.widget.WidgetUpdater
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
+import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
@@ -35,7 +36,7 @@ import java.time.ZoneId
  * DEBUG ONLY. Hosts the Opus widgets in-process so they can be checked on an emulator without a launcher:
  *
  * - demo frames: [WidgetRenderer] output (Remote Compose on API 36+, else classic) applied to plain
- *   [AppWidgetHostView]s at typical cell sizes, light and dark side by side, fed with [DemoPlans];
+ *   [AppWidgetHostView]s at a typical cell size per responsive bucket, in every [WidgetTheme], fed with [DemoPlans];
  * - live: real provider instances bound through [AppWidgetHost] (needs
  *   `adb shell appwidget grantbind --package <applicationId>`), updated by the real provider/updater path.
  *
@@ -112,27 +113,20 @@ class WidgetGalleryActivity : Activity() {
         }
 
         scope.launch {
-            if (page == "all" || page == "twoclocks") {
-                column.addView(label("Two Clocks 2×2"))
-                column.addView(pair { dark -> frame(renderer, WidgetKind.TwoClocks, state, dark, 176, 176) })
-                column.addView(label("Two Clocks 4×2"))
-                for (dark in listOf(false, true)) {
-                    column.addView(frame(renderer, WidgetKind.TwoClocks, state, dark, 360, 172))
+            for ((kind, buckets) in listOf(WidgetKind.TwoClocks to TWO_CLOCKS_CELLS, WidgetKind.NextUp to NEXT_UP_CELLS)) {
+                val pageName = if (kind == WidgetKind.TwoClocks) "twoclocks" else "nextup"
+                if (page != "all" && page != pageName) continue
+                for ((name, size) in buckets) {
+                    column.addView(label("${kind.name} $name"))
+                    val (w, h) = size
+                    if (w > 200) {
+                        WidgetTheme.entries.forEach { column.addView(frame(renderer, kind, state, it, w, h)) }
+                    } else {
+                        column.addView(row(*WidgetTheme.entries.map { frame(renderer, kind, state, it, w, h) }.toTypedArray()))
+                    }
                 }
-            }
-            if (page == "all" || page == "nextup") {
-                column.addView(label("Next up 4×1"))
-                for (dark in listOf(false, true)) column.addView(frame(renderer, WidgetKind.NextUp, state, dark, 360, 76))
-                column.addView(label("Next up 2×1"))
-                column.addView(pair { dark -> frame(renderer, WidgetKind.NextUp, state, dark, 176, 76) })
-                column.addView(label("Next up 1×1 · empty state 2×1"))
-                column.addView(
-                    row(
-                        frame(renderer, WidgetKind.NextUp, state, false, 76, 76),
-                        frame(renderer, WidgetKind.NextUp, state, true, 76, 76),
-                        frame(renderer, WidgetKind.NextUp, WidgetState.NoTrip, false, 176, 76),
-                    ),
-                )
+                column.addView(label("${kind.name} empty state"))
+                column.addView(frame(renderer, kind, WidgetState.NoTrip, WidgetTheme.Light, 176, 176))
             }
             if (page == "all" || page == "live") addLiveWidgets(column)
         }
@@ -142,7 +136,7 @@ class WidgetGalleryActivity : Activity() {
         renderer: WidgetRenderer,
         kind: WidgetKind,
         state: WidgetState,
-        dark: Boolean,
+        theme: WidgetTheme,
         widthDp: Int,
         heightDp: Int,
     ): View {
@@ -151,12 +145,10 @@ class WidgetGalleryActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             view.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp.toFloat(), heightDp.toFloat())))
         }
-        val views = renderer.render(kind, state, dark, WidgetSizeDp(widthDp.toFloat(), heightDp.toFloat()))
+        val views = renderer.render(kind, state, theme, WidgetSizeDp(widthDp.toFloat(), heightDp.toFloat()))
         view.updateAppWidget(views)
         return view
     }
-
-    private suspend fun pair(make: suspend (Boolean) -> View): View = row(make(false), make(true))
 
     private fun row(vararg views: View) = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -209,5 +201,23 @@ class WidgetGalleryActivity : Activity() {
 
     private companion object {
         const val HOST_ID = 0x0C10C
+
+        /** Typical launcher cell sizes (dp) that land in each responsive bucket. */
+        val TWO_CLOCKS_CELLS = listOf(
+            "1×1" to (76 to 76),
+            "2×2" to (176 to 176),
+            "4×2" to (360 to 172),
+            "2×3" to (176 to 260),
+            "4×3" to (360 to 260),
+        )
+        val NEXT_UP_CELLS = listOf(
+            "1×1" to (76 to 76),
+            "2×1" to (176 to 76),
+            "4×1" to (360 to 76),
+            "2×2" to (176 to 176),
+            "2×3" to (176 to 260),
+            "4×2" to (360 to 172),
+            "4×3" to (360 to 260),
+        )
     }
 }
