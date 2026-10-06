@@ -188,6 +188,9 @@ object ShellTestTags {
     const val NavTrips = "nav_trips"
     const val NavSettings = "nav_settings"
 
+    /** The hairline between the trips and plan panes in the list-detail layout. */
+    const val PaneDivider = "shell_pane_divider"
+
     /** Tag wrapping every screen: `route_onboarding`, `route_now`, `route_trips`, `route_plan`, … */
     fun route(route: AppRoute): String = "route_" + when (route) {
         OnboardingRoute -> "onboarding"

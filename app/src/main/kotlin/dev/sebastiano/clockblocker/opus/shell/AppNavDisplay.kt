@@ -6,7 +6,10 @@ import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -62,6 +65,9 @@ fun AppNavDisplay(
     val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>(
         backNavigationBehavior = BackNavigationBehavior.PopLatest,
         directive = directive,
+        // A hairline in the gap between the panes so the trips header and the plan's sky header read as two
+        // framed panes rather than one screen with a hole in it. Decorative only: it is not draggable.
+        paneExpansionDragHandle = { PaneDivider() },
     )
     val paneMotion = ListDetailSceneStrategy.paneAnimation(
         enterTransition = transitions.paneEnter(),
@@ -184,6 +190,15 @@ private fun NavEntry<NavKey>.scopedTo(route: NavKey, destination: TopLevelDestin
             base.Content()
         }
     }
+}
+
+/** The hairline between the list and detail panes (see [AppNavDisplay]). */
+@Composable
+private fun PaneDivider() {
+    VerticalDivider(
+        modifier = Modifier.fillMaxHeight().testTag(ShellTestTags.PaneDivider),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
 }
 
 /**
