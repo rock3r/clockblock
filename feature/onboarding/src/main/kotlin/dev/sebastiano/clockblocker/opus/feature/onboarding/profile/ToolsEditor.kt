@@ -57,7 +57,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
@@ -155,7 +155,7 @@ fun ToolsEditor(
 
 @Composable
 private fun MelatoninNote(open: Boolean, onToggle: () -> Unit, acknowledged: Boolean, onAcknowledge: (Boolean) -> Unit) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     // The chevron reports state (open/closed), so it turns on the no-bounce data tier; the rotation is read in
     // the draw phase so the animation never recomposes the row.
     val rotation = animateFloatAsState(if (open) 180f else 0f, motion.dataSpatial(), label = "noteChevron")
@@ -282,7 +282,7 @@ fun ToolSwitchRow(
 }
 
 /**
- * A tool row's colours, animated on `OpusMotion.colour()` between the neutral container (off) and the advice
+ * A tool row's colours, animated on `ClockblockMotion.colour()` between the neutral container (off) and the advice
  * container (on). They are read through lambdas in the draw phase, so the cross-fade never recomposes the row.
  */
 @Stable
@@ -299,8 +299,8 @@ internal class ToolRowColors(
 @Composable
 internal fun rememberToolRowColors(glyph: AdviceType, checked: Boolean, offContainer: Color): ToolRowColors {
     val scheme = MaterialTheme.colorScheme
-    val role = OpusTheme.adviceColors[glyph]
-    val motion = OpusTheme.motion
+    val role = ClockblockTheme.adviceColors[glyph]
+    val motion = ClockblockTheme.motion
     val container = animateColorAsState(if (checked) role.container else offContainer, motion.colour(), label = "toolContainer")
     val content = animateColorAsState(if (checked) role.onContainer else scheme.onSurface, motion.colour(), label = "toolContent")
     val supporting = animateColorAsState(
@@ -359,7 +359,7 @@ private val ToolGlyphSize = 40.dp
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EffortSelector(selected: Intensity, onSelect: (Intensity) -> Unit, modifier: Modifier = Modifier) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val options = Intensity.entries
     Column(modifier) {
         Row(

@@ -56,7 +56,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -220,8 +220,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun OnboardingTopBar(step: OnboardingStep, onSkip: () -> Unit) {
-    val motion = OpusTheme.motion
-    val reduce = OpusTheme.reduceMotion
+    val motion = ClockblockTheme.motion
+    val reduce = ClockblockTheme.reduceMotion
     val visible = step != OnboardingStep.Welcome
     AnimatedVisibility(visible = visible, enter = fadeIn(motion.fade()), exit = fadeOut(motion.fade())) {
         val target = (step.index + 1f) / OnboardingStep.Count

@@ -37,7 +37,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.BloomArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.PillowMoonArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -90,7 +90,7 @@ internal fun UpNextCard(moment: PlanMoment, onClick: (Advice) -> Unit, modifier:
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     formatter.formatFull(advice.start.atZone(moment.zone).toLocalTime()),
-                                    style = OpusTheme.textStyles.timeTitle,
+                                    style = ClockblockTheme.textStyles.timeTitle,
                                 )
                                 Text(
                                     formatDuration(java.time.Duration.between(moment.instant, advice.start)),
@@ -211,11 +211,11 @@ private fun HeroComparison(plan: JetLagPlan) {
         modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = description },
     ) {
         Column {
-            Text(withText, style = OpusTheme.textStyles.timeHeadline, color = MaterialTheme.colorScheme.primary)
+            Text(withText, style = ClockblockTheme.textStyles.timeHeadline, color = MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.plan_hero_with), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
         Column {
-            Text(withoutText, style = OpusTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(withoutText, style = ClockblockTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.plan_hero_without), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (savedText != null) {
@@ -301,7 +301,7 @@ private fun StoryCard(
     ) {
         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, style = OpusTheme.textStyles.editorialTitle, modifier = Modifier.semantics { heading() })
+                Text(title, style = ClockblockTheme.textStyles.editorialTitle, modifier = Modifier.semantics { heading() })
                 Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 footer?.invoke()
             }
@@ -381,7 +381,7 @@ internal fun CompleteCard(plan: JetLagPlan, outcomes: Map<String, AdviceOutcome>
                     values.count { it == AdviceOutcome.Skipped },
                     values.count { it == AdviceOutcome.CantDo },
                 ),
-                style = OpusTheme.textStyles.timeLabel,
+                style = ClockblockTheme.textStyles.timeLabel,
             )
         },
     )

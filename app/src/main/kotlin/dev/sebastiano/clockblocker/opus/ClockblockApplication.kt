@@ -5,7 +5,7 @@ import dev.zacsweers.metro.createGraphFactory
 import dev.zacsweers.metrox.android.MetroAppComponentProviders
 import dev.zacsweers.metrox.android.MetroApplication
 
-class OpusApplication : Application(), MetroApplication {
+class ClockblockApplication : Application(), MetroApplication {
     val graph: AppGraph by lazy { createGraphFactory<AppGraph.Factory>().create(this) }
     override val appComponentProviders: MetroAppComponentProviders get() = graph
 

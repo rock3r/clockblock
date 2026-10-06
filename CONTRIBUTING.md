@@ -1,4 +1,4 @@
-# Contributing to Opus Clockblock
+# Contributing to Clockblock
 
 Thanks for helping. Bug reports, science corrections, translations, accessibility fixes and design feedback are
 all welcome. For anything bigger than a small fix, please open an issue first so we can agree on the approach.
@@ -36,7 +36,7 @@ See [docs/architecture.md](docs/architecture.md) for the module graph and how da
   (the one exception: `:feature:settings` reuses the profile editors from `:feature:onboarding`); the `:app`
   module wires everything together through the Metro graph.
 - Versions live in `gradle/libs.versions.toml`; module setup lives in the `build-logic` convention plugins
-  (`opus.jvm.library`, `opus.android.library`, `opus.android.compose`, `opus.android.feature`).
+  (`clockblock.jvm.library`, `clockblock.android.library`, `clockblock.android.compose`, `clockblock.android.feature`).
 - The build uses AGP 9's **built-in Kotlin**: never apply `org.jetbrains.kotlin.android`.
 - Never hardcode the application id; use `context.packageName` (or `BuildConfig.APPLICATION_ID` in `:app`).
 - Store IANA zone ids, never UTC offsets. Use `java.time` everywhere.
@@ -72,7 +72,7 @@ Look at every re-recorded PNG before committing it; the diff in the pull request
 Read [`docs/design.md`](docs/design.md) (Part 2: the visual identity) and [`MOTION.md`](MOTION.md) before touching
 UI. The short version:
 
-- **Motion tokens only.** No literal `tween()` or `spring()` outside the token definitions (`OpusMotion`,
+- **Motion tokens only.** No literal `tween()` or `spring()` outside the token definitions (`ClockblockMotion`,
   `MaterialTheme.motionScheme`).
 - **Frequency gate.** Surfaces used 100+ times a day get only the platform state layer; delight is for rare
   moments.

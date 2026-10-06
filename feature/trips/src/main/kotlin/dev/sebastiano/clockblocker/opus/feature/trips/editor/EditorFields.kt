@@ -53,7 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.IataCode
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -207,7 +207,7 @@ private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 DayNightDot(localTime)
                 Spacer(Modifier.width(6.dp))
-                Text(time, style = OpusTheme.textStyles.timeLabel)
+                Text(time, style = ClockblockTheme.textStyles.timeLabel)
             }
             Text(offset, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -221,9 +221,9 @@ private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
 @Composable
 private fun DayNightDot(time: LocalTime) {
     val hour = time.toHourFloat()
-    val sky = OpusTheme.sky.gradientAt(hour)
+    val sky = ClockblockTheme.sky.gradientAt(hour)
     val isSun = celestialPosition(hour).isSun
-    val sun = OpusTheme.adviceColors[AdviceType.SeeBrightLight].color
+    val sun = ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
     Canvas(Modifier.size(18.dp).clearAndSetSemantics {}) {
         val r = size.minDimension / 2f
         drawCircle(sky.verticalBrush(0f, size.height), r)
@@ -259,7 +259,7 @@ internal fun CodeChip(code: String, modifier: Modifier = Modifier) {
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
         Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
-            IataCode(code, style = OpusTheme.textStyles.iataLabel, contentDescription = null, animateChanges = false)
+            IataCode(code, style = ClockblockTheme.textStyles.iataLabel, contentDescription = null, animateChanges = false)
         }
     }
 }
@@ -311,7 +311,7 @@ internal fun PickerField(
                 Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                 Text(
                     value ?: pickLabel,
-                    style = if (value != null) OpusTheme.textStyles.timeTitle else MaterialTheme.typography.bodyLarge,
+                    style = if (value != null) ClockblockTheme.textStyles.timeTitle else MaterialTheme.typography.bodyLarge,
                     color = if (value != null) LocalContentColor.current else colors.onSurfaceVariant,
                     maxLines = 2,
                 )

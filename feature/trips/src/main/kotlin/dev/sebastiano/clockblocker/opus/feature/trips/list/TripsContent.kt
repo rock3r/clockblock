@@ -78,7 +78,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
@@ -209,7 +209,7 @@ private fun TripsScaffold(
 private fun FabMenuScrim(visible: Boolean, collapseProgress: () -> Float, onDismiss: () -> Unit) {
     val alpha = animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = OpusTheme.motion.colour(),
+        animationSpec = ClockblockTheme.motion.colour(),
         label = "fabScrim",
     )
     val scrim = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
@@ -440,7 +440,7 @@ private fun LazyGridScope.section(
  */
 @Composable
 private fun LazyGridItemScope.animateTripItem(): Modifier {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     return Modifier.animateItem(
         fadeInSpec = motion.containerSpatial(),
         placementSpec = motion.containerSpatial(),
@@ -460,7 +460,7 @@ private fun SectionHeader(phase: TripPhase, count: Int, collapsed: Boolean, onTo
     val description = pluralStringResource(R.plurals.trips_section_count, count, title, count)
     val stateLabel = stringResource(if (collapsed) R.string.trips_section_collapsed else R.string.trips_section_expanded)
     // State indicator, not a container: no bounce (dataSpatial), and the value is only read in the layer phase.
-    val rotation = animateFloatAsState(if (collapsed) -90f else 0f, OpusTheme.motion.dataSpatial(), label = "chevron")
+    val rotation = animateFloatAsState(if (collapsed) -90f else 0f, ClockblockTheme.motion.dataSpatial(), label = "chevron")
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -480,7 +480,7 @@ private fun SectionHeader(phase: TripPhase, count: Int, collapsed: Boolean, onTo
         Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
             Text(
                 count.toString(),
-                style = OpusTheme.textStyles.timeLabel,
+                style = ClockblockTheme.textStyles.timeLabel,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             )
         }
@@ -561,7 +561,7 @@ internal fun TripsEmptyState(onPlanTrip: () -> Unit, onTryDemo: () -> Unit, modi
             Spacer(Modifier.height(24.dp))
             Text(
                 stringResource(R.string.trips_empty_headline),
-                style = OpusTheme.textStyles.editorialHeadline,
+                style = ClockblockTheme.textStyles.editorialHeadline,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { heading() },
             )

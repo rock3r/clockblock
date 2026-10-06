@@ -27,7 +27,7 @@ data class FlexAxes(
 )
 
 /** Builds a single-face [FontFamily] for an axis recipe. Families are cached so styles share Typefaces. */
-object OpusFonts {
+object ClockblockFonts {
     private val sansCache = HashMap<FlexAxes, FontFamily>()
     private val serifCache = HashMap<Pair<Int, Float>, FontFamily>()
 
@@ -79,7 +79,7 @@ private fun flex(
     slant: Float = 0f,
     features: String? = null,
 ): TextStyle = TextStyle(
-    fontFamily = OpusFonts.sans(FlexAxes(weight, round, slant, opticalSize = size)),
+    fontFamily = ClockblockFonts.sans(FlexAxes(weight, round, slant, opticalSize = size)),
     fontWeight = FontWeight(weight),
     fontStyle = FontStyle.Normal,
     fontSize = size.sp,
@@ -90,7 +90,7 @@ private fun flex(
 
 private fun serif(size: Float, lineHeight: Float, tracking: Float, weight: Int, opsz: Float = size.coerceAtLeast(9f)) =
     TextStyle(
-        fontFamily = OpusFonts.serif(weight, opsz),
+        fontFamily = ClockblockFonts.serif(weight, opsz),
         fontWeight = FontWeight(weight),
         fontSize = size.sp,
         lineHeight = lineHeight.sp,
@@ -138,7 +138,7 @@ private fun Slot.serif(weight: Int) = serif(size, line, tracking, weight).headin
  * - Body: `wght 400, ROND 0`; emphasized `wght 600`.
  * `opsz` tracks the font size (static "optical sizing auto").
  */
-val OpusTypography: Typography = Typography(
+val ClockblockTypography: Typography = Typography(
     displayLarge = DisplayL.flex(300),
     displayMedium = DisplayM.flex(300),
     displaySmall = DisplayS.flex(320),
@@ -172,7 +172,7 @@ val OpusTypography: Typography = Typography(
 )
 
 /** Opus concert mode: Fraunces for display, headline and title; Google Sans Flex keeps body and labels. */
-val OpusConcertTypography: Typography = OpusTypography.copy(
+val OpusConcertTypography: Typography = ClockblockTypography.copy(
     displayLarge = DisplayL.serif(400),
     displayMedium = DisplayM.serif(400),
     displaySmall = DisplayS.serif(400),
@@ -194,11 +194,11 @@ val OpusConcertTypography: Typography = OpusTypography.copy(
 )
 
 /**
- * Opus-specific styles beyond the M3 scale. Type rule: **upright = local time, slanted = body clock**.
+ * Clockblock-specific styles beyond the M3 scale. Type rule: **upright = local time, slanted = body clock**.
  * All time styles use tabular numerals so digits never jitter.
  */
 @Immutable
-data class OpusTextStyles(
+data class ClockblockTextStyles(
     /** Hero local time (dial centre, Now card). */
     val timeDisplay: TextStyle,
     /** Emphasised hero local time (the current minute). */
@@ -210,7 +210,7 @@ data class OpusTextStyles(
     val bodyClockDisplay: TextStyle,
     val bodyClockTitle: TextStyle,
     val bodyClockLabel: TextStyle,
-    /** Fraunces (`opsz 144, SOFT 100, WONK 1`): onboarding headlines, celebration, empty states, Opus. */
+    /** Fraunces (`opsz 144, SOFT 100, WONK 1`): onboarding headlines, celebration, empty states, Opus mode. */
     val editorialDisplay: TextStyle,
     val editorialHeadline: TextStyle,
     val editorialTitle: TextStyle,
@@ -249,7 +249,7 @@ data class DotMatrixStyle(
     }
 }
 
-internal val DefaultOpusTextStyles = OpusTextStyles(
+internal val DefaultClockblockTextStyles = ClockblockTextStyles(
     timeDisplay = flex(57f, 64f, -0.5f, 400, round = 0f, features = TABULAR),
     timeDisplayEmphasized = flex(57f, 64f, -0.5f, 700, round = 0f, features = TABULAR),
     timeHeadline = flex(32f, 40f, 0f, 500, features = TABULAR),
@@ -264,7 +264,7 @@ internal val DefaultOpusTextStyles = OpusTextStyles(
     editorialBody = serif(17f, 26f, 0.1f, 400, opsz = 18f),
 )
 
-internal val ConcertOpusTextStyles = DefaultOpusTextStyles.copy(
+internal val OpusConcertTextStyles = DefaultClockblockTextStyles.copy(
     timeDisplay = serif(57f, 64f, -0.5f, 500, opsz = 144f).copy(fontFeatureSettings = "lnum, tnum"),
     timeDisplayEmphasized = serif(57f, 64f, -0.5f, 800, opsz = 144f).copy(fontFeatureSettings = "lnum, tnum"),
 )

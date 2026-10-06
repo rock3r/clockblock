@@ -17,11 +17,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 
 /**
- * The shell's screen transitions, all bound to [OpusMotion] navigation tokens (never NavDisplay's 700 ms default):
+ * The shell's screen transitions, all bound to [ClockblockMotion] navigation tokens (never NavDisplay's 700 ms default):
  *
  * - **Top-level** switches (navigation suite, back to home): fade-through — the outgoing screen fades out in
  *   90 ms, then the incoming one fades in while scaling 92 % → 100 %.
@@ -33,7 +33,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
  */
 @Immutable
 class AppTransitions(
-    private val motion: OpusMotion,
+    private val motion: ClockblockMotion,
     private val axisOffsetPx: Int,
     private val layoutDirection: LayoutDirection,
 ) {
@@ -107,7 +107,7 @@ class AppTransitions(
 /** [AppTransitions] for the current theme motion, density and layout direction. */
 @Composable
 fun rememberAppTransitions(): AppTransitions {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val offset = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
     return remember(motion, offset, layoutDirection) { AppTransitions(motion, offset, layoutDirection) }

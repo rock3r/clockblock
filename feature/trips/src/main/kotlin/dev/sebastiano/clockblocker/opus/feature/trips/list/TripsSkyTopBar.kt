@@ -45,8 +45,8 @@ import androidx.core.view.WindowCompat
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import java.time.LocalTime
@@ -74,7 +74,7 @@ internal fun TripsSkyTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val time = sky?.time
-    val ink = time?.let { OpusTheme.sky.gradientAt(it).contentColor() }
+    val ink = time?.let { ClockblockTheme.sky.gradientAt(it).contentColor() }
     var atTopStart by remember { mutableStateOf(false) }
     if (ink != null) SkyStatusBarIcons(ink, ownsStatusBar = atTopStart)
     val colors = if (ink != null) {
@@ -139,9 +139,9 @@ internal fun TripsSkyTopBar(
 private fun NavRowCelestial(time: LocalTime, collapsedFraction: () -> Float, modifier: Modifier = Modifier) {
     val hour = time.toHourFloat()
     val position = celestialPosition(hour)
-    val nightSafe = OpusTheme.variant == OpusThemeVariant.NightSafe
-    val art = OpusTheme.artColors
-    val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else OpusTheme.adviceColors[AdviceType.SeeBrightLight].color
+    val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
+    val art = ClockblockTheme.artColors
+    val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
     val moonColor = if (nightSafe) art.onInverse.copy(alpha = 0.6f) else Moonlight
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val sunny = remember { MaterialShapes.Sunny.toPath() }

@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 
 /*
  * Token definitions. This file (and only this file) may contain literal tween()/spring() values;
- * every call site resolves to `MaterialTheme.motionScheme` or to [OpusMotion]. See MOTION.md.
+ * every call site resolves to `MaterialTheme.motionScheme` or to [ClockblockMotion]. See MOTION.md.
  */
 
 /**
@@ -65,7 +65,7 @@ object StillMotionScheme : MotionScheme {
  * to the Standard scheme via [dataSpatial] / [dialDayRotation] so Expressive bounce never wobbles a value.
  */
 @Immutable
-class OpusMotion internal constructor(
+class ClockblockMotion internal constructor(
     val scheme: MotionScheme,
     /** True when animations are off (system scale 0) or the user asked for reduced motion. */
     val reduceMotion: Boolean,
@@ -184,7 +184,7 @@ class OpusMotion internal constructor(
 
 /**
  * `true` when motion must degrade to static end states: the system "Remove animations" setting
- * (`ANIMATOR_DURATION_SCALE == 0`) or the in-app Reduce motion toggle. Provided by [OpusTheme].
+ * (`ANIMATOR_DURATION_SCALE == 0`) or the in-app Reduce motion toggle. Provided by [ClockblockTheme].
  */
 val LocalReduceMotion = staticCompositionLocalOf { false }
 

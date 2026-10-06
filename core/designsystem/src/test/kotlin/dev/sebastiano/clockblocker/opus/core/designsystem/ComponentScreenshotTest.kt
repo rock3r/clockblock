@@ -34,7 +34,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoading
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.WindowLightArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.NowCardShape
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -85,7 +85,7 @@ private fun Skies() {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text("Lisbon \u2192 Tokyo", style = MaterialTheme.typography.titleLarge, color = LocalContentColor.current)
-                    Text("Body $t", style = OpusTheme.textStyles.bodyClockLabel, color = LocalContentColor.current)
+                    Text("Body $t", style = ClockblockTheme.textStyles.bodyClockLabel, color = LocalContentColor.current)
                 }
             }
         }
@@ -107,7 +107,7 @@ private fun Wavy() {
 @Composable
 private fun DualTimes() {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        DualTimeText(Now, Tokyo, Lisbon, style = OpusTheme.textStyles.timeDisplay)
+        DualTimeText(Now, Tokyo, Lisbon, style = ClockblockTheme.textStyles.timeDisplay)
         DualTimeText(Now, Tokyo, Lisbon, inline = true)
         // Lisbon 23:00 on the 10th → Tokyo 07:00 on the 11th: a "+1" day suffix.
         DualTimeText(Instant.parse("2026-10-10T22:00:00Z"), Lisbon, Tokyo, inline = true)
@@ -123,11 +123,11 @@ private fun SampleScreen() {
         BodyClockSky(LocalTime.of(5, 20), Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(28.dp))) {
             Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
                 Text("Lisbon \u2192 Tokyo", style = MaterialTheme.typography.headlineMediumEmphasized, color = LocalContentColor.current)
-                Text("Day 2 \u00B7 body \u22128 h", style = OpusTheme.textStyles.bodyClockLabel, color = LocalContentColor.current)
+                Text("Day 2 \u00B7 body \u22128 h", style = ClockblockTheme.textStyles.bodyClockLabel, color = LocalContentColor.current)
             }
         }
         // The Now card.
-        val advice = OpusTheme.adviceColors[AdviceType.SeeBrightLight]
+        val advice = ClockblockTheme.adviceColors[AdviceType.SeeBrightLight]
         Card(shape = NowCardShape, colors = CardDefaults.cardColors(containerColor = advice.container, contentColor = advice.onContainer)) {
             Row(Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 AdviceGlyph(AdviceType.SeeBrightLight, active = true, size = 56.dp)
@@ -146,7 +146,7 @@ private fun SampleScreen() {
                 Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     AdviceGlyph(type, active = false, size = 40.dp)
                     Text(type.label(), style = MaterialTheme.typography.titleMedium, color = scheme.onSurface, modifier = Modifier.weight(1f))
-                    Text("17:30", style = OpusTheme.textStyles.timeLabel, color = scheme.onSurfaceVariant)
+                    Text("17:30", style = ClockblockTheme.textStyles.timeLabel, color = scheme.onSurfaceVariant)
                 }
             }
         }
@@ -161,8 +161,8 @@ private fun SampleScreen() {
         }
         Box(Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(28.dp)).padding(20.dp)) {
             Column {
-                Text("Clockblocked.", style = OpusTheme.textStyles.editorialHeadline, color = scheme.onSurface)
-                Text("Your body is on Tokyo time.", style = OpusTheme.textStyles.editorialBody, color = scheme.onSurfaceVariant)
+                Text("Clockblocked.", style = ClockblockTheme.textStyles.editorialHeadline, color = scheme.onSurface)
+                Text("Your body is on Tokyo time.", style = ClockblockTheme.textStyles.editorialBody, color = scheme.onSurfaceVariant)
             }
         }
     }

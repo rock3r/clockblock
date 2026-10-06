@@ -14,7 +14,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import org.junit.Rule
 import org.robolectric.RuntimeEnvironment
 
@@ -44,7 +44,7 @@ abstract class TripsScreenshotTest {
             CompositionLocalProvider(
                 LocalDensity provides if (fontScale != null) Density(density.density, fontScale) else density,
             ) {
-                OpusTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = true) {
+                ClockblockTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = true) {
                     Box(Modifier.background(MaterialTheme.colorScheme.surface)) { content() }
                 }
             }

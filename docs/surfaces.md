@@ -15,7 +15,7 @@ The code is in `:core:notifications` and `:widget`. The shared contract,
 ## The scheduler
 
 [`AdviceAlarmScheduler`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/AdviceAlarmScheduler.kt)
-starts from `OpusApplication`. It watches `currentPlan` and the settings. When either changes, it re-arms its
+starts from `ClockblockApplication`. It watches `currentPlan` and the settings. When either changes, it re-arms its
 alarms and refreshes every surface.
 
 ```mermaid

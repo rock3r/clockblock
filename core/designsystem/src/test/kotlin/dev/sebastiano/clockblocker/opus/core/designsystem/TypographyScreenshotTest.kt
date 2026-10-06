@@ -8,7 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -33,7 +33,7 @@ class TypographyScreenshotTest : ScreenshotTest() {
 @Composable
 private fun Specimen() {
     val t = MaterialTheme.typography
-    val o = OpusTheme.textStyles
+    val o = ClockblockTheme.textStyles
     val c = MaterialTheme.colorScheme.onSurface
     Column(Modifier.width(368.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("14:20", style = o.timeDisplay, color = c)

@@ -18,8 +18,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.sharedUnitPath
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import java.util.Random
 import kotlin.math.PI
@@ -79,7 +79,7 @@ fun ConfettiCanvas(
     origin: (() -> Offset?)? = null,
 ) {
     val particles = remember(particleCount, seed) { confettiParticles(particleCount, seed) }
-    val advice = OpusTheme.adviceColors
+    val advice = ClockblockTheme.adviceColors
     val colors: List<Color> = listOf(
         advice[AdviceType.SeeBrightLight].color,
         advice[AdviceType.Sleep].color,
@@ -111,7 +111,7 @@ fun ConfettiCanvas(
     }
 }
 
-private const val TotalSeconds = OpusMotion.CelebrationMillis / 1000f
+private const val TotalSeconds = ClockblockMotion.CelebrationMillis / 1000f
 
 /**
  * Plays the confetti once each time [playing] turns true, over the celebration clock token, then calls
@@ -126,8 +126,8 @@ fun ConfettiBurst(
     origin: (() -> Offset?)? = null,
     onFinished: () -> Unit = {},
 ) {
-    val reduce = OpusTheme.reduceMotion
-    val motion = OpusTheme.motion
+    val reduce = ClockblockTheme.reduceMotion
+    val motion = ClockblockTheme.motion
     val finished = rememberUpdatedState(onFinished)
     val progress = remember { Animatable(0f) }
     LaunchedEffect(playing, reduce) {

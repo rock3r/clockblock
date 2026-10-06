@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 
 /** Creating trips (by hand and the demo) and acting on the plan's Now card. */
 @RunWith(AndroidJUnit4::class)
-class TripsTest : OpusE2eTest() {
+class TripsTest : ClockblockE2eTest() {
 
     @Test
     fun createTripWithPickersAndValidationFixOpensItsPlan() {
@@ -85,7 +85,7 @@ class TripsTest : OpusE2eTest() {
     fun nowCardDoneLogsTheOutcome() {
         seedOnboarded()
         val active = graph.seedTripWithActiveAdvice()
-        launch(deepLink = "opusclockblock://plan/${active.trip.id}")
+        launch(deepLink = "clockblock://plan/${active.trip.id}")
 
         awaitTag(PlanTags.NowCard, LongTimeoutMillis).assertIsDisplayed()
         // At rest Done can sit below the fold (under the navigation bar), depending on the card's text.

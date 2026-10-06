@@ -47,21 +47,21 @@ class DeepLinkParserTest {
 
     @Test
     fun `percent-encoded ids are decoded`() {
-        DeepLinkParser.parse("opusclockblock://plan/trip%20one")?.backStack shouldBe
+        DeepLinkParser.parse("clockblock://plan/trip%20one")?.backStack shouldBe
             listOf(TripsRoute, PlanRoute("trip one"))
     }
 
     @Test
     fun `trailing slashes, queries and fragments are ignored`() {
-        DeepLinkParser.parse("opusclockblock://trips/")?.backStack shouldBe listOf(TripsRoute)
-        DeepLinkParser.parse("opusclockblock://plan/abc?source=widget#now")?.backStack shouldBe
+        DeepLinkParser.parse("clockblock://trips/")?.backStack shouldBe listOf(TripsRoute)
+        DeepLinkParser.parse("clockblock://plan/abc?source=widget#now")?.backStack shouldBe
             listOf(TripsRoute, PlanRoute("abc"))
     }
 
     @Test
     fun `scheme and host are case-insensitive, ids are not`() {
-        DeepLinkParser.parse("OpusClockblock://PLAN/AbC")?.backStack shouldBe listOf(TripsRoute, PlanRoute("AbC"))
-        DeepLinkParser.parse("opusclockblock://Plan/Current")?.destination shouldBe TopLevelDestination.Now
+        DeepLinkParser.parse("Clockblock://PLAN/AbC")?.backStack shouldBe listOf(TripsRoute, PlanRoute("AbC"))
+        DeepLinkParser.parse("clockblock://Plan/Current")?.destination shouldBe TopLevelDestination.Now
     }
 
     @ParameterizedTest
@@ -70,15 +70,15 @@ class DeepLinkParserTest {
             "",
             "not a uri",
             "https://trips",
-            "opusclockblock:trips",
-            "opusclockblock://",
-            "opusclockblock://settings",
-            "opusclockblock://plan",
-            "opusclockblock://plan/",
-            "opusclockblock://plan/a/b",
-            "opusclockblock://plan/%zz",
-            "opusclockblock://trips/old",
-            "opusclockblock://trips/new/extra",
+            "clockblock:trips",
+            "clockblock://",
+            "clockblock://settings",
+            "clockblock://plan",
+            "clockblock://plan/",
+            "clockblock://plan/a/b",
+            "clockblock://plan/%zz",
+            "clockblock://trips/old",
+            "clockblock://trips/new/extra",
         ],
     )
     fun `anything else is not a deep link`(uri: String) {

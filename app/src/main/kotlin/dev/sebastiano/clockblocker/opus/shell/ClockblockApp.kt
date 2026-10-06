@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import dev.sebastiano.clockblocker.opus.R
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.navigation.AboutRoute
@@ -47,7 +47,7 @@ import java.time.Clock
 
 /**
  * The whole app UI once [uiState] is ready (nothing is drawn while loading; the splash screen covers it):
- * applies the theme from settings, gates on onboarding, routes [deepLinks] and hosts [OpusShell].
+ * applies the theme from settings, gates on onboarding, routes [deepLinks] and hosts [ClockblockShell].
  *
  * Motion turns Calm app-wide during body night ([isBodyNight], re-checked every minute on [clock]), whatever
  * the colours are doing: Night-safe colours remain a separate, plan-screen concern.
@@ -56,7 +56,7 @@ import java.time.Clock
  * @param onDarkThemeChanged called with the effective dark-theme flag so the activity can restyle system bars.
  */
 @Composable
-fun OpusAppRoot(
+fun ClockblockAppRoot(
     uiState: ShellUiState,
     modifier: Modifier = Modifier,
     deepLinks: Flow<DeepLinkTarget> = emptyFlow(),
@@ -70,7 +70,7 @@ fun OpusAppRoot(
     SideEffect { currentOnDarkThemeChanged(darkTheme) }
     val bodyNight = rememberBodyNight(plan = ready.currentPlan, sleep = ready.sleep, clock = clock)
 
-    OpusTheme(
+    ClockblockTheme(
         darkTheme = darkTheme,
         dynamicColor = ready.settings.dynamicColor,
         opusMode = ready.settings.opusModeUnlocked && ready.settings.opusModeEnabled,
@@ -84,7 +84,7 @@ fun OpusAppRoot(
         LaunchedEffect(navigator, deepLinks) {
             deepLinks.collect { navigator.open(it) }
         }
-        OpusShell(navigator = navigator, destinations = destinations, hasTrips = ready.hasTrips, modifier = modifier)
+        ClockblockShell(navigator = navigator, destinations = destinations, hasTrips = ready.hasTrips, modifier = modifier)
     }
 }
 
@@ -94,7 +94,7 @@ fun OpusAppRoot(
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun OpusShell(
+fun ClockblockShell(
     navigator: AppNavigator,
     destinations: AppDestinations,
     hasTrips: Boolean,

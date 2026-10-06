@@ -69,7 +69,7 @@ Home-screen widgets still show everything.
 
 The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
 home screen asks where to put it. (The section only appears if your home screen app supports this.) You can
-also touch and hold an empty area of your home screen, tap **Widgets**, find Opus Clockblock, and drag the widget
+also touch and hold an empty area of your home screen, tap **Widgets**, find Clockblock, and drag the widget
 you want onto the screen. You can resize both widgets.
 
 <img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two Clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />

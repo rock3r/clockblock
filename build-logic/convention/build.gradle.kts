@@ -25,23 +25,23 @@ dependencies {
 gradlePlugin {
     plugins {
         register("androidApplication") {
-            id = "opus.android.application"
+            id = "clockblock.android.application"
             implementationClass = "AndroidApplicationConventionPlugin"
         }
         register("androidLibrary") {
-            id = "opus.android.library"
+            id = "clockblock.android.library"
             implementationClass = "AndroidLibraryConventionPlugin"
         }
         register("androidCompose") {
-            id = "opus.android.compose"
+            id = "clockblock.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"
         }
         register("androidFeature") {
-            id = "opus.android.feature"
+            id = "clockblock.android.feature"
             implementationClass = "AndroidFeatureConventionPlugin"
         }
         register("jvmLibrary") {
-            id = "opus.jvm.library"
+            id = "clockblock.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"
         }
     }

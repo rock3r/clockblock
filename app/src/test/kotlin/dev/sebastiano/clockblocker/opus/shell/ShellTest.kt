@@ -40,7 +40,7 @@ class ShellTest {
     private fun launch(hasProfile: Boolean, hasTrips: Boolean) {
         uiState = ShellUiState.Ready(hasProfile, hasTrips, TestSettings)
         compose.setContent {
-            OpusAppRoot(uiState = uiState, deepLinks = deepLinkFlow, destinations = FakeDestinations)
+            ClockblockAppRoot(uiState = uiState, deepLinks = deepLinkFlow, destinations = FakeDestinations)
         }
     }
 
@@ -58,7 +58,7 @@ class ShellTest {
 
     @Test
     fun `nothing is drawn while loading`() {
-        compose.setContent { OpusAppRoot(uiState = ShellUiState.Loading, destinations = FakeDestinations) }
+        compose.setContent { ClockblockAppRoot(uiState = ShellUiState.Loading, destinations = FakeDestinations) }
 
         tag("screen_onboarding").assertDoesNotExist()
         tag(ShellTestTags.NavNow).assertDoesNotExist()
@@ -212,7 +212,7 @@ class ShellTest {
     fun `plan deep link opens the plan inside Trips`() {
         launch(hasProfile = true, hasTrips = true)
 
-        deepLink("opusclockblock://plan/abc")
+        deepLink("clockblock://plan/abc")
 
         tag("screen_plan_abc").assertIsDisplayed()
         tag(ShellTestTags.NavTrips).assertIsSelected()
@@ -228,7 +228,7 @@ class ShellTest {
     fun `new trip deep link opens the editor over Trips`() {
         launch(hasProfile = true, hasTrips = true)
 
-        deepLink("opusclockblock://trips/new")
+        deepLink("clockblock://trips/new")
 
         tag("screen_editor").assertIsDisplayed()
         pressBack()
@@ -241,7 +241,7 @@ class ShellTest {
         tag(ShellTestTags.NavSettings).performClick()
         compose.waitForIdle()
 
-        deepLink("opusclockblock://plan/current")
+        deepLink("clockblock://plan/current")
 
         tag("screen_plan_now").assertIsDisplayed()
         tag(ShellTestTags.NavNow).assertIsSelected()
@@ -251,7 +251,7 @@ class ShellTest {
     fun `deep links during first-run onboarding wait until it completes`() {
         launch(hasProfile = false, hasTrips = false)
 
-        deepLink("opusclockblock://plan/abc")
+        deepLink("clockblock://plan/abc")
         tag("screen_onboarding").assertIsDisplayed()
 
         tag("onboarding_finish").performClick()

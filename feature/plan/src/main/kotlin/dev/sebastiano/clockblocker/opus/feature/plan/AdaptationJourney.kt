@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.PlannerConfig
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
@@ -252,7 +252,7 @@ internal fun JetLagPlan.longWayRound(): LongWayRound? {
  */
 @Composable
 internal fun JourneyChart(journey: AdaptationJourney, activeDay: Float?, description: String, modifier: Modifier = Modifier) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val colors = MaterialTheme.colorScheme
     val planColour = colors.primary
     val noPlanColour = colors.onSurfaceVariant

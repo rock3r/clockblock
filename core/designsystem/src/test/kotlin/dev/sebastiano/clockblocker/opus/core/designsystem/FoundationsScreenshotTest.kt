@@ -29,7 +29,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.preview.SamplePlan
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -110,7 +110,7 @@ private fun IataCodes() {
         }
         Caption("iataLabel")
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("LIS", "JFK", "SIN", null).forEach { IataCode(it, style = OpusTheme.textStyles.iataLabel, color = scheme.onSurface) }
+            listOf("LIS", "JFK", "SIN", null).forEach { IataCode(it, style = ClockblockTheme.textStyles.iataLabel, color = scheme.onSurface) }
         }
         Caption("Glyph sheet")
         val sheet = DotMatrixStyle(glyphHeight = 21.sp)
@@ -125,18 +125,18 @@ private fun RollingSpecimens(changed: Boolean) {
     val scheme = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.width(368.dp)) {
         Caption("Time 09:59 \u2192 10:00 (every digit, colon still)")
-        RollingTimeText(if (changed) LocalTime.of(10, 0) else LocalTime.of(9, 59), style = OpusTheme.textStyles.timeDisplay, color = scheme.onSurface)
+        RollingTimeText(if (changed) LocalTime.of(10, 0) else LocalTime.of(9, 59), style = ClockblockTheme.textStyles.timeDisplay, color = scheme.onSurface)
         Caption("Minute tick 14:20 \u2192 14:21 (one digit)")
-        RollingTimeText(if (changed) LocalTime.of(14, 21) else LocalTime.of(14, 20), style = OpusTheme.textStyles.timeHeadline, color = scheme.onSurface)
+        RollingTimeText(if (changed) LocalTime.of(14, 21) else LocalTime.of(14, 20), style = ClockblockTheme.textStyles.timeHeadline, color = scheme.onSurface)
         Caption("Jet lag +3\u00BD h \u2192 +2 h (unit still, rolls down)")
         RollingMetricText(
             if (changed) 2f else 3.5f,
-            style = OpusTheme.textStyles.timeHeadline,
+            style = ClockblockTheme.textStyles.timeHeadline,
             color = scheme.primary,
             format = ::formatJetLagHours,
         )
         Caption("Days to adapt 9d \u2192 10d (a digit rolls in)")
-        RollingMetricText(if (changed) 10f else 9f, style = OpusTheme.textStyles.timeTitle, color = scheme.onSurface, format = { "${it.toInt()}d" })
+        RollingMetricText(if (changed) 10f else 9f, style = ClockblockTheme.textStyles.timeTitle, color = scheme.onSurface, format = { "${it.toInt()}d" })
         Caption("Plain text")
         RollingText(if (changed) "62% adapted" else "58% adapted", style = MaterialTheme.typography.titleMedium, color = scheme.onSurface)
     }

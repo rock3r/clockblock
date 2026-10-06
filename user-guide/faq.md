@@ -2,7 +2,7 @@
 
 ### Is this medical advice?
 
-No. Opus Clockblock gives general information about timing light, sleep and caffeine, based on published research.
+No. Clockblock gives general information about timing light, sleep and caffeine, based on published research.
 It isn't a diagnosis or treatment. It's meant for healthy adults, not for flight crew on duty. If you have a
 health condition, are pregnant, or take medication, talk to a doctor before you change your sleep.
 
@@ -22,7 +22,7 @@ Your body clock follows light. Light at the right time of your body's day moves 
 another time moves it later. The plan works out where your body clock is, then tells you when to look for light
 and when to avoid it so the clock moves the right way, at a pace the body can manage (about 1 to 1.5 hours a day
 earlier, or up to two hours a day later). Sleep, naps and caffeine are fitted around that. In the app, **About
-Opus Clockblock** explains this in more detail, and every block has a **Why?**.
+Clockblock** explains this in more detail, and every block has a **Why?**.
 
 For the full science, see the [research review](../docs/science.md).
 

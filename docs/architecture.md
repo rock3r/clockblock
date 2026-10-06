@@ -1,6 +1,6 @@
 # Architecture
 
-Opus Clockblock is a multi-module Android app that works without a network connection. Trips, the user profile
+Clockblock is a multi-module Android app that works without a network connection. Trips, the user profile
 and settings are stored as JSON files in DataStore on the device. A pure-Kotlin planner turns a trip and a
 profile into a plan. Everything else reads that plan through a single repository: the screens, the two
 home-screen widgets and the ongoing "Now" notification.
@@ -46,7 +46,7 @@ flowchart TD
 
 The diagram shows production dependencies only, and leaves out the direct dependencies of `:app` on the core
 modules. Every feature module also gets `:core:model`, `:core:designsystem`, `:core:data` and Metro from the
-`opus.android.feature` convention plugin. `:core:testing` is a test-only dependency of the features, `:widget`,
+`clockblock.android.feature` convention plugin. `:core:testing` is a test-only dependency of the features, `:widget`,
 `:core:data` and `:app`. `:feature:settings` depends on `:feature:onboarding` because the Settings editors reuse
 the onboarding profile pickers (sleep dial, chronotype, tools, effort). This is the only dependency between two
 features.
@@ -148,7 +148,7 @@ does not change the plan.
 
 The app uses [Metro](https://github.com/ZacSweers/metro). The graph is
 [`AppGraph`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/AppGraph.kt), scoped to `AppScope`. It is
-created in [`OpusApplication`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/OpusApplication.kt),
+created in [`ClockblockApplication`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/ClockblockApplication.kt),
 which also starts the alarm scheduler.
 
 | What | How it is wired |
@@ -185,10 +185,10 @@ URI into a tab and a back stack. Widgets and notifications use these links.
 
 | URI | Opens |
 |---|---|
-| `opusclockblock://trips` | The Trips tab |
-| `opusclockblock://trips/new` | The trip editor, on top of Trips |
-| `opusclockblock://plan/current` | The Now tab (the current plan) |
-| `opusclockblock://plan/{tripId}` | That trip's plan, on top of Trips |
+| `clockblock://trips` | The Trips tab |
+| `clockblock://trips/new` | The trip editor, on top of Trips |
+| `clockblock://plan/current` | The Now tab (the current plan) |
+| `clockblock://plan/{tripId}` | That trip's plan, on top of Trips |
 
 [`MainActivity`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/MainActivity.kt) is `singleTop`. It
 queues incoming links until the shell is ready. If onboarding isn't finished, the link waits and runs when setup
@@ -196,7 +196,7 @@ ends. The splash screen stays up while the shell is still loading.
 
 ### Adaptive layout
 
-[`OpusShell`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/shell/OpusApp.kt) uses
+[`ClockblockShell`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/shell/ClockblockApp.kt) uses
 `NavigationSuiteScaffold`, which shows a bottom bar on phones and a navigation rail on wider windows. The
 navigation is hidden during onboarding and in the trip editor. When the window has room for two panes, a
 `ListDetailSceneStrategy` shows the trips list and a plan side by side.
@@ -228,7 +228,7 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 
 | Feature | Code | Format |
 |---|---|---|
-| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "opus-clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
+| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
 | Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from the positional advice ids, so a second import of an unchanged or lightly changed plan updates events. Re-plans that shift card positions can remap or orphan events. |
 
 Import has two modes, implemented in `BackupManager.restore`:
@@ -243,7 +243,8 @@ a trip that is kept are not removed. An entry for the same advice id is replaced
 [#5](https://github.com/rock3r/clockblock/issues/5) tracks whether the code or the in-app copy should change.
 
 The whole file is decoded before anything is written, so a bad file changes nothing. Files from a newer app
-version are refused. Exported files are named `opus-clockblock-backup-YYYY-MM-DD.json`.
+version are refused. Files from before the app was renamed (`"format": "opus-clockblock"`) still import.
+Exported files are named `clockblock-backup-YYYY-MM-DD.json`.
 
 ## Offline airport data
 
@@ -258,8 +259,8 @@ searches it in memory.
 
 - Versions are in [`gradle/libs.versions.toml`](../gradle/libs.versions.toml).
 - Module setup is in convention plugins in [`build-logic`](../build-logic/convention/src/main/kotlin):
-  `opus.jvm.library`, `opus.android.library`, `opus.android.application`, `opus.android.compose` and
-  `opus.android.feature`. Android namespaces come from the module path, for example
+  `clockblock.jvm.library`, `clockblock.android.library`, `clockblock.android.application`, `clockblock.android.compose` and
+  `clockblock.android.feature`. Android namespaces come from the module path, for example
   `dev.sebastiano.clockblocker.opus.feature.plan`.
 - AGP 9 with built-in Kotlin (the `org.jetbrains.kotlin.android` plugin is not applied), Kotlin 2.4, JDK 21.
 - compileSdk 37.1, targetSdk 37, minSdk 29.

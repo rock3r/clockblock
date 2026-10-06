@@ -20,7 +20,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.sharedUnitPath
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 
 /** The plan-computing sequence (design.md §2.4: "a day passing" — sun, pill, star, moon-round). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -42,7 +42,7 @@ fun ShapeLoadingIndicator(
         this.contentDescription = contentDescription
         progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
     }
-    if (OpusTheme.reduceMotion) {
+    if (ClockblockTheme.reduceMotion) {
         val sunny = MaterialShapes.Sunny.sharedUnitPath()
         Canvas(modifier.size(48.dp).then(semantics)) {
             // LoadingIndicator draws its active shape at ~38/48 of the container.

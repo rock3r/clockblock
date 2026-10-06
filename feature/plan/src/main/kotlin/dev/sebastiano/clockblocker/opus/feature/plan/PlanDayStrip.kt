@@ -53,7 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
@@ -165,7 +165,7 @@ internal fun PlanDayStrip(
 
 @Composable
 private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boolean, onClick: () -> Unit) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val colors = MaterialTheme.colorScheme
     val resources = LocalContext.current.resources
     val corner by animateDpAsState(if (selected) PillHeight / 2 else PillCorner, motion.containerSpatial(), label = "dayPillCorner")

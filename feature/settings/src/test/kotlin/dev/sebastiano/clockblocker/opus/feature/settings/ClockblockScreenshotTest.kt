@@ -1,4 +1,4 @@
-package dev.sebastiano.clockblocker.opus.feature.onboarding
+package dev.sebastiano.clockblocker.opus.feature.settings
 
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -13,15 +13,15 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import org.junit.Rule
 
 /**
  * Base for Roborazzi screenshot tests. Content renders with reduce motion on (deterministic goldens that also
- * prove each static carrier) and the 24-hour clock (unless a test asks for 12-hour). Subclasses carry the Robolectric annotations and pick the
+ * prove each static carrier) and the 24-hour clock. Subclasses carry the Robolectric annotations and pick the
  * device size with `@Config(qualifiers = ...)`.
  */
-abstract class OpusScreenshotTest {
+abstract class ClockblockScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
 
@@ -30,10 +30,9 @@ abstract class OpusScreenshotTest {
         darkTheme: Boolean = false,
         fontScale: Float? = null,
         reduceMotion: Boolean = true,
-        is24Hour: Boolean = true,
         content: @Composable () -> Unit,
     ) {
-        setContent(darkTheme, fontScale, reduceMotion, is24Hour, content)
+        setContent(darkTheme, fontScale, reduceMotion, content)
         capture(name)
     }
 
@@ -41,20 +40,19 @@ abstract class OpusScreenshotTest {
         darkTheme: Boolean = false,
         fontScale: Float? = null,
         reduceMotion: Boolean = true,
-        is24Hour: Boolean = true,
         content: @Composable () -> Unit,
     ) {
         Settings.System.putString(
             ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
             Settings.System.TIME_12_24,
-            if (is24Hour) "24" else "12",
+            "24",
         )
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(
                 LocalDensity provides if (fontScale != null) Density(density.density, fontScale) else density,
             ) {
-                OpusTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = reduceMotion) {
+                ClockblockTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = reduceMotion) {
                     Box(Modifier.background(MaterialTheme.colorScheme.surface)) { content() }
                 }
             }

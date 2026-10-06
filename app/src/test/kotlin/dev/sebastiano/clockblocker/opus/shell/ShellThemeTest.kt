@@ -9,8 +9,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.TestApplication
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import io.kotest.matchers.shouldBe
@@ -26,7 +26,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 /**
- * The shell's theme wiring end to end through [OpusAppRoot]: Opus mode from settings (unlocked *and* enabled)
+ * The shell's theme wiring end to end through [ClockblockAppRoot]: Opus mode from settings (unlocked *and* enabled)
  * re-themes the live UI, and Calm motion follows body night independently of colours.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -36,7 +36,7 @@ class ShellThemeTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
-    private var variant: OpusThemeVariant? = null
+    private var variant: ClockblockThemeVariant? = null
     private var calm: Boolean? = null
 
     /** The fake screens, with the trips screen reporting the theme it is drawn in. */
@@ -50,8 +50,8 @@ class ShellThemeTest {
             onEditTrip: (tripId: String) -> Unit,
             onCreateReturnTrip: (outboundTripId: String) -> Unit,
         ) {
-            variant = OpusTheme.variant
-            calm = OpusTheme.motion.isCalm
+            variant = ClockblockTheme.variant
+            calm = ClockblockTheme.motion.isCalm
             FakeDestinations.Trips(selectedTripId, onOpenTrip, onNewTrip, onOpenSettings, onEditTrip, onCreateReturnTrip)
         }
     }
@@ -60,7 +60,7 @@ class ShellThemeTest {
 
     private fun launch(state: ShellUiState.Ready, clock: Clock = Clock.systemDefaultZone()) {
         uiState = state
-        compose.setContent { OpusAppRoot(uiState = uiState, destinations = probing, clock = clock) }
+        compose.setContent { ClockblockAppRoot(uiState = uiState, destinations = probing, clock = clock) }
         compose.waitForIdle()
     }
 
@@ -81,21 +81,21 @@ class ShellThemeTest {
     @Test
     fun `opus mode re-themes the live app when toggled in settings`() {
         launch(ready(opusUnlocked = true, opusEnabled = true))
-        variant shouldBe OpusThemeVariant.Opus
+        variant shouldBe ClockblockThemeVariant.Opus
 
         uiState = ready(opusUnlocked = true, opusEnabled = false)
         compose.waitForIdle()
-        variant shouldBe OpusThemeVariant.Standard
+        variant shouldBe ClockblockThemeVariant.Standard
 
         uiState = ready(opusUnlocked = true, opusEnabled = true)
         compose.waitForIdle()
-        variant shouldBe OpusThemeVariant.Opus
+        variant shouldBe ClockblockThemeVariant.Opus
     }
 
     @Test
     fun `opus mode needs the unlock as well as the switch`() {
         launch(ready(opusUnlocked = false, opusEnabled = true))
-        variant shouldBe OpusThemeVariant.Standard
+        variant shouldBe ClockblockThemeVariant.Standard
     }
 
     @Test
@@ -113,7 +113,7 @@ class ShellThemeTest {
         val sleep = SleepWindow(LocalTime.of(23, 0), LocalTime.of(7, 0))
         launch(ready(sleep = sleep), clock = Clock.fixed(Instant.parse("2026-06-12T01:30:00Z"), zone)) // 02:30 local
         calm shouldBe true
-        variant shouldBe OpusThemeVariant.Standard
+        variant shouldBe ClockblockThemeVariant.Standard
     }
 
     @Test

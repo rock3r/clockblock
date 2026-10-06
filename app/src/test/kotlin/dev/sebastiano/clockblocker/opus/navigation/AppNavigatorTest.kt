@@ -167,7 +167,7 @@ class AppNavigatorTest {
         navigator.openTripEditor()
         navigator.select(TopLevelDestination.Settings)
 
-        navigator.open(DeepLinkParser.parse("opusclockblock://plan/x")!!)
+        navigator.open(DeepLinkParser.parse("clockblock://plan/x")!!)
 
         navigator.selected shouldBe TopLevelDestination.Trips
         navigator.currentBackStack shouldContainExactly listOf(TripsRoute, PlanRoute("x"))
@@ -180,7 +180,7 @@ class AppNavigatorTest {
     fun `a deep link during first-run onboarding waits for it to finish`() {
         val navigator = AppNavigator(TopLevelDestination.Onboarding)
 
-        navigator.open(DeepLinkParser.parse("opusclockblock://trips/new")!!)
+        navigator.open(DeepLinkParser.parse("clockblock://trips/new")!!)
         navigator.selected shouldBe TopLevelDestination.Onboarding
 
         navigator.finishOnboarding(hasTrips = false)

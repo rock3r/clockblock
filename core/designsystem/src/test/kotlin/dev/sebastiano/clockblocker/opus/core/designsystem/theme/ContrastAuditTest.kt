@@ -29,7 +29,7 @@ class ContrastAuditTest {
 
     @Test
     fun `body text roles reach 4_5 to 1 on every container they sit on`() = assertSoftly {
-        listOf("light" to OpusLightColors, "dark" to OpusDarkColors, "night-safe" to NightSafeColors).forEach { (name, s) ->
+        listOf("light" to ClockblockLightColors, "dark" to ClockblockDarkColors, "night-safe" to NightSafeColors).forEach { (name, s) ->
             val containers = listOf(
                 "surface" to s.surface,
                 "surfaceContainerLow" to s.surfaceContainerLow,
@@ -49,7 +49,7 @@ class ContrastAuditTest {
 
     @Test
     fun `trip card secondary lines stay readable on every card colour`() = assertSoftly {
-        listOf("light" to OpusLightColors, "dark" to OpusDarkColors).forEach { (name, s) ->
+        listOf("light" to ClockblockLightColors, "dark" to ClockblockDarkColors).forEach { (name, s) ->
             listOf(
                 "in progress" to (s.primaryContainer to s.onPrimaryContainer),
                 "upcoming" to (s.surfaceContainerHigh to s.onSurface),

@@ -114,7 +114,7 @@ import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingMetricText
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -174,12 +174,12 @@ fun SleepDial(
     maxHeight: Dp = Dp.Infinity,
 ) {
     val colors = MaterialTheme.colorScheme
-    val advice = OpusTheme.adviceColors
-    val motion = OpusTheme.motion
-    val reduce = OpusTheme.reduceMotion
-    val textStyles = OpusTheme.textStyles
-    val art = OpusTheme.artColors
-    val sky = OpusTheme.sky
+    val advice = ClockblockTheme.adviceColors
+    val motion = ClockblockTheme.motion
+    val reduce = ClockblockTheme.reduceMotion
+    val textStyles = ClockblockTheme.textStyles
+    val art = ClockblockTheme.artColors
+    val sky = ClockblockTheme.sky
     val formatter = rememberTimeFormatter()
     val view = LocalView.current
     val density = LocalDensity.current

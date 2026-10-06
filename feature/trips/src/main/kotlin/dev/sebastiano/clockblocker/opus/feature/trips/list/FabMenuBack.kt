@@ -13,7 +13,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -63,7 +63,7 @@ internal class FabMenuBack(private val scope: CoroutineScope) {
 /** Registers the menu's back handler (enabled while [expanded]) and returns the gesture state. */
 @Composable
 internal fun rememberFabMenuBack(expanded: Boolean, onCollapse: () -> Unit): FabMenuBack {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val scope = rememberCoroutineScope()
     val back = remember(scope) { FabMenuBack(scope) }
     val backState = rememberNavigationEventState(currentInfo = NavigationEventInfo.None)

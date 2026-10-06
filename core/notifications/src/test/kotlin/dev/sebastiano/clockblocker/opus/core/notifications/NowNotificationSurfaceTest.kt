@@ -139,7 +139,7 @@ class NowNotificationSurfaceTest {
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
         n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain
             "Tokyo: until 02:00 · then Sleep 02:00–10:00"
-        n.channelId shouldBe OpusChannel.Now.id
+        n.channelId shouldBe ClockblockChannel.Now.id
         n.category shouldBe Notification.CATEGORY_REMINDER
         (n.flags and Notification.FLAG_ONGOING_EVENT) shouldBe Notification.FLAG_ONGOING_EVENT
         (n.flags and Notification.FLAG_ONLY_ALERT_ONCE) shouldBe Notification.FLAG_ONLY_ALERT_ONCE
@@ -316,13 +316,13 @@ class NowNotificationSurfaceTest {
         surface.render()
 
         val channels = shadowOf(manager).notificationChannels.associateBy { it.id }
-        channels.keys shouldBe OpusChannel.entries.map { it.id }.toSet()
-        channels.getValue(OpusChannel.Light.id).name shouldBe "Light"
-        channels.getValue(OpusChannel.SupplementsAndCaffeine.id).name shouldBe "Supplements & caffeine"
-        channels.getValue(OpusChannel.Now.id).sound.shouldBeNull()
-        channels.getValue(OpusChannel.Now.id).group shouldBe OpusChannelGroup.Ongoing.id
-        channels.getValue(OpusChannel.Sleep.id).group shouldBe OpusChannelGroup.Reminders.id
-        (channels.getValue(OpusChannel.TravelLive.id).importance > NotificationManager.IMPORTANCE_MIN) shouldBe true
+        channels.keys shouldBe ClockblockChannel.entries.map { it.id }.toSet()
+        channels.getValue(ClockblockChannel.Light.id).name shouldBe "Light"
+        channels.getValue(ClockblockChannel.SupplementsAndCaffeine.id).name shouldBe "Supplements & caffeine"
+        channels.getValue(ClockblockChannel.Now.id).sound.shouldBeNull()
+        channels.getValue(ClockblockChannel.Now.id).group shouldBe ClockblockChannelGroup.Ongoing.id
+        channels.getValue(ClockblockChannel.Sleep.id).group shouldBe ClockblockChannelGroup.Reminders.id
+        (channels.getValue(ClockblockChannel.TravelLive.id).importance > NotificationManager.IMPORTANCE_MIN) shouldBe true
     }
 
     @Test
@@ -360,7 +360,7 @@ class NowNotificationSurfaceTest {
         surface.render() shouldBe NowRendering.LiveUpdate
 
         val n = posted.shouldNotBeNull()
-        n.channelId shouldBe OpusChannel.TravelLive.id
+        n.channelId shouldBe ClockblockChannel.TravelLive.id
         NotificationCompat.isRequestPromotedOngoing(n) shouldBe true
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light"
         val style = Notification.Builder.recoverBuilder(context, n).style as Notification.ProgressStyle
@@ -426,7 +426,7 @@ class NowNotificationSurfaceTest {
         surface.render() shouldBe NowRendering.Ongoing
 
         val n = posted.shouldNotBeNull()
-        n.channelId shouldBe OpusChannel.Now.id
+        n.channelId shouldBe ClockblockChannel.Now.id
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight · BA7"
         n.smallIcon.resId shouldBe R.drawable.ic_notif_flight
         (n.actions ?: emptyArray()).toList().shouldBeEmpty()
@@ -442,8 +442,8 @@ class NowNotificationSurfaceTest {
 
     @Test
     fun `melatonin moments use the supplements channel`() {
-        Melatonin.style.channel shouldBe OpusChannel.SupplementsAndCaffeine
-        SeeBrightLight.style.channel shouldBe OpusChannel.Light
-        Sleep.style.channel shouldBe OpusChannel.Sleep
+        Melatonin.style.channel shouldBe ClockblockChannel.SupplementsAndCaffeine
+        SeeBrightLight.style.channel shouldBe ClockblockChannel.Light
+        Sleep.style.channel shouldBe ClockblockChannel.Sleep
     }
 }

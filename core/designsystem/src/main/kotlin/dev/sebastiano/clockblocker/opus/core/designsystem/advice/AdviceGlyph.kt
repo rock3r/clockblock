@@ -29,8 +29,8 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawStarDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawStrike
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.AdvicePattern
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.pattern
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import kotlin.math.PI
@@ -89,7 +89,7 @@ object AdviceShapes {
  *
  * - **Inactive**: a circular container in the advice container colour holding the advice's MaterialShape as a
  *   mark, so shape identity never depends on colour.
- * - **Active** ("now"): the container itself morphs into the shape (`OpusMotion.glyphMorph`, fast spatial) in the
+ * - **Active** ("now"): the container itself morphs into the shape (`ClockblockMotion.glyphMorph`, fast spatial) in the
  *   vivid advice colour, then plays one ambient cycle and rests: VerySunny turns one step, melatonin twinkles,
  *   peak fatigue pulses.
  * - **Reduced motion**: the morph snaps to its end state and the ambient cycle never plays.
@@ -104,8 +104,8 @@ fun AdviceGlyph(
     size: Dp = 48.dp,
     headingDegrees: Float = -45f,
 ) {
-    val role = OpusTheme.adviceColors[type]
-    val motion = OpusTheme.motion
+    val role = ClockblockTheme.adviceColors[type]
+    val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
     val morph = remember(type) { ShapeMorph(AdviceShapes.start(type), AdviceShapes.target(type)) }
     val mark = remember(type) { ShapeMorph(AdviceShapes.target(type), AdviceShapes.target(type)) }
@@ -137,7 +137,7 @@ fun AdviceGlyph(
     val markPath = remember { Path() }
 
     // 8-bit easter egg: the resting shape morphs into its pixel twin (and straightens up).
-    val pixelMode = OpusTheme.pixelMode
+    val pixelMode = ClockblockTheme.pixelMode
     val pixel = remember { Animatable(if (pixelMode) 1f else 0f) }
     LaunchedEffect(pixelMode, reduce) {
         val target = if (pixelMode) 1f else 0f
@@ -215,7 +215,7 @@ fun MorphGlyph(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
 ) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
     val morph = remember(start, end) { ShapeMorph(start, end) }
     val progress = remember { Animatable(if (active) 1f else 0f) }
@@ -237,12 +237,12 @@ fun MorphGlyph(
 @Composable
 private fun rememberAmbientPhase(type: AdviceType, enabled: Boolean): State<Float> {
     val period = when (type) {
-        AdviceType.SeeBrightLight -> OpusMotion.SunRotationMillis
-        AdviceType.Melatonin -> OpusMotion.TwinkleMillis
-        AdviceType.PeakFatigue -> OpusMotion.PulseMillis
+        AdviceType.SeeBrightLight -> ClockblockMotion.SunRotationMillis
+        AdviceType.Melatonin -> ClockblockMotion.TwinkleMillis
+        AdviceType.PeakFatigue -> ClockblockMotion.PulseMillis
         else -> 0
     }
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val phase = remember { Animatable(0f) }
     var played by rememberSaveable(type) { mutableStateOf(false) }
     LaunchedEffect(enabled, period) {

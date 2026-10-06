@@ -322,7 +322,7 @@ class AdviceAlarmSchedulerTest {
         val n = reminder.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light at 15:00"
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "15:00–18:00"
-        n.channelId shouldBe OpusChannel.Light.id
+        n.channelId shouldBe ClockblockChannel.Light.id
         n.actions.map { it.title.toString() } shouldContainExactly listOf("Can't do this", "Snooze 15 min")
         n.timeoutAfter shouldBe Duration.ofMinutes(45).toMillis() // until 30 min after the window starts
         widget.refreshes shouldBe 1
@@ -384,7 +384,7 @@ class AdviceAlarmSchedulerTest {
         val n = reminder.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Sleep window over"
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Now: See bright light · until 09:00"
-        n.channelId shouldBe OpusChannel.Sleep.id
+        n.channelId shouldBe ClockblockChannel.Sleep.id
     }
 
     @Test
@@ -397,7 +397,7 @@ class AdviceAlarmSchedulerTest {
 
         val n = reminder.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Melatonin now"
-        n.channelId shouldBe OpusChannel.SupplementsAndCaffeine.id
+        n.channelId shouldBe ClockblockChannel.SupplementsAndCaffeine.id
         n.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Snooze 15 min")
     }
 
@@ -431,7 +431,7 @@ class AdviceAlarmSchedulerTest {
         val result = scheduler().resync()
 
         result.instants.first() shouldBe utc("2026-10-10T14:22")
-        now!!.channelId shouldBe OpusChannel.TravelLive.id
+        now!!.channelId shouldBe ClockblockChannel.TravelLive.id
     }
 
     @Test

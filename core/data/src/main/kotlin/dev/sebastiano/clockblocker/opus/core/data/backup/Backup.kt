@@ -4,7 +4,7 @@ import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.ProfileRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.sebastiano.clockblocker.opus.core.data.TripRepository
-import dev.sebastiano.clockblocker.opus.core.data.datastore.OpusJson
+import dev.sebastiano.clockblocker.opus.core.data.datastore.ClockblockJson
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.InstantIsoSerializer
@@ -29,7 +29,7 @@ import java.time.Instant
 data class Backup(
     /** Format version; see [BackupCodec.CurrentVersion]. */
     val version: Int = BackupCodec.CurrentVersion,
-    /** Always "opus-clockblock", so a random JSON file is rejected with a clear error. */
+    /** Always "clockblock", so a random JSON file is rejected with a clear error. */
     val format: String = BackupCodec.FormatName,
     @Serializable(with = InstantIsoSerializer::class) val exportedAt: Instant,
     val profile: UserProfile? = null,
@@ -42,10 +42,10 @@ data class Backup(
 /** Why a backup couldn't be read. */
 sealed class BackupException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     /** Not JSON, or not shaped like a backup. */
-    class Malformed(cause: Throwable?) : BackupException("This file isn't an Opus Clockblock backup", cause)
+    class Malformed(cause: Throwable?) : BackupException("This file isn't a Clockblock backup", cause)
 
     /** JSON, but some other app's. */
-    class WrongFormat(val found: String?) : BackupException("Not an Opus Clockblock backup (format '$found')")
+    class WrongFormat(val found: String?) : BackupException("Not a Clockblock backup (format '$found')")
 
     /** Written by a newer app version; update the app to import it. */
     class UnsupportedVersion(val found: Int, val supported: Int) :
@@ -61,7 +61,7 @@ sealed class BackupException(message: String, cause: Throwable? = null) : Except
  */
 @Inject
 class BackupCodec {
-    private val json = Json(OpusJson) { prettyPrint = true }
+    private val json = Json(ClockblockJson) { prettyPrint = true }
 
     fun encode(backup: Backup): String = json.encodeToString(Backup.serializer(), backup)
 
@@ -69,7 +69,7 @@ class BackupCodec {
     fun decode(text: String): Backup {
         val root = malformedOnFailure { json.parseToJsonElement(text).jsonObject }
         val format = malformedOnFailure { root["format"]?.jsonPrimitive?.content }
-        if (format != FormatName) throw BackupException.WrongFormat(format)
+        if (format != FormatName && format !in LegacyFormatNames) throw BackupException.WrongFormat(format)
         val version = malformedOnFailure { root["version"]?.jsonPrimitive?.intOrNull }
             ?: throw BackupException.Malformed(null)
         if (version > CurrentVersion) throw BackupException.UnsupportedVersion(version, CurrentVersion)
@@ -77,7 +77,7 @@ class BackupCodec {
             val backup = json.decodeFromJsonElement(Backup.serializer(), root)
             // Fail now, not after import, if a trip references a zone this device doesn't know.
             backup.trips.forEach { trip -> trip.legs.forEach { it.origin.zone; it.destination.zone } }
-            backup.copy(version = CurrentVersion)
+            backup.copy(version = CurrentVersion, format = FormatName)
         }
     }
 
@@ -93,10 +93,13 @@ class BackupCodec {
 
     companion object {
         const val CurrentVersion: Int = 1
-        const val FormatName: String = "opus-clockblock"
+        const val FormatName: String = "clockblock"
+
+        /** Format names written by earlier builds (the app was called Opus Clockblock); still imported. */
+        val LegacyFormatNames: Set<String> = setOf("opus-clockblock")
 
         /** Suggested file name for an export made at [at]. */
-        fun fileName(at: Instant): String = "opus-clockblock-backup-${at.toString().take(10)}.json"
+        fun fileName(at: Instant): String = "clockblock-backup-${at.toString().take(10)}.json"
     }
 }
 

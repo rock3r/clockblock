@@ -40,8 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ArtColors
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusFonts
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockFonts
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import kotlin.math.max
 
@@ -150,7 +150,7 @@ internal class ArtScope(
     /** Fraunces (editorial serif) glyphs centred on ([cx], [cy]); [size] in art units. */
     fun serifText(text: String, cx: Float, cy: Float, size: Float, color: Color, alpha: Float = 1f, weight: Int = 600) {
         val style = TextStyle(
-            fontFamily = OpusFonts.serif(weight, opticalSize = 72f),
+            fontFamily = ClockblockFonts.serif(weight, opticalSize = 72f),
             fontSize = with(draw) { (size * u).toSp() },
             color = color.copy(alpha = color.alpha * alpha),
         )
@@ -217,8 +217,8 @@ internal fun ArtCanvas(
     reverse: Boolean = false,
     draw: ArtScope.(phase: Float) -> Unit,
 ) {
-    val colors = OpusTheme.artColors
-    val sky = OpusTheme.sky
+    val colors = ClockblockTheme.artColors
+    val sky = ClockblockTheme.sky
     val measurer = rememberTextMeasurer()
     val moving = animated && !LocalReduceMotion.current && ambientPeriodMillis > 0
     val phase = rememberArtPhase(moving, ambientPeriodMillis, restPhase, reverse)
@@ -232,7 +232,7 @@ internal fun ArtCanvas(
 private fun rememberArtPhase(enabled: Boolean, periodMillis: Int, rest: Float, reverse: Boolean): State<Float> {
     if (!enabled || periodMillis <= 0) return remember(rest) { mutableFloatStateOf(rest) }
     val transition = rememberInfiniteTransition(label = "art")
-    return transition.animateFloat(0f, 1f, OpusTheme.motion.ambientLoop(periodMillis, reverse), label = "artPhase")
+    return transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "artPhase")
 }
 
 /**
@@ -244,7 +244,7 @@ private fun rememberArtPhase(enabled: Boolean, periodMillis: Int, rest: Float, r
 @Composable
 internal fun rememberEntrance(target: Float, animated: Boolean, bouncy: Boolean = false): State<Float> {
     val reduce = LocalReduceMotion.current
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val play = animated && !reduce
     var played by rememberSaveable { mutableStateOf(false) }
     val value = remember { Animatable(if (play && !played) 0f else target) }
@@ -262,7 +262,7 @@ internal fun rememberEntrance(target: Float, animated: Boolean, bouncy: Boolean 
 @Composable
 internal fun rememberArtValue(target: Float, animated: Boolean): State<Float> {
     val play = animated && !LocalReduceMotion.current
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val value = remember { Animatable(target) }
     LaunchedEffect(target, play) {
         if (play) value.animateTo(target, motion.containerSpatial()) else value.snapTo(target)

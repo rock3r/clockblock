@@ -26,7 +26,7 @@ class AdaptiveShellTest {
 
     private fun launch(hasTrips: Boolean = false) {
         compose.setContent {
-            OpusAppRoot(
+            ClockblockAppRoot(
                 uiState = ShellUiState.Ready(hasProfile = true, hasTrips = hasTrips, settings = TestSettings),
                 destinations = FakeDestinations,
             )
@@ -110,7 +110,7 @@ class AdaptiveShellTest {
     fun `back stacks and entry state survive recreation`() {
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
-            OpusAppRoot(
+            ClockblockAppRoot(
                 uiState = ShellUiState.Ready(hasProfile = true, hasTrips = true, settings = TestSettings),
                 destinations = FakeDestinations,
             )

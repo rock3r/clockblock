@@ -59,7 +59,7 @@ val AdviceType.pattern: AdvicePattern
         AdviceType.Flight -> AdvicePattern.Dashed
     }
 
-/** The semantic advice palette. Look up with `OpusTheme.adviceColors[type]`. */
+/** The semantic advice palette. Look up with `ClockblockTheme.adviceColors[type]`. */
 @Immutable
 class AdviceColors internal constructor(private val roles: Map<AdviceType, AdviceColorRole>) {
 

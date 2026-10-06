@@ -39,7 +39,7 @@ class BackupCodecTest {
     fun `output is versioned, readable JSON`() {
         val text = codec.encode(full)
         text shouldContain "\"version\": 1"
-        text shouldContain "\"format\": \"opus-clockblock\""
+        text shouldContain "\"format\": \"clockblock\""
         text shouldContain "\"zoneId\": \"Europe/London\""
         text shouldContain "\"departureLocal\": \"2026-06-15T19:30\""
     }
@@ -59,11 +59,18 @@ class BackupCodecTest {
         shouldThrow<BackupException.WrongFormat> { codec.decode("""{"version":1,"format":"other-app"}""") }
         shouldThrow<BackupException.WrongFormat> { codec.decode("""{"version":1}""") }
         shouldThrow<BackupException.Malformed> { codec.decode("""{"format":{"nested":true}}""") }
-        shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"opus-clockblock"}""") }
-        shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"opus-clockblock","version":"one"}""") }
+        shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"clockblock"}""") }
+        shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"clockblock","version":"one"}""") }
         shouldThrow<BackupException.Malformed> {
-            codec.decode("""{"format":"opus-clockblock","version":1,"exportedAt":"yesterday"}""")
+            codec.decode("""{"format":"clockblock","version":1,"exportedAt":"yesterday"}""")
         }
+    }
+
+    @Test
+    fun `backups made before the rename still import`() {
+        val legacy = codec.encode(full).replace("\"format\": \"clockblock\"", "\"format\": \"opus-clockblock\"")
+        legacy shouldContain "\"format\": \"opus-clockblock\""
+        codec.decode(legacy) shouldBe full
     }
 
     @Test
@@ -80,7 +87,7 @@ class BackupCodecTest {
 
     @Test
     fun `minimal backup uses defaults`() {
-        val b = codec.decode("""{"format":"opus-clockblock","version":1,"exportedAt":"2026-01-01T00:00:00Z"}""")
+        val b = codec.decode("""{"format":"clockblock","version":1,"exportedAt":"2026-01-01T00:00:00Z"}""")
         b.profile shouldBe null
         b.trips shouldBe emptyList()
         b.settings shouldBe AppSettings()
@@ -88,7 +95,7 @@ class BackupCodecTest {
 
     @Test
     fun `file name carries the date`() {
-        BackupCodec.fileName(Instant.parse("2026-06-01T12:00:00Z")) shouldBe "opus-clockblock-backup-2026-06-01.json"
+        BackupCodec.fileName(Instant.parse("2026-06-01T12:00:00Z")) shouldBe "clockblock-backup-2026-06-01.json"
     }
 }
 

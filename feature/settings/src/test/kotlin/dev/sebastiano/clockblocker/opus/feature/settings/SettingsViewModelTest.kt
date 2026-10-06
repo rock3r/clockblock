@@ -154,12 +154,12 @@ class SettingsViewModelTest {
     @Test
     fun `export writes the backup json and reports success`() = runTest {
         val vm = viewModel()
-        vm.exportFileName() shouldBe "opus-clockblock-backup-2026-06-12.json"
+        vm.exportFileName() shouldBe "clockblock-backup-2026-06-12.json"
         vm.events.test {
             var written: String? = null
             vm.export { written = it }
             awaitItem() shouldBe SettingsEvent.Exported
-            written.shouldNotBeNull() shouldContain "\"format\": \"opus-clockblock\""
+            written.shouldNotBeNull() shouldContain "\"format\": \"clockblock\""
         }
     }
 
@@ -214,7 +214,7 @@ class SettingsViewModelTest {
             awaitItem() shouldBe SettingsEvent.ImportFailed(ImportFailure.NotABackup)
             vm.prepareImport { "not json at all" }
             awaitItem() shouldBe SettingsEvent.ImportFailed(ImportFailure.NotABackup)
-            vm.prepareImport { "{\"format\": \"opus-clockblock\", \"version\": 99, \"exportedAt\": \"2026-01-01T00:00:00Z\"}" }
+            vm.prepareImport { "{\"format\": \"clockblock\", \"version\": 99, \"exportedAt\": \"2026-01-01T00:00:00Z\"}" }
             awaitItem() shouldBe SettingsEvent.ImportFailed(ImportFailure.NewerVersion)
             vm.prepareImport { throw IOException("gone") }
             awaitItem() shouldBe SettingsEvent.ImportFailed(ImportFailure.Unreadable)

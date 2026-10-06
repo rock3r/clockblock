@@ -23,7 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatHoursMagnitude
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.feature.trips.R
@@ -69,7 +69,7 @@ internal fun ShiftPreviewCard(preview: ShiftPreview, modifier: Modifier = Modifi
                     }
                     Text(
                         listOfNotNull(shift, direction).joinToString(" · "),
-                        style = OpusTheme.textStyles.timeTitle,
+                        style = ClockblockTheme.textStyles.timeTitle,
                     )
                 }
                 Text(

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Which flavour of the theme is active. */
-enum class OpusThemeVariant {
+enum class ClockblockThemeVariant {
     Standard,
 
     /** True black, dim amber, calm motion: the screen itself respects "avoid light". */
@@ -56,11 +56,11 @@ data class ArtColors(
     val highlight: Color,
 )
 
-internal fun artColorsFor(scheme: ColorScheme, variant: OpusThemeVariant, dark: Boolean): ArtColors = ArtColors(
+internal fun artColorsFor(scheme: ColorScheme, variant: ClockblockThemeVariant, dark: Boolean): ArtColors = ArtColors(
     primary = scheme.primary,
     primaryContainer = scheme.primaryContainer,
     secondaryContainer = scheme.secondaryContainer,
-    tertiary = if (variant == OpusThemeVariant.Standard) {
+    tertiary = if (variant == ClockblockThemeVariant.Standard) {
         if (dark) scheme.tertiary else ColorMath.mix(scheme.tertiary, DuskPalette.MarigoldSeed, 0.75f)
     } else {
         scheme.primary
@@ -68,15 +68,15 @@ internal fun artColorsFor(scheme: ColorScheme, variant: OpusThemeVariant, dark: 
     tertiaryContainer = scheme.tertiaryContainer,
     surface = scheme.surface,
     surfaceHighest = scheme.surfaceContainerHighest,
-    inverse = if (variant == OpusThemeVariant.NightSafe) scheme.surfaceContainerHighest else scheme.inverseSurface,
-    onInverse = if (variant == OpusThemeVariant.NightSafe) scheme.onSurfaceVariant else scheme.inverseOnSurface,
+    inverse = if (variant == ClockblockThemeVariant.NightSafe) scheme.surfaceContainerHighest else scheme.inverseSurface,
+    onInverse = if (variant == ClockblockThemeVariant.NightSafe) scheme.onSurfaceVariant else scheme.inverseOnSurface,
     ink = scheme.onSurface.copy(alpha = 0.8f),
     shadow = if (dark) Color.Black.copy(alpha = 0.45f) else scheme.onSurface.copy(alpha = 0.14f),
-    highlight = Color.White.copy(alpha = if (variant == OpusThemeVariant.NightSafe) 0.12f else 0.3f),
+    highlight = Color.White.copy(alpha = if (variant == ClockblockThemeVariant.NightSafe) 0.12f else 0.3f),
 )
 
 /** Shapes: cards stay rounded rectangles (28 dp extra-large); MaterialShapes are reserved for meaning. */
-val OpusShapes = Shapes(
+val ClockblockShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
     small = RoundedCornerShape(10.dp),
     medium = RoundedCornerShape(16.dp),
@@ -88,31 +88,31 @@ val OpusShapes = Shapes(
 val NowCardShape = RoundedCornerShape(32.dp)
 
 @Immutable
-private data class OpusExtras(
-    val variant: OpusThemeVariant,
+private data class ClockblockExtras(
+    val variant: ClockblockThemeVariant,
     val dark: Boolean,
     val adviceColors: AdviceColors,
     val sky: SkyPalette,
-    val text: OpusTextStyles,
-    val motion: OpusMotion,
+    val text: ClockblockTextStyles,
+    val motion: ClockblockMotion,
     val art: ArtColors,
 )
 
-private val LocalOpusExtras = staticCompositionLocalOf {
-    OpusExtras(
-        variant = OpusThemeVariant.Standard,
+private val LocalClockblockExtras = staticCompositionLocalOf {
+    ClockblockExtras(
+        variant = ClockblockThemeVariant.Standard,
         dark = false,
         adviceColors = AdviceColors.Light,
         sky = SkyPalette.Default,
-        text = DefaultOpusTextStyles,
-        motion = OpusMotion(MotionScheme.expressive(), reduceMotion = false),
-        art = artColorsFor(OpusLightColors, OpusThemeVariant.Standard, dark = false),
+        text = DefaultClockblockTextStyles,
+        motion = ClockblockMotion(MotionScheme.expressive(), reduceMotion = false),
+        art = artColorsFor(ClockblockLightColors, ClockblockThemeVariant.Standard, dark = false),
     )
 }
 
-/** The caller-facing parameters of the innermost [OpusTheme], so nested themes can inherit them. */
+/** The caller-facing parameters of the innermost [ClockblockTheme], so nested themes can inherit them. */
 @Immutable
-private data class OpusThemeParams(
+private data class ClockblockThemeParams(
     val darkTheme: Boolean,
     val dynamicColor: Boolean,
     val opusMode: Boolean,
@@ -120,14 +120,14 @@ private data class OpusThemeParams(
     val calmMotion: Boolean,
 )
 
-private val LocalOpusThemeParams = staticCompositionLocalOf<OpusThemeParams?> { null }
+private val LocalClockblockThemeParams = staticCompositionLocalOf<ClockblockThemeParams?> { null }
 
 /**
- * The Opus Clockblock theme: `MaterialExpressiveTheme` + Dusk Instrument colours, Google Sans Flex type, the
+ * The Clockblock theme: `MaterialExpressiveTheme` + Dusk Instrument colours, Google Sans Flex type, the
  * semantic advice palette, the sky ramp and motion tokens.
  *
  * Precedence: [nightSafe] wins over [opusMode] (it is functional), which wins over dynamic/static colour.
- * Any change of colours (Night-safe, light/dark, Opus mode) cross-fades on [OpusMotion.themeCrossFade] rather
+ * Any change of colours (Night-safe, light/dark, Opus mode) cross-fades on [ClockblockMotion.themeCrossFade] rather
  * than cutting, and keeps the call shape stable so callers never rebuild their subtree to switch.
  *
  * @param dynamicColor wallpaper colours on Android 12+; advice colours are harmonised and skies blended 15 %
@@ -141,7 +141,7 @@ private val LocalOpusThemeParams = staticCompositionLocalOf<OpusThemeParams?> { 
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun OpusTheme(
+fun ClockblockTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     nightSafe: Boolean = false,
@@ -151,85 +151,85 @@ fun OpusTheme(
     content: @Composable () -> Unit,
 ) {
     val variant = when {
-        nightSafe -> OpusThemeVariant.NightSafe
-        opusMode -> OpusThemeVariant.Opus
-        else -> OpusThemeVariant.Standard
+        nightSafe -> ClockblockThemeVariant.NightSafe
+        opusMode -> ClockblockThemeVariant.Opus
+        else -> ClockblockThemeVariant.Standard
     }
-    val dark = darkTheme || variant != OpusThemeVariant.Standard
+    val dark = darkTheme || variant != ClockblockThemeVariant.Standard
     val context = LocalContext.current
-    val useDynamic = dynamicColor && variant == OpusThemeVariant.Standard && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useDynamic = dynamicColor && variant == ClockblockThemeVariant.Standard && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val systemAnimations = rememberSystemAnimationsEnabled()
     val reduce = reduceMotion || !systemAnimations
     val motionScheme = when {
         reduce -> StillMotionScheme
-        variant == OpusThemeVariant.NightSafe || calmMotion -> CalmMotionScheme
+        variant == ClockblockThemeVariant.NightSafe || calmMotion -> CalmMotionScheme
         else -> MotionScheme.expressive()
     }
     val targetPalette = remember(variant, dark, useDynamic, context) {
         val colorScheme = when {
-            variant == OpusThemeVariant.NightSafe -> NightSafeColors
-            variant == OpusThemeVariant.Opus -> OpusConcertColors
+            variant == ClockblockThemeVariant.NightSafe -> NightSafeColors
+            variant == ClockblockThemeVariant.Opus -> OpusConcertColors
             useDynamic && dark -> dynamicDarkColorScheme(context).withQuietDarkContainers()
             useDynamic -> dynamicLightColorScheme(context)
-            dark -> OpusDarkColors
-            else -> OpusLightColors
+            dark -> ClockblockDarkColors
+            else -> ClockblockLightColors
         }
         val baseAdvice = if (dark) AdviceColors.Dark else AdviceColors.Light
         val advice = when (variant) {
-            OpusThemeVariant.NightSafe -> AdviceColors.Dark.dimmed()
-            OpusThemeVariant.Opus -> AdviceColors.Dark.harmonizedWith(colorScheme.primary)
-            OpusThemeVariant.Standard -> if (useDynamic) baseAdvice.harmonizedWith(colorScheme.primary) else baseAdvice
+            ClockblockThemeVariant.NightSafe -> AdviceColors.Dark.dimmed()
+            ClockblockThemeVariant.Opus -> AdviceColors.Dark.harmonizedWith(colorScheme.primary)
+            ClockblockThemeVariant.Standard -> if (useDynamic) baseAdvice.harmonizedWith(colorScheme.primary) else baseAdvice
         }
         val sky = when {
-            variant == OpusThemeVariant.NightSafe -> SkyPalette.Default.dimmed()
-            variant == OpusThemeVariant.Opus -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f).forDarkTheme()
+            variant == ClockblockThemeVariant.NightSafe -> SkyPalette.Default.dimmed()
+            variant == ClockblockThemeVariant.Opus -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f).forDarkTheme()
             useDynamic -> SkyPalette.Default.blendedToward(colorScheme.primary, 0.15f).let { if (dark) it.forDarkTheme() else it }
             dark -> SkyPalette.Default.forDarkTheme()
             else -> SkyPalette.Default
         }
         ThemePalette(colorScheme, advice, sky, artColorsFor(colorScheme, variant, dark))
     }
-    val motion = remember(motionScheme, reduce) { OpusMotion(motionScheme, reduce) }
+    val motion = remember(motionScheme, reduce) { ClockblockMotion(motionScheme, reduce) }
     val palette = animateThemePalette(targetPalette, motion.themeCrossFade())
     val extras = remember(variant, dark, palette, motion) {
-        OpusExtras(
+        ClockblockExtras(
             variant = variant,
             dark = dark,
             adviceColors = palette.adviceColors,
             sky = palette.sky,
-            text = if (variant == OpusThemeVariant.Opus) ConcertOpusTextStyles else DefaultOpusTextStyles,
+            text = if (variant == ClockblockThemeVariant.Opus) OpusConcertTextStyles else DefaultClockblockTextStyles,
             motion = motion,
             art = palette.art,
         )
     }
-    val params = OpusThemeParams(darkTheme, dynamicColor, opusMode, reduceMotion, calmMotion)
+    val params = ClockblockThemeParams(darkTheme, dynamicColor, opusMode, reduceMotion, calmMotion)
     CompositionLocalProvider(
-        LocalOpusExtras provides extras,
+        LocalClockblockExtras provides extras,
         LocalReduceMotion provides reduce,
-        LocalOpusThemeParams provides params,
+        LocalClockblockThemeParams provides params,
     ) {
         MaterialExpressiveTheme(
             colorScheme = palette.colorScheme,
             motionScheme = motionScheme,
-            shapes = OpusShapes,
-            typography = if (variant == OpusThemeVariant.Opus) OpusConcertTypography else OpusTypography,
+            shapes = ClockblockShapes,
+            typography = if (variant == ClockblockThemeVariant.Opus) OpusConcertTypography else ClockblockTypography,
             content = content,
         )
     }
 }
 
 /**
- * Re-themes [content] Night-safe (or back) while inheriting every other parameter of the enclosing [OpusTheme].
+ * Re-themes [content] Night-safe (or back) while inheriting every other parameter of the enclosing [ClockblockTheme].
  * Always call it with the same shape (toggle [nightSafe], never wrap conditionally) so the subtree keeps its
  * state and the colours cross-fade.
  */
 @Composable
 fun NightSafeTheme(nightSafe: Boolean, content: @Composable () -> Unit) {
-    val outer = LocalOpusThemeParams.current
+    val outer = LocalClockblockThemeParams.current
     if (outer == null) {
-        OpusTheme(nightSafe = nightSafe, content = content)
+        ClockblockTheme(nightSafe = nightSafe, content = content)
     } else {
-        OpusTheme(
+        ClockblockTheme(
             darkTheme = outer.darkTheme,
             dynamicColor = outer.dynamicColor,
             nightSafe = nightSafe,
@@ -241,29 +241,29 @@ fun NightSafeTheme(nightSafe: Boolean, content: @Composable () -> Unit) {
     }
 }
 
-/** Accessors for the Opus-specific parts of the theme. */
-object OpusTheme {
-    val variant: OpusThemeVariant
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.variant
+/** Accessors for the Clockblock-specific parts of the theme. */
+object ClockblockTheme {
+    val variant: ClockblockThemeVariant
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.variant
 
     val isDark: Boolean
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.dark
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.dark
 
     val adviceColors: AdviceColors
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.adviceColors
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.adviceColors
 
     val sky: SkyPalette
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.sky
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.sky
 
     /** Time, body-clock and editorial styles beyond the M3 scale (`MaterialTheme.typography`). */
-    val textStyles: OpusTextStyles
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.text
+    val textStyles: ClockblockTextStyles
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.text
 
-    val motion: OpusMotion
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.motion
+    val motion: ClockblockMotion
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.motion
 
     val artColors: ArtColors
-        @Composable @ReadOnlyComposable get() = LocalOpusExtras.current.art
+        @Composable @ReadOnlyComposable get() = LocalClockblockExtras.current.art
 
     val reduceMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReduceMotion.current
@@ -286,13 +286,13 @@ private val LocalPixelMode = staticCompositionLocalOf { false }
  */
 @Composable
 fun EightBitMode(enabled: Boolean, content: @Composable () -> Unit) {
-    val extras = LocalOpusExtras.current
+    val extras = LocalClockblockExtras.current
     val text = remember(extras.text, enabled) { if (enabled) extras.text.pixelated() else extras.text }
     val pixelExtras = remember(extras, text) { extras.copy(text = text) }
-    CompositionLocalProvider(LocalOpusExtras provides pixelExtras, LocalPixelMode provides enabled, content = content)
+    CompositionLocalProvider(LocalClockblockExtras provides pixelExtras, LocalPixelMode provides enabled, content = content)
 }
 
-private fun OpusTextStyles.pixelated(): OpusTextStyles {
+private fun ClockblockTextStyles.pixelated(): ClockblockTextStyles {
     fun TextStyle.mono() = copy(fontFamily = FontFamily.Monospace, fontStyle = FontStyle.Normal, letterSpacing = 0.sp)
     return copy(
         timeDisplay = timeDisplay.mono(),

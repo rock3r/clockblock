@@ -1,4 +1,4 @@
-# Opus Clockblock — jet lag planning algorithm
+# Clockblock — jet lag planning algorithm
 
 This document describes what `:core:circadian` computes and why. The science, the evidence review and the
 original pseudo-code are in [`science.md`](science.md) (§ references below point there); this file documents

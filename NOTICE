@@ -1,4 +1,4 @@
-Opus Clockblock
+Clockblock
 Copyright 2026 Sebastiano Poggi and contributors
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
@@ -15,7 +15,7 @@ Google Sans Flex (variable, subset)
   Licensed under the SIL Open Font License, Version 1.1:
   core/designsystem/licenses/GoogleSansFlex-OFL.txt
   "Google", "Google Sans" and "Google Sans Flex" are trademarks of Google LLC; see
-  core/designsystem/licenses/GoogleSansFlex-TRADEMARKS.md. Opus Clockblock is not affiliated with or
+  core/designsystem/licenses/GoogleSansFlex-TRADEMARKS.md. Clockblock is not affiliated with or
   endorsed by Google LLC.
 
 Fraunces (variable, subset)
@@ -74,5 +74,5 @@ each under its own licence, as declared in gradle/libs.versions.toml and listed 
 Trademarks
 -------------------------------------------------------------------------------------------------------------
 
-"Timeshifter" is a trademark of its owner. Opus Clockblock is an independent project and is not affiliated
+"Timeshifter" is a trademark of its owner. Clockblock is an independent project and is not affiliated
 with or endorsed by Timeshifter.

@@ -12,7 +12,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.circadian.DefaultJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import io.kotest.matchers.shouldBe
@@ -60,7 +60,7 @@ class NowCardAboveTheFoldTest {
         val active = checkNotNull(state.moment.active) { "the pinned scenario must have an active block" }
         active.type shouldBe AdviceType.AvoidCaffeine
         val actions = PlanActions(onLog = { id, outcome -> logged += id to outcome })
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
 
         // At rest, without scrolling: the whole button is inside the window.
         val window = compose.onRoot().getBoundsInRoot()

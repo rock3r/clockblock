@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
  * Device settings (rotation lock, user rotation, font scale) are saved before and restored after each test.
  */
 @RunWith(AndroidJUnit4::class)
-class EditorConfigChangesTest : OpusE2eTest() {
+class EditorConfigChangesTest : ClockblockE2eTest() {
     private lateinit var saved: Map<String, String>
 
     @Before
@@ -38,7 +38,7 @@ class EditorConfigChangesTest : OpusE2eTest() {
     @Test
     fun editorKeepsInputAcrossRotationAndLargeFont() {
         seedOnboarded()
-        launch(deepLink = "opusclockblock://trips/new")
+        launch(deepLink = "clockblock://trips/new")
         awaitTag("route_trip_editor", LongTimeoutMillis)
 
         pickPlace(TripsTestTags.editorFrom(0), "lis", "LIS")

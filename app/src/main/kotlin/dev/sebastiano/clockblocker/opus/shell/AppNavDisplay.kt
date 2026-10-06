@@ -25,7 +25,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.navigation.AboutRoute
 import dev.sebastiano.clockblocker.opus.navigation.AppRoute
 import dev.sebastiano.clockblocker.opus.navigation.AppNavigator
@@ -72,7 +72,7 @@ fun AppNavDisplay(
     val paneMotion = ListDetailSceneStrategy.paneAnimation(
         enterTransition = transitions.paneEnter(),
         exitTransition = transitions.paneExit(),
-        boundsAnimationSpec = OpusTheme.motion.navigationSpatial(),
+        boundsAnimationSpec = ClockblockTheme.motion.navigationSpatial(),
     )
 
     val provider: (NavKey) -> NavEntry<NavKey> = entryProvider {
