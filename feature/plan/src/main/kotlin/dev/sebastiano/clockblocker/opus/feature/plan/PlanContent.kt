@@ -700,19 +700,23 @@ private class PlanSections(
     fun Section(key: String) {
         val width = Modifier.widthIn(max = 640.dp).fillMaxWidth()
         when (key) {
+            // Keyed by trip: the current plan can move on to another trip, whose strip starts from its own days
+            // rather than the old one's scroll position.
             KeyDays -> strip?.let { model ->
-                PlanDayStrip(
-                    days = model.days,
-                    offsets = model.offsets,
-                    todayIndex = model.todayIndex,
-                    selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
-                    onSelect = { index ->
-                        screen.preview = null
-                        screen.pickDay(state.plan.tripId, index)
-                        screen.dayPicks++
-                    },
-                    modifier = width,
-                )
+                key(state.plan.tripId) {
+                    PlanDayStrip(
+                        days = model.days,
+                        offsets = model.offsets,
+                        todayIndex = model.todayIndex,
+                        selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
+                        onSelect = { index ->
+                            screen.preview = null
+                            screen.pickDay(state.plan.tripId, index)
+                            screen.dayPicks++
+                        },
+                        modifier = width,
+                    )
+                }
             }
             KeyDial -> Dial(width)
             KeyNow -> Now(width.padding(horizontal = 16.dp, vertical = 8.dp))

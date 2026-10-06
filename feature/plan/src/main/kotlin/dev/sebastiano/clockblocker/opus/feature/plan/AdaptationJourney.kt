@@ -106,9 +106,23 @@ internal fun JetLagPlan.geographicShiftHours(): Float {
     return normalisedOffsetHours(destination - origin)
 }
 
-/** How far [to]'s clocks are ahead of [from]'s at [at], in hours normalised to (−12, 12] (date line aware). */
-internal fun zoneDeltaHours(from: ZoneId, to: ZoneId, at: Instant): Float =
-    normalisedOffsetHours(to.rules.getOffset(at).totalSeconds - from.rules.getOffset(at).totalSeconds)
+/**
+ * How far [to]'s clocks are ahead of [from]'s at [at], as a reader compares clock faces: the civil difference
+ * while it is a real one (up to ±14 h, e.g. UTC → Chatham +13¾ h), otherwise the other way round the date line
+ * (Kiritimati → Honolulu: same clock time, a day apart, so 0 h). Display only; the planner's shift stays in (−12, 12].
+ */
+internal fun zoneDeltaHours(from: ZoneId, to: ZoneId, at: Instant): Float {
+    val raw = to.rules.getOffset(at).totalSeconds - from.rules.getOffset(at).totalSeconds
+    val civil = when {
+        raw > MaxCivilDeltaSeconds -> raw - DaySeconds
+        raw < -MaxCivilDeltaSeconds -> raw + DaySeconds
+        else -> raw
+    }
+    return civil / SecondsPerHour
+}
+
+/** The largest UTC offset in use is ±14 h, so a larger difference is quicker the other way round the date line. */
+private const val MaxCivilDeltaSeconds = 14 * 3600
 
 /**
  * A zone delta as "+8 h", "−3½ h" or "+5¾ h": [formatJetLagHours]'s style, but at quarter-hour precision so

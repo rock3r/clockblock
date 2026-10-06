@@ -126,6 +126,16 @@ class AdaptationJourneyTest {
     }
 
     @Test
+    fun `zone deltas keep real civil differences past 12 hours`() {
+        val january = Instant.parse("2026-01-15T12:00:00Z")
+        // Chatham is UTC+13:45 in January: London (UTC+0) → Chatham is 13¾ h ahead, not 10¼ h behind.
+        zoneDeltaHours(ZoneId.of("Europe/London"), ZoneId.of("Pacific/Chatham"), january) shouldBe 13.75f
+        zoneDeltaHours(ZoneId.of("UTC"), ZoneId.of("Pacific/Tongatapu"), january) shouldBe 13f
+        // Los Angeles (UTC−8) → Chatham: raw +21¾ h is really 2¼ h behind (a day ahead on the calendar).
+        zoneDeltaHours(ZoneId.of("America/Los_Angeles"), ZoneId.of("Pacific/Chatham"), january) shouldBe -2.25f
+    }
+
+    @Test
     fun `zone deltas print quarter hours instead of rounding them away`() {
         formatZoneDelta(5.75f) shouldBe "+5\u00BE h" // UTC → Kathmandu
         formatZoneDelta(12.75f) shouldBe "+12\u00BE h" // UTC → Chatham (summer)

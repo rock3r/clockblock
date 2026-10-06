@@ -275,6 +275,27 @@ class PlanContentTest {
     }
 
     @Test
+    fun `a new current trip starts its day strip from the first day`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Scroll the strip to its far end on this trip…
+        val last = realPlan.days.last().index
+        compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(last)))
+        compose.onNodeWithTag(PlanTags.dayPill(last)).performClick()
+        compose.waitForIdle()
+
+        // …then the Now tab moves on to another trip that hasn't started (no today, nothing picked).
+        val other = "next-trip"
+        state = ready(
+            Instant.parse("2026-06-01T12:00:00Z"),
+            plan = realPlan.copy(tripId = other),
+            trip = PlanFixtures.trip.copy(id = other),
+        )
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(realPlan.days.first().index)).assertIsDisplayed()
+    }
+
+    @Test
     fun `a picked day that becomes today goes live for good`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
         compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
