@@ -101,7 +101,7 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded: header "Body 2½ h ahead", title "Avoid caffeine", "until 17:00 · then Avoid light 17:00–20:00", the same times in Tokyo, a tip, and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded: header "Body 2½ h ahead", title "Avoid light", "until 20:00 · then Sleep 20:00–04:00", the same times in Tokyo, a tip, and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
 The screenshot shows the Now notification expanded in the shade: the current advice, when it stops being the
 headline, what comes next, the same times at the other end of the trip, and the action buttons.

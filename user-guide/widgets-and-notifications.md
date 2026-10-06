@@ -29,7 +29,7 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Body 2½ h ahead. It reads Avoid caffeine until 17:00, then Avoid light 17:00 to 20:00, with the same times in Tokyo below, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Body 2½ h ahead. It reads Avoid light until 20:00, then Sleep 20:00 to 04:00, with the same times in Tokyo below, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It says what to do now,
 until when, and what comes next, for example "See some light until 20:00 · then Avoid caffeine". It updates by
