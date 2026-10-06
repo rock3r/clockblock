@@ -49,4 +49,11 @@
 
     <!-- Loading. -->
     <string name="loading_plan">Working out your plan</string>
+
+    <!-- Dot-matrix airport codes and route banner (TalkBack). -->
+    <string name="iata_not_set">Not set</string>
+    <string name="route_description">From %1$s to %2$s</string>
+    <string name="route_description_origin_only">From %1$s. Destination not set</string>
+    <string name="route_description_destination_only">To %1$s. Origin not set</string>
+    <string name="route_description_empty">Route not set</string>
 </resources>

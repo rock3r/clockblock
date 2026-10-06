@@ -215,7 +215,39 @@ data class OpusTextStyles(
     val editorialHeadline: TextStyle,
     val editorialTitle: TextStyle,
     val editorialBody: TextStyle,
+    /**
+     * Dot-matrix airport codes (`SFO`, `AMS`) on boarding-pass headers and route banners: design.md §2.2's
+     * "dot-matrix language for data", drawn by `DotMatrixText` / `IataCode`, the same dots as the great-circle
+     * globe. ~28 sp tall.
+     */
+    val iataDisplay: DotMatrixStyle = DotMatrixStyle.IataDisplay,
+    /** Small dot-matrix codes for list rows and chips. ~12 sp tall, no unlit grid (too busy at this size). */
+    val iataLabel: DotMatrixStyle = DotMatrixStyle.IataLabel,
 )
+
+/**
+ * Metrics of the dot-matrix face (a 5 × 7 LED grid, see `DotMatrixFont`). Sizes are in sp so codes follow the
+ * user's font scale like text.
+ *
+ * @property glyphHeight height of one 7-dot cell; the dot pitch is a seventh of it.
+ * @property dotFill dot diameter as a fraction of the pitch (1 = dots touch).
+ * @property cellGap empty dot columns between characters.
+ * @property showUnlit draw the unlit dots of each cell faintly, like an LED panel (and the empty-state slot).
+ * @property unlitAlpha opacity of unlit dots relative to the content colour.
+ */
+@Immutable
+data class DotMatrixStyle(
+    val glyphHeight: TextUnit,
+    val dotFill: Float = 0.78f,
+    val cellGap: Int = 1,
+    val showUnlit: Boolean = true,
+    val unlitAlpha: Float = 0.10f,
+) {
+    companion object {
+        val IataDisplay = DotMatrixStyle(glyphHeight = 28.sp)
+        val IataLabel = DotMatrixStyle(glyphHeight = 12.sp, dotFill = 0.86f, showUnlit = false)
+    }
+}
 
 internal val DefaultOpusTextStyles = OpusTextStyles(
     timeDisplay = flex(57f, 64f, -0.5f, 400, round = 0f, features = TABULAR),
