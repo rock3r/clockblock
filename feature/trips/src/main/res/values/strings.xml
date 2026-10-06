@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Trips list. Voice: precise, kind, occasionally dry (design.md §2.6). -->
-    <string name="trips_app_title">Opus Clockblock</string>
+    <string name="trips_app_title">Clockblock</string>
     <string name="trips_summary_in_progress">%1$d in progress</string>
     <string name="trips_summary_upcoming">%1$d upcoming</string>
     <string name="trips_summary_past">%1$d past</string>

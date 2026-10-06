@@ -27,7 +27,7 @@ plugins {
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "opus-clockblock"
+rootProject.name = "clockblock"
 
 include(":app")
 include(":core:model")

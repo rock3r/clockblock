@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.graphics.shapes.toPath
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
@@ -104,7 +104,7 @@ fun ChronotypePicker(
 @Composable
 private fun ChronotypeCard(chronotype: Chronotype, selected: Boolean, onClick: () -> Unit, shape: androidx.compose.ui.graphics.Shape) {
     val colors = MaterialTheme.colorScheme
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val container by animateColorAsState(if (selected) colors.secondaryContainer else colors.surfaceContainer, motion.colour(), label = "chronoContainer")
     Surface(
         shape = shape,
@@ -154,8 +154,8 @@ private fun ChronotypeCard(chronotype: Chronotype, selected: Boolean, onClick: (
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier) {
-    val sky = OpusTheme.sky
-    val art = OpusTheme.artColors
+    val sky = ClockblockTheme.sky
+    val art = ClockblockTheme.artColors
     val (hour, position) = when (chronotype) {
         Chronotype.DefiniteMorning -> 6.4f to 0.16f
         Chronotype.ModerateMorning -> 8.5f to 0.32f
@@ -218,7 +218,7 @@ fun ChronotypeHelperContent(
     ) {
         Text(
             stringResource(R.string.chronotype_helper_title),
-            style = OpusTheme.textStyles.editorialTitle,
+            style = ClockblockTheme.textStyles.editorialTitle,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth(),
         )

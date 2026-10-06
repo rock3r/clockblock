@@ -29,7 +29,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import java.time.LocalTime
 import kotlin.math.ceil
@@ -163,7 +163,7 @@ private class PreviousText(var value: String)
 /**
  * A short single-line readout whose changed characters roll vertically when [text] changes (design.md §2.4:
  * "digits roll vertically"), while unchanged characters and units stay still. The roll binds to
- * `OpusMotion.dataSpatial()` (Standard, no bounce: the readout is data) with a cross-fade derived from the same
+ * `ClockblockMotion.dataSpatial()` (Standard, no bounce: the readout is data) with a cross-fade derived from the same
  * progress; under reduce motion, or when [animateChanges] is false, the new text simply replaces the old.
  *
  * Everything that moves is read in layout (width) and draw (offsets), never in composition. Use it for values
@@ -188,7 +188,7 @@ fun RollingText(
     val resolved = style.copy(color = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } })
     val measurer = rememberTextMeasurer(cacheSize = 8)
     val reduce = LocalReduceMotion.current
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val previous = remember { PreviousText(text) }
     val roll = remember(text, resolved, direction, measurer) {
         val from = previous.value
@@ -230,7 +230,7 @@ private class PreviousTime(var value: LocalTime)
 fun RollingTimeText(
     time: LocalTime,
     modifier: Modifier = Modifier,
-    style: TextStyle = OpusTheme.textStyles.timeTitle,
+    style: TextStyle = ClockblockTheme.textStyles.timeTitle,
     color: Color = Color.Unspecified,
     withMarker: Boolean = true,
     animateChanges: Boolean = true,
@@ -254,7 +254,7 @@ private class PreviousValue(var value: Float)
 fun RollingMetricText(
     value: Float,
     modifier: Modifier = Modifier,
-    style: TextStyle = OpusTheme.textStyles.timeHeadline,
+    style: TextStyle = ClockblockTheme.textStyles.timeHeadline,
     color: Color = Color.Unspecified,
     format: (Float) -> String = { it.roundToInt().toString() },
     animateChanges: Boolean = true,

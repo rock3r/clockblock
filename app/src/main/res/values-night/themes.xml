@@ -1,12 +1,12 @@
 <resources>
-    <style name="Theme.Opus" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.Clockblock" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowLightStatusBar">false</item>
     </style>
     <!-- Launcher-icon foreground on a Twilight Indigo disc, over the app's surface colour. -->
-    <style name="Theme.Opus.Splash" parent="Theme.SplashScreen.IconBackground">
+    <style name="Theme.Clockblock.Splash" parent="Theme.SplashScreen.IconBackground">
         <item name="windowSplashScreenBackground">#FF0B1026</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="windowSplashScreenIconBackgroundColor">#FF4F46E5</item>
-        <item name="postSplashScreenTheme">@style/Theme.Opus</item>
+        <item name="postSplashScreenTheme">@style/Theme.Clockblock</item>
     </style>
 </resources>

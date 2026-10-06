@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.opus.android.feature)
+    alias(libs.plugins.clockblock.android.feature)
 }
 
 dependencies {

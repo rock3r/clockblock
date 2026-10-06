@@ -1,4 +1,4 @@
-# Opus Clockblock — Product & Visual Design Research
+# Clockblock — Product & Visual Design Research
 
 > Scope: (1) Timeshifter teardown + MVP/"beyond" feature lists, (2) Material 3 Expressive visual & motion direction + a full visual identity, (3) widgets / glanceable surfaces.
 > Research date: 2026-10-04. Facts marked **[verified]** were read directly from the cited source during this session; **[reported]** = from user reviews/press; **[inferred]** = my reading of screenshots/marketing copy or general knowledge, so check it before relying on it.
@@ -366,7 +366,7 @@ Always pair icons with a text label in cards (fixes complaint #9).
 
 ## 2.5 Screen sketches (component choices)
 
-- **Trips (home):** `LargeFlexibleTopAppBar` titled "Opus Clockblock" with the current body-clock sky. Trip rows show destination (headlineEmphasized), dates, a mini dial, and a wavy adaptation line. `FloatingActionButtonMenu`: *Add trip* / *Shift schedule (v2)* / *Clock change (v2)*.
+- **Trips (home):** `LargeFlexibleTopAppBar` titled "Clockblock" with the current body-clock sky. Trip rows show destination (headlineEmphasized), dates, a mini dial, and a wavy adaptation line. `FloatingActionButtonMenu`: *Add trip* / *Shift schedule (v2)* / *Clock change (v2)*.
 - **Trip editor:** stacked leg cards connected by a dotted rail. Each leg: from → to chips, local times with a tz suffix, a duration chip. "+ Add leg" between legs. A sanity banner if the dates cross the date line.
 - **Plan:** sky header → **Two Clocks dial** → Now card (with `SplitButtonLayout`: **Done** | ▾ Skipped · Can't do this · Remind me in 15) → Rail timeline. Bottom `HorizontalFloatingToolbar`: [Now · Day · Trip] toggles + an "I'm delayed" FAB.
 - **Card "Why?" sheet:** `ModalBottomSheet` with an illustration, a 2-sentence mechanism, "If you skip this: ~X h slower", alternatives ("Can't go outside? Sit by a window, lights on, screen bright"), citations.

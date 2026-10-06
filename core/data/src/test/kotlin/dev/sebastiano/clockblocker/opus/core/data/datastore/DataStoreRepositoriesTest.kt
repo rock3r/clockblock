@@ -120,7 +120,7 @@ class DataStoreRepositoriesTest {
 
     @Test
     fun oneUnreadableTripIsQuarantinedNotFatal() = runTest {
-        val good = OpusJson.encodeToString(dev.sebastiano.clockblocker.opus.core.model.Trip.serializer(), sfoLhr)
+        val good = ClockblockJson.encodeToString(dev.sebastiano.clockblocker.opus.core.model.Trip.serializer(), sfoLhr)
         val badZone = good.replace("Europe/London", "Mars/Olympus_Mons").replace(sfoLhr.id, "bad-zone")
         val noLegs = """{"id":"no-legs","title":"x","legs":[],"createdAt":"2026-01-01T00:00:00Z"}"""
         val file = File(tmp.root, "trips.json").apply {
@@ -139,7 +139,7 @@ class DataStoreRepositoriesTest {
 
     @Test
     fun unknownFieldsFromANewerVersionAreIgnored() = runTest {
-        val json = OpusJson.encodeToString(dev.sebastiano.clockblocker.opus.core.model.Trip.serializer(), sfoLhr)
+        val json = ClockblockJson.encodeToString(dev.sebastiano.clockblocker.opus.core.model.Trip.serializer(), sfoLhr)
             .replaceFirst("{", "{\"futureField\":{\"x\":1},")
         val file = File(tmp.root, "trips.json").apply { writeText("""{"schemaVersion":2,"trips":[$json],"extra":true}""") }
         trips(file).trips.first() shouldBe listOf(sfoLhr)

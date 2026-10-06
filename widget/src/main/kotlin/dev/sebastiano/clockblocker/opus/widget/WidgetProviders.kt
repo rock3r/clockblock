@@ -24,7 +24,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * Base provider: every system callback re-renders through the shared [WidgetUpdater]. Providers are constructed
  * by metrox-android's `MetroAppComponentFactory` with constructor injection.
  */
-abstract class OpusWidgetProvider(private val kind: WidgetKind, private val updater: WidgetUpdater) :
+abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private val updater: WidgetUpdater) :
     AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -57,12 +57,12 @@ abstract class OpusWidgetProvider(private val kind: WidgetKind, private val upda
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey(TwoClocksWidgetProvider::class)
 @Inject
-class TwoClocksWidgetProvider(updater: WidgetUpdater) : OpusWidgetProvider(WidgetKind.TwoClocks, updater)
+class TwoClocksWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(WidgetKind.TwoClocks, updater)
 
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey(NextUpWidgetProvider::class)
 @Inject
-class NextUpWidgetProvider(updater: WidgetUpdater) : OpusWidgetProvider(WidgetKind.NextUp, updater)
+class NextUpWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(WidgetKind.NextUp, updater)
 
 /** Runs [block] off the main thread within the broadcast's lifetime (pattern from the androidx RC widget demo). */
 internal fun BroadcastReceiver.goAsync(block: suspend CoroutineScope.() -> Unit) {
@@ -73,7 +73,7 @@ internal fun BroadcastReceiver.goAsync(block: suspend CoroutineScope.() -> Unit)
             try {
                 coroutineScope { block() }
             } catch (e: Throwable) {
-                if (e !is CancellationException) Log.e("OpusWidget", "Widget update failed", e)
+                if (e !is CancellationException) Log.e("ClockblockWidget", "Widget update failed", e)
             } finally {
                 scope.cancel()
             }

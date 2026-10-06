@@ -1,6 +1,6 @@
-# Opus Clockblock user guide
+# Clockblock user guide
 
-Opus Clockblock helps you get over jet lag faster. You tell it where home is, how you usually sleep and which
+Clockblock helps you get over jet lag faster. You tell it where home is, how you usually sleep and which
 flights you're taking. It then tells you, day by day and hour by hour, when to look for light, when to avoid it,
 when to sleep, and when coffee helps or hurts. Everything happens on your phone. There is no account, and the app
 never connects to the internet.
@@ -28,6 +28,6 @@ wall with the time your body thinks it is. The card below says what to do right 
 
 ## Before you start
 
-Opus Clockblock gives general information for healthy adults, based on published research. It isn't medical
+Clockblock gives general information for healthy adults, based on published research. It isn't medical
 advice, and it isn't meant for flight crew on duty. If you have a health condition, are pregnant, or take
 medication, talk to a doctor before you change your sleep or take melatonin.

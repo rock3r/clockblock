@@ -48,7 +48,7 @@ your backup account (if you have that turned on in your phone's settings).
 **Export a backup** saves your profile, settings, trips and their check-ins as a JSON file. Check-ins of trips
 you have deleted are not included. You choose where
 to save it, for example your Downloads folder or a cloud drive app. The file is named like
-`opus-clockblock-backup-2026-06-01.json`.
+`clockblock-backup-2026-06-01.json`.
 
 **Import a backup** reads a file made by this app. Before anything changes, it tells you what's in the file and
 asks how to import it:
@@ -80,7 +80,7 @@ removed may stay in your calendar, so delete the old events after a big change.
 ## More
 
 - **Replay setup** walks you through the first-run questions again.
-- **About Opus Clockblock** explains how the plan works, lists the research it's based on, and shows the version
+- **About Clockblock** explains how the plan works, lists the research it's based on, and shows the version
   and the open-source licences. Tap a licence to open the project's web page.
 
 Next: [Questions and answers](faq.md).

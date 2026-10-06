@@ -220,7 +220,7 @@ class ReceiversAndPermissionsTest {
         val n = shadowOf(notificationManager).getNotification(NotificationIds.TEST).shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Test reminder"
         n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "If you can read this, reminders work."
-        n.channelId shouldBe OpusChannel.Light.id
+        n.channelId shouldBe ClockblockChannel.Light.id
 
         capabilities.notifications = false
         permissions.sendTestReminder() shouldBe false
@@ -242,8 +242,8 @@ class ReceiversAndPermissionsTest {
         NotificationChannels.ensureCreated(context)
 
         val expected = listOf("advice_light", "advice_sleep", "advice_supplements_caffeine", "travel_live", "now")
-        OpusChannel.entries.map { it.id } shouldContainExactly expected
+        ClockblockChannel.entries.map { it.id } shouldContainExactly expected
         shadowOf(notificationManager).notificationChannels.map { it.id } shouldContainExactlyInAnyOrder expected
-        notificationManager.getNotificationChannelGroup(OpusChannelGroup.Reminders.id).name shouldBe "Reminders"
+        notificationManager.getNotificationChannelGroup(ClockblockChannelGroup.Reminders.id).name shouldBe "Reminders"
     }
 }

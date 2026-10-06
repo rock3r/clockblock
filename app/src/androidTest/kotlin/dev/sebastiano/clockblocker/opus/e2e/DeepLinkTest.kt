@@ -12,9 +12,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
 
-/** `opusclockblock://` deep links, both on launch and delivered to the running (singleTop) activity. */
+/** `clockblock://` deep links, both on launch and delivered to the running (singleTop) activity. */
 @RunWith(AndroidJUnit4::class)
-class DeepLinkTest : OpusE2eTest() {
+class DeepLinkTest : ClockblockE2eTest() {
 
     @Before
     fun onboard() {
@@ -23,7 +23,7 @@ class DeepLinkTest : OpusE2eTest() {
 
     @Test
     fun tripsDeepLinkOpensTrips() {
-        launch(deepLink = "opusclockblock://trips")
+        launch(deepLink = "clockblock://trips")
 
         awaitTag("route_trips").assertIsDisplayed()
         awaitTag(ShellTestTags.NavTrips).assertIsSelected()
@@ -31,7 +31,7 @@ class DeepLinkTest : OpusE2eTest() {
 
     @Test
     fun newTripDeepLinkOpensEditorAboveTrips() {
-        launch(deepLink = "opusclockblock://trips/new")
+        launch(deepLink = "clockblock://trips/new")
 
         awaitTag("route_trip_editor").assertIsDisplayed()
         device.pressBack()
@@ -40,7 +40,7 @@ class DeepLinkTest : OpusE2eTest() {
 
     @Test
     fun currentPlanDeepLinkOpensNow() {
-        launch(deepLink = "opusclockblock://plan/current")
+        launch(deepLink = "clockblock://plan/current")
 
         awaitTag("route_now").assertIsDisplayed()
         awaitTag(ShellTestTags.NavNow).assertIsSelected()
@@ -51,7 +51,7 @@ class DeepLinkTest : OpusE2eTest() {
         val trip = DemoData.lhrToSydneyViaSingapore(LocalDate.now().plusDays(5), id = "e2e-deeplink")
         seedTrip(trip)
 
-        launch(deepLink = "opusclockblock://plan/${trip.id}")
+        launch(deepLink = "clockblock://plan/${trip.id}")
 
         awaitTag("route_plan", LongTimeoutMillis).assertIsDisplayed()
         awaitTag(PlanTags.NowCard, LongTimeoutMillis).assertIsDisplayed()
@@ -66,7 +66,7 @@ class DeepLinkTest : OpusE2eTest() {
 
         // Like a notification tap: same task, delivered through onNewIntent.
         context.startActivity(
-            deepLinkIntent("opusclockblock://trips/new")
+            deepLinkIntent("clockblock://trips/new")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         )
 

@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.opus.android.library)
+    alias(libs.plugins.clockblock.android.library)
     alias(libs.plugins.metro)
 }
 

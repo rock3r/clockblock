@@ -117,7 +117,7 @@ class WidgetRenderer(
     }
 
     companion object {
-        private const val TAG = "OpusWidget"
+        private const val TAG = "ClockblockWidget"
 
         /**
          * Responsive buckets, smallest area first. The host shows the largest that fits (API 31+); [pick] does the same

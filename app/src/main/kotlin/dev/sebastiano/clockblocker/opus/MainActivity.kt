@@ -16,7 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkParser
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkTarget
 import dev.sebastiano.clockblocker.opus.shell.DeviceZoneClock
-import dev.sebastiano.clockblocker.opus.shell.OpusAppRoot
+import dev.sebastiano.clockblocker.opus.shell.ClockblockAppRoot
 import dev.sebastiano.clockblocker.opus.shell.ShellUiState
 import dev.sebastiano.clockblocker.opus.shell.ShellViewModel
 import dev.zacsweers.metro.AppScope
@@ -32,7 +32,7 @@ import java.time.Clock
 
 /**
  * The single activity. Keeps the splash screen up until the shell state is known, draws edge to edge (system bar
- * icons follow the in-app theme, not just the system one) and forwards `opusclockblock://` deep links to the
+ * icons follow the in-app theme, not just the system one) and forwards `clockblock://` deep links to the
  * navigator — on launch and, being `singleTop`, via [onNewIntent] from notifications and widgets.
  */
 @ContributesIntoMap(AppScope::class, binding<Activity>())
@@ -65,7 +65,7 @@ class MainActivity(
         setContent {
             CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
                 val uiState by shellViewModel.uiState.collectAsStateWithLifecycle()
-                OpusAppRoot(
+                ClockblockAppRoot(
                     uiState = uiState,
                     deepLinks = deepLinkFlow,
                     clock = localClock,

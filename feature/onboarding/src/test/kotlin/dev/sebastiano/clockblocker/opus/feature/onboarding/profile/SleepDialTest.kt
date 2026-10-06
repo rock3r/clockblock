@@ -24,7 +24,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
-import dev.sebastiano.clockblocker.opus.feature.onboarding.OpusScreenshotTest
+import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
 import io.kotest.matchers.shouldBe
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,7 +37,7 @@ import kotlin.math.absoluteValue
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h800dp-xxhdpi")
-class SleepDialTest : OpusScreenshotTest() {
+class SleepDialTest : ClockblockScreenshotTest() {
 
     @Test
     fun dial_default() = snap("sleep_dial_default") {

@@ -3,14 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:name=".OpusApplication"
+        android:name=".ClockblockApplication"
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Opus.Splash">
+        android:theme="@style/Theme.Clockblock.Splash">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -21,11 +21,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- opusclockblock://trips, …/trips/new, …/plan/{tripId}, …/plan/current (see DeepLinks). -->
+            <!-- clockblock://trips, …/trips/new, …/plan/{tripId}, …/plan/current (see DeepLinks).
+                 opusclockblock:// is the pre-rename scheme, still accepted for links handed out before. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="clockblock" />
                 <data android:scheme="opusclockblock" />
                 <data android:host="trips" />
                 <data android:host="plan" />

@@ -141,8 +141,8 @@ metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 
 # Convention plugins (build-logic)
-opus-android-application = { id = "opus.android.application" }
-opus-android-library = { id = "opus.android.library" }
-opus-android-compose = { id = "opus.android.compose" }
-opus-android-feature = { id = "opus.android.feature" }
-opus-jvm-library = { id = "opus.jvm.library" }
+clockblock-android-application = { id = "clockblock.android.application" }
+clockblock-android-library = { id = "clockblock.android.library" }
+clockblock-android-compose = { id = "clockblock.android.compose" }
+clockblock-android-feature = { id = "clockblock.android.feature" }
+clockblock-jvm-library = { id = "clockblock.jvm.library" }

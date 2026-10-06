@@ -67,9 +67,9 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawHatch
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.AdviceColors
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ColorMath
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
@@ -98,7 +98,7 @@ import kotlin.math.sin
  * the centre, then spin a full turn counter-clockwise → [onRewind].
  *
  * @param returnOnRelease when true, lifting the finger after a scrub springs the hand back to now
- *   (`OpusMotion.dataSpatial`) right after [onScrubEnd]: a "peek" preview rather than a persistent one.
+ *   (`ClockblockMotion.dataSpatial`) right after [onScrubEnd]: a "peek" preview rather than a persistent one.
  * @param onRingsAligned called once the inner ring has finished turning into alignment (after the CONFIRM click).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -114,17 +114,17 @@ fun TwoClocksDial(
     onRingsAligned: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
-    val advice = OpusTheme.adviceColors
-    val sky = OpusTheme.sky
-    val motion = OpusTheme.motion
-    val textStyles = OpusTheme.textStyles
+    val advice = ClockblockTheme.adviceColors
+    val sky = ClockblockTheme.sky
+    val motion = ClockblockTheme.motion
+    val textStyles = ClockblockTheme.textStyles
     val reduce = LocalReduceMotion.current
     val view = LocalView.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val measurer = rememberTextMeasurer(cacheSize = 48)
     val formatter = rememberTimeFormatter()
-    val nightSafe = OpusTheme.variant == OpusThemeVariant.NightSafe
+    val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
     val sunColor = advice[AdviceType.SeeBrightLight].color
     val moonColor = if (nightSafe) colors.onSurface else Moonlight
     val cbtColor = if (nightSafe) ColorMath.dim(CbtGold, 0.6f) else CbtGold

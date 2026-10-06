@@ -47,7 +47,7 @@ class NotificationFactory(
     fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val text = formatter(publicText).now(state, plan, now)
-            return ongoingBuilder(OpusChannel.Now, state, text, redacted = redact)
+            return ongoingBuilder(ClockblockChannel.Now, state, text, redacted = redact)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
         }
         return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
@@ -102,7 +102,7 @@ class NotificationFactory(
             .setProgress(progress.progressMinutes)
             .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_notif_flight))
 
-        val builder = ongoingBuilder(OpusChannel.TravelLive, state, text, redacted)
+        val builder = ongoingBuilder(ClockblockChannel.TravelLive, state, text, redacted)
             .setStyle(style)
             .setRequestPromotedOngoing(capabilities.canPostPromotedNotifications())
         state.until?.let { until ->
@@ -173,7 +173,7 @@ class NotificationFactory(
     /** "Send test reminder" from Settings, on a real alerting channel. */
     fun test(): Notification {
         val text = formatter().test()
-        return NotificationCompat.Builder(context, OpusChannel.Light.id)
+        return NotificationCompat.Builder(context, ClockblockChannel.Light.id)
             .setSmallIcon(R.drawable.ic_notif_clock)
             .setColor(BRAND_COLOR)
             .setContentTitle(text.title)
@@ -195,7 +195,7 @@ class NotificationFactory(
      * @param timeoutMillis when every child expires by itself, the summary expires with the last of them.
      */
     fun summary(timeoutMillis: Long?): Notification {
-        val builder = NotificationCompat.Builder(context, OpusChannel.Now.id)
+        val builder = NotificationCompat.Builder(context, ClockblockChannel.Now.id)
             .setSmallIcon(R.drawable.ic_notif_clock)
             .setColor(BRAND_COLOR)
             .setContentTitle(context.getString(R.string.notif_summary_title))
@@ -212,7 +212,7 @@ class NotificationFactory(
     }
 
     private fun ongoingBuilder(
-        channel: OpusChannel,
+        channel: ClockblockChannel,
         state: NowState,
         text: NotificationText,
         redacted: Boolean,

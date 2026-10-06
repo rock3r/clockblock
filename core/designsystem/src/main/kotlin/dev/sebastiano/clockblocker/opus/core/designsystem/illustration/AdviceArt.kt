@@ -9,8 +9,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DuskPalette
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPhase
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import kotlin.math.PI
@@ -86,7 +86,7 @@ fun WindowLightArt(
     animated: Boolean = true,
     contentDescription: String? = null,
 ) {
-    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = OpusMotion.SunRotationMillis, restPhase = 0.5f) { phase ->
+    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = ClockblockMotion.SunRotationMillis, restPhase = 0.5f) { phase ->
         val sunX = 86f
         val sunY = 36f
         // Rays (behind the frame, so they only show around it).
@@ -116,7 +116,7 @@ fun PillowMoonArt(
     animated: Boolean = true,
     contentDescription: String? = null,
 ) {
-    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = OpusMotion.DriftMillis * 2) { phase ->
+    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = ClockblockMotion.DriftMillis * 2) { phase ->
         val pillow = union(union(roundRect(12f, 74f, 92f, 30f, 15f), circle(42f, 76f, 14f)), circle(68f, 72f, 17f))
         paper(pillow, colors.primaryContainer)
         val moon = minus(circle(56f, 46f, 22f), circle(56f, 33f, 21f))
@@ -144,8 +144,8 @@ fun NightCapsuleArt(
     animated: Boolean = true,
     contentDescription: String? = null,
 ) {
-    val lilac = OpusTheme.adviceColors[AdviceType.Melatonin].color
-    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = OpusMotion.TwinkleMillis, restPhase = 0.25f, reverse = true) { phase ->
+    val lilac = ClockblockTheme.adviceColors[AdviceType.Melatonin].color
+    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = ClockblockMotion.TwinkleMillis, restPhase = 0.25f, reverse = true) { phase ->
         val tilt = -40f
         val pcx = 58f
         val pcy = 64f
@@ -187,7 +187,7 @@ fun LittleAndOftenArt(
             rounding = CornerRounding(0.28f, smoothing = 0.4f),
         )
     }
-    ArtCanvas(modifier, contentDescription, animated && !avoid, ambientPeriodMillis = OpusMotion.SteamMillis) { phase ->
+    ArtCanvas(modifier, contentDescription, animated && !avoid, ambientPeriodMillis = ClockblockMotion.SteamMillis) { phase ->
         // Saucer, handle, cup.
         paper(oval(18f, 94f, 84f, 12f), colors.surfaceHighest)
         paper(minus(circle(82f, 74f, 12f), circle(82f, 74f, 6.5f)), colors.primaryContainer)
@@ -227,7 +227,7 @@ fun PowerNapArt(
     animated: Boolean = true,
     contentDescription: String? = null,
 ) {
-    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = OpusMotion.SwayMillis, restPhase = 0f) { phase ->
+    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = ClockblockMotion.SwayMillis, restPhase = 0f) { phase ->
         val sun = intersect(circle(60f, 86f, 30f), rect(0f, 0f, 120f, 86f))
         fill(sun, colors.tertiary)
         paper(roundRect(6f, 86f, 108f, 14f, 7f), colors.secondaryContainer)
@@ -263,8 +263,8 @@ fun RunningLowArt(
     animated: Boolean = true,
     contentDescription: String? = null,
 ) {
-    val coral = OpusTheme.adviceColors[AdviceType.PeakFatigue]
-    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = OpusMotion.PulseMillis) { phase ->
+    val coral = ClockblockTheme.adviceColors[AdviceType.PeakFatigue]
+    ArtCanvas(modifier, contentDescription, animated, ambientPeriodMillis = ClockblockMotion.PulseMillis) { phase ->
         fill(polygon(MaterialShapes.SoftBurst, 60f, 62f, 104f), coral.container)
         paper(roundRect(51f, 22f, 18f, 10f, 3f), colors.ink.copy(alpha = 1f), shadow = false)
         val body = roundRect(36f, 30f, 48f, 74f, 11f)

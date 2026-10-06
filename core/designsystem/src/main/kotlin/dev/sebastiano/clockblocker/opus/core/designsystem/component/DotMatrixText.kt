@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.Constraints
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlin.math.ceil
 
 /**
@@ -136,7 +136,7 @@ private data class DotTransition(val from: String, val to: String)
 /**
  * Draws [text] in the dot-matrix face ([DotMatrixFont]). Null or blank text shows the empty state: one resting
  * dot per cell (`· · ·`). When the text changes, the dots turn to the new characters left to right, cell by
- * cell (`OpusMotion.colour()`, ~180 ms); under reduce motion (or [animateChanges] = false) it snaps. The first
+ * cell (`ClockblockMotion.colour()`, ~180 ms); under reduce motion (or [animateChanges] = false) it snaps. The first
  * composition shows the text at rest (no entrance).
  *
  * Exposes first/last baselines at the bottom of the dot grid, so it aligns with [androidx.compose.material3.Text]
@@ -149,7 +149,7 @@ private data class DotTransition(val from: String, val to: String)
 fun DotMatrixText(
     text: String?,
     modifier: Modifier = Modifier,
-    style: DotMatrixStyle = OpusTheme.textStyles.iataLabel,
+    style: DotMatrixStyle = ClockblockTheme.textStyles.iataLabel,
     color: Color = LocalContentColor.current,
     minLength: Int = 0,
     contentDescription: String? = text,
@@ -157,7 +157,7 @@ fun DotMatrixText(
 ) {
     val cells = dotMatrixCells(text, minLength)
     val reduce = LocalReduceMotion.current
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val previous = remember { Holder(cells) }
     val transition = remember(cells) {
         val n = maxOf(previous.value.length, cells.length)
@@ -204,7 +204,7 @@ fun DotMatrixText(
 fun IataCode(
     code: String?,
     modifier: Modifier = Modifier,
-    style: DotMatrixStyle = OpusTheme.textStyles.iataDisplay,
+    style: DotMatrixStyle = ClockblockTheme.textStyles.iataDisplay,
     color: Color = LocalContentColor.current,
     contentDescription: String? = if (code.isNullOrBlank()) stringResource(R.string.iata_not_set) else spellOut(code),
     animateChanges: Boolean = true,

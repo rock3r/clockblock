@@ -51,7 +51,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBann
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.routeArcDescription
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.feature.trips.R
@@ -326,7 +326,7 @@ private fun EndpointLine(icon: Int, local: LocalDateTime, place: Place, departs:
         ) {
             Text(
                 stringResource(R.string.trip_time_at, date, time),
-                style = OpusTheme.textStyles.timeLabel,
+                style = ClockblockTheme.textStyles.timeLabel,
             )
             Text(
                 place.cityLabel,

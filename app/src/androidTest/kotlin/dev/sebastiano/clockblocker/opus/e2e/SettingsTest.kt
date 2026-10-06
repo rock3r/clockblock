@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 
 /** Settings: theme, the Opus-mode easter egg and replaying onboarding. */
 @RunWith(AndroidJUnit4::class)
-class SettingsTest : OpusE2eTest() {
+class SettingsTest : ClockblockE2eTest() {
 
     @Test
     fun darkThemeRepaintsTheApp() {

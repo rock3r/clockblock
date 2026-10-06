@@ -44,7 +44,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.sharedUnitPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import java.time.Duration
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -123,7 +123,7 @@ internal fun planeDistance(progress: Float, length: Float, inset: Float): Float 
  *   (`PathMeasure` position and tangent, read in the draw phase).
  * - Only [origin] set: a flat dotted horizon with the plane resting at the origin and an empty `· · ·`
  *   destination slot. When [destination] arrives, its code reveals, the arc springs up to [apex]
- *   (`OpusMotion.containerSpatial()`) and the plane glides to [progress] (`OpusMotion.dataSpatial()`: the plane's
+ *   (`ClockblockMotion.containerSpatial()`) and the plane glides to [progress] (`ClockblockMotion.dataSpatial()`: the plane's
  *   position is data, so it never bounces). Reduce motion snaps both; the still picture carries the same meaning.
  * - Mirrors in right-to-left layouts (origin on the start side).
  *
@@ -145,14 +145,14 @@ fun RouteArcBanner(
     apex: Float = 1f,
     originCaption: String? = null,
     destinationCaption: String? = null,
-    codeStyle: DotMatrixStyle = OpusTheme.textStyles.iataDisplay,
+    codeStyle: DotMatrixStyle = ClockblockTheme.textStyles.iataDisplay,
     arcHeight: Dp = RouteArcDefaults.ArcHeight,
     colors: RouteArcColors = RouteArcDefaults.colors(),
     contentDescription: String = routeArcDescription(origin, destination, originCaption, destinationCaption),
 ) {
     val hasOrigin = !origin.isNullOrBlank()
     val hasDestination = !destination.isNullOrBlank()
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
 
     // Starts at rest (no entrance); later changes animate. Both values are read only in the draw phase.

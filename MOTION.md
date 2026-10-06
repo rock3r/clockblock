@@ -1,21 +1,21 @@
-# MOTION.md — Opus Clockblock
+# MOTION.md — Clockblock
 
 > Agent-drafted from the code in `:core:designsystem` (commit on `feat/design`). Every spec is tagged
 > `OBSERVED`; a human must review and re-tag each one `DECIDED` before it is treated as policy.
 
 ## Design system
-- Material 3 Expressive via `MaterialExpressiveTheme`; `OpusTheme` picks the `MotionScheme`:
+- Material 3 Expressive via `MaterialExpressiveTheme`; `ClockblockTheme` picks the `MotionScheme`:
   `MotionScheme.expressive()` by default, `CalmMotionScheme` in Night-safe **or while the body clock is in its
   night** (`calmMotion`, set by the shell from `JetLagPlan.isBodyNightAt`, home sleep habit as fallback),
   `StillMotionScheme` when motion is reduced (spatial = `snap()`, effects keep Calm fades).
-- Intent tokens live in `OpusMotion` (`theme/Motion.kt`), read as `OpusTheme.motion`. No literal
+- Intent tokens live in `ClockblockMotion` (`theme/Motion.kt`), read as `ClockblockTheme.motion`. No literal
   `tween()`/`spring()` anywhere else (exception list below).
 - Values read as data (dial rings, timeline positions, numbers) bind to the Standard scheme via
   `dataSpatial()` / `dialDayRotation()`; Expressive bounce never wobbles a value. The inner ring never
   overshoots (design.md agrees: the ring is data).
 
 ## Fallback
-Unlisted motion → `OpusTheme.motion.containerSpatial()` for movement, `colour()` for colour/alpha.
+Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `colour()` for colour/alpha.
 
 ## Specs
 | Intent | Binding | Tag |
@@ -29,10 +29,10 @@ Unlisted motion → `OpusTheme.motion.containerSpatial()` for movement, `colour(
 | Dial scrub settle / "back to now" | `dataSpatial()` (Standard); every frame reported so cards follow the hand | OBSERVED |
 | Dial inner (body) ring on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot | OBSERVED |
 | Rewind easter egg springing home | `rewindReturn()`: raw −1440 → 0 with the release velocity; Expressive slowSpatial by day, Calm slowSpatial (no bounce) under Calm | OBSERVED |
-| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `OpusTheme` (stable call shape via `NightSafeTheme`) | OBSERVED |
+| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`) | OBSERVED |
 | Illustration entrance / `progress` | `artEntrance()` = scheme slowSpatial, once per instance (saveable); bouncy arts use `glyphMorph()` | OBSERVED |
 | Two Clocks discs sliding on adaptation | `containerSpatial()` via `rememberArtValue` | OBSERVED |
-| Illustration ambient loops (rare surfaces only) | `ambientLoop(OpusMotion.*Millis)` (sun 9 s, twinkle 1.8 s, drift 7.2 s, steam 3.2 s, sway 4.2 s, pulse 2.4 s); ×1.5 under Calm | OBSERVED |
+| Illustration ambient loops (rare surfaces only) | `ambientLoop(ClockblockMotion.*Millis)` (sun 9 s, twinkle 1.8 s, drift 7.2 s, steam 3.2 s, sway 4.2 s, pulse 2.4 s); ×1.5 under Calm | OBSERVED |
 | Confetti flight | `celebrationClock()` (2.2 s linear clock; physics from t), one burst from the Bloom's centre | OBSERVED |
 | Celebration sequence | navigation settles (450 ms) → rings turn into alignment on `dialDayRotation()` + `CONFIRM` → overlay fades in on `colour()` → Bloom scales on `glyphMorph()` → check + confetti together; predictive back seeks the overlay fade | OBSERVED |
 | Wavy adaptation line | still by default (`travel = false`); travel is opt-in for rare surfaces | OBSERVED |
@@ -56,8 +56,8 @@ Unlisted motion → `OpusTheme.motion.containerSpatial()` for movement, `colour(
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
-- `OpusMotion.celebrationClock`, `ambientLoop`, `ambientOnce`: linear `tween()` used as a clock, not an easing.
-- `OpusMotion.eggChain`, `navigationFadeIn/Out`: eased `tween()` token definitions.
+- `ClockblockMotion.celebrationClock`, `ambientLoop`, `ambientOnce`: linear `tween()` used as a clock, not an easing.
+- `ClockblockMotion.eggChain`, `navigationFadeIn/Out`: eased `tween()` token definitions.
 
 ## Frequency map
 The plan screen is opened 5–15 times a day, but it then **stays on screen** for long stretches: continuous

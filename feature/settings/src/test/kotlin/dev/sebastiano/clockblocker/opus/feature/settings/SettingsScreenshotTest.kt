@@ -46,7 +46,7 @@ internal fun settingsState(
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h3300dp-xxhdpi")
-class SettingsScreenshotTest : OpusScreenshotTest() {
+class SettingsScreenshotTest : ClockblockScreenshotTest() {
     private fun settings(name: String, state: SettingsUiState = settingsState(), dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
             SettingsContent(state, SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
@@ -81,7 +81,7 @@ class SettingsScreenshotTest : OpusScreenshotTest() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w1280dp-h1650dp-xhdpi")
-class SettingsTwoPaneScreenshotTest : OpusScreenshotTest() {
+class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun full() = snap("settings_two_pane_full") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
     }
@@ -91,7 +91,7 @@ class SettingsTwoPaneScreenshotTest : OpusScreenshotTest() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
-class SettingsPhoneScreenshotTest : OpusScreenshotTest() {
+class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun top() = snap("settings_phone") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
     }
@@ -177,7 +177,7 @@ class SettingsPhoneScreenshotTest : OpusScreenshotTest() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w1280dp-h800dp-xhdpi")
-class SettingsExpandedScreenshotTest : OpusScreenshotTest() {
+class SettingsExpandedScreenshotTest : ClockblockScreenshotTest() {
     @Test fun settings() = snap("settings_expanded") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
     }
@@ -195,7 +195,7 @@ class SettingsExpandedScreenshotTest : OpusScreenshotTest() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h2300dp-xxhdpi")
-class AboutScreenshotTest : OpusScreenshotTest() {
+class AboutScreenshotTest : ClockblockScreenshotTest() {
     private fun about(name: String, dark: Boolean = false, fontScale: Float? = null) = snap(name, darkTheme = dark, fontScale = fontScale) {
         AboutContent("1.0.0", onVersionTap = {}, onOpenSource = {}, onOpenLicenses = {}, onBack = {}, modifier = Modifier.fillMaxSize())
     }
@@ -217,7 +217,7 @@ class AboutScreenshotTest : OpusScreenshotTest() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
-class OpusTitleCardScreenshotTest : OpusScreenshotTest() {
+class OpusTitleCardScreenshotTest : ClockblockScreenshotTest() {
     @Test fun titleCard() = snap("opus_title_card") { TitleCardOverScrim() }
 
     @Test fun titleCardFontScale() = snap("opus_title_card_fontscale_1_5", fontScale = 1.5f) {

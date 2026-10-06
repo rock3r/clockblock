@@ -3,7 +3,7 @@
     <!-- States -->
     <string name="plan_loading">Working out your plan</string>
     <string name="plan_empty_title">No trip on the horizon</string>
-    <string name="plan_empty_body">Add a flight and Opus Clockblock works out when to see light, sleep and nap so you land on local time.</string>
+    <string name="plan_empty_body">Add a flight and Clockblock works out when to see light, sleep and nap so you land on local time.</string>
     <string name="plan_new_trip">Plan a trip</string>
     <string name="plan_missing_title">This trip is gone</string>
     <string name="plan_missing_body">It may have been deleted. Your other trips are safe.</string>
@@ -233,5 +233,5 @@
     <!-- Share summary -->
     <string name="plan_share_header">%1$s: jet lag plan</string>
     <string name="plan_share_shift">Body clock shift: %1$s. Estimated %2$s days to adapt with the plan.</string>
-    <string name="plan_share_footer">Made with Opus Clockblock. Not medical advice.</string>
+    <string name="plan_share_footer">Made with Clockblock. Not medical advice.</string>
 </resources>

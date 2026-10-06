@@ -57,7 +57,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.advice.shortInstructio
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.DualTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.AdviceArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.NowCardShape
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -87,7 +87,7 @@ internal fun NowCard(
     modifier: Modifier = Modifier,
 ) {
     val advice = moment.active ?: return
-    val role = OpusTheme.adviceColors[advice.type]
+    val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     val heading = if (previewing) {
@@ -120,14 +120,14 @@ internal fun NowCard(
                             second = {
                                 Text(
                                     stringResource(R.string.plan_left, formatDuration(moment.remaining)),
-                                    style = OpusTheme.textStyles.timeLabel,
+                                    style = ClockblockTheme.textStyles.timeLabel,
                                     color = faint,
                                 )
                             },
                             separator = {
                                 Text(
                                     Separator,
-                                    style = OpusTheme.textStyles.timeLabel,
+                                    style = ClockblockTheme.textStyles.timeLabel,
                                     color = faint,
                                     modifier = Modifier.testTag(InlineSeparatorTag).clearAndSetSemantics {},
                                 )
@@ -187,7 +187,7 @@ internal fun NowCard(
                         instant = if (advice.type.isMoment) advice.start else advice.end,
                         zone = moment.zone,
                         secondaryZone = moment.secondaryZone,
-                        style = OpusTheme.textStyles.timeHeadline,
+                        style = ClockblockTheme.textStyles.timeHeadline,
                         secondaryColor = role.onContainer.copy(alpha = 0.8f),
                         inline = true,
                         prefix = stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
@@ -274,7 +274,7 @@ private fun OutcomeSplitButton(
     val colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor)
     val doneLabel = stringResource(R.string.plan_done)
     val moreLabel = stringResource(R.string.plan_more_outcomes)
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val view = LocalView.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         SplitButtonLayout(
@@ -309,7 +309,7 @@ private fun OutcomeSplitButton(
                 Box {
                     // The chevron flips with the menu: a state indicator, so no bounce (dataSpatial), and the
                     // animated value is only read in the layer (F-001).
-                    val rotation = animateFloatAsState(if (menuOpen) 180f else 0f, OpusTheme.motion.dataSpatial(), label = "chevron")
+                    val rotation = animateFloatAsState(if (menuOpen) 180f else 0f, ClockblockTheme.motion.dataSpatial(), label = "chevron")
                     SplitButtonDefaults.TrailingButton(
                         checked = menuOpen,
                         onCheckedChange = { menuOpen = it },
@@ -404,7 +404,7 @@ private fun NextLine(next: Advice, moment: PlanMoment) {
             Text(
                 formatDuration(inDuration) + " · " + formatter.formatFull(next.start.atZone(moment.secondaryZone).toLocalTime()) +
                     " " + moment.secondaryZone.cityName(),
-                style = OpusTheme.textStyles.timeLabel,
+                style = ClockblockTheme.textStyles.timeLabel,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

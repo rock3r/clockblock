@@ -29,7 +29,7 @@ class ShellScreenshotTest {
     private fun launch(hasProfile: Boolean = true, hasTrips: Boolean = false, dark: Boolean = false) {
         val settings = TestSettings.copy(themeMode = if (dark) ThemeMode.Dark else ThemeMode.Light)
         compose.setContent {
-            OpusAppRoot(
+            ClockblockAppRoot(
                 uiState = ShellUiState.Ready(hasProfile = hasProfile, hasTrips = hasTrips, settings = settings),
                 destinations = FakeDestinations,
             )

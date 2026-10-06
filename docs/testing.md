@@ -86,11 +86,11 @@ They drive the real app, with real DataStore files and real notifications.
 | `TripsTest` | 3 | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
 | `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |
 | `PlanInteractionsTest` | 2 | A timeline block opens the Why sheet and the toolbar jumps back to now; calendar export opens the file picker |
-| `DeepLinkTest` | 5 | Every `opusclockblock://` link, including one sent to an already running app |
+| `DeepLinkTest` | 5 | Every `clockblock://` link, including one sent to an already running app |
 | `WidgetTest` | 2 | *Two Clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
 | `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
 
-[`OpusE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/OpusE2eTest.kt) is the base
+[`ClockblockE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/ClockblockE2eTest.kt) is the base
 class. It provides a Compose test rule and a UiAutomator `UiDevice`. Tests check which screen is showing through
 the navigation shell's route tags (for example `route_now`).
 
@@ -130,7 +130,7 @@ All six jobs run in parallel. Each one reports its own check on the pull request
 | Gradle wrapper | CI | Validates `gradle-wrapper.jar` against the official checksums | none |
 | Unit tests | CI | `./gradlew test --continue` | `unit-test-reports`, on failure |
 | Screenshots | CI | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
-| Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`opus-clockblock-debug`), kept 14 days |
+| Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
 | e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
 

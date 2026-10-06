@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 /**
  * "Dusk Instrument" raw palette. Hand-tuned tonal ramps (HCT-style tones) around the seed
  * **Twilight Indigo `#4F46E5`** with a **Marigold `#FFB000`** tertiary. Never reference these from feature code;
- * use `MaterialTheme.colorScheme`, [OpusTheme.adviceColors] or [OpusTheme.sky].
+ * use `MaterialTheme.colorScheme`, [ClockblockTheme.adviceColors] or [ClockblockTheme.sky].
  */
 internal object DuskPalette {
     val Seed = Color(0xFF4F46E5)
@@ -88,7 +88,7 @@ internal object DuskPalette {
     val VelvetContainer = Color(0xFF5C1A1B)
 }
 
-internal val OpusLightColors: ColorScheme = with(DuskPalette) {
+internal val ClockblockLightColors: ColorScheme = with(DuskPalette) {
     lightColorScheme(
         primary = Indigo40,
         onPrimary = Color.White,
@@ -129,7 +129,7 @@ internal val OpusLightColors: ColorScheme = with(DuskPalette) {
     )
 }
 
-internal val OpusDarkColors: ColorScheme = with(DuskPalette) {
+internal val ClockblockDarkColors: ColorScheme = with(DuskPalette) {
     darkColorScheme(
         primary = Indigo80,
         onPrimary = Indigo20,

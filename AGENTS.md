@@ -1,4 +1,4 @@
-# AGENTS.md — Opus Clockblock
+# AGENTS.md — Clockblock
 
 Open-source, fully offline jet lag app for Android (a Timeshifter alternative). Material 3 Expressive, Remote
 Compose widgets, science-based planning. No backend, no accounts, no analytics.
@@ -43,7 +43,7 @@ not have `build-brief` installed.
   `assistedMetroViewModel()` from `dev.zacsweers.metrox.viewmodel`).
 - DataStore + kotlinx-serialization for persistence. `java.time` everywhere (store IANA zone ids, never offsets).
 - Versions live in `gradle/libs.versions.toml`; module setup lives in `build-logic` convention plugins
-  (`opus.jvm.library`, `opus.android.library`, `opus.android.compose`, `opus.android.feature`).
+  (`clockblock.jvm.library`, `clockblock.android.library`, `clockblock.android.compose`, `clockblock.android.feature`).
 
 ## Modules
 
@@ -73,7 +73,7 @@ not have `build-brief` installed.
 
 Read `MOTION.md` (motion language) and `docs/design.md` (visual identity) before touching UI. Key rules from
 [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills):
-- No literal `tween()`/`spring()` outside token definitions (`OpusMotion` / `MaterialTheme.motionScheme`).
+- No literal `tween()`/`spring()` outside token definitions (`ClockblockMotion` / `MaterialTheme.motionScheme`).
 - Frequency gate: 100+/day surfaces get only the platform state layer; delight only for rare moments.
 - Meaning must survive "Remove animations" (static carrier). Self-timed loops read `MotionDurationScale`.
 - Frame-rate values are read in layout/draw (lambda modifiers), never composition.
@@ -90,5 +90,5 @@ Read `MOTION.md` (motion language) and `docs/design.md` (visual identity) before
 - `PlanSurface` (`:core:data`): widgets + Now notification implement it and contribute into a Metro set;
   the scheduler in `:core:notifications` refreshes all of them at advice boundaries and on plan changes.
 - `JetLagPlanner` (`:core:circadian`): the app binds `DefaultJetLagPlanner`; data depends on the interface only.
-- Deep links (`DeepLinks` in `:core:model`): `opusclockblock://trips`, `…/trips/new`, `…/plan/{tripId}`,
+- Deep links (`DeepLinks` in `:core:model`): `clockblock://trips`, `…/trips/new`, `…/plan/{tripId}`,
   `…/plan/current`.

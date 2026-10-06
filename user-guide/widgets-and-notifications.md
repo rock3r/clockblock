@@ -29,7 +29,7 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Body 2½ h ahead. It reads Avoid caffeine until 17:00, then Avoid light 17:00 to 20:00, with the same times in Tokyo below, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Body 2½ h ahead. It reads Avoid light until 20:00, then Sleep 20:00 to 04:00, with the same times in Tokyo below, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It says what to do now,
 until when, and what comes next, for example "See some light until 20:00 · then Avoid caffeine". It updates by
@@ -69,7 +69,7 @@ Home-screen widgets still show everything.
 
 The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
 home screen asks where to put it. (The section only appears if your home screen app supports this.) You can
-also touch and hold an empty area of your home screen, tap **Widgets**, find Opus Clockblock, and drag the widget
+also touch and hold an empty area of your home screen, tap **Widgets**, find Clockblock, and drag the widget
 you want onto the screen. You can resize both widgets.
 
 <img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two Clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />

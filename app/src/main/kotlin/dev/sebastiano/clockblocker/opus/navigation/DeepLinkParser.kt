@@ -18,13 +18,13 @@ data class DeepLinkTarget(val destination: TopLevelDestination, val backStack: L
  *
  * | URI | Destination | Back stack |
  * |---|---|---|
- * | `opusclockblock://trips` | Trips | Trips |
- * | `opusclockblock://trips/new` | Trips | Trips → TripEditor(new) |
- * | `opusclockblock://plan/current` | Now | Now |
- * | `opusclockblock://plan/{tripId}` | Trips | Trips → Plan(tripId) (synthetic parent) |
+ * | `clockblock://trips` | Trips | Trips |
+ * | `clockblock://trips/new` | Trips | Trips → TripEditor(new) |
+ * | `clockblock://plan/current` | Now | Now |
+ * | `clockblock://plan/{tripId}` | Trips | Trips → Plan(tripId) (synthetic parent) |
  *
- * Scheme and host are case-insensitive; queries, fragments and trailing slashes are ignored. Anything else
- * returns null.
+ * Scheme and host are case-insensitive; queries, fragments and trailing slashes are ignored. The pre-rename
+ * [DeepLinks.LEGACY_SCHEME] (`opusclockblock://`) maps the same way. Anything else returns null.
  */
 object DeepLinkParser {
     private const val HOST_TRIPS = "trips"
@@ -39,7 +39,8 @@ object DeepLinkParser {
         } catch (_: URISyntaxException) {
             return null
         }
-        if (!parsed.scheme.equals(DeepLinks.SCHEME, ignoreCase = true)) return null
+        val scheme = parsed.scheme?.lowercase() ?: return null
+        if (scheme != DeepLinks.SCHEME && scheme != DeepLinks.LEGACY_SCHEME) return null
         val host = (parsed.host ?: parsed.rawAuthority)?.lowercase() ?: return null
         val segments = parsed.rawPath.orEmpty().split('/').filter { it.isNotEmpty() }.map { decode(it) ?: return null }
         return when (host) {

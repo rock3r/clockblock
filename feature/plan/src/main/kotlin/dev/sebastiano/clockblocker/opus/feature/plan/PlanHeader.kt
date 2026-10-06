@@ -73,8 +73,8 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
@@ -111,7 +111,7 @@ internal fun PlanHeader(
     shortWindow: Boolean = false,
     firstLight: Boolean = false,
 ) {
-    val gradient = OpusTheme.sky.gradientAt(moment.bodyTime)
+    val gradient = ClockblockTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
@@ -289,12 +289,12 @@ private fun HeaderCelestial(
 ) {
     val hour = bodyTime.toHourFloat()
     val isSun = celestialPosition(hour).isSun
-    val nightSafe = OpusTheme.variant == OpusThemeVariant.NightSafe
-    val art = OpusTheme.artColors
-    val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else OpusTheme.adviceColors[AdviceType.SeeBrightLight].color
+    val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
+    val art = ClockblockTheme.artColors
+    val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
     val moonColor = if (nightSafe) art.onInverse.copy(alpha = 0.6f) else Moonlight
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val view = LocalView.current
     var taps by remember { mutableIntStateOf(0) }
     val progress = remember { Animatable(0f) }
@@ -308,7 +308,7 @@ private fun HeaderCelestial(
     // "First light": the plan of a trip saved moments ago opens with its sun or moon rising into place over the
     // horizon, once (rare: a few times a month). Under reduce motion it is simply there (the static carrier;
     // the rise adds no meaning).
-    val reduce = OpusTheme.reduceMotion
+    val reduce = ClockblockTheme.reduceMotion
     var risen by rememberSaveable { mutableStateOf(!firstLight) }
     val rise = remember { Animatable(if (risen || reduce) 1f else 0f) }
     LaunchedEffect(Unit) {

@@ -1,6 +1,6 @@
 # Getting started
 
-The first time you open Opus Clockblock, it asks six short questions. Your answers set where your body clock
+The first time you open Clockblock, it asks six short questions. Your answers set where your body clock
 starts and how hard the plan pushes. It takes about two minutes, and you can change every answer later in
 Settings.
 
@@ -9,7 +9,7 @@ Settings.
 - An Android phone or tablet with Android 10 or later.
 - No account and no internet connection. The app works the same in flight mode.
 
-Opus Clockblock isn't in an app store yet. To install it, build it from the source code (see the
+Clockblock isn't in an app store yet. To install it, build it from the source code (see the
 [project README](../README.md#build-and-test)).
 
 ## The six setup steps

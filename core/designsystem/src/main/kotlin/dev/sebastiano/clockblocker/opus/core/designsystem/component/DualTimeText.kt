@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import java.time.Instant
@@ -58,8 +58,8 @@ fun DualTimeText(
     zone: ZoneId,
     secondaryZone: ZoneId?,
     modifier: Modifier = Modifier,
-    style: TextStyle = OpusTheme.textStyles.timeTitle,
-    secondaryStyle: TextStyle = OpusTheme.textStyles.timeLabel,
+    style: TextStyle = ClockblockTheme.textStyles.timeTitle,
+    secondaryStyle: TextStyle = ClockblockTheme.textStyles.timeLabel,
     secondaryLabel: String? = secondaryZone?.cityName(),
     color: Color = LocalContentColor.current,
     secondaryColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
