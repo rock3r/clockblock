@@ -149,6 +149,18 @@ class PlanContentTest {
     }
 
     @Test
+    fun `picking a day resets the dial's scrub so dial and Now card agree`() {
+        show(midAdaptation)
+        // TalkBack steps the dial to the next block (13:30 on Day 2)…
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        // …then picks Day 3: everything is anchored to 11:00 on Day 3, the dial included.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Dial).assertContentDescriptionContains("11:00 local", substring = true)
+    }
+
+    @Test
     fun `the celebration is dismissed once and reported`() {
         show(ready(PlanFixtures.Adapted, celebrate = true))
         compose.onNodeWithTag(PlanTags.Celebration).assertIsDisplayed()

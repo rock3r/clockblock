@@ -64,6 +64,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -730,21 +731,25 @@ private class PlanSections(
         }
         val rewind = stringResource(R.string.plan_rewind)
         Box(modifier.padding(horizontal = 24.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-            TwoClocksDial(
-                state = dialState,
-                modifier = Modifier.widthIn(max = dialSize).fillMaxWidth().testTag(PlanTags.Dial),
-                onScrub = { instant ->
-                    val minute = instant.truncatedTo(ChronoUnit.MINUTES)
-                    screen.preview = if (minute == now) null else minute
-                },
-                onScrubEnd = { screen.preview = null },
-                onRewind = { showSnack(rewind) },
-                easterEggsEnabled = state.easterEggs,
-                returnOnRelease = true,
-                onRingsAligned = {
-                    if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
-                },
-            )
+            // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick is a
+            // new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.
+            key(screen.selectedDay(plan.tripId)) {
+                TwoClocksDial(
+                    state = dialState,
+                    modifier = Modifier.widthIn(max = dialSize).fillMaxWidth().testTag(PlanTags.Dial),
+                    onScrub = { instant ->
+                        val minute = instant.truncatedTo(ChronoUnit.MINUTES)
+                        screen.preview = if (minute == now) null else minute
+                    },
+                    onScrubEnd = { screen.preview = null },
+                    onRewind = { showSnack(rewind) },
+                    easterEggsEnabled = state.easterEggs,
+                    returnOnRelease = true,
+                    onRingsAligned = {
+                        if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
+                    },
+                )
+            }
         }
     }
 
