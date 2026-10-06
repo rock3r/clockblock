@@ -37,6 +37,9 @@ sealed interface LiveChip {
     data class EndsAt(val until: Instant) : LiveChip
 }
 
+/** The trip's display codes ("SFO", "LHR") for the Live Update header; from the trip, not the plan. */
+data class TripRoute(val from: String, val to: String)
+
 /**
  * Pure travel-day Live Update logic.
  *

@@ -17,8 +17,8 @@ object NotificationIds {
     const val SUMMARY: Int = 1004
 }
 
-/** Buttons on Now / reminder notifications, handled by [AdviceActionReceiver]. */
-enum class AdviceAction { Done, CantDo, Snooze }
+/** Buttons on Now / reminder notifications, handled by [AdviceActionReceiver]. [Undo] forgets a logged outcome. */
+enum class AdviceAction { Done, CantDo, Snooze, Undo }
 
 /** Where an action button lives; keeps their PendingIntents distinct. */
 internal enum class ActionSource { Now, Reminder }

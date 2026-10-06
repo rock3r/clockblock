@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
@@ -24,15 +25,21 @@ internal fun settingsState(
     settings: AppSettings = AppSettings(opusModeUnlocked = true),
     notificationsGranted: Boolean = true,
     exactAlarmsAllowed: Boolean = false,
+    promotedAllowed: Boolean = true,
+    batteryOptimizationIgnored: Boolean = false,
+    widgetPinningSupported: Boolean = true,
+    liveUpdatesSupported: Boolean = true,
 ) = SettingsUiState(
     settings = settings,
     profile = profile,
     permissions = NotificationPermissionState(
         notificationsGranted = notificationsGranted,
         exactAlarmsAllowed = exactAlarmsAllowed,
-        promotedAllowed = true,
-        batteryOptimizationIgnored = false,
+        promotedAllowed = promotedAllowed,
+        batteryOptimizationIgnored = batteryOptimizationIgnored,
+        liveUpdatesSupported = liveUpdatesSupported,
     ),
+    widgetPinningSupported = widgetPinningSupported,
 )
 
 /** The whole Settings list on a tall phone (so one golden shows every section), plus dark and large-font variants. */
@@ -62,6 +69,22 @@ class SettingsScreenshotTest : OpusScreenshotTest() {
             it.copy(permissions = it.permissions.copy(batteryOptimizationIgnored = true))
         },
     )
+
+    @Test fun permissionsReadyWithOptionalExtrasOff() = settings(
+        "settings_permissions_ready_dark",
+        settingsState(exactAlarmsAllowed = true, promotedAllowed = false),
+        dark = true,
+    )
+}
+
+/** Both Settings columns in full on a tall expanded window (sections split into two balanced columns). */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [36], qualifiers = "w1280dp-h1650dp-xhdpi")
+class SettingsTwoPaneScreenshotTest : OpusScreenshotTest() {
+    @Test fun full() = snap("settings_two_pane_full") {
+        SettingsContent(settingsState(), SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+    }
 }
 
 /** Settings at phone height (top of the list) and the focused editors. */
@@ -79,6 +102,14 @@ class SettingsPhoneScreenshotTest : OpusScreenshotTest() {
         }
         compose.onNodeWithTag(SettingsTags.TestReminder).performScrollTo()
         capture("settings_phone_reminders")
+    }
+
+    @Test fun widgetsFontScale() {
+        setContent(fontScale = 1.5f) {
+            SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+        }
+        compose.onNodeWithTag(SettingsTags.pinWidget(PinnableWidget.NextUp)).performScrollTo()
+        capture("settings_phone_widgets_fontscale_1_5")
     }
 
     @Test fun sleepEditor() = snap("settings_editor_sleep") {
@@ -178,6 +209,8 @@ class AboutScreenshotTest : OpusScreenshotTest() {
     @Test fun licenses() = snap("licenses") { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
 
     @Test fun licensesDark() = snap("licenses_dark", darkTheme = true) { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
+
+    @Test fun licensesFontScale() = snap("licenses_fontscale_1_5", fontScale = 1.5f) { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
 }
 
 /** The Opus mode title card at phone size. */

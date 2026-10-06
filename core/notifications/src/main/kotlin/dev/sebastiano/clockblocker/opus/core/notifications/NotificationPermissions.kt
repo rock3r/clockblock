@@ -22,6 +22,8 @@ data class NotificationPermissionState(
     val promotedAllowed: Boolean,
     /** Exempt from battery optimisation (helps on aggressive OEM builds). Optional. */
     val batteryOptimizationIgnored: Boolean,
+    /** Whether this Android version has Live Updates at all (API 36+); below it [promotedAllowed] can't be fixed. */
+    val liveUpdatesSupported: Boolean = true,
 ) {
     /** True when reminders are fully dependable; the UI shows a one-tap fix card otherwise (design §3.4). */
     val isReliable: Boolean get() = notificationsGranted && exactAlarmsAllowed
@@ -75,6 +77,7 @@ class AndroidNotificationPermissions(
         exactAlarmsAllowed = capabilities.canScheduleExactAlarms(),
         promotedAllowed = capabilities.canPostPromotedNotifications(),
         batteryOptimizationIgnored = capabilities.isIgnoringBatteryOptimizations(),
+        liveUpdatesSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA,
     )
 
     override val runtimePermission: String?

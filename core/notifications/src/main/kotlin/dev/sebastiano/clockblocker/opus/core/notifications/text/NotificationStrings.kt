@@ -58,4 +58,34 @@ interface NotificationStrings {
 
     fun testTitle(): String
     fun testText(): String
+
+    /** "Body 3½ h behind" (local time); [hours] is already formatted ("3½ h"). */
+    fun bodyBehind(hours: String): String
+
+    /** "Body 2 h ahead" */
+    fun bodyAhead(hours: String): String
+
+    /** The body clock within half an hour of local time. */
+    fun bodyInSync(): String
+
+    /** "SFO → LHR" */
+    fun route(from: String, to: String): String
+
+    /** "Departs 12:00" (travel day, before the first take-off). */
+    fun departs(time: String): String
+
+    /** "Lands 19:00" (on board). */
+    fun lands(time: String): String
+
+    /** "Next flight 21:00" (between legs). */
+    fun nextFlight(time: String): String
+
+    /** After the last landing. */
+    fun landed(): String
+
+    /** Stands in for advice that shouldn't be named on the lock screen (melatonin). */
+    fun redactedLabel(): String
+
+    /** Body of a lock-screen version with nothing else safe to say. */
+    fun redactedText(): String
 }

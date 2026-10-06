@@ -80,6 +80,9 @@ object AboutTags {
     const val OpusTitleCard = "opus_title_card"
     const val OpusTitleDismiss = "opus_title_dismiss"
     const val LicensesList = "licenses_list"
+
+    /** One licences card, keyed by the page it opens. */
+    fun credit(url: String): String = "license_credit_${displayUrl(url)}"
 }
 
 /** Where the source lives (also shown as the row's supporting text). */
