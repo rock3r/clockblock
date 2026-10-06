@@ -214,6 +214,22 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
+    fun `no progress tick while the user has blocked the Now channel`() = runTest {
+        val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
+        surface.render() shouldBe NowRendering.Ongoing
+        alarms.scheduledAlarms.single()
+
+        // What a user switching the channel off in system settings leaves behind.
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        val blocked = manager.getNotificationChannel(OpusChannel.Now.id).apply { importance = android.app.NotificationManager.IMPORTANCE_NONE }
+        manager.deleteNotificationChannel(OpusChannel.Now.id)
+        manager.createNotificationChannel(blocked)
+        surface.render()
+
+        alarms.scheduledAlarms.shouldBeEmpty()
+    }
+
+    @Test
     fun `the travel-day Live Update has no progress tick of its own`() = runTest {
         val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
         surface.render() shouldBe NowRendering.Ongoing

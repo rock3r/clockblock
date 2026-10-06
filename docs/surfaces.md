@@ -136,7 +136,7 @@ The bar only moves when the notification is rebuilt. Plan boundaries rebuild it 
 **non-wakeup** alarm (`AlarmManager.RTC`, every 5 minutes, `NotificationIntents.progressTick`) re-renders it. A
 sleeping phone isn't woken for it: the alarm is delivered the next time the phone wakes up, so the bar (and an
 "Also now" line that changed inside a sleep window) is current when you look. The tick is cancelled whenever the
-Now notification is hidden or becomes the travel-day Live Update. There is no countdown or `setWhen` time: the
+Now notification is hidden, its channel is blocked in system settings, or it becomes the travel-day Live Update. There is no countdown or `setWhen` time: the
 shade would show the device's zone, not the plan's, and a ticking chronometer is noise on a surface you see all
 day.
 
