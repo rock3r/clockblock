@@ -116,4 +116,5 @@ internal fun AdviceColorRole.lerp(to: AdviceColorRole, t: Float): AdviceColorRol
     onColor = lerp(onColor, to.onColor, t),
     container = lerp(container, to.container, t),
     onContainer = lerp(onContainer, to.onContainer, t),
+    outline = lerp(outline, to.outline, t),
 )

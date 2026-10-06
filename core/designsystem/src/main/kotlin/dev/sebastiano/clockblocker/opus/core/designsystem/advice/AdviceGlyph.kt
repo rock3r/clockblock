@@ -84,6 +84,10 @@ object AdviceShapes {
     }
 }
 
+/** The active glyph's outline edge: 4 % of the glyph (≈1.9 dp at 48 dp), never thinner than [MinOutline]. */
+private const val OutlineFraction = 0.04f
+private val MinOutline = 1.25.dp
+
 /**
  * The advice glyph. Labels always accompany it (it is decorative to TalkBack).
  *
@@ -91,7 +95,7 @@ object AdviceShapes {
  *   mark, so shape identity never depends on colour.
  * - **Active** ("now"): the container itself morphs into the shape (`OpusMotion.glyphMorph`, fast spatial) in the
  *   vivid advice colour, then plays one ambient cycle and rests: VerySunny turns one step, melatonin twinkles,
- *   peak fatigue pulses.
+ *   peak fatigue pulses. Pale colours (`AdviceColorRole.outline`) get a deeper same-hue edge so the shape reads.
  * - **Reduced motion**: the morph snaps to its end state and the ambient cycle never plays.
  *
  * @param headingDegrees for [AdviceType.Flight]: the plane's heading (0 = east, clockwise).
@@ -182,6 +186,14 @@ fun AdviceGlyph(
                     }
                     AdvicePattern.Strike -> drawStrike(role.color.copy(alpha = patternAlpha), 2.5.dp, 0.22f)
                     else -> Unit
+                }
+            }
+            // Pale fills (e.g. See some light on its cream container) get a deeper same-hue edge so the shape
+            // still reads (WCAG 1.4.11). Drawn inside the silhouette so the glyph keeps its size.
+            if (role.hasOutline && !outlineOnly) {
+                val edge = (this.size.minDimension * OutlineFraction).coerceAtLeast(MinOutline.toPx())
+                clipPath(shape) {
+                    drawPath(shape, role.outline.copy(alpha = role.outline.alpha * patternAlpha), style = Stroke(width = edge * 2f))
                 }
             }
         }
