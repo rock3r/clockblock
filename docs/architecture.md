@@ -190,6 +190,9 @@ URI into a tab and a back stack. Widgets and notifications use these links.
 | `clockblock://plan/current` | The Now tab (the current plan) |
 | `clockblock://plan/{tripId}` | That trip's plan, on top of Trips |
 
+The same links with the old `opusclockblock://` scheme (from before the app was renamed) still work, so widgets,
+notifications and saved links made by older builds keep opening the app. The app only creates `clockblock://` links.
+
 [`MainActivity`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/MainActivity.kt) is `singleTop`. It
 queues incoming links until the shell is ready. If onboarding isn't finished, the link waits and runs when setup
 ends. The splash screen stays up while the shell is still loading.

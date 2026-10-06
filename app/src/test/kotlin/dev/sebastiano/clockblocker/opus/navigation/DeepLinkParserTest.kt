@@ -64,6 +64,13 @@ class DeepLinkParserTest {
         DeepLinkParser.parse("clockblock://Plan/Current")?.destination shouldBe TopLevelDestination.Now
     }
 
+    @Test
+    fun `links with the pre-rename scheme still open`() {
+        DeepLinkParser.parse("opusclockblock://plan/abc")?.backStack shouldBe listOf(TripsRoute, PlanRoute("abc"))
+        DeepLinkParser.parse("OpusClockblock://trips/new")?.backStack shouldBe listOf(TripsRoute, TripEditorRoute())
+        DeepLinkParser.parse("opusclockblock://plan/current")?.destination shouldBe TopLevelDestination.Now
+    }
+
     @ParameterizedTest
     @ValueSource(
         strings = [
