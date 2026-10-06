@@ -176,6 +176,19 @@ class WidgetUpdaterTest {
     }
 
     @Test
+    fun `a light-dark switch triggers one refresh, other configuration changes none`() {
+        fun config(night: Boolean, fontScale: Float = 1f) = Configuration(app.resources.configuration).apply {
+            val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
+            this.fontScale = fontScale
+        }
+        updater.nightModeChanged(config(night = false, fontScale = 1.3f)).shouldBeFalse()
+        updater.nightModeChanged(config(night = true)).shouldBeTrue()
+        updater.nightModeChanged(config(night = true)).shouldBeFalse()
+        updater.nightModeChanged(config(night = false)).shouldBeTrue()
+    }
+
+    @Test
     fun `Done shows on Next up and turns into a chip once logged`() = runBlocking<Unit> {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         plans.current.value = plan

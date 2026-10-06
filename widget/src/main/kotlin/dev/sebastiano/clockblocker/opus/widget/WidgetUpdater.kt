@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.widget
 import android.app.Application
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.content.ComponentCallbacks
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
@@ -25,9 +26,13 @@ import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -54,19 +59,51 @@ class WidgetUpdater(
 
     private val mutex = Mutex()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var lastNight = application.isNight()
+
+    init {
+        // A light/dark switch changes the System theme and the picker previews, but no widget broadcast reports it.
+        application.registerComponentCallbacks(
+            object : ComponentCallbacks {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    if (nightModeChanged(newConfig)) scope.launch { runCatching { updateAll() } }
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onLowMemory() = Unit
+            },
+        )
+    }
+
+    /** True once per light/dark switch (other configuration changes are ignored). */
+    internal fun nightModeChanged(configuration: Configuration): Boolean {
+        val night = configuration.isNight()
+        if (night == lastNight) return false
+        lastNight = night
+        return true
+    }
 
     /** Re-render all widgets of both kinds. */
     suspend fun updateAll() {
-        WidgetKind.entries.forEach { kind -> update(kind, ids(kind)) }
+        WidgetKind.entries.forEach { kind -> render(kind, ids(kind)) }
         publishPreviewsIfNeeded()
     }
 
-    /** Re-render the given widget ids of one kind. */
-    suspend fun update(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
+    /**
+     * Re-render the given widget ids of one kind. Also re-publishes the picker previews when their key is stale, so
+     * a light/dark switch while the app was not running still reaches the picker on the next widget update.
+     */
+    suspend fun update(kind: WidgetKind, appWidgetIds: IntArray) {
+        render(kind, appWidgetIds)
+        publishPreviewsIfNeeded()
+    }
+
+    private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
         val plan = withTimeoutOrNull(READ_TIMEOUT_MS) { planRepository.currentPlan.first() }
         val settings = withTimeoutOrNull(READ_TIMEOUT_MS) { settingsRepository.settings.first() } ?: AppSettings()
         val logs = plan?.let { withTimeoutOrNull(READ_TIMEOUT_MS) { adviceLogRepository.logs(it.tripId).first() } }
-        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs.orEmpty())
+        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs)
         val renderer = rendererFactory(application, false)
         val theme = theme(settings, state, application.resources.configuration)
         appWidgetIds.forEach { id ->
@@ -154,8 +191,9 @@ class WidgetUpdater(
             return if (dark) WidgetTheme.Dark else WidgetTheme.Light
         }
 
-        private fun Context.isNight() =
-            resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        private fun Context.isNight() = resources.configuration.isNight()
+
+        private fun Configuration.isNight() = uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     }
 }
 

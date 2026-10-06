@@ -45,6 +45,8 @@ sealed interface WidgetState {
         val upcoming: List<AdviceSlot> = emptyList(),
         /** What the user logged for [current] (Done from the widget, notification or app), if anything. */
         val currentOutcome: AdviceOutcome? = null,
+        /** False when the advice log could not be read: [currentOutcome] is unknown, so no Done action is offered. */
+        val outcomeKnown: Boolean = true,
         /** Kind of the plan day [capturedAt] falls in (null outside the plan's days). */
         val dayKind: DayKind? = null,
         /** Index of that day relative to departure: −2, −1, 0 (travel), 1, 2… */

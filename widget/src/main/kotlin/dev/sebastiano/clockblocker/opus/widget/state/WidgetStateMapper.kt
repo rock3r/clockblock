@@ -23,9 +23,10 @@ object WidgetStateMapper {
 
     /**
      * @param fallbackZone zone used when the plan has no days (the device's zone).
-     * @param logs outcomes logged for the plan's trip (drives the Done button's logged state).
+     * @param logs outcomes logged for the plan's trip (drives the Done button's logged state); null when they could
+     *   not be read, so the outcome is unknown.
      */
-    fun map(plan: JetLagPlan?, now: Instant, fallbackZone: ZoneId, logs: List<AdviceLog> = emptyList()): WidgetState {
+    fun map(plan: JetLagPlan?, now: Instant, fallbackZone: ZoneId, logs: List<AdviceLog>? = emptyList()): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
         val displayZoneId = displayZone(plan, now) ?: fallbackZone.id
@@ -76,7 +77,8 @@ object WidgetStateMapper {
             stage = stage,
             destinationName = DialMath.cityName(plan.destinationZoneId),
             upcoming = upcoming.map { it.toSlot(displayZone) },
-            currentOutcome = current?.let { c -> logs.lastOrNull { it.adviceId == c.id }?.outcome },
+            currentOutcome = current?.let { c -> logs?.lastOrNull { it.adviceId == c.id }?.outcome },
+            outcomeKnown = logs != null,
             dayKind = day?.kind,
             dayIndex = day?.index,
             adaptation = plan.adaptationProgressAt(now),

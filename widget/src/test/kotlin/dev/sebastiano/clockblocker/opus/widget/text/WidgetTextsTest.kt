@@ -14,6 +14,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.string.shouldStartWith
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -145,6 +146,30 @@ class WidgetTextsTest {
         val (h, m) = row.time.split(":").map { it.toInt() }
         val lisbon = "%02d:%02d".format(Math.floorMod(h - 8, 24), m)
         row.secondary shouldBe "$lisbon in Lisbon"
+    }
+
+    @Test
+    fun `up next description speaks the other zone's time too`() {
+        val t = texts(DemoPlans.Scenario.AvoidLight)
+        val description = t.upcomingDescription.shouldNotBeNull()
+        val first = t.upcoming.first()
+        description shouldContain "Up next: ${first.label} at ${first.time} (${first.secondary})"
+    }
+
+    @Test
+    fun `up next description only speaks the rows that are shown`() {
+        val t = texts(DemoPlans.Scenario.AvoidLight)
+        t.upcoming.size shouldBe 3
+        val shown = t.copy(upcoming = t.upcoming.take(2))
+        shown.upcomingDescription.shouldNotBeNull() shouldNotContain t.upcoming[2].label
+        t.copy(upcoming = emptyList()).upcomingDescription.shouldBeNull()
+    }
+
+    @Test
+    fun `no done while the logged outcome is unknown`() {
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val state = WidgetStateMapper.map(plan, now, ZoneId.of("Asia/Tokyo"), logs = null)
+        WidgetTexts.from(context, state, true).done.shouldBeNull()
     }
 
     @Test

@@ -51,8 +51,8 @@ data class WidgetTexts(
     /** Share of the planned shift completed, 0..1, and its label ("59% adapted"). */
     val adaptation: Float? = null,
     val adaptationLabel: String? = null,
-    /** "Up next: Melatonin at 20:30, Sleep at 22:00": spoken for the queue region. */
-    val upcomingDescription: String? = null,
+    /** "Up next: %1$s", the template of [upcomingDescription]. */
+    val upcomingTemplate: String = "Up next: %1\$s",
     /** The Done action for the current block; null when there is nothing to mark (free time, flights, no plan). */
     val done: DoneText? = null,
 ) {
@@ -63,6 +63,13 @@ data class WidgetTexts(
     val subtitleWithSecondary: String
         get() = listOfNotNull(subtitleLines.firstOrNull() ?: subtitle, secondary).joinToString(" · ")
 
+    /**
+     * "Up next: Melatonin at 20:30 (12:30 in Lisbon), Sleep at 22:00 (14:00 in Lisbon)": spoken for the queue region.
+     * Derived from [upcoming], so a copy with fewer rows speaks only the rows it shows.
+     */
+    val upcomingDescription: String?
+        get() = upcoming.takeIf { it.isNotEmpty() }?.let { rows -> upcomingTemplate.format(rows.joinToString { it.spoken }) }
+
     companion object {
         fun from(context: Context, state: WidgetState, is24Hour: Boolean = DateFormat.is24HourFormat(context)) =
             WidgetTextFactory(context, is24Hour).texts(state)
@@ -71,7 +78,14 @@ data class WidgetTexts(
 
 /** One "Up next" row: always a text label next to the glyph, plus its local start time. */
 /** An "Up next" entry: start [time] in the display zone and, like every widget time, the same time in the secondary zone. */
-data class UpcomingText(val type: AdviceType, val label: String, val time: String, val secondary: String? = null)
+data class UpcomingText(
+    val type: AdviceType,
+    val label: String,
+    val time: String,
+    val secondary: String? = null,
+    /** Spoken form, both zones: "Melatonin at 20:30 (12:30 in Lisbon)". */
+    val spoken: String = listOfNotNull("$label at $time", secondary?.let { "($it)" }).joinToString(" "),
+)
 
 /**
  * The widget Done button. While [logged] is null it is a button that logs [adviceId] as done; once something is
@@ -164,11 +178,20 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         }
         val secondaryZone = s.secondaryZoneId?.let { ZoneId.of(it) }
         val upcoming = s.upcoming.map {
+            val label = label(it.type)
+            val time = time(it.start, zone)
+            val secondary =
+                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), DialMath.cityName(z.id)) }
             UpcomingText(
-                it.type,
-                label(it.type),
-                time(it.start, zone),
-                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), DialMath.cityName(z.id)) },
+                type = it.type,
+                label = label,
+                time = time,
+                secondary = secondary,
+                spoken = if (secondary == null) {
+                    str(R.string.widget_starts_at, label, time)
+                } else {
+                    str(R.string.widget_starts_at_with_secondary, label, time, secondary)
+                },
             )
         }
         return WidgetTexts(
@@ -189,10 +212,8 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             upcoming = upcoming,
             adaptation = s.adaptation,
             adaptationLabel = s.adaptation?.let { str(R.string.widget_adapted_percent, (it * 100).roundToInt()) },
-            upcomingDescription = upcoming.takeIf { it.isNotEmpty() }?.let { rows ->
-                str(R.string.widget_a11y_up_next, rows.joinToString { str(R.string.widget_starts_at, it.label, it.time) })
-            },
-            done = current?.takeIf { it.type != AdviceType.Flight }?.let { c ->
+            upcomingTemplate = context.getString(R.string.widget_a11y_up_next),
+            done = current?.takeIf { it.type != AdviceType.Flight && s.outcomeKnown }?.let { c ->
                 val label = label(c.type)
                 when (s.currentOutcome) {
                     null -> DoneText(s.tripId, c.adviceId, null, str(R.string.widget_done), str(R.string.widget_a11y_done_action, label))

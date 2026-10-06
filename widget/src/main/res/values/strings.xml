@@ -30,6 +30,8 @@
     <string name="widget_until_then">until %1$s · then %2$s</string>
     <string name="widget_then">then %1$s</string>
     <string name="widget_starts_at">%1$s at %2$s</string>
+    <!-- Spoken Up next entry with the time in the other zone: "Melatonin at 20:30 (12:30 in Lisbon)". -->
+    <string name="widget_starts_at_with_secondary">%1$s at %2$s (%3$s)</string>
     <string name="widget_secondary_time">%1$s in %2$s</string>
     <string name="widget_body_prefix">body</string>
     <string name="widget_in_sync">in sync</string>
