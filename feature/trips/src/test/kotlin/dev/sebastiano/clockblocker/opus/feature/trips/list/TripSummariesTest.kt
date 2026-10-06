@@ -128,4 +128,34 @@ class TripSummariesTest {
         sections.getValue(TripPhase.Upcoming).map { it.id } shouldContainExactly listOf("sooner", "later")
         TripSummaries.returnCandidate(summaries).shouldNotBeNull().id shouldBe "recent"
     }
+
+    @Test
+    fun `upcoming trips carry the planner's days to adapt, others don't`() {
+        val plan = planner.plan(trip, DemoData.profile, DemoData.Now)
+        summarize(now = Instant.parse("2026-06-12T16:00:00Z")).daysToAdapt shouldBe plan.estimatedDaysToAdapt
+        summarize(now = Instant.parse("2026-06-13T18:00:00Z")).daysToAdapt.shouldBeNull()
+        summarize(now = Instant.parse("2026-06-12T16:00:00Z"), withPlan = false).daysToAdapt.shouldBeNull()
+        val homeTime = trip.copy(strategyOverride = AdaptationStrategy.StayOnHomeTime)
+        summarize(t = homeTime, now = Instant.parse("2026-06-12T16:00:00Z")).daysToAdapt.shouldBeNull()
+    }
+
+    @Test
+    fun `in-progress trips with a plan know the body clock time`() {
+        val now = Instant.parse("2026-06-17T09:00:00Z")
+        val plan = planner.plan(trip, DemoData.profile, DemoData.Now)
+        val summary = summarize(now = now)
+        summary.bodyTime shouldBe now.atOffset(plan.bodyOffsetAt(now)).toLocalTime()
+        summarize(now = Instant.parse("2026-06-12T16:00:00Z")).bodyTime.shouldBeNull()
+        summarize(now = now, withPlan = false).bodyTime.shouldBeNull()
+    }
+
+    @Test
+    fun `the list sky follows the body clock of a trip under way, else local time`() {
+        val now = Instant.parse("2026-06-17T09:00:00Z")
+        val zone = ZoneOffset.ofHours(2)
+        val active = summarize(now = now)
+        val upcoming = summarize(now = Instant.parse("2026-06-12T16:00:00Z"))
+        TripSummaries.sky(listOf(upcoming, active), now, zone) shouldBe TripsSky(active.bodyTime!!, bodyClock = true)
+        TripSummaries.sky(listOf(upcoming), now, zone) shouldBe TripsSky(java.time.LocalTime.of(11, 0), bodyClock = false)
+    }
 }
