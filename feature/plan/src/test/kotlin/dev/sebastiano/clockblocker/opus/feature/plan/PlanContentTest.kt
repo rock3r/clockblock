@@ -327,6 +327,19 @@ class PlanContentTest {
 
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes with motion - picking today again brings the Now row back`() {
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `the day picker jumps to a day`() {
         show(midAdaptation)
         compose.onNodeWithTag(PlanTags.ToolbarDay).performClick()

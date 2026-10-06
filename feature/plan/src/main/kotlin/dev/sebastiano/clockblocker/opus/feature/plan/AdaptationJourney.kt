@@ -175,8 +175,17 @@ internal fun JetLagPlan.journey(sampleHours: Long = 2): AdaptationJourney? {
 }
 
 /** Whole days the plan saves over the no-plan estimate, or null when it doesn't (never claim a tie as a win). */
-internal fun daysSaved(withPlan: Double, withoutPlan: Double): Int? =
-    (roundDays(withoutPlan) - roundDays(withPlan)).takeIf { it > 0 }
+internal fun daysSaved(withPlan: Double, withoutPlan: Double): DaysSaved? {
+    if (withPlan >= EstimateHorizonDays) return null
+    val days = (roundDays(withoutPlan) - roundDays(withPlan)).takeIf { it > 0 } ?: return null
+    return DaysSaved(days, atLeast = withoutPlan >= EstimateHorizonDays)
+}
+
+/**
+ * How much sooner the plan gets there. [atLeast] when the no-plan estimate is the horizon sentinel: the model only
+ * knows it takes longer than that, so the difference is a lower bound.
+ */
+internal data class DaysSaved(val days: Int, val atLeast: Boolean)
 
 /** The model's "didn't adapt within the simulated window" value, for either estimate. */
 internal val EstimateHorizonDays: Double = PlannerConfig().estimateHorizonDays.toDouble()

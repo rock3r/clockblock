@@ -68,9 +68,17 @@ class AdaptationJourneyTest {
 
     @Test
     fun `the comparison only claims days saved when the plan is faster`() {
-        daysSaved(withPlan = 3.2, withoutPlan = 8.6) shouldBe 6
+        daysSaved(withPlan = 3.2, withoutPlan = 8.6) shouldBe DaysSaved(6, atLeast = false)
         daysSaved(withPlan = 4.0, withoutPlan = 4.2).shouldBeNull()
         daysSaved(withPlan = 5.0, withoutPlan = 3.0).shouldBeNull()
+    }
+
+    @Test
+    fun `a no-plan estimate at the horizon only supports an at-least claim`() {
+        // Not adapted by day 21 without a plan: 15 days with it is at least 6 days faster, not "about 6".
+        daysSaved(withPlan = 15.0, withoutPlan = EstimateHorizonDays) shouldBe DaysSaved(6, atLeast = true)
+        // Both censored: nothing to claim.
+        daysSaved(withPlan = EstimateHorizonDays, withoutPlan = EstimateHorizonDays).shouldBeNull()
     }
 
     @Test

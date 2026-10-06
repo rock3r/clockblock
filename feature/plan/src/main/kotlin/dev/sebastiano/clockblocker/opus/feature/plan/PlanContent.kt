@@ -65,6 +65,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -149,8 +150,11 @@ internal class PlanScreenState(
         selection = index?.let { tripId to it }
     }
 
-    /** A day was just picked in the strip: the two-pane rail follows it. */
-    var dayPicked: Boolean by mutableStateOf(false)
+    /** Counts picks in the day strip: the two-pane rail follows each one (an event, so a pick mid-scroll counts). */
+    var dayPicks: Int by mutableIntStateOf(0)
+
+    /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
+    var dayPicksFollowed: Int = 0
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
@@ -539,9 +543,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 if (expanded) {
                     // Two panes: the rail is in view, so picking a day also brings that day's rows up (today:
                     // the Now line).
-                    LaunchedEffect(screen.dayPicked) {
-                        if (!screen.dayPicked) return@LaunchedEffect
-                        screen.dayPicked = false
+                    LaunchedEffect(screen.dayPicks) {
+                        if (screen.dayPicks == screen.dayPicksFollowed) return@LaunchedEffect
+                        screen.dayPicksFollowed = screen.dayPicks
                         val picked = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }
                         if (picked == null) {
                             val now = rows.nowRowIndex()
@@ -589,7 +593,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         }
                     }
                 } else {
-                    LaunchedEffect(screen.dayPicked) { screen.dayPicked = false }
+                    LaunchedEffect(screen.dayPicks) { screen.dayPicksFollowed = screen.dayPicks }
                     LazyColumn(
                         state = screen.list,
                         // Padding (not contentPadding) on top so sticky day headers pin below the header.
@@ -702,7 +706,7 @@ private class PlanSections(
                     onSelect = { index ->
                         screen.preview = null
                         screen.pickDay(state.plan.tripId, index)
-                        screen.dayPicked = true
+                        screen.dayPicks++
                     },
                     modifier = width,
                 )

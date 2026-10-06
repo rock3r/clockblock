@@ -101,6 +101,11 @@
         <item quantity="one">~%d day faster</item>
         <item quantity="other">~%d days faster</item>
     </plurals>
+    <!-- The no-plan estimate is the simulation horizon, so the difference is a lower bound. -->
+    <plurals name="plan_days_faster_at_least">
+        <item quantity="one">at least %d day faster</item>
+        <item quantity="other">at least %d days faster</item>
+    </plurals>
     <!-- TalkBack for the hero comparison. -->
     <string name="plan_hero_description">To adapt: %1$s with your plan, %2$s without one.</string>
     <!-- A model estimate inside the simulated window (%1$s = "4 days"). -->

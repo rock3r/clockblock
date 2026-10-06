@@ -194,13 +194,16 @@ internal fun AdaptationCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modi
 @Composable
 private fun HeroComparison(plan: JetLagPlan) {
     val saved = daysSaved(plan.estimatedDaysToAdapt, plan.estimatedDaysWithoutPlan)
+    val savedText = saved?.let {
+        pluralStringResource(if (it.atLeast) R.plurals.plan_days_faster_at_least else R.plurals.plan_days_faster, it.days, it.days)
+    }
     val withText = estimateShort(plan.estimatedDaysToAdapt)
     val withoutText = estimateShort(plan.estimatedDaysWithoutPlan)
     val description = stringResource(
         R.string.plan_hero_description,
         estimateLabel(plan.estimatedDaysToAdapt),
         estimateLabel(plan.estimatedDaysWithoutPlan),
-    ) + (saved?.let { " " + pluralStringResource(R.plurals.plan_days_faster, it, it) } ?: "")
+    ) + (savedText?.let { " $it" } ?: "")
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -215,10 +218,10 @@ private fun HeroComparison(plan: JetLagPlan) {
             Text(withoutText, style = OpusTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.plan_hero_without), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (saved != null) {
+        if (savedText != null) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.padding(bottom = 2.dp)) {
                 Text(
-                    pluralStringResource(R.plurals.plan_days_faster, saved, saved),
+                    savedText,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
