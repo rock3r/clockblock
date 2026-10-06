@@ -6,6 +6,8 @@ import dev.sebastiano.clockblocker.opus.core.circadian.displayZonesAt
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
+import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -26,12 +28,14 @@ object WidgetStateMapper {
      * @param logs outcomes logged for the plan's trip (drives the Done button's logged state); null when they could
      *   not be read, so the outcome is unknown.
      * @param route the trip's airport codes, if the trip could be read.
+     * @param placeNames the trip's city per zone ([placeNames] of the trip), if the trip could be read.
      */
     fun map(
         plan: JetLagPlan?,
         now: Instant,
         logs: List<AdviceLog>? = emptyList(),
         route: WidgetRoute? = null,
+        placeNames: Map<String, String> = emptyMap(),
     ): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
@@ -83,7 +87,7 @@ object WidgetStateMapper {
             bodyNight = bodyNight,
             cbtMinMinute = cbtMinMinute,
             stage = stage,
-            destinationName = DialMath.cityName(plan.destinationZoneId),
+            destinationName = placeNames[plan.destinationZoneId] ?: DialMath.cityName(plan.destinationZoneId),
             upcoming = upcoming.map { it.toSlot(displayZone) },
             currentOutcome = current?.let { c -> logs?.lastOrNull { it.adviceId == c.id }?.outcome },
             outcomeKnown = logs != null,
@@ -91,19 +95,35 @@ object WidgetStateMapper {
             dayIndex = day?.index,
             adaptation = plan.adaptationProgressAt(now),
             route = route,
+            placeNames = placeNames,
         )
     }
 
     /**
+     * The trip's city for each zone it visits: "San Francisco" for an SFO trip, where the zone alone
+     * (America/Los_Angeles) would say Los Angeles. The trip's origin and destination win over connections in the same
+     * zone; places without a city are left to the zone's name.
+     */
+    fun placeNames(trip: Trip): Map<String, String> = buildMap {
+        fun add(place: Place) {
+            if (place.city.isNotBlank()) put(place.zoneId, place.city)
+        }
+        trip.legs.forEach { add(it.origin); add(it.destination) }
+        add(trip.origin)
+        add(trip.destination)
+    }
+
+    /**
      * The lock-screen version of [state] (Settings › Hide details on the lock screen, keyguard hosts only), matching
-     * the redacted notifications: no secondary zone (it names a city), no route, and private advice (melatonin) loses
-     * its dial dot here and its name and glyph in the texts. Times and the other blocks stay.
+     * the redacted notifications: no secondary zone (it names a city), no route or place names, and private advice
+     * (melatonin) loses its dial dot here and its name and glyph in the texts. Times and the other blocks stay.
      */
     fun redact(state: WidgetState): WidgetState = when (state) {
         WidgetState.NoTrip -> state
         is WidgetState.Active -> state.copy(
             secondaryZoneId = null,
             route = null,
+            placeNames = emptyMap(),
             arcs = state.arcs.filterNot { it.type?.isPrivate == true },
             redacted = true,
         )

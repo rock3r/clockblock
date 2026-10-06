@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +13,7 @@ import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
+import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
@@ -304,5 +306,43 @@ class WidgetUpdaterTest {
             WidgetRoute("LIS", "HND")
         updater.state(plan, AppSettings(hideLockScreenDetails = true), keyguard = true)
             .shouldBeInstanceOf<WidgetState.Active>().route shouldBe null
+    }
+
+    @Test
+    fun `the header names the trip's place, not the zone's city`() = runBlocking<Unit> {
+        // The trip's own city names the place (an SFO trip reads San Francisco, not the zone's Los Angeles).
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        plans.current.value = plan
+        val demo = DemoPlans.trip()
+        val leg = demo.legs.single()
+        val trip = demo.copy(legs = listOf(leg.copy(destination = leg.destination.copy(city = "Yokohama"))))
+        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), tripRepository = FakeTripRepository(listOf(trip))).apply {
+            clock = Clock.fixed(now, ZoneOffset.UTC)
+        }
+        updater.state(plan, AppSettings(), keyguard = false).shouldBeInstanceOf<WidgetState.Active>().placeNames shouldBe
+            mapOf("Europe/Lisbon" to "Lisbon", "Asia/Tokyo" to "Yokohama")
+        val clocks = place(WidgetKind.TwoClocks, 31, widthDp = 300, heightDp = 300)
+        updater.update(WidgetKind.TwoClocks, intArrayOf(clocks))
+        val shown = texts(clocks).joinToString("\n")
+        shown shouldContainText "Yokohama · Day 2"
+        shown shouldNotContain "Tokyo"
+    }
+
+    @Test
+    fun `the logged chip opens the plan instead of doing nothing`() = runBlocking<Unit> {
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        plans.current.value = plan
+        val logs = FakeAdviceLogRepository()
+        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), logs).apply {
+            clock = Clock.fixed(now, ZoneOffset.UTC)
+        }
+        val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current!!
+        logs.log(plan.tripId, current.adviceId, AdviceOutcome.Done)
+        val next = place(WidgetKind.NextUp, 32, widthDp = 300, heightDp = 130)
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        val chip = shadowOf(manager).getViewFor(next).shouldNotBeNull().findViewById<View>(R.id.done)
+        chip.visibility shouldBe View.VISIBLE
+        chip.performClick().shouldBeTrue()
+        shadowOf(app).nextStartedActivity.shouldNotBeNull().data shouldBe Uri.parse(DeepLinks.plan(plan.tripId))
     }
 }

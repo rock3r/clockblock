@@ -253,4 +253,50 @@ class WidgetTextsTest {
         texts(DemoPlans.Scenario.Adapted).done.shouldBeNull()
         WidgetTexts.from(context, WidgetState.NoTrip, true).done.shouldBeNull()
     }
+
+    private fun withPlaces(scenario: DemoPlans.Scenario, places: Map<String, String>) = WidgetTexts.from(
+        context,
+        WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, scenario), now, placeNames = places),
+        true,
+    )
+
+    @Test
+    fun `places are named after the trip, not the time zone`() {
+        // An SFO trip shown in America/Los_Angeles must not read "Los Angeles": the trip's own city names it.
+        val t = withPlaces(DemoPlans.Scenario.AvoidLight, mapOf("Asia/Tokyo" to "Yokohama", "Europe/Lisbon" to "Porto"))
+        t.header shouldBe "Yokohama · Day 2"
+        t.secondary.shouldNotBeNull() shouldContain "in Porto"
+        t.upcoming.first().secondary.shouldNotBeNull() shouldContain "in Porto"
+        listOf(t.header.orEmpty(), t.secondary.orEmpty(), t.contentDescription, t.upcomingDescription.orEmpty()).forEach {
+            it shouldNotContain "Tokyo"
+            it shouldNotContain "Lisbon"
+        }
+        withPlaces(DemoPlans.Scenario.Adapted, mapOf("Asia/Tokyo" to "Yokohama")).subtitle shouldContain "Yokohama"
+    }
+
+    @Test
+    fun `a zone the trip doesn't name falls back to the zone's city`() {
+        withPlaces(DemoPlans.Scenario.AvoidLight, mapOf("Europe/Lisbon" to "Porto")).header shouldBe "Tokyo · Day 2"
+    }
+
+    @Test
+    fun `the spoken current block includes the other zone's time`() {
+        val t = texts(DemoPlans.Scenario.AvoidLight)
+        val secondary = t.secondary.shouldNotBeNull()
+        t.spokenNow shouldBe "Avoid light. ${t.subtitleLines[0]} ($secondary) · ${t.subtitleLines[1]}"
+        t.contentDescription shouldContain "${t.subtitleLines[0]} ($secondary)"
+    }
+
+    @Test
+    fun `free time speaks the other zone's time of the next start`() {
+        val t = texts(DemoPlans.Scenario.FreeTime)
+        t.spokenNow shouldContain "(${t.secondary.shouldNotBeNull()})"
+    }
+
+    @Test
+    fun `without another zone the spoken block is the visible text`() {
+        val t = redacted(DemoPlans.Scenario.AvoidLight)
+        t.spokenNow shouldBe "${t.title}. ${t.subtitle}"
+        WidgetTexts.from(context, WidgetState.NoTrip, true).let { it.spokenNow shouldBe "${it.title}. ${it.subtitle}" }
+    }
 }

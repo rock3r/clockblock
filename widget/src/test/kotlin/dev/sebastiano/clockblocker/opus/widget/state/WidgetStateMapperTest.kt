@@ -5,6 +5,9 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -17,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 class WidgetStateMapperTest {
@@ -220,14 +224,45 @@ class WidgetStateMapperTest {
     }
 
     @Test
+    fun `the trip's place names are carried and name the destination`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        val names = mapOf(tokyo to "Yokohama", lisbon to "Porto")
+        val state = active(WidgetStateMapper.map(tokyoDay, now, placeNames = names))
+        state.placeNames shouldBe names
+        state.destinationName shouldBe "Yokohama"
+        // Without a name from the trip, the zone's city.
+        active(WidgetStateMapper.map(tokyoDay, now)).destinationName shouldBe "Tokyo"
+    }
+
+    @Test
+    fun `place names come from the trip's airports, endpoints first`() {
+        val sfo = Place("SFO", "San Francisco Intl", "San Francisco", "US", "America/Los_Angeles", 37.6, -122.4)
+        val lax = Place("LAX", "Los Angeles Intl", "Los Angeles", "US", "America/Los_Angeles", 33.9, -118.4)
+        val nrt = Place("NRT", "Narita", "Narita", "JP", tokyo, 35.8, 140.4)
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", tokyo, 35.5, 139.8)
+        val blank = Place("XXX", "Somewhere", "", "PT", lisbon, 0.0, 0.0)
+        fun leg(id: String, from: Place, to: Place) =
+            FlightLeg(id, from, to, LocalDateTime.parse("2026-10-04T13:00"), LocalDateTime.parse("2026-10-05T14:00"))
+        // SFO → HND with a stop at Narita: the destination names Tokyo's zone, not the connection.
+        val trip = Trip("t", "SFO → HND", listOf(leg("1", sfo, nrt), leg("2", nrt, hnd)), Instant.EPOCH)
+        WidgetStateMapper.placeNames(trip) shouldBe mapOf("America/Los_Angeles" to "San Francisco", tokyo to "Tokyo")
+        // A connection in the origin's zone doesn't rename it; a place without a city is skipped.
+        val viaLax = Trip("t", "SFO → LAX → XXX", listOf(leg("1", sfo, lax), leg("2", lax, blank)), Instant.EPOCH)
+        WidgetStateMapper.placeNames(viaLax) shouldBe mapOf("America/Los_Angeles" to "San Francisco")
+    }
+
+    @Test
     fun `redacting for the lock screen drops places, the route and the melatonin dot`() {
         val now = at(tokyo, "2026-10-06T16:30")
-        val full = active(WidgetStateMapper.map(tokyoDay, now, route = WidgetRoute("LIS", "HND")))
+        val full = active(
+            WidgetStateMapper.map(tokyoDay, now, route = WidgetRoute("LIS", "HND"), placeNames = mapOf(tokyo to "Tokyo")),
+        )
         val redacted = active(WidgetStateMapper.redact(full))
 
         redacted.redacted shouldBe true
         redacted.secondaryZoneId.shouldBeNull()
         redacted.route.shouldBeNull()
+        redacted.placeNames shouldBe emptyMap()
         redacted.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
         // Times, block kinds and the dial stay.
         redacted.current shouldBe full.current

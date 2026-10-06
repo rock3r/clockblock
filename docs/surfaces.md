@@ -241,6 +241,24 @@ designsystem's `DotMatrixFont` cells). It shows only where it has room without c
 Clocks header strip, next to "Tokyo · Day 2", and at the end of the "Up next" title on the 2×3 and 4×3 Next up.
 Screen readers read the codes letter by letter.
 
+Places are named after the trip, so the header and the other-zone times match the route. An SFO trip reads "San
+Francisco · Day 2", not "Los Angeles" (the city of its `America/Los_Angeles` zone).
+`WidgetStateMapper.placeNames` takes each zone's city from the trip's airports, and the trip's origin and
+destination win over a connection in the same zone. A zone the trip doesn't name, or a trip that can't be read,
+falls back to the zone's city.
+
+What a screen reader hears matches what the widget shows:
+
+- The current block includes its end time in the other zone: "Avoid light. until 16:30 (08:30 in Lisbon) · then
+  Melatonin". Two Clocks says this after both clocks and the jet lag phrase.
+- On Remote Compose, Next up adds the live countdown in words, worked out by the launcher like the visible one:
+  "1 hour 10 minutes left". The classic `Chronometer` ticks on its own and a description can't follow it, so the
+  classic layouts speak only the end times.
+- Two Clocks layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3 header strip is
+  its own tap target, so its place, day and route ("L I S to H N D") reach the screen reader.
+  [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
+  plays the documents in the View player and reads back its accessibility nodes.
+
 ![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
@@ -266,8 +284,9 @@ The larger layouts have a Done button (48 dp tall) for the current advice. It se
 notification's Done action
 ([`NotificationIntents.widgetDone`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationIntents.kt)),
 so the advice log, notifications and widgets all update the same way. Once something is logged for that advice,
-the button turns into a chip in the same spot: "✓ Done", or "Skipped" for skipped and can't-do. Free time,
-flights and the empty state have no Done button.
+the button turns into a chip in the same spot: "✓ Done", or "Skipped" for skipped and can't-do. Tapping the chip
+opens the plan, like the rest of the widget, so that spot never ignores a tap. Free time, flights and the empty state
+have no Done button.
 
 The button and the rest of the widget are separate tap targets that don't overlap, so each tap has one target. On
 Remote Compose the button is a second host action; on classic `RemoteViews` it is its own
