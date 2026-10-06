@@ -39,7 +39,6 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
@@ -80,7 +79,7 @@ class NowNotificationSurfaceTest {
     )
 
     private val surface = NowNotificationSurface(
-        context, plans, settings, logs, snooze, NotificationFactory(context, capabilities, clock), capabilities, clock, trips,
+        context, plans, settings, logs, snooze, NotificationFactory(context, capabilities), capabilities, clock, trips,
     )
 
     private val posted: Notification? get() = shadowOf(manager).getNotification(NotificationIds.NOW)
@@ -90,7 +89,7 @@ class NowNotificationSurfaceTest {
 
     @Test
     fun `our notifications bundle under our own summary, which opens the current plan`() = runTest {
-        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities, clock), capabilities)
+        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities), capabilities)
         surface.render() shouldBe NowRendering.Ongoing
         // One notification: no summary (a lone summary would show as an empty notification).
         shadowOf(manager).getNotification(NotificationIds.SUMMARY).shouldBeNull()
@@ -111,7 +110,7 @@ class NowNotificationSurfaceTest {
 
     @Test
     fun `with the ongoing Now and an expiring reminder, the summary expires with the reminder`() = runTest {
-        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities, clock), capabilities)
+        val reminders = ReminderNotifier(context, NotificationFactory(context, capabilities), capabilities)
         surface.render() shouldBe NowRendering.Ongoing
         reminders.postTest() shouldBe true
 
@@ -167,7 +166,7 @@ class NowNotificationSurfaceTest {
 
     @Test
     fun `test reminder opens the current plan when tapped`() {
-        val n = NotificationFactory(context, capabilities, clock).test()
+        val n = NotificationFactory(context, capabilities).test()
 
         val content = shadowOf(n.contentIntent.shouldNotBeNull()).savedIntent
         content.data shouldBe Uri.parse(DeepLinks.CURRENT_PLAN)
@@ -175,8 +174,8 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
-    fun `text follows the user's zone after landing`() = runTest {
-        clock.zoneId = ZoneId.of("Asia/Tokyo")
+    fun `text follows the plan's zone after landing`() = runTest {
+        plans.current.value = planOf(avoid, sleep, dayZone = "Asia/Tokyo")
 
         surface.render()
 
@@ -199,7 +198,7 @@ class NowNotificationSurfaceTest {
 
     @Test
     fun `the header shows the body clock`() = runTest {
-        clock.zoneId = ZoneId.of("Asia/Tokyo")
+        plans.current.value = planOf(avoid, sleep, dayZone = "Asia/Tokyo")
 
         surface.render()
 
@@ -218,7 +217,6 @@ class NowNotificationSurfaceTest {
         plans.current.value =
             planOf(night, light, origin = "America/Los_Angeles", destination = "Europe/London", dayZone = "America/Los_Angeles")
         clock.instant = utc("2026-10-10T13:15")
-        clock.zoneId = ZoneId.of("Europe/Rome")
 
         withDeviceZone("Europe/Rome") { surface.render() }
 
@@ -235,10 +233,9 @@ class NowNotificationSurfaceTest {
         val light = advice(SeeBrightLight, "2026-10-10T14:00", "2026-10-10T16:00")
         val plan = planOf(light, origin = "America/Los_Angeles", destination = "Europe/London", dayZone = "America/Los_Angeles")
         val spec = ReminderSpec(ReminderKind.Upcoming, light, expiresAt = light.end)
-        clock.zoneId = ZoneId.of("Europe/Rome")
 
         val n = withDeviceZone("Europe/Rome") {
-            NotificationFactory(context, capabilities, clock).reminder(spec, plan, utc("2026-10-10T13:45"))
+            NotificationFactory(context, capabilities).reminder(spec, plan, utc("2026-10-10T13:45"))
         }
 
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "See bright light at 07:00"
@@ -250,7 +247,6 @@ class NowNotificationSurfaceTest {
     fun `the travel-day Live Update follows the plan day's zone, not the device's`() = runTest {
         plans.current.value = planOf(flight, avoid, sleep, dayZone = "Europe/London")
         clock.instant = utc("2026-10-10T14:30")
-        clock.zoneId = ZoneId.of("Europe/Rome")
 
         withDeviceZone("Europe/Rome") { surface.render() } shouldBe NowRendering.LiveUpdate
 
@@ -302,7 +298,7 @@ class NowNotificationSurfaceTest {
         val melatonin = advice(Melatonin, "2026-10-10T20:00", detail = "0.5 mg")
         val spec = ReminderSpec(ReminderKind.Moment, melatonin, expiresAt = melatonin.start.plusSeconds(7200))
 
-        val n = NotificationFactory(context, capabilities, clock).reminder(spec, planOf(avoid, sleep, melatonin), utc("2026-10-10T20:00"), redact = true)
+        val n = NotificationFactory(context, capabilities).reminder(spec, planOf(avoid, sleep, melatonin), utc("2026-10-10T20:00"), redact = true)
 
         n.visibility shouldBe Notification.VISIBILITY_PRIVATE
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Melatonin now"

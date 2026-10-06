@@ -24,21 +24,19 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Builds every notification from pure plan state. Text comes from [NotificationTextFormatter] (current zone,
- * locale and 12/24 h read at build time, so a zone change re-renders correctly).
+ * Builds every notification from pure plan state. Text comes from [NotificationTextFormatter]: times in the plan's
+ * local time (the plan day's zone, like the plan screen and the widgets, never the device's), with locale and
+ * 12/24 h read at build time.
  */
 @Inject
 class NotificationFactory(
     private val application: Application,
     private val capabilities: PlatformCapabilities,
-    private val clock: NotificationClock,
 ) {
     private val context: Context get() = application
 
-    private fun clockFormat() = ClockFormat(clock.zone(), capabilities.locale(), capabilities.is24HourFormat())
-
     private fun formatter(redact: Boolean = false) =
-        NotificationTextFormatter(ResourceNotificationStrings(context), clockFormat(), redact)
+        NotificationTextFormatter(ResourceNotificationStrings(context), capabilities.locale(), capabilities.is24HourFormat(), redact)
 
     /**
      * The standard ongoing "Now" notification. Its header carries the body clock ("Body 3½ h behind").
@@ -75,7 +73,7 @@ class NotificationFactory(
             val text = formatter.now(state, plan, now).copy(
                 subText = formatter.travelSubText(plan, now, route?.let { formatter.route(it.from, it.to) }),
             )
-            return liveBuilder(state, now, progress, text, redacted = redact)
+            return liveBuilder(state, now, progress, text, formatter.localClock(plan, now), redacted = redact)
         }
         return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
@@ -85,6 +83,7 @@ class NotificationFactory(
         now: Instant,
         progress: TravelProgress,
         text: NotificationText,
+        clock: ClockFormat,
         redacted: Boolean,
     ): NotificationCompat.Builder {
         val style = NotificationCompat.ProgressStyle()
@@ -113,7 +112,7 @@ class NotificationFactory(
                     .setShowWhen(true)
                     .setUsesChronometer(true)
                     .setChronometerCountDown(true)
-                is LiveChip.EndsAt -> builder.setShortCriticalText(clockFormat().compact(chip.until))
+                is LiveChip.EndsAt -> builder.setShortCriticalText(clock.compact(chip.until))
             }
         }
         return builder

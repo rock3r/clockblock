@@ -30,15 +30,15 @@ fun advice(
 )
 
 /**
- * A plan with all [advice] on one travel day. The day's zone ([dayZone]) is the plan's local time, which every
- * notification shows its times in.
+ * A plan with all [advice] on one travel day. The day's zone ([dayZone], the departure zone by default) is the plan's
+ * local time, which every notification shows its times in.
  */
 fun planOf(
     vararg advice: Advice,
     tripId: String = "trip-1",
     origin: String = "Europe/London",
     destination: String = "Asia/Tokyo",
-    dayZone: String = destination,
+    dayZone: String = origin,
 ): JetLagPlan = planOfDays(listOf(advice.toList()), tripId, origin, destination, dayZone)
 
 fun planOfDays(
@@ -46,7 +46,7 @@ fun planOfDays(
     tripId: String = "trip-1",
     origin: String = "Europe/London",
     destination: String = "Asia/Tokyo",
-    dayZone: String = destination,
+    dayZone: String = origin,
 ): JetLagPlan = JetLagPlan(
     tripId = tripId,
     generatedAt = Instant.EPOCH,

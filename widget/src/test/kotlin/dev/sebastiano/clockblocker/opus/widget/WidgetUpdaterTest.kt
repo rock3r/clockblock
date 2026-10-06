@@ -44,7 +44,6 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Clock
 import java.time.Instant
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 /** Provider/updater update paths on the classic RemoteViews backend (API < 36). */
@@ -170,7 +169,7 @@ class WidgetUpdaterTest {
         val day = Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_NO }
         val night = Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }
         val noTrip = WidgetState.NoTrip
-        fun state(s: DemoPlans.Scenario) = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, s), now, ZoneId.of("UTC"))
+        fun state(s: DemoPlans.Scenario) = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, s), now)
 
         WidgetUpdater.theme(AppSettings(), noTrip, day) shouldBe WidgetTheme.Light
         WidgetUpdater.theme(AppSettings(), noTrip, night) shouldBe WidgetTheme.Dark
@@ -219,7 +218,7 @@ class WidgetUpdaterTest {
         val done = app.getString(R.string.widget_done)
         texts(next) shouldContain done
 
-        val current = (WidgetStateMapper.map(plan, now, ZoneId.of("UTC")) as WidgetState.Active).current!!
+        val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current!!
         logs.log(plan.tripId, current.adviceId, AdviceOutcome.Skipped)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
         texts(next) shouldContain app.getString(R.string.widget_skipped)

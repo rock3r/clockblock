@@ -155,7 +155,7 @@ class AdviceAlarmScheduler(
             snoozeStore.active(now)?.until,
             plan?.takeIf { TravelPlanner.isLiveUpdateActive(it, now) }
                 ?.let { now.plus(LIVE_UPDATE_TICK).truncatedTo(ChronoUnit.MINUTES) },
-            plan?.takeIf { settings.remindersEnabled }?.let { BodyClockHeader.nextChange(it, clock.zone(), now) },
+            plan?.takeIf { settings.remindersEnabled }?.let { BodyClockHeader.nextChange(it, now) },
         )
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()

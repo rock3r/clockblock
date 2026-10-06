@@ -41,7 +41,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
-import java.time.ZoneId
 
 /**
  * Renders every placed Opus widget from the current plan. Called by the providers (system updates, resizes),
@@ -146,7 +145,7 @@ class WidgetUpdater(
     ): WidgetState {
         val route = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
             ?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
-        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route)
+        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
@@ -162,7 +161,7 @@ class WidgetUpdater(
         val key = previewKey(version, night)
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
-        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, ZoneId.of("Asia/Tokyo"), route = DemoPlans.ROUTE)
+        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, route = DemoPlans.ROUTE)
         val renderer = rendererFactory(application, false)
         // The picker is not the plan: always the regular palette, never night-safe.
         val theme = if (night) WidgetTheme.Dark else WidgetTheme.Light

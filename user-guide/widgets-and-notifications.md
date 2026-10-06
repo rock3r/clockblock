@@ -36,6 +36,11 @@ until when, and what comes next, for example "See some light until 20:00 · then
 itself and never makes a sound. Tap it to open the plan. Its header shows how far your body clock is from local
 time, for example "Body 3½ h behind", or "Body clock in sync" once you've adjusted.
 
+Local time means the same thing in the app, the widgets and the notifications: the time zone your plan says
+you're in that day. That's where you set off until you land, then your destination. Your phone's time zone
+setting doesn't change it, so all three always agree, even with a demo trip or a phone set to another zone. Where
+there's room, they also show the time at the other end of the trip.
+
 **Snooze 15 min** hides it for 15 minutes, then reminds you again if the block is still going.
 
 ### On the travel day
