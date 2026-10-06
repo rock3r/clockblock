@@ -88,7 +88,9 @@ object LegacyRemoteViews {
                 headerStrip(context, model, show = large)
                 upNext(context, model, show = large)
             }
-            setContentDescription(R.id.main, texts.contentDescription)
+            // The now card shows "Tokyo · Day 2" (Tall, Wide): speak it too. The 4×3 strip has its own description.
+            val spokenHeader = texts.header?.takeIf { card && !large }
+            setContentDescription(R.id.main, listOfNotNull(spokenHeader, texts.contentDescription).joinToString(". "))
             setOnClickPendingIntent(R.id.main, DeepLinkIntents.pendingIntent(context, texts.deepLink))
         }
     }
@@ -221,7 +223,8 @@ object LegacyRemoteViews {
                 upNext(context, model, show = tall, barWithRows = false, withRoute = true)
             }
             if (layout == NextUpLayout.Ribbon) capsules(context, model)
-            setContentDescription(R.id.main, "${texts.title}. ${texts.subtitle}")
+            // The Chronometer ticks on its own: a description can't follow it, so the end time (both zones) says when.
+            setContentDescription(R.id.main, texts.spokenNow)
             setOnClickPendingIntent(R.id.main, DeepLinkIntents.pendingIntent(context, texts.deepLink))
         }
     }
@@ -275,10 +278,15 @@ object LegacyRemoteViews {
         setTextViewText(R.id.done_label, done.label)
         setTextColor(R.id.done_label, if (logged) p.onSurfaceVariant else p.onPrimary)
         setContentDescription(R.id.done, done.contentDescription)
-        // Explicitly cleared once logged: hosts reapply same-layout updates, so an old listener would survive.
+        // Once logged the chip opens the plan like the rest of the widget (never a dead spot). Always set explicitly:
+        // hosts reapply same-layout updates, so the old Done listener would otherwise survive.
         setOnClickPendingIntent(
             R.id.done,
-            if (logged) null else NotificationIntents.widgetDone(context, done.tripId, done.adviceId),
+            if (logged) {
+                DeepLinkIntents.pendingIntent(context, model.texts.deepLink)
+            } else {
+                NotificationIntents.widgetDone(context, done.tripId, done.adviceId)
+            },
         )
     }
 

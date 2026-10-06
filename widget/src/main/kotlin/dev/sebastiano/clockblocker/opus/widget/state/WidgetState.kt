@@ -39,7 +39,7 @@ sealed interface WidgetState {
         /** Estimated core-body-temperature minimum nearest to now, in dial minutes. */
         val cbtMinMinute: Int?,
         val stage: Stage,
-        /** City-ish name of the destination derived from its IANA id, e.g. "Tokyo". */
+        /** Name of the destination: the trip's city there (see [placeNames]), else its zone's city, e.g. "Tokyo". */
         val destinationName: String,
         /** "Up next" queue for the larger sizes: up to three blocks starting after [capturedAt], excluding [current]. */
         val upcoming: List<AdviceSlot> = emptyList(),
@@ -56,11 +56,19 @@ sealed interface WidgetState {
         /** The trip's airport codes, drawn in the dot-matrix face on the larger sizes; null when unknown. */
         val route: WidgetRoute? = null,
         /**
+         * The trip's own city for each zone it visits (IANA id → "San Francisco"), so the header and the other-zone
+         * times name the same place as [route]. Zones it doesn't name fall back to the zone's city (`DialMath.cityName`).
+         */
+        val placeNames: Map<String, String> = emptyMap(),
+        /**
          * Shown on a lock screen with "Hide details on the lock screen" on (see [WidgetStateMapper.redact]): no places,
          * route or supplement names. Times and block kinds stay.
          */
         val redacted: Boolean = false,
     ) : WidgetState {
+        /** The name of [zoneId]'s place: the trip's city when it has one there, else the zone's own city. */
+        fun placeName(zoneId: String): String = placeNames[zoneId] ?: DialMath.cityName(zoneId)
+
         /**
          * Local (display) time minus body time, minutes: "+300" = local time is 5 h ahead of your body. Drives the dial
          * geometry (where body night lands on the local ring); labels use [bodyRelativeMinutes] instead.

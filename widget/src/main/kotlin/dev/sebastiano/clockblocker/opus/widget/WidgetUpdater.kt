@@ -137,16 +137,20 @@ class WidgetUpdater(
         )
     }
 
-    /** The state to render for [plan]: with the trip's route, redacted on a [keyguard] host when the setting asks. */
+    /**
+     * The state to render for [plan]: with the trip's route and place names, redacted on a [keyguard] host when the
+     * setting asks.
+     */
     internal suspend fun state(
         plan: JetLagPlan?,
         settings: AppSettings,
         keyguard: Boolean,
         logs: List<AdviceLog>? = emptyList(),
     ): WidgetState {
-        val route = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
-            ?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
-        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route)
+        val trip = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
+        val route = trip?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
+        val places = trip?.let(WidgetStateMapper::placeNames).orEmpty()
+        val state = WidgetStateMapper.map(plan, clock.instant(), ZoneId.systemDefault(), logs, route, places)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
@@ -162,7 +166,13 @@ class WidgetUpdater(
         val key = previewKey(version, night)
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
-        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now), now, ZoneId.of("Asia/Tokyo"), route = DemoPlans.ROUTE)
+        val state = WidgetStateMapper.map(
+            DemoPlans.lisbonTokyo(now),
+            now,
+            ZoneId.of("Asia/Tokyo"),
+            route = DemoPlans.ROUTE,
+            placeNames = DemoPlans.PLACE_NAMES,
+        )
         val renderer = rendererFactory(application, false)
         // The picker is not the plan: always the regular palette, never night-safe.
         val theme = if (night) WidgetTheme.Dark else WidgetTheme.Light

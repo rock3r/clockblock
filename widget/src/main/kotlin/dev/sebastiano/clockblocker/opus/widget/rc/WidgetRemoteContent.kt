@@ -108,10 +108,12 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
     val p = model.palette
     val texts = model.texts
     val active = model.state is WidgetState.Active
+    // The now card shows "Tokyo · Day 2" (Tall, Wide): speak it too. The 4×3 strip speaks for itself (HeaderStrip).
+    val withCardHeader = listOfNotNull(texts.header, texts.contentDescription).joinToString(". ").rs
     when {
         layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Square || !active -> MainRegion(
             model,
-            texts.contentDescription,
+            texts.contentDescription.rs,
             RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc),
         ) {
             if (layout == TwoClocksLayout.Compact) {
@@ -124,7 +126,7 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
         }
         layout == TwoClocksLayout.Tall -> Surface(p.surface) {
             RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(8.rdp)) {
-                MainRegion(model, texts.contentDescription, RemoteModifier.fillMaxWidth().weight(1f)) {
+                MainRegion(model, withCardHeader, RemoteModifier.fillMaxWidth().weight(1f)) {
                     RemoteColumn(modifier = RemoteModifier.fillMaxSize()) {
                         RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
                             DialWithReadouts(model, DialSize.Compact)
@@ -143,7 +145,11 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                     HeaderStrip(model, RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 0.rdp, end = 2.rdp, bottom = 6.rdp))
                 }
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth().weight(1f), verticalAlignment = RemoteAlignment.CenterVertically) {
-                    MainRegion(model, texts.contentDescription, RemoteModifier.fillMaxHeight().weight(1f)) {
+                    MainRegion(
+                        model,
+                        if (large) texts.contentDescription.rs else withCardHeader,
+                        RemoteModifier.fillMaxHeight().weight(1f),
+                    ) {
                         RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
                             RemoteBox(modifier = RemoteModifier.fillMaxHeight().weight(1f), contentAlignment = RemoteAlignment.Center) {
                                 DialWithReadouts(model, DialSize.Regular)
@@ -228,7 +234,8 @@ private fun NowCard(model: WidgetModel, modifier: RemoteModifier, withHeader: Bo
 
 /**
  * "Tokyo · Day 2" with the trip's route in dot matrix at the end. Nothing when there is neither, e.g. a redacted
- * lock-screen widget outside the plan's days.
+ * lock-screen widget outside the plan's days. Opens the plan like the main region: the players only expose
+ * clickable regions to accessibility services, so without it the place, day and route were never spoken.
  */
 @RemoteComposable
 @Composable
@@ -239,7 +246,10 @@ private fun HeaderStrip(model: WidgetModel, modifier: RemoteModifier) {
     val header = texts.header
     if (route == null && header == null) return
     val description = listOfNotNull(header, texts.routeDescription).joinToString(". ")
-    RemoteBox(modifier = modifier.semantics { contentDescription = description.rs }, contentAlignment = RemoteAlignment.CenterStart) {
+    RemoteBox(
+        modifier = modifier.clickable(deepLinkAction(texts.deepLink)).semantics { contentDescription = description.rs },
+        contentAlignment = RemoteAlignment.CenterStart,
+    ) {
         header?.let {
             // The route is overlaid, not a trailing Row child (see NextUpRemote): keep the text clear of it.
             val end = if (route != null) RouteWidthDp + 8 else 0
@@ -327,7 +337,8 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
     val texts = model.texts
     val type = model.state.tintType
     val bg = p.tinted(type, NEXT_UP_TINT)
-    val description = "${texts.title}. ${texts.subtitle}"
+    // Spoken: the visible text plus the other zone's time and the live countdown (words, host-evaluated).
+    val description = spokenCountdown(model)?.let { texts.spokenNow.rs + ". ".rs + it } ?: texts.spokenNow.rs
     when (layout) {
         NextUpLayout.Small, NextUpLayout.Medium -> MainRegion(
             model,
@@ -622,8 +633,8 @@ private val DoneHeight = 54.rdp
 
 /**
  * The Done button (a sibling click region of the main one, never nested: some document versions fire every
- * containing click handler). Once an outcome is logged it turns into a non-interactive chip in the same footprint.
- * Absent for free time, flights and the empty state.
+ * containing click handler). Once an outcome is logged it turns into a chip in the same footprint that opens the plan
+ * like the main region, so the spot is never dead. Absent for free time, flights and the empty state.
  */
 @RemoteComposable
 @Composable
@@ -631,7 +642,7 @@ private fun DoneRegion(model: WidgetModel, modifier: RemoteModifier) {
     val done = model.texts.done ?: return
     val p = model.palette
     val logged = done.logged != null
-    val region = if (logged) modifier else modifier.clickable(doneAction(done))
+    val region = modifier.clickable(if (logged) deepLinkAction(model.texts.deepLink) else doneAction(done))
     RemoteBox(
         modifier = region.semantics { contentDescription = done.contentDescription.rs },
         contentAlignment = RemoteAlignment.Center,
@@ -670,12 +681,12 @@ private fun Surface(color: Int, content: @RemoteComposable @Composable () -> Uni
 @Composable
 private fun MainRegion(
     model: WidgetModel,
-    description: String,
+    description: RemoteString,
     modifier: RemoteModifier,
     content: @RemoteComposable @Composable () -> Unit,
 ) {
     RemoteBox(
-        modifier = modifier.clickable(deepLinkAction(model.texts.deepLink)).semantics { contentDescription = description.rs },
+        modifier = modifier.clickable(deepLinkAction(model.texts.deepLink)).semantics { contentDescription = description },
         contentAlignment = RemoteAlignment.Center,
     ) { content() }
 }
@@ -732,6 +743,13 @@ private fun countdownText(model: WidgetModel): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
     return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0))
+}
+
+/** The live countdown in words for the spoken description ("1 hour 10 minutes left"); null without one. */
+private fun spokenCountdown(model: WidgetModel): RemoteString? {
+    val total = countdownMinutes(model) ?: return null
+    val state = model.state as WidgetState.Active
+    return HostText.countdownSpoken(total, DialMath.minuteOfDay(state.capturedAt, 0), model.texts.countdownWords)
 }
 
 /** Compact 1×1 countdown plus the widest text it shows before the next refresh (to size it). */
