@@ -62,9 +62,9 @@ class RemoteSemanticsTest {
 
     private fun model(logged: AdviceOutcome? = null): WidgetModel {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
-        val current = (WidgetStateMapper.map(plan, now, zone) as WidgetState.Active).current.shouldNotBeNull()
+        val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current.shouldNotBeNull()
         val logs = listOfNotNull(logged?.let { AdviceLog(current.adviceId, it) })
-        val state = WidgetStateMapper.map(plan, now, zone, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES)
+        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES)
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(WidgetTheme.Light))
     }
 

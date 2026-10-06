@@ -133,12 +133,23 @@ minutes, then posts a `Snoozed` reminder, but only if the advice is still runnin
 passed). The snooze state is kept in
 [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt).
 
-The notification's subtext (the header line) shows the body-clock offset relative to the local zone, rounded to
+Every time in a notification (Now, the travel-day Live Update and its status chip, reminders) is in the plan's
+local zone, never the device's: `JetLagPlan.localZoneAt` in
+[`PlanZones.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/PlanZones.kt)
+returns the zone of the plan day containing the instant. The travel day keeps the departure zone until the last
+landing, then switches to the next day's zone, even after an evening arrival whose travel day runs to midnight.
+Before the plan it returns the first day's zone, after it the last day's. The secondary-zone line uses `secondaryZoneFor`:
+the destination, or home once local time is the destination's, left out when it has the same UTC offset right
+now. The plan screen (`PlanMoment`, the rail) and the widgets (`WidgetStateMapper`) call the same two functions,
+so all three surfaces agree on what "local" means even when the phone's zone is elsewhere. `NotificationClock`
+has no zone on purpose.
+
+The notification's subtext (the header line) shows the body-clock offset relative to that local zone, rounded to
 the half hour: "Body 3½ h behind", "Body 2 h ahead", or "Body clock in sync" under 30 minutes. It shows the offset
 rather than a body time of day, which would change every minute. The offset itself drifts along the plan's phase
 trajectory, so the scheduler arms one extra alarm at the next instant the rounded reading changes
-(`BodyClockHeader.nextChange`, scanned in 10-minute steps up to 36 hours ahead) and re-renders the notification
-there ([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
+(`BodyClockHeader.nextChange`, scanned in 10-minute steps up to 36 hours ahead, with the local zone read at each
+step, so moving to the next plan day's zone counts as a change) and re-renders the notification there ([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
 
 ### Lock-screen redaction
 

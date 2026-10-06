@@ -27,7 +27,6 @@ class WidgetStateMapperTest {
 
     private val tokyo = "Asia/Tokyo"
     private val lisbon = "Europe/Lisbon"
-    private val utc = ZoneId.of("UTC")
 
     private val tokyoDay = plan {
         day(1, "2026-10-06", tokyo) {
@@ -45,12 +44,12 @@ class WidgetStateMapperTest {
 
     @Test
     fun `no plan maps to the empty state`() {
-        WidgetStateMapper.map(null, Instant.now(), utc) shouldBe WidgetState.NoTrip
+        WidgetStateMapper.map(null, Instant.now()) shouldBe WidgetState.NoTrip
     }
 
     @Test
     fun `current advice wins by priority and next starts when it ends`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30"), utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30")))
 
         state.current.shouldNotBeNull().type shouldBe AdviceType.AvoidLight
         state.current!!.startMinute shouldBe 15 * 60
@@ -65,7 +64,7 @@ class WidgetStateMapperTest {
 
     @Test
     fun `between blocks there is no current advice and next is the upcoming one`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T13:00"), utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T13:00")))
 
         state.current.shouldBeNull()
         state.next.shouldNotBeNull().type shouldBe AdviceType.AvoidLight
@@ -74,9 +73,9 @@ class WidgetStateMapperTest {
 
     @Test
     fun `stage is upcoming before the first advice and done after the last`() {
-        active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-05T08:00"), utc)).stage shouldBe
+        active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-05T08:00"))).stage shouldBe
             WidgetState.Stage.Upcoming
-        val done = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-08T08:00"), utc))
+        val done = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-08T08:00")))
         done.stage shouldBe WidgetState.Stage.Done
         done.current.shouldBeNull()
         done.next.shouldBeNull()
@@ -84,7 +83,7 @@ class WidgetStateMapperTest {
 
     @Test
     fun `arcs cover the next 24 hours in display wall-clock minutes`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30"), utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30")))
 
         // The current block is clipped to start at "now".
         state.arcs shouldContain DialArc(AdviceType.AvoidLight, 16 * 60 + 30, 90)
@@ -101,7 +100,7 @@ class WidgetStateMapperTest {
         val p = plan {
             day(0, "2026-10-05", tokyo) { advice(AdviceType.Flight, "2026-10-05T10:00", "2026-10-07T10:00") }
         }
-        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-05T12:00"), utc))
+        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-05T12:00")))
         state.arcs shouldBe listOf(DialArc(AdviceType.Flight, 12 * 60, 1440))
     }
 
@@ -111,7 +110,7 @@ class WidgetStateMapperTest {
         val p = plan(origin = "Asia/Tokyo", destination = lisbon) {
             day(1, "2026-03-28", lisbon) { advice(AdviceType.Sleep, "2026-03-28T22:00", "2026-03-29T06:00") }
         }
-        val state = active(WidgetStateMapper.map(p, at(lisbon, "2026-03-28T20:00"), utc))
+        val state = active(WidgetStateMapper.map(p, at(lisbon, "2026-03-28T20:00")))
         val sleep = state.arcs.single()
         sleep.startMinute shouldBe 22 * 60
         sleep.sweepMinutes shouldBe 8 * 60 // 22:00 -> 06:00 on the wall, although only 7 h elapse
@@ -125,8 +124,8 @@ class WidgetStateMapperTest {
             day(1, "2026-07-01", lisbon) { advice(AdviceType.SeeLight, "2026-07-01T08:00", "2026-07-01T10:00") }
             day(2, "2026-12-01", lisbon) { advice(AdviceType.SeeLight, "2026-12-01T08:00", "2026-12-01T10:00") }
         }
-        active(WidgetStateMapper.map(p, at(lisbon, "2026-07-01T09:00"), utc)).displayOffsetMinutes shouldBe 60
-        active(WidgetStateMapper.map(p, at(lisbon, "2026-12-01T09:00"), utc)).displayOffsetMinutes shouldBe 0
+        active(WidgetStateMapper.map(p, at(lisbon, "2026-07-01T09:00"))).displayOffsetMinutes shouldBe 60
+        active(WidgetStateMapper.map(p, at(lisbon, "2026-12-01T09:00"))).displayOffsetMinutes shouldBe 0
     }
 
     @Test
@@ -137,7 +136,7 @@ class WidgetStateMapperTest {
             phase(at(kolkata, "2026-10-06T00:00"), bodyOffsetMinutes = 60, cbtMin = at(kolkata, "2026-10-06T08:00"))
             phase(at(kolkata, "2026-10-07T00:00"), bodyOffsetMinutes = 120, cbtMin = at(kolkata, "2026-10-07T07:00"))
         }
-        val state = active(WidgetStateMapper.map(p, at(kolkata, "2026-10-06T12:00"), utc))
+        val state = active(WidgetStateMapper.map(p, at(kolkata, "2026-10-06T12:00")))
         state.displayOffsetMinutes shouldBe 330
         state.bodyOffsetMinutes shouldBe 90 // halfway between +60 and +120
         state.misalignmentMinutes shouldBe 240
@@ -154,7 +153,7 @@ class WidgetStateMapperTest {
             phase(at(tokyo, "2026-10-06T00:00"), bodyOffsetMinutes = -600, cbtMin = at(tokyo, "2026-10-06T08:00"))
             phase(at(tokyo, "2026-10-07T00:00"), bodyOffsetMinutes = -600, cbtMin = at(tokyo, "2026-10-07T08:00"))
         }
-        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00"), utc))
+        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00")))
         // -600 - 540 = -1140 → +300: the body is effectively 5 h ahead, not 19 h behind.
         state.bodyRelativeMinutes shouldBe 300
         DialMath.formatHoursMagnitude(300) shouldBe "5 h"
@@ -163,7 +162,7 @@ class WidgetStateMapperTest {
 
     @Test
     fun `body night is anchored on the nearest CBTmin`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T05:00"), utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T05:00")))
         state.cbtMinMinute shouldBe 4 * 60
         state.bodyNight shouldBe DialArc(null, 22 * 60, 8 * 60)
     }
@@ -173,7 +172,7 @@ class WidgetStateMapperTest {
         val p = plan {
             day(1, "2026-10-06", tokyo) { advice(AdviceType.SeeLight, "2026-10-06T08:00", "2026-10-06T10:00") }
         }
-        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00"), utc))
+        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00")))
         state.bodyOffsetMinutes shouldBe 60 // Lisbon summer time on 2026-10-06
         state.misalignmentMinutes shouldBe 480
         state.cbtMinMinute.shouldBeNull()
@@ -183,11 +182,11 @@ class WidgetStateMapperTest {
 
     @Test
     fun `upcoming lists what starts after now, without the current block, at most three`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30"), utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30")))
         // Caffeine started at 16:00 (before now): it is running, not "up next".
         state.upcoming.map { it.type } shouldBe listOf(AdviceType.Melatonin, AdviceType.Sleep)
 
-        val morning = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T08:00"), utc))
+        val morning = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T08:00")))
         morning.upcoming.map { it.type } shouldBe
             listOf(AdviceType.SeeBrightLight, AdviceType.AvoidLight, AdviceType.Caffeine)
     }
@@ -195,23 +194,23 @@ class WidgetStateMapperTest {
     @Test
     fun `the logged outcome of the current block is carried`() {
         val now = at(tokyo, "2026-10-06T16:30")
-        active(WidgetStateMapper.map(tokyoDay, now, utc)).currentOutcome.shouldBeNull()
+        active(WidgetStateMapper.map(tokyoDay, now)).currentOutcome.shouldBeNull()
 
-        val current = active(WidgetStateMapper.map(tokyoDay, now, utc)).current!!
+        val current = active(WidgetStateMapper.map(tokyoDay, now)).current!!
         val logs = listOf(AdviceLog("other", AdviceOutcome.Skipped), AdviceLog(current.adviceId, AdviceOutcome.Done))
-        active(WidgetStateMapper.map(tokyoDay, now, utc, logs)).currentOutcome shouldBe AdviceOutcome.Done
+        active(WidgetStateMapper.map(tokyoDay, now, logs)).currentOutcome shouldBe AdviceOutcome.Done
     }
 
     @Test
     fun `plan day and adaptation progress come from the plan`() {
         val now = at(tokyo, "2026-10-06T16:30")
-        val state = active(WidgetStateMapper.map(tokyoDay, now, utc))
+        val state = active(WidgetStateMapper.map(tokyoDay, now))
         state.dayKind shouldBe DayKind.Arrival
         state.dayIndex shouldBe 1
         state.adaptation shouldBe tokyoDay.adaptationProgressAt(now)
 
         val travel = plan { day(0, "2026-10-05", lisbon, DayKind.Travel) { advice(AdviceType.Flight, "2026-10-05T10:00", "2026-10-05T20:00") } }
-        val onTravel = active(WidgetStateMapper.map(travel, at(lisbon, "2026-10-05T12:00"), utc))
+        val onTravel = active(WidgetStateMapper.map(travel, at(lisbon, "2026-10-05T12:00")))
         onTravel.dayKind shouldBe DayKind.Travel
         onTravel.dayIndex shouldBe 0
     }
@@ -219,8 +218,8 @@ class WidgetStateMapperTest {
     @Test
     fun `the trip route is carried for the larger sizes`() {
         val now = at(tokyo, "2026-10-06T16:30")
-        active(WidgetStateMapper.map(tokyoDay, now, utc)).route.shouldBeNull()
-        active(WidgetStateMapper.map(tokyoDay, now, utc, route = WidgetRoute("LIS", "HND"))).route shouldBe
+        active(WidgetStateMapper.map(tokyoDay, now)).route.shouldBeNull()
+        active(WidgetStateMapper.map(tokyoDay, now, route = WidgetRoute("LIS", "HND"))).route shouldBe
             WidgetRoute("LIS", "HND")
     }
 
@@ -228,11 +227,11 @@ class WidgetStateMapperTest {
     fun `the trip's place names are carried and name the destination`() {
         val now = at(tokyo, "2026-10-06T16:30")
         val names = mapOf(tokyo to "Yokohama", lisbon to "Porto")
-        val state = active(WidgetStateMapper.map(tokyoDay, now, utc, placeNames = names))
+        val state = active(WidgetStateMapper.map(tokyoDay, now, placeNames = names))
         state.placeNames shouldBe names
         state.destinationName shouldBe "Yokohama"
         // Without a name from the trip, the zone's city.
-        active(WidgetStateMapper.map(tokyoDay, now, utc)).destinationName shouldBe "Tokyo"
+        active(WidgetStateMapper.map(tokyoDay, now)).destinationName shouldBe "Tokyo"
     }
 
     @Test
@@ -256,7 +255,7 @@ class WidgetStateMapperTest {
     fun `redacting for the lock screen drops places, the route and the melatonin dot`() {
         val now = at(tokyo, "2026-10-06T16:30")
         val full = active(
-            WidgetStateMapper.map(tokyoDay, now, utc, route = WidgetRoute("LIS", "HND"), placeNames = mapOf(tokyo to "Tokyo")),
+            WidgetStateMapper.map(tokyoDay, now, route = WidgetRoute("LIS", "HND"), placeNames = mapOf(tokyo to "Tokyo")),
         )
         val redacted = active(WidgetStateMapper.redact(full))
 
@@ -278,17 +277,32 @@ class WidgetStateMapperTest {
             day(0, "2026-10-05", lisbon) { advice(AdviceType.SeeLight, "2026-10-05T08:00", "2026-10-05T10:00") }
             day(1, "2026-10-06", tokyo) { advice(AdviceType.SeeLight, "2026-10-06T08:00", "2026-10-06T10:00") }
         }
-        val onDay0 = active(WidgetStateMapper.map(p, at(lisbon, "2026-10-05T09:00"), utc))
+        val onDay0 = active(WidgetStateMapper.map(p, at(lisbon, "2026-10-05T09:00")))
         onDay0.displayZoneId shouldBe lisbon
         onDay0.secondaryZoneId shouldBe tokyo
-        active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00"), utc)).displayZoneId shouldBe tokyo
+        active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00"))).displayZoneId shouldBe tokyo
+    }
+
+    @Test
+    fun `the travel day keeps the departure zone until landing, like the plan screen and the notifications`() {
+        // Lisbon 09:00 departure, Tokyo 08:00 next-day arrival: Tokyo's midnight comes long before the landing.
+        val p = plan {
+            day(0, "2026-10-05", lisbon, kind = DayKind.Travel) {
+                advice(AdviceType.Flight, "2026-10-05T09:00", "2026-10-06T00:00")
+            }
+            day(1, "2026-10-06", tokyo) { advice(AdviceType.SeeLight, "2026-10-06T09:00", "2026-10-06T11:00") }
+        }
+        val beforeLanding = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T07:00")))
+        beforeLanding.displayZoneId shouldBe lisbon
+        beforeLanding.secondaryZoneId shouldBe tokyo
+        active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T08:00"))).displayZoneId shouldBe tokyo
     }
 
     @Test
     fun `arcs always stay on the dial`() = runTest {
         val start = at(tokyo, "2026-10-05T00:00").epochSecond
         checkAll(200, Arb.long(start, start + Duration.ofDays(3).seconds)) { epoch ->
-            val state = WidgetStateMapper.map(tokyoDay, Instant.ofEpochSecond(epoch), utc) as WidgetState.Active
+            val state = WidgetStateMapper.map(tokyoDay, Instant.ofEpochSecond(epoch)) as WidgetState.Active
             state.arcs.forEach { arc ->
                 (arc.startMinute in 0 until 1440) shouldBe true
                 (arc.sweepMinutes in 0..1440) shouldBe true

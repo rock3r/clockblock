@@ -216,6 +216,10 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 - The injected `Clock` is UTC. Code never uses the clock's zone as "where the user is". It asks
   [`DeviceZone`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/time/DeviceZone.kt),
   which reads the device zone again on every call, or it uses the zones of the trip.
+- Plan times are shown in the plan's local zone, not the device's: `JetLagPlan.localZoneAt` (the zone of the
+  plan day at that instant) and `secondaryZoneFor` (the other zone) in
+  [`PlanZones.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/PlanZones.kt).
+  The plan screen, the widgets and the notifications all use them, so they always agree.
 - [`ZoneLabels`](../core/model/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/model/ZoneLabels.kt) is the
   only place that turns a zone into text for the UI.
 - Advice times are shown in local time, with the other zone underneath.

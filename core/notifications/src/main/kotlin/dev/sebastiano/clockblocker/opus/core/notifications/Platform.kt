@@ -12,20 +12,20 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
 
-/** Wall-clock source for notifications; the user's *current* zone is read fresh every time (they travel!). */
+/**
+ * Time source for notifications. Deliberately has no zone: notifications show the plan's local time
+ * (`JetLagPlan.localZoneAt`), the same as the plan screen and the widgets, never the device's zone (#36).
+ */
 interface NotificationClock {
     fun now(): Instant
-    fun zone(): ZoneId
 }
 
 @ContributesBinding(AppScope::class)
 @Inject
 class SystemNotificationClock : NotificationClock {
     override fun now(): Instant = Instant.now()
-    override fun zone(): ZoneId = ZoneId.systemDefault()
 }
 
 /**

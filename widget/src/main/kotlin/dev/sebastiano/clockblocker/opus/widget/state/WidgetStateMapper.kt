@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.widget.state
 
 import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
 import dev.sebastiano.clockblocker.opus.core.circadian.currentDay
+import dev.sebastiano.clockblocker.opus.core.circadian.displayZonesAt
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
@@ -24,7 +25,6 @@ object WidgetStateMapper {
     private const val DEFAULT_BODY_NIGHT_START = 23 * 60
 
     /**
-     * @param fallbackZone zone used when the plan has no days (the device's zone).
      * @param logs outcomes logged for the plan's trip (drives the Done button's logged state); null when they could
      *   not be read, so the outcome is unknown.
      * @param route the trip's airport codes, if the trip could be read.
@@ -33,15 +33,16 @@ object WidgetStateMapper {
     fun map(
         plan: JetLagPlan?,
         now: Instant,
-        fallbackZone: ZoneId,
         logs: List<AdviceLog>? = emptyList(),
         route: WidgetRoute? = null,
         placeNames: Map<String, String> = emptyMap(),
     ): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
-        val displayZoneId = displayZone(plan, now) ?: fallbackZone.id
-        val displayZone = ZoneId.of(displayZoneId)
+        // Same local and secondary zones as the plan screen and the notifications (never the device's zone).
+        val zones = plan.displayZonesAt(now)
+        val displayZone = zones.local
+        val displayZoneId = displayZone.id
         val displayOffset = displayZone.rules.getOffset(now).totalSeconds / 60
         val bodyOffset = plan.bodyOffsetAt(now).totalSeconds / 60
 
@@ -66,7 +67,7 @@ object WidgetStateMapper {
             DialArc(null, DialMath.wrap(DEFAULT_BODY_NIGHT_START + misalignment), NIGHT_LENGTH.toMinutes().toInt())
         }
 
-        val secondary = listOf(plan.destinationZoneId, plan.originZoneId).firstOrNull { it != displayZoneId }
+        val secondary = zones.secondary.id.takeIf { it != displayZoneId }
         val upcoming = all
             .filter { it.start.isAfter(now) && it != current }
             .sortedWith(compareBy<Advice> { it.start }.thenBy { it.type.ordinal })
@@ -129,13 +130,6 @@ object WidgetStateMapper {
     }
 
     private const val UPCOMING_COUNT = 3
-
-    /** The zone of the latest plan day that has started by [now] (first day before the plan starts). */
-    private fun displayZone(plan: JetLagPlan, now: Instant): String? {
-        val days = plan.days.sortedBy { it.date.atStartOfDay(ZoneId.of(it.zoneId)).toInstant() }
-        val started = days.lastOrNull { !it.date.atStartOfDay(ZoneId.of(it.zoneId)).toInstant().isAfter(now) }
-        return (started ?: days.firstOrNull())?.zoneId
-    }
 
     /** "Then …": the first block starting once the current one is over (ties broken by priority). */
     private fun nextAfter(all: List<Advice>, current: Advice?, now: Instant): Advice? {
