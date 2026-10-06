@@ -286,6 +286,8 @@ When the dial's rings align, a **confetti burst of MaterialShapes** (Sunny, Clov
 
 *(Container/on hexes are M3 tone 90/10 and 30/90 approximations; regenerate them with material-color-utilities `TonalPalette.fromInt(seed)` at build time.)*
 
+**Glyph edge.** The active advice glyph (Now card, checked tool rows, the rail's "now" block) is filled with the vivid colour. Where that fill is too pale to reach 3:1 against its own container and the surfaces it sits on (WCAG 1.4.11 for graphical objects), the role has an `outline`: a deeper (dark theme: lighter) tone of the same hue, drawn as a thin inner edge so the shape reads without changing the advice colour. Light: See bright light `#8A5A00`, See some light `#8F6400`, Nap `#4A58D0`, Nap if you're tired `#5560D8`, Melatonin `#7552C4`. Dark: Sleep `#AAB4FF`. Every other role's fill already reaches 3:1 and draws no edge. `ContrastAuditTest` checks this for every role.
+
 **Sky ramp** (illustrations, headers, dial outer ring). Two-stop gradients, indexed by solar or body time:
 - Night `#0B1026 → #1B1F4B`
 - Pre-dawn `#2A2E6E → #6B4E9B`

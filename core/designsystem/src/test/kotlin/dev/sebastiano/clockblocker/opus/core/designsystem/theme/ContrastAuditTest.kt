@@ -77,6 +77,49 @@ class ContrastAuditTest {
     }
 
     @Test
+    fun `active advice glyphs stand out from every background they sit on`() = assertSoftly {
+        // Graphical objects need 3:1 (WCAG 1.4.11). The active glyph is drawn on its own advice container (Now card,
+        // checked tool rows, the rail's "now" chip) and on plain surfaces (Settings previews, rail rows).
+        listOf("light" to (AdviceColors.Light to OpusLightColors), "dark" to (AdviceColors.Dark to OpusDarkColors))
+            .forEach { (name, theme) ->
+                val (palette, s) = theme
+                AdviceType.entries.forEach { type ->
+                    val role = palette[type]
+                    listOf(
+                        "container" to role.container,
+                        "surface" to s.surface,
+                        "surfaceContainerLow" to s.surfaceContainerLow,
+                        "surfaceContainer" to s.surfaceContainer,
+                    ).forEach { (bgName, bg) ->
+                        withClue("$name $type glyph edge on $bgName") { glyphEdgeContrast(role, bg) shouldBeGreaterThanOrEqual 3f }
+                    }
+                }
+            }
+    }
+
+    @Test
+    fun `glyph outlines are opaque or absent and keep the advice hue`() = assertSoftly {
+        listOf("light" to AdviceColors.Light, "dark" to AdviceColors.Dark).forEach { (name, palette) ->
+            AdviceType.entries.forEach { type ->
+                val role = palette[type]
+                withClue("$name $type outline alpha") { listOf(0f, 1f).contains(role.outline.alpha) shouldBe true }
+                if (role.hasOutline) {
+                    // A deeper (or, in dark theme, lighter) tone of the same colour, not a different hue.
+                    val drift = kotlin.math.abs(ColorMath.hueDelta(ColorMath.hue(role.color), ColorMath.hue(role.outline)))
+                    withClue("$name $type outline hue drift") { drift shouldBeLessThan 20f }
+                }
+            }
+        }
+    }
+
+    /** The glyph reads by its fill or, where it has one, by its outline edge: whichever stands out more. */
+    private fun glyphEdgeContrast(role: AdviceColorRole, background: Color): Float {
+        val fill = ColorMath.contrast(role.color, background)
+        val edge = if (role.hasOutline) ColorMath.contrast(role.outline, background) else 0f
+        return maxOf(fill, edge)
+    }
+
+    @Test
     fun `bright dynamic dark containers are quietened and keep readable text`() {
         // The Expressive wallpaper scheme seen on a Pixel: light, saturated cyan containers in dark theme.
         val glaring = darkColorScheme(
