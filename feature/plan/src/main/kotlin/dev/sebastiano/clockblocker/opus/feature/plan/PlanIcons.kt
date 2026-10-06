@@ -35,6 +35,9 @@ internal object PlanIcons {
     val NightsStay: ImageVector by lazy {
         icon("NightsStay", "M12.1,22q-2.1,0 -3.94,-0.8t-3.2,-2.17T2.8,15.83T2,11.9q0,-3.4 2.06,-6.05T9.4,2.3q0.5,-0.13 0.86,0.11t0.49,0.64t0.06,0.8t-0.39,0.65q-0.6,0.6 -0.94,1.39T9.15,7.5q0,1.8 1.26,3.08t3.09,1.27q0.78,0 1.48,-0.24t1.27,-0.69q0.33,-0.25 0.72,-0.31t0.72,0.09t0.55,0.46t0.11,0.84q-0.65,2.8 -2.92,4.4T12.1,22")
     }
+    val Flight: ImageVector by lazy {
+        icon("Flight", "M21,16v-2l-8,-5V3.5c0,-0.83 -0.67,-1.5 -1.5,-1.5S10,2.67 10,3.5V9l-8,5v2l8,-2.5V19l-2,1.5V22l3.5,-1 3.5,1v-1.5L13,19v-5.5l8,2.5z")
+    }
 
     private fun icon(name: String, path: String): ImageVector =
         ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)

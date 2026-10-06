@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -164,20 +166,8 @@ internal fun NowCard(
                     modifier = Modifier.padding(top = 4.dp).size(104.dp),
                 )
             }
-            Spacer(Modifier.height(14.dp))
-            // "until 21:00" stays one unit; the secondary zone wraps below it as a whole at large font.
-            DualTimeText(
-                instant = if (advice.type.isMoment) advice.start else advice.end,
-                zone = moment.zone,
-                secondaryZone = moment.secondaryZone,
-                style = OpusTheme.textStyles.timeHeadline,
-                secondaryColor = role.onContainer.copy(alpha = 0.8f),
-                inline = true,
-                prefix = stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
-                modifier = Modifier.padding(end = 8.dp),
-            )
             if (moment.concurrent.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.plan_also_now, moment.concurrent.map { it.type.labelString(resources) }.joinToString(", ")),
                     style = MaterialTheme.typography.bodySmall,
@@ -186,28 +176,87 @@ internal fun NowCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (advice.type != AdviceType.Flight) {
-                Spacer(Modifier.height(16.dp))
-                // While previewing, the slot stays (invisible, inert, hidden from TalkBack) so the card keeps its
-                // height under a scrubbing finger: you can't log the future, but nothing below should jump.
-                Box(
-                    Modifier
-                        .graphicsLayer { alpha = if (previewing) 0f else 1f }
-                        .then(if (previewing) Modifier.clearAndSetSemantics {} else Modifier),
-                ) {
-                    OutcomeSplitButton(
-                        outcome = outcome,
-                        contentColor = role.container,
-                        containerColor = role.onContainer,
-                        onOutcome = onOutcome,
-                        onSnooze = onSnooze,
-                        enabled = !previewing,
+            Spacer(Modifier.height(14.dp))
+            // "until 21:00 · 10:00 San Francisco" and Done | ▾ share one row (no dead space under the illustration,
+            // and Done stays above the fold on compact phones); "until 21:00" stays one unit, and when both can't
+            // fit (large font, 12-hour clock) the button moves under the time rather than squeezing it.
+            TimeAndActions(
+                time = {
+                    DualTimeText(
+                        instant = if (advice.type.isMoment) advice.start else advice.end,
+                        zone = moment.zone,
+                        secondaryZone = moment.secondaryZone,
+                        style = OpusTheme.textStyles.timeHeadline,
+                        secondaryColor = role.onContainer.copy(alpha = 0.8f),
+                        inline = true,
+                        prefix = stringResource(if (advice.type.isMoment) R.string.plan_at_label else R.string.plan_until_label),
                     )
-                }
+                },
+                actions = if (advice.type == AdviceType.Flight) {
+                    null
+                } else {
+                    {
+                        // While previewing, the slot stays (invisible, inert, hidden from TalkBack) so the card keeps
+                        // its height under a scrubbing finger: you can't log the future, but nothing should jump.
+                        Box(
+                            Modifier
+                                .graphicsLayer { alpha = if (previewing) 0f else 1f }
+                                .then(if (previewing) Modifier.clearAndSetSemantics {} else Modifier),
+                        ) {
+                            OutcomeSplitButton(
+                                outcome = outcome,
+                                contentColor = role.container,
+                                containerColor = role.onContainer,
+                                onOutcome = onOutcome,
+                                onSnooze = onSnooze,
+                                enabled = !previewing,
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.padding(end = 8.dp),
+            )
+        }
+    }
+}
+
+/**
+ * [time] on the start side and [actions] on the end side of one row, bottom-aligned, when [time]'s widest unbreakable
+ * part ("until 21:00") fits next to [actions]; otherwise [actions] goes below [time], start-aligned.
+ */
+@Composable
+internal fun TimeAndActions(time: @Composable () -> Unit, actions: (@Composable () -> Unit)?, modifier: Modifier = Modifier) {
+    Layout(contents = listOf(time, actions ?: {}), modifier = modifier) { (times, actionList), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val t = times.first()
+        val a = actionList.firstOrNull()?.measure(loose)
+        if (a == null) {
+            val pt = t.measure(loose)
+            return@Layout layout(constraints.maxWidth, pt.height) { pt.placeRelative(0, 0) }
+        }
+        val gap = TimeActionsGap.roundToPx()
+        val room = constraints.maxWidth - a.width - gap
+        val sideBySide = room > 0 && t.minIntrinsicWidth(Constraints.Infinity) <= room
+        if (sideBySide) {
+            val pt = t.measure(loose.copy(maxWidth = room))
+            val height = maxOf(pt.height, a.height)
+            layout(constraints.maxWidth, height) {
+                pt.placeRelative(0, height - pt.height)
+                a.placeRelative(constraints.maxWidth - a.width, height - a.height)
+            }
+        } else {
+            val pt = t.measure(loose)
+            val stackGap = TimeActionsStackGap.roundToPx()
+            layout(constraints.maxWidth, pt.height + stackGap + a.height) {
+                pt.placeRelative(0, 0)
+                a.placeRelative(0, pt.height + stackGap)
             }
         }
     }
 }
+
+private val TimeActionsGap = 12.dp
+private val TimeActionsStackGap = 16.dp
 
 /** Done | ▾ (Skipped · Can't do this · Snooze 15 min). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

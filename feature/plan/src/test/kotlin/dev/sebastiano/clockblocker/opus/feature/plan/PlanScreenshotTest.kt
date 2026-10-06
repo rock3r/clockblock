@@ -12,7 +12,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.Density
@@ -185,6 +187,24 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.Rail).performScrollToIndex(9)
         compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY, endY = centerY + 40f) }
         compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_scrolled.png")
+    }
+
+    /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
+    @Test
+    @Config(qualifiers = "w411dp-h640dp-xhdpi")
+    fun compactPhone() = snap("compact_phone") { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+
+    /** Travel day on the rail: blocks on board carry "In flight", and a divider marks the switch to London time. */
+    @Test
+    fun railTravelDay() {
+        snap("rail_travel_day", capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+        // Land on the zone switch into London time, then back off a little so the in-flight rows above it show too.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.zoneSwitch(1)))
+        compose.onNodeWithTag(PlanTags.Rail).performTouchInput {
+            swipeDown(startY = centerY - 300f, endY = centerY + 300f, durationMillis = 1_000)
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_travel_day.png")
     }
 
     @Test

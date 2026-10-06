@@ -210,9 +210,9 @@ private fun wrapHours(hours: Float): Float = ((hours + 12f).mod(24f)) - 12f
 /** Status of an advice block on the rail relative to an instant. */
 enum class RailStatus { Past, Now, Future }
 
-/** One advice block on the rail. */
+/** One advice block on the rail. [inFlight]: it starts while airborne (inside a flight block, not the flight itself). */
 @Immutable
-data class RailItem(val advice: Advice, val status: RailStatus, val outcome: AdviceOutcome?)
+data class RailItem(val advice: Advice, val status: RailStatus, val outcome: AdviceOutcome?, val inFlight: Boolean = false)
 
 /**
  * One day on the rail: its span, the zone its times are shown in (+ the secondary zone) and its blocks in start
@@ -238,6 +238,7 @@ fun JetLagPlan.railDays(instant: Instant, outcomes: Map<String, AdviceOutcome>):
     val origin = ZoneId.of(originZoneId)
     val destination = ZoneId.of(destinationZoneId)
     val activeIds = activeAdviceAt(instant).mapTo(HashSet()) { it.id }
+    val flights = allAdvice.filter { it.type == AdviceType.Flight }
     return daySpans().map { span ->
         val zone = ZoneId.of(span.day.zoneId)
         val items = span.day.advice.sortedWith(compareBy<Advice> { it.start }.thenBy { it.type.ordinal }).map { advice ->
@@ -246,7 +247,8 @@ fun JetLagPlan.railDays(instant: Instant, outcomes: Map<String, AdviceOutcome>):
                 !instant.isBefore(if (advice.type.isMoment) advice.start.plus(MomentWindow) else advice.end) -> RailStatus.Past
                 else -> RailStatus.Future
             }
-            RailItem(advice, status, outcomes[advice.id])
+            val inFlight = advice.type != AdviceType.Flight && flights.any { advice.start in it }
+            RailItem(advice, status, outcomes[advice.id], inFlight)
         }
         val inside = instant in span
         val nowIndex = if (!inside) {

@@ -44,6 +44,9 @@ object PlanTags {
     /** A day header on the rail ([index] = `PlanDay.index`, e.g. -1, 0, 2). */
     fun day(index: Int) = "plan_day_$index"
 
+    /** The divider where the rail's times switch zone, before the day with [index]. */
+    fun zoneSwitch(index: Int) = "plan_zone_switch_$index"
+
     /** An entry in the toolbar's day picker. */
     fun dayPick(index: Int) = "plan_day_pick_$index"
 

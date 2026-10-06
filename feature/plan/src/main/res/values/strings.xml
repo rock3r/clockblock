@@ -111,6 +111,10 @@
     <string name="plan_day_header_day">Day %1$d</string>
     <string name="plan_day_header_adapted">Day %1$d · Adapted</string>
     <string name="plan_today">Today</string>
+    <string name="plan_in_flight">In flight</string>
+    <!-- Divider where the rail's times change zone: "Switching to London time" / "UTC+1 · +8 h from Los Angeles". -->
+    <string name="plan_zone_switch">Switching to %1$s time</string>
+    <string name="plan_zone_switch_detail">%1$s · %2$s from %3$s</string>
     <string name="plan_flight_route">%1$s → %2$s</string>
     <string name="plan_time_range">%1$s – %2$s</string>
     <string name="plan_block_description">%1$s, %2$s to %3$s</string>

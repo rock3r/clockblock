@@ -79,6 +79,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
@@ -360,7 +361,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             if (screen.snackbar.showSnackbar(message, actionLabel = action) == SnackbarResult.ActionPerformed) onAction()
         }
     }
-    val sections = PlanSections(state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack)
+
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(screen.appBar)
     val title = planTitle(plan, state.trip)
     val nowOffsetPx = with(density) { -72.dp.roundToPx() }
@@ -382,6 +383,10 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val shortWindow = maxHeight < ShortWindowMaxHeight
+        // Compact phones: the dial gives up size before the Now card's Done drops below the fold (issue #11). Sized
+        // from the window, never from the collapsing header, so scrolling never resizes it.
+        val dialSize = (maxHeight - HeroReserve).coerceIn(MinDialSize, MaxDialSize)
+        val sections = PlanSections(state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize)
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -604,6 +609,7 @@ private class PlanSections(
     val screen: PlanScreenState,
     val showSnack: (String) -> Unit,
     val showActionSnack: (message: String, action: String, onAction: () -> Unit) -> Unit,
+    val dialSize: Dp = MaxDialSize,
 ) {
     val heroKeys: List<String> = buildList {
         add(KeyDial)
@@ -641,7 +647,7 @@ private class PlanSections(
         Box(modifier.padding(horizontal = 24.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
             TwoClocksDial(
                 state = dialState,
-                modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().testTag(PlanTags.Dial),
+                modifier = Modifier.widthIn(max = dialSize).fillMaxWidth().testTag(PlanTags.Dial),
                 onScrub = { instant ->
                     val minute = instant.truncatedTo(ChronoUnit.MINUTES)
                     screen.preview = if (minute == now) null else minute
@@ -785,6 +791,16 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** The dial's size on roomy windows, and the smallest it gets on compact ones. */
+private val MaxDialSize = 320.dp
+private val MinDialSize = 200.dp
+
+/**
+ * Window height the expanded header, the Now card (with Done) and the paddings around the dial need, so the dial
+ * takes what is left (between [MinDialSize] and [MaxDialSize]).
+ */
+private val HeroReserve = 456.dp
 
 /** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
 private val ShortWindowMaxHeight = 480.dp
