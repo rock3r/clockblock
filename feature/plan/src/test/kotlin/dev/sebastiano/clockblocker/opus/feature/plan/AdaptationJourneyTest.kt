@@ -116,4 +116,14 @@ class AdaptationJourneyTest {
         zoneDeltaHours(ZoneId.of("Pacific/Tongatapu"), ZoneId.of("America/Los_Angeles"), june) shouldBe 4f
         zoneDeltaHours(ZoneId.of("Europe/London"), ZoneId.of("Asia/Kolkata"), june) shouldBe 4.5f
     }
+
+    @Test
+    fun `zone deltas print quarter hours instead of rounding them away`() {
+        formatZoneDelta(5.75f) shouldBe "+5\u00BE h" // UTC → Kathmandu
+        formatZoneDelta(12.75f) shouldBe "+12\u00BE h" // UTC → Chatham (summer)
+        formatZoneDelta(-0.25f) shouldBe "\u2212\u00BC h"
+        formatZoneDelta(-9.5f) shouldBe "\u22129\u00BD h"
+        formatZoneDelta(8f) shouldBe "+8 h"
+        formatZoneDelta(0f) shouldBe "0 h"
+    }
 }

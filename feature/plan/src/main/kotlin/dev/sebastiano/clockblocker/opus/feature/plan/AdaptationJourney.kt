@@ -38,6 +38,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.PlannerConfig
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
@@ -109,6 +110,19 @@ internal fun JetLagPlan.geographicShiftHours(): Float {
 /** How far [to]'s clocks are ahead of [from]'s at [at], in hours normalised to (−12, 12] (date line aware). */
 internal fun zoneDeltaHours(from: ZoneId, to: ZoneId, at: Instant): Float =
     normalisedOffsetHours(to.rules.getOffset(at).totalSeconds - from.rules.getOffset(at).totalSeconds)
+
+/**
+ * A zone delta as "+8 h", "−3½ h" or "+5¾ h": [formatJetLagHours]'s style, but at quarter-hour precision so
+ * Kathmandu or Chatham don't contradict the UTC offset printed next to them.
+ */
+internal fun formatZoneDelta(hours: Float): String {
+    val quarters = Math.round(hours * QuartersPerHour)
+    if (quarters % 2 == 0) return formatJetLagHours(quarters / QuartersPerHour.toFloat())
+    val sign = if (quarters > 0) "+" else "\u2212"
+    val whole = abs(quarters) / QuartersPerHour
+    val fraction = if (abs(quarters) % QuartersPerHour == 1) "\u00BC" else "\u00BE"
+    return sign + (if (whole == 0) "" else "$whole") + fraction + " h"
+}
 
 /** An offset difference in seconds as hours in (−12, 12]: a 24 h difference is the same clock time. */
 private fun normalisedOffsetHours(diffSeconds: Int): Float {
@@ -308,4 +322,5 @@ private fun LegendItem(colour: Color, dashed: Boolean, label: String) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
 

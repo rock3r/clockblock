@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawHatch
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawRoundDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawStarDots
@@ -261,7 +260,7 @@ private fun DayHeader(row: RailRow.Header) {
         },
     )
     val offsetHours = zoneDeltaHours(day.zone, day.secondaryZone, day.start)
-    val secondary = (day.secondaryZone.cityName() + " " + formatJetLagHours(offsetHours)).replace(' ', '\u00A0')
+    val secondary = (day.secondaryZone.cityName() + " " + formatZoneDelta(offsetHours)).replace(' ', '\u00A0')
     Surface(color = scheme.surface, modifier = Modifier.fillMaxWidth().testTag(PlanTags.day(day.day.index))) {
         Row(
             Modifier.padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 10.dp).semantics(mergeDescendants = true) { heading() },
@@ -391,7 +390,7 @@ private fun ZoneSwitchRow(row: RailRow.ZoneSwitch) {
     val detail = stringResource(
         R.string.plan_zone_switch_detail,
         utcLabel(row.to.rules.getOffset(row.at)),
-        formatJetLagHours(hours),
+        formatZoneDelta(hours),
         row.from.cityName(),
     )
     Row(
@@ -649,7 +648,7 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
             .alpha(if (past && !highlighted) 0.7f else 1f)
             .testTag(PlanTags.block(advice.id))
             .semantics {
-                contentDescription = "$description. $secondary"
+                contentDescription = listOfNotNull(description, advice.detail, secondary).joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
     ) {
@@ -661,7 +660,10 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
             Spacer(Modifier.width(8.dp))
             Column {
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(formatter.range(advice.start, advice.end, day.zone, resources), style = OpusTheme.textStyles.timeLabel)
+                Text(
+                    formatter.range(advice.start, advice.end, day.zone, resources) + (advice.detail?.let { " · $it" } ?: ""),
+                    style = OpusTheme.textStyles.timeLabel,
+                )
                 Text(secondary, style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.8f))
             }
             item.outcome?.let {

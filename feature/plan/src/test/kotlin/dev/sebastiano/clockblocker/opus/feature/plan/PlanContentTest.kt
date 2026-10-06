@@ -22,9 +22,13 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
+import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.junit.Before
@@ -35,6 +39,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
+import java.time.Instant
 import java.util.Locale
 import dev.sebastiano.clockblocker.opus.core.designsystem.R as DesignR
 
@@ -273,6 +278,22 @@ class PlanContentTest {
         val day3Heading = hasText(context.getString(R.string.plan_previewing_day, "Day 3", "11:00").uppercase()) and inNowCard
         compose.onNode(day3Heading).assertDoesNotExist()
         compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
+    fun `a nested melatonin chip keeps its dose`() {
+        // A melatonin moment inside today's bright-light block (09:00–12:30 UTC) rides as a chip, not a row.
+        val dose = Advice("melatonin-test", AdviceType.Melatonin, Instant.parse("2026-06-17T11:00:00Z"), Instant.parse("2026-06-17T11:00:00Z"), AdviceReason.MelatoninDelays, "0.5 mg")
+        val plan = realPlan.copy(
+            days = realPlan.days.map { day ->
+                if (day.advice.any { it.type == AdviceType.SeeBrightLight && dose.start in it }) day.copy(advice = day.advice + dose) else day
+            },
+        )
+        val rows = buildRailRows(plan.railDays(PlanFixtures.MidAdaptation, emptyMap()), PlanFixtures.MidAdaptation, showEarlier = true)
+        rows.filterIsInstance<RailRow.Block>().flatMap { it.children }.map { it.advice.id } shouldContain dose.id
+        show(ready(PlanFixtures.MidAdaptation, plan = plan))
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.block(dose.id)))
+        compose.onNodeWithTag(PlanTags.block(dose.id)).assertContentDescriptionContains("0.5 mg", substring = true)
     }
 
     @Test
