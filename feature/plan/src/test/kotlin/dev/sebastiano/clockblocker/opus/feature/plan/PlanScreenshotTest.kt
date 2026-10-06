@@ -4,6 +4,8 @@ import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -12,7 +14,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.Density
@@ -185,6 +190,63 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.Rail).performScrollToIndex(9)
         compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY, endY = centerY + 40f) }
         compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_scrolled.png")
+    }
+
+    /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
+    /** The adaptation card: with/without hero, journey chart (dot on Day 2) and legend. */
+    @Test
+    @Config(qualifiers = "w400dp-h700dp-xhdpi")
+    fun adaptationCard() = snap("adaptation_card") {
+        Box(Modifier.padding(16.dp)) { AdaptationCard(realPlan, realPlan.momentAt(PlanFixtures.MidAdaptation)) }
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h1000dp-xhdpi")
+    fun adaptationCardFontScale() = snap("adaptation_card_font_1_5", fontScale = 1.5f) {
+        Box(Modifier.padding(16.dp)) { AdaptationCard(realPlan, realPlan.momentAt(PlanFixtures.MidAdaptation)) }
+    }
+
+    /** An 11 h eastward trip delayed instead: the card explains the long way round. */
+    @Test
+    @Config(qualifiers = "w400dp-h1000dp-xhdpi")
+    fun adaptationLongWayDark() = snap("adaptation_long_way_dark", darkTheme = true) {
+        val plan = PlanFixtures.longWayPlan
+        Box(Modifier.padding(16.dp)) { AdaptationCard(plan, plan.momentAt(plan.landing!!.plusSeconds(36 * 3600))) }
+    }
+
+    /** Day 4 picked in the day strip: dial, Now card and header show Day 4 at the current time of day. */
+    @Test
+    fun dayPicked() {
+        snap("day_picked", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked.png")
+    }
+
+    @Test
+    fun dayPickedDark() {
+        snap("day_picked_dark", darkTheme = true, capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+        compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(-1)))
+        compose.onNodeWithTag(PlanTags.dayPill(-1)).performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked_dark.png")
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h640dp-xhdpi")
+    fun compactPhone() = snap("compact_phone") { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+
+    /** Travel day on the rail: blocks on board carry "In flight", and a divider marks the switch to London time. */
+    @Test
+    fun railTravelDay() {
+        snap("rail_travel_day", capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+        // Land on the zone switch into London time, then back off a little so the in-flight rows above it show too.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.zoneSwitch(1)))
+        compose.onNodeWithTag(PlanTags.Rail).performTouchInput {
+            swipeDown(startY = centerY - 300f, endY = centerY + 300f, durationMillis = 1_000)
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_travel_day.png")
     }
 
     @Test

@@ -68,6 +68,17 @@ class AdaptiveShellTest {
 
     @Test
     @Config(qualifiers = "w1000dp-h800dp")
+    fun `expanded window frames the two panes with a divider`() {
+        launch()
+
+        tag(ShellTestTags.PaneDivider).assertIsDisplayed()
+        tag("trips_open_a").performClick()
+        compose.waitForIdle()
+        tag(ShellTestTags.PaneDivider).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h800dp")
     fun `expanded window shows the editor full screen`() {
         launch()
 
@@ -82,6 +93,7 @@ class AdaptiveShellTest {
     @Config(qualifiers = "w700dp-h1000dp")
     fun `medium window keeps a single pane with an up arrow`() {
         launch()
+        tag(ShellTestTags.PaneDivider).assertDoesNotExist()
 
         tag("screen_placeholder").assertDoesNotExist()
         tag("trips_open_a").performClick()

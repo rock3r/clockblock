@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,10 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +39,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
@@ -53,18 +60,21 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawHatch
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawRoundDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawStarDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
+import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import kotlin.math.abs
 
 /** A row of the rail's lazy list. */
 @Immutable
@@ -79,21 +89,53 @@ internal sealed interface RailRow {
         override val key: String get() = "rail-day-${day.day.index}-${day.day.date}"
     }
 
-    /** [nowFraction]: where "now" falls inside this block (0 top … 1 bottom), or null. */
-    /** [first]/[last]: this block opens/closes its day's body-sky band (the band's ends are rounded). */
+    /**
+     * The zone the rail's times are shown in changes here (the day before was in [from], the next one is in [to]),
+     * usually at landing. [at] is the first instant shown in [to].
+     */
+    data class ZoneSwitch(val day: RailDay, val from: ZoneId, val to: ZoneId, val at: Instant) : RailRow {
+        override val key: String get() = "rail-zone-${day.day.index}-${day.day.date}"
+    }
+
+    /**
+     * One block. [nowFraction]: where "now" falls inside this block (0 top … 1 bottom), or null. [first]/[last]:
+     * this block opens/closes its day's body-sky band (the band's ends are rounded).
+     *
+     * [children] are shorter, lower-priority blocks that sit entirely inside this one ("Caffeine OK" during
+     * "See bright light"): they ride along in this row instead of repeating its start time in the time column.
+     * [showTime] is false when this block starts at the same time as the row above, so the time column only ever
+     * moves forward. The row's slice of the body-clock sky runs from the block's start to [bandEnd] (where the next
+     * row starts), so the strip down the rail is one continuous gradient.
+     */
     data class Block(
         val day: RailDay,
         val item: RailItem,
         val first: Boolean,
         val nowFraction: Float?,
         val last: Boolean = false,
+        val children: List<RailItem> = emptyList(),
+        val showTime: Boolean = true,
+        val bandEnd: Instant = item.advice.end,
     ) : RailRow {
         override val key: String get() = "rail-block-${day.day.index}-${item.advice.id}"
     }
 
-    data class NowMarker(val day: RailDay, val instant: Instant) : RailRow {
+    /** [bandAt]: the instant whose body-clock sky the marker's slice of the strip shows (null = no strip here). */
+    data class NowMarker(val day: RailDay, val instant: Instant, val bandAt: Instant? = null) : RailRow {
         override val key: String get() = "rail-now"
     }
+}
+
+/**
+ * Whether [child] rides inside [parent]'s row: it starts inside [parent], ends no later (moments just need to start
+ * inside), and is less important (higher [AdviceType] ordinal), so an important block is never demoted into a
+ * chip. Nothing nests under a flight (blocks on board get their own rows and an "In flight" badge), and a flight
+ * never becomes a chip either: its row carries the route and flight number.
+ */
+internal fun nestsInside(child: Advice, parent: Advice): Boolean {
+    if (AdviceType.Flight in setOf(parent.type, child.type) || child.type.ordinal <= parent.type.ordinal) return false
+    if (child.start.isBefore(parent.start) || !child.start.isBefore(parent.end)) return false
+    return child.type.isMoment || child.start == child.end || !child.end.isAfter(parent.end)
 }
 
 /**
@@ -103,19 +145,45 @@ internal sealed interface RailRow {
 internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boolean): List<RailRow> = buildList {
     val firstCurrent = days.indexOfFirst { !it.isPast }.let { if (it == -1) 0 else it }
     if (firstCurrent > 0) add(RailRow.Earlier(firstCurrent, showEarlier))
+    var previousShown: RailDay? = null
     days.forEachIndexed { index, day ->
         if (index < firstCurrent && !showEarlier) return@forEachIndexed
+        val previous = previousShown
+        if (previous != null && previous.zone.id != day.zone.id) add(RailRow.ZoneSwitch(day, previous.zone, day.zone, day.start))
+        previousShown = day
         add(RailRow.Header(day, isToday = day.nowIndex != null))
+
+        // Group each block with the lower-priority blocks that sit inside it.
+        val groups = mutableListOf<Pair<Int, MutableList<RailItem>>>()
         day.items.forEachIndexed { i, item ->
-            if (day.nowIndex == i && !day.nowInsideBlock) add(RailRow.NowMarker(day, now))
-            val fraction = if (day.nowIndex == i && day.nowInsideBlock) {
+            val parent = groups.lastOrNull()
+            if (parent != null && nestsInside(item.advice, day.items[parent.first].advice)) parent.second += item else groups += i to mutableListOf()
+        }
+        val nowGroup = day.nowIndex?.let { n -> groups.indexOfLast { it.first <= n } }
+        groups.forEachIndexed { g, (i, children) ->
+            val item = day.items[i]
+            if (nowGroup == g && !day.nowInsideBlock) add(RailRow.NowMarker(day, now, bandAt = item.advice.start.takeIf { g > 0 }))
+            val fraction = if (nowGroup == g && day.nowInsideBlock) {
                 val a = item.advice
                 val span = Duration.between(a.start, a.end).toMillis().toFloat()
                 if (span <= 0f) 0f else (Duration.between(a.start, now).toMillis() / span).coerceIn(0f, 1f)
             } else {
                 null
             }
-            add(RailRow.Block(day, item, first = i == 0, nowFraction = fraction, last = i == day.items.lastIndex))
+            val next = groups.getOrNull(g + 1)?.let { day.items[it.first].advice.start }
+            val end = (children.map { it.advice.end } + item.advice.end).max()
+            add(
+                RailRow.Block(
+                    day = day,
+                    item = item,
+                    first = g == 0,
+                    nowFraction = fraction,
+                    last = g == groups.lastIndex,
+                    children = children.toList(),
+                    showTime = g == 0 || day.items[groups[g - 1].first].advice.start != item.advice.start,
+                    bandEnd = next ?: end,
+                ),
+            )
         }
         if (day.nowIndex == day.items.size) add(RailRow.NowMarker(day, now))
     }
@@ -141,7 +209,8 @@ internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer,
         when (row) {
             is RailRow.Header -> stickyHeader(row.key, contentType = "header") { DayHeader(row) }
             is RailRow.Earlier -> item(row.key, contentType = "earlier") { EarlierToggle(row, renderer.onToggleEarlier) }
-            is RailRow.NowMarker -> item(row.key, contentType = "now") { NowMarkerRow(row, timeColumn) }
+            is RailRow.NowMarker -> item(row.key, contentType = "now") { NowMarkerRow(row, renderer, timeColumn) }
+            is RailRow.ZoneSwitch -> item(row.key, contentType = "zone") { ZoneSwitchRow(row) }
             is RailRow.Block -> item(row.key, contentType = "block") {
                 RailBlockRow(row, renderer, timeColumn, highlighted = row.item.advice.id in renderer.highlighted)
             }
@@ -190,8 +259,8 @@ private fun DayHeader(row: RailRow.Header) {
             DayKind.Adapted -> R.string.plan_day_kind_adapted
         },
     )
-    val offsetHours = (day.secondaryZone.rules.getOffset(day.start).totalSeconds - day.zone.rules.getOffset(day.start).totalSeconds) / 3600f
-    val secondary = (day.secondaryZone.cityName() + " " + formatJetLagHours(offsetHours)).replace(' ', '\u00A0')
+    val offsetHours = zoneDeltaHours(day.zone, day.secondaryZone, day.start)
+    val secondary = (day.secondaryZone.cityName() + " " + formatZoneDelta(offsetHours)).replace(' ', '\u00A0')
     Surface(color = scheme.surface, modifier = Modifier.fillMaxWidth().testTag(PlanTags.day(day.day.index))) {
         Row(
             Modifier.padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 10.dp).semantics(mergeDescendants = true) { heading() },
@@ -239,20 +308,60 @@ private fun EarlierToggle(row: RailRow.Earlier, onToggle: () -> Unit) {
     }
 }
 
+/** Centre of the rail column (the capsules' axis), from the start of the column. */
+private val RailColumnWidth = CapsuleWidth + 12.dp
+
+/**
+ * This row's slice of the body-clock sky strip behind the capsules: [top] at the row's top edge to [bottom] at its
+ * bottom edge. Neighbouring rows share their edge colour, so the strip reads as one ribbon; only a day's two ends
+ * are pill-rounded (square ends read as stray grey rectangles behind the first and last capsules in dark theme).
+ */
+private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, roundBottom: Boolean): Modifier = drawBehind {
+    val end = CornerRadius(size.width / 2f)
+    val band = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(Offset.Zero, size),
+                topLeft = if (roundTop) end else CornerRadius.Zero,
+                topRight = if (roundTop) end else CornerRadius.Zero,
+                bottomRight = if (roundBottom) end else CornerRadius.Zero,
+                bottomLeft = if (roundBottom) end else CornerRadius.Zero,
+            ),
+        )
+    }
+    drawPath(band, Brush.verticalGradient(listOf(top, bottom)), alpha = SkyBandAlpha)
+}
+
+private const val SkyBandAlpha = 0.16f
+
 @Composable
-private fun NowMarkerRow(row: RailRow.NowMarker, timeColumn: Dp) {
+private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeColumn: Dp) {
     val formatter = rememberTimeFormatter()
     val color = MaterialTheme.colorScheme.primary
+    val sky = OpusTheme.sky
     val time = formatter.formatFull(row.instant.atZone(row.day.zone).toLocalTime())
+    val band = row.bandAt?.let { at -> remember(at, sky) { sky.gradientAt(renderer.bodyHour(at)).mid } }
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag(PlanTags.NowMarker),
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(IntrinsicSize.Min).testTag(PlanTags.NowMarker),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             time,
             style = OpusTheme.textStyles.timeLabel,
             color = color,
-            modifier = Modifier.width(timeColumn),
+            modifier = Modifier.width(timeColumn).padding(vertical = 4.dp),
+        )
+        // The marker sits on the capsules' axis, over the same strip the blocks around it paint.
+        Box(
+            Modifier
+                .width(RailColumnWidth)
+                .fillMaxHeight()
+                .then(if (band != null) Modifier.skyBand(band, band, roundTop = false, roundBottom = false) else Modifier)
+                .drawBehind {
+                    val y = size.height / 2f
+                    drawCircle(color, 5.dp.toPx(), Offset(size.width / 2f, y))
+                    drawLine(color, Offset(size.width / 2f, y), Offset(size.width, y), 2.dp.toPx(), StrokeCap.Round)
+                },
         )
         Box(
             Modifier
@@ -260,14 +369,65 @@ private fun NowMarkerRow(row: RailRow.NowMarker, timeColumn: Dp) {
                 .height(18.dp)
                 .drawBehind {
                     val y = size.height / 2f
-                    val r = 5.dp.toPx()
-                    drawCircle(color, r, Offset(CapsuleWidth.toPx() / 2f, y))
-                    drawLine(color, Offset(CapsuleWidth.toPx() / 2f, y), Offset(size.width, y), 2.dp.toPx(), StrokeCap.Round)
+                    drawLine(color, Offset(0f, y), Offset(size.width, y), 2.dp.toPx(), StrokeCap.Round)
                 },
         )
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.plan_now), style = MaterialTheme.typography.labelLargeEmphasized, color = color)
     }
+}
+
+/**
+ * Where the rail's times change zone (usually at landing): "Switching to London time · UTC+1 · 8 h ahead". The day
+ * headers name each day's zone too, but a block-by-block reader needs to see the clocks change under them.
+ */
+@Composable
+private fun ZoneSwitchRow(row: RailRow.ZoneSwitch) {
+    val scheme = MaterialTheme.colorScheme
+    val role = OpusTheme.adviceColors[AdviceType.Flight]
+    val title = stringResource(R.string.plan_zone_switch, row.to.cityName())
+    val hours = zoneDeltaHours(row.from, row.to, row.at)
+    val detail = stringResource(
+        R.string.plan_zone_switch_detail,
+        utcLabel(row.to.rules.getOffset(row.at)),
+        formatZoneDelta(hours),
+        row.from.cityName(),
+    )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .testTag(PlanTags.zoneSwitch(row.day.day.index))
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
+        Surface(
+            shape = CircleShape,
+            color = role.container,
+            contentColor = role.onContainer,
+            modifier = Modifier.padding(horizontal = 8.dp).widthIn(max = 360.dp),
+        ) {
+            Row(Modifier.padding(start = 10.dp, end = 14.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(PlanIcons.Flight, contentDescription = null, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = 90f })
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(title, style = MaterialTheme.typography.labelLarge)
+                    Text(detail, style = OpusTheme.textStyles.timeLabel, color = role.onContainer.copy(alpha = 0.85f))
+                }
+            }
+        }
+        Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
+    }
+}
+
+/** "UTC+1", "UTC−7", "UTC+5:30" (true minus sign). */
+internal fun utcLabel(offset: ZoneOffset): String {
+    val total = offset.totalSeconds / 60
+    val sign = if (total < 0) "\u2212" else "+"
+    val h = abs(total) / 60
+    val m = abs(total) % 60
+    return if (m == 0) "UTC$sign$h" else "UTC$sign$h:" + m.toString().padStart(2, '0')
 }
 
 @Composable
@@ -291,28 +451,13 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
         advice.type.isMoment -> advice.detail
         else -> formatDuration(advice.duration) + (advice.detail?.let { " · $it" } ?: "")
     }
-    val description = if (advice.type.isMoment) {
-        stringResource(R.string.plan_moment_description, label, range)
-    } else {
-        stringResource(
-            R.string.plan_block_description,
-            label,
-            formatter.formatFull(advice.start.atZone(day.zone).toLocalTime()),
-            formatter.formatFull(advice.end.atZone(day.zone).toLocalTime()),
-        )
-    }
-    val outcomeText = row.item.outcome?.let {
-        stringResource(
-            when (it) {
-                AdviceOutcome.Done -> R.string.plan_outcome_done
-                AdviceOutcome.Skipped -> R.string.plan_outcome_skipped
-                AdviceOutcome.CantDo -> R.string.plan_outcome_cant
-            },
-        )
-    }
+    val description = blockDescription(advice, day)
+    val inFlightText = stringResource(R.string.plan_in_flight)
+    val outcomeText = row.item.outcome?.let { outcomeLabel(it) }
     val nowText = stringResource(R.string.plan_now)
-    val bodyTop = remember(advice.start) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
-    val bodyBottom = remember(advice.end) { sky.gradientAt(renderer.bodyHour(advice.end)).mid }
+    // Keyed on the palette too, so Night-safe's sky cross-fade reaches rows already on screen.
+    val bodyTop = remember(advice.start, sky) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
+    val bodyBottom = remember(row.bandEnd, sky) { sky.gradientAt(renderer.bodyHour(row.bandEnd)).mid }
     val rowShape = RoundedCornerShape(24.dp)
     Row(
         Modifier
@@ -324,49 +469,40 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             .padding(horizontal = 8.dp)
             .height(IntrinsicSize.Min)
             .testTag(PlanTags.block(advice.id))
-            .clearAndSetSemantics {
-                contentDescription = listOfNotNull(description, detail, secondaryRange).joinToString(". ")
+            // The row speaks as one button; the blocks riding inside it (children) stay their own buttons.
+            .semantics {
+                contentDescription = listOfNotNull(description, inFlightText.takeIf { row.item.inFlight }, detail, secondaryRange).joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
         verticalAlignment = Alignment.Top,
     ) {
-        // Time column: start time, upright = local (dial type rule).
-        Column(Modifier.width(timeColumn).padding(top = RowGap + 6.dp)) {
-            Text(
-                formatter.format(advice.start.atZone(day.zone).toLocalTime()),
-                style = OpusTheme.textStyles.timeTitle,
-                color = if (emphasised) scheme.onSurface else scheme.onSurfaceVariant,
-            )
-            formatter.marker(advice.start.atZone(day.zone).toLocalTime())?.let {
-                Text(it, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+        // Time column: start time, upright = local (dial type rule). Blank when the row above starts at the same
+        // time, so the column only ever moves forward.
+        Column(Modifier.width(timeColumn).padding(top = RowGap + 6.dp).clearAndSetSemantics {}) {
+            if (row.showTime) {
+                Text(
+                    formatter.format(advice.start.atZone(day.zone).toLocalTime()),
+                    style = OpusTheme.textStyles.timeTitle,
+                    color = if (emphasised) scheme.onSurface else scheme.onSurfaceVariant,
+                )
+                formatter.marker(advice.start.atZone(day.zone).toLocalTime())?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+                }
             }
         }
-        // Rail column: faint body-clock sky band, connector line, the capsule (height = duration).
+        // Rail column: the body-clock sky strip, connector line, the capsule (height = duration).
         val connector = scheme.outlineVariant
         Box(
             Modifier
-                .width(CapsuleWidth + 12.dp)
+                .width(RailColumnWidth)
                 .fillMaxHeight()
+                .skyBand(bodyTop, bodyBottom, roundTop = row.first, roundBottom = row.last)
                 .drawBehind {
-                    // The band's day ends are pill-rounded: square ends read as stray grey rectangles behind
-                    // the first and last capsules, especially in dark theme.
-                    val end = CornerRadius(size.width / 2f)
-                    val band = Path().apply {
-                        addRoundRect(
-                            RoundRect(
-                                rect = Rect(Offset.Zero, size),
-                                topLeft = if (row.first) end else CornerRadius.Zero,
-                                topRight = if (row.first) end else CornerRadius.Zero,
-                                bottomRight = if (row.last) end else CornerRadius.Zero,
-                                bottomLeft = if (row.last) end else CornerRadius.Zero,
-                            ),
-                        )
-                    }
-                    drawPath(band, Brush.verticalGradient(listOf(bodyTop, bodyBottom)), alpha = 0.16f)
                     if (!row.first) {
                         drawLine(connector, Offset(size.width / 2f, 0f), Offset(size.width / 2f, RowGap.toPx()), 2.dp.toPx(), StrokeCap.Round)
                     }
-                },
+                }
+                .clearAndSetSemantics {},
         ) {
             Box(
                 Modifier
@@ -414,34 +550,140 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             Modifier
                 .weight(1f)
                 .heightIn(min = height + RowGap * 2)
-                .padding(top = RowGap + 6.dp, bottom = RowGap + 6.dp)
-                .alpha(if (past && !emphasised) 0.7f else 1f),
+                .padding(top = RowGap + 6.dp, bottom = RowGap + 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    label,
-                    style = if (emphasised) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (isNow) {
-                    Spacer(Modifier.width(8.dp))
-                    Surface(shape = CircleShape, color = scheme.primary, contentColor = scheme.onPrimary) {
-                        Text(nowText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+            Column(
+                Modifier.alpha(if (past && !emphasised) 0.7f else 1f).clearAndSetSemantics {},
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                FlowRow(
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        label,
+                        style = if (emphasised) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (isNow) {
+                        Surface(shape = CircleShape, color = scheme.primary, contentColor = scheme.onPrimary) {
+                            Text(nowText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                        }
+                    }
+                    if (row.item.inFlight) InFlightBadge(inFlightText)
+                    row.item.outcome?.let { OutcomeBadge(it) }
+                }
+                Text(range, style = OpusTheme.textStyles.timeLabel, color = scheme.onSurface)
+                if (!detail.isNullOrBlank()) {
+                    Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Text(secondaryRange, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
+            }
+            if (row.children.isNotEmpty()) {
+                FlowRow(
+                    Modifier.padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    row.children.forEach { child ->
+                        ChildBlockChip(child, day, highlighted = child.advice.id in renderer.highlighted, onClick = { renderer.onBlockClick(child.advice.id) })
                     }
                 }
-                row.item.outcome?.let {
-                    Spacer(Modifier.width(8.dp))
-                    OutcomeBadge(it)
-                }
             }
-            Text(range, style = OpusTheme.textStyles.timeLabel, color = scheme.onSurface)
-            if (!detail.isNullOrBlank()) {
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** "See bright light, 10:00 to 13:30" / "Take melatonin at 22:00": what TalkBack reads for a block. */
+@Composable
+private fun blockDescription(advice: Advice, day: RailDay): String {
+    val formatter = rememberTimeFormatter()
+    val resources = LocalContext.current.resources
+    val label = advice.type.label()
+    return if (advice.type.isMoment) {
+        stringResource(R.string.plan_moment_description, label, formatter.range(advice.start, advice.end, day.zone, resources))
+    } else {
+        stringResource(
+            R.string.plan_block_description,
+            label,
+            formatter.formatFull(advice.start.atZone(day.zone).toLocalTime()),
+            formatter.formatFull(advice.end.atZone(day.zone).toLocalTime()),
+        )
+    }
+}
+
+@Composable
+private fun outcomeLabel(outcome: AdviceOutcome): String = stringResource(
+    when (outcome) {
+        AdviceOutcome.Done -> R.string.plan_outcome_done
+        AdviceOutcome.Skipped -> R.string.plan_outcome_skipped
+        AdviceOutcome.CantDo -> R.string.plan_outcome_cant
+    },
+)
+
+/**
+ * A shorter block that sits inside its row's block ("Caffeine OK" during "See bright light"): its own glyph,
+ * label and times, and its own Why? (48 dp target). Labelled, never an icon alone.
+ */
+@Composable
+private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, onClick: () -> Unit) {
+    val advice = item.advice
+    val role = OpusTheme.adviceColors[advice.type]
+    val formatter = rememberTimeFormatter()
+    val resources = LocalContext.current.resources
+    val isNow = item.status == RailStatus.Now
+    val past = item.status == RailStatus.Past
+    val description = blockDescription(advice, day)
+    val nowText = stringResource(R.string.plan_now)
+    val outcomeText = item.outcome?.let { outcomeLabel(it) }
+    val secondary = formatter.range(advice.start, advice.end, day.secondaryZone, resources) + " " + day.secondaryZone.cityName()
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = if (isNow || highlighted) role.container else MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = if (isNow || highlighted) role.onContainer else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .alpha(if (past && !highlighted) 0.7f else 1f)
+            .testTag(PlanTags.block(advice.id))
+            .semantics {
+                contentDescription = listOfNotNull(description, advice.detail, secondary).joinToString(". ")
+                if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
+            },
+    ) {
+        Row(
+            Modifier.heightIn(min = 40.dp).padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp).clearAndSetSemantics {},
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AdviceGlyph(advice.type, active = isNow, size = 28.dp)
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    formatter.range(advice.start, advice.end, day.zone, resources) + (advice.detail?.let { " · $it" } ?: ""),
+                    style = OpusTheme.textStyles.timeLabel,
+                )
+                Text(secondary, style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.8f))
             }
-            Text(secondaryRange, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
+            item.outcome?.let {
+                Spacer(Modifier.width(8.dp))
+                OutcomeBadge(it)
+            }
+        }
+    }
+}
+
+/** Tonal "In flight" label on blocks that happen on board (text, never the plane alone). */
+@Composable
+private fun InFlightBadge(text: String) {
+    val role = OpusTheme.adviceColors[AdviceType.Flight]
+    Surface(shape = CircleShape, color = role.container, contentColor = role.onContainer) {
+        Row(Modifier.padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(PlanIcons.Flight, contentDescription = null, modifier = Modifier.size(12.dp).graphicsLayer { rotationZ = 90f })
+            Spacer(Modifier.width(4.dp))
+            Text(text, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

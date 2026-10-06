@@ -9,7 +9,7 @@ it. If you want to know why a block is there, tap **Why?**.
 - The **Now** tab shows the plan for the trip that matters right now: the one in progress, or else the next one.
 - On the **Trips** tab, tap any trip card to open its plan.
 
-On a tablet or a wide screen, the trips list and the plan appear side by side.
+On a tablet or a wide screen, the trips list and the plan appear side by side, with a thin line between them.
 
 ## The plan screen
 
@@ -19,10 +19,24 @@ From top to bottom:
 
 1. **The header** shows the trip, the day of the plan and how far off your body clock is, for example "Day 2 ·
    Adapting · body 3½ h behind" or "Pre-trip day −1 · body 2½ h ahead".
-2. **The dial** compares two clocks (see below).
-3. **The Now card** says what to do right now.
-4. **Up next** shows the following block.
-5. **Your plan** is the full timeline, day by day.
+2. **The day strip** has one pill per day of the plan (see below).
+3. **The dial** compares two clocks (see below).
+4. **The Now card** says what to do right now.
+5. **Up next** shows the following block.
+6. **How you're adapting** compares the plan with doing nothing (see below).
+7. **Your plan** is the full timeline, day by day.
+
+On a small phone, the day strip moves below the Now card so that **Done** stays on screen without scrolling.
+
+### The day strip
+
+Each pill shows a day ("Pre −2", "Travel", "Day 1", and a tick on the day you're adapted), its date and two small
+dots: the hollow dot is local time and the filled dot is your body clock. The further apart they are, the bigger
+the gap that day. Once your body has caught up, the dots sit on top of each other. Today's pill has an outline.
+
+Tap a pill to see that day at the current time of day. The header, the dial and the Now card switch to that day, and
+the Now card's heading says which day you're looking at, for example "Day 3 at 11:00". Tap today's pill, or **Now**
+in the toolbar, to go back. On a tablet, the timeline also scrolls to the day you picked.
 
 ### The dial
 
@@ -33,7 +47,7 @@ body clock thinks it is. The badge shows the gap between them: "−8 h" means yo
 time, "+4½ h" means it is 4½ hours ahead. The arcs around the edge show the blocks of your plan.
 
 To look ahead, drag the clock hand around the dial. The Now card changes to show what you'd be doing "At 18:30",
-for example. Let go and the hand returns to now. You can also tap the centre to return. With TalkBack, the dial
+for example. Let go and the hand returns to now (or to the day you picked in the day strip). You can also tap the centre to return. With TalkBack, the dial
 offers the actions **Next block**, **Previous block** and **Back to now**.
 
 ### The Now card
@@ -42,12 +56,33 @@ The card shows:
 
 - "NOW" and how much time is left in the block.
 - What to do, in large text (for example **Sleep** or **Avoid caffeine**), and a short tip.
-- When it ends: "until 15:00", with the same moment in your other time zone next to it ("07:00 Los Angeles").
 - Other blocks that are also active, such as "Also now: Avoid caffeine".
+- When it ends: "until 15:00", with the same moment in your other time zone next to it ("07:00 Los Angeles").
 
-When you've done it, tap **Done**. The small arrow next to Done offers **Skipped**, **Can't do this** and
+When you've done it, tap **Done**, at the bottom right of the card. The small arrow next to Done offers **Skipped**, **Can't do this** and
 **Snooze 15 min**. After Done, Skipped or Can't do this, a message appears at the bottom with **Undo**. Snooze
 has no Undo: reminders stay quiet for 15 minutes, then this one comes back if its block is still going.
+
+### How you're adapting
+
+This card puts two estimates side by side: how many days adapting should take with your plan, and without one. When
+the plan is faster, a pill says by how much, for example "~3 days faster". Below that are how far you've come
+("59% adapted · about 2 days to go") and a small chart:
+
+- The **solid line** is how many hours your body clock is off destination time, day by day, if you follow the plan.
+  It often starts dropping before you fly, thanks to the pre-trip days.
+- The **dashed line** is a rough guide to doing nothing: your body stays on home time until you land, then catches up
+  by the time the model expects.
+- The vertical line marks when you **arrive**, and the dot shows the moment on screen. It moves when you pick a day
+  in the day strip.
+
+#### The long way round
+
+After a big jump east, some plans move your body clock *later* instead of earlier, for example 13 hours later
+rather than 11 hours earlier for Los Angeles to Dubai. The card explains why when this happens: morning light at
+the destination would fall before your body's low point, where light pushes the clock the wrong way, and most body
+clocks find moving later a little easier. This is a judgement call that experts still debate, so the app never
+claims it's faster. See [the science](../docs/science.md) for details.
 
 ### The timeline
 
@@ -56,6 +91,14 @@ has no Undo: reminders stay quiet for 15 minutes, then this one comes back if it
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
 adapted. Each block shows its local time and, underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
 earlier days** to see them. Tap any block to read why it's there.
+
+A few details help you read it:
+
+- A short block that falls inside a longer one, such as **Caffeine OK** during **See bright light**, is shown as a
+  small chip inside the longer block. Tap the chip to read about it.
+- Blocks that happen on board are marked **In flight**.
+- Where the times switch from one time zone to the other, a divider says so, for example "Switching to London
+  time · UTC+1 · +8 h from Los Angeles".
 
 The toolbar at the bottom jumps to **Now**, lets you pick any day of the plan (**Day**), or opens **Why?** for the
 current block.

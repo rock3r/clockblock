@@ -2,8 +2,19 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -13,12 +24,19 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
+import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.junit.Before
@@ -28,6 +46,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.time.Duration
+import java.time.Instant
 import java.util.Locale
 import dev.sebastiano.clockblocker.opus.core.designsystem.R as DesignR
 
@@ -137,6 +157,18 @@ class PlanContentTest {
     }
 
     @Test
+    fun `picking a day resets the dial's scrub so dial and Now card agree`() {
+        show(midAdaptation)
+        // TalkBack steps the dial to the next block (13:30 on Day 2)…
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        // …then picks Day 3: everything is anchored to 11:00 on Day 3, the dial included.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Dial).assertContentDescriptionContains("11:00 local", substring = true)
+    }
+
+    @Test
     fun `the celebration is dismissed once and reported`() {
         show(ready(PlanFixtures.Adapted, celebrate = true))
         compose.onNodeWithTag(PlanTags.Celebration).assertIsDisplayed()
@@ -200,6 +232,218 @@ class PlanContentTest {
         // Navigation settle + the ring turn (or the timeout) later, the overlay is up.
         compose.mainClock.advanceTimeBy(CelebrationNavSettleMillis + CelebrationAlignTimeoutMillis + 1_000)
         compose.onNodeWithTag(PlanTags.CelebrationDismiss).assertExists()
+    }
+
+    @Test
+    fun `picking a day in the strip previews it at the same time of day, and today goes back to live`() {
+        show(midAdaptation)
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        // Mid-adaptation is Day 2 at 11:00 London: Day 3 previews 11:00 on Day 3.
+        val day3Heading = hasText(context.getString(R.string.plan_previewing_day, "Day 3", "11:00").uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected()
+
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsSelected()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsNotSelected()
+        compose.onNode(day3Heading).assertExists()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+    }
+
+    @Test
+    fun `a day picked on one trip does not carry over when the current plan switches trip`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // Same days (so Day 3 exists on the new plan too), different trip.
+        val other = "other-trip"
+        state = ready(
+            PlanFixtures.MidAdaptation,
+            plan = realPlan.copy(tripId = other),
+            trip = PlanFixtures.trip.copy(id = other),
+        )
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
+    fun `a new current trip starts its day strip from the first day`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Scroll the strip to its far end on this trip…
+        val last = realPlan.days.last().index
+        compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(last)))
+        compose.onNodeWithTag(PlanTags.dayPill(last)).performClick()
+        compose.waitForIdle()
+
+        // …then the Now tab moves on to another trip that hasn't started (no today, nothing picked).
+        val other = "next-trip"
+        state = ready(
+            Instant.parse("2026-06-01T12:00:00Z"),
+            plan = realPlan.copy(tripId = other),
+            trip = PlanFixtures.trip.copy(id = other),
+        )
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(realPlan.days.first().index)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `a picked day that becomes today goes live for good`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The clock reaches Day 3: the pick is today, so the screen is live…
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(1)))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        // …and stays live on Day 4 instead of jumping back to the old pick.
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)))
+        compose.waitForIdle()
+        val day3Heading = hasText(context.getString(R.string.plan_previewing_day, "Day 3", "11:00").uppercase()) and inNowCard
+        compose.onNode(day3Heading).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
+    fun `a future pick expires once its day has passed, even unobserved, while a past pick stays`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The app sleeps through all of Day 3 and wakes on Day 4: the future pick is spent, so the screen is live.
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+
+        // A deliberate look back at a past day is kept as time moves on.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)).plus(Duration.ofHours(1)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsSelected()
+        compose.onNode(nowHeading).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a nested melatonin chip keeps its dose`() {
+        // A melatonin moment inside today's bright-light block (09:00–12:30 UTC) rides as a chip, not a row.
+        val dose = Advice("melatonin-test", AdviceType.Melatonin, Instant.parse("2026-06-17T11:00:00Z"), Instant.parse("2026-06-17T11:00:00Z"), AdviceReason.MelatoninDelays, "0.5 mg")
+        val plan = realPlan.copy(
+            days = realPlan.days.map { day ->
+                if (day.advice.any { it.type == AdviceType.SeeBrightLight && dose.start in it }) day.copy(advice = day.advice + dose) else day
+            },
+        )
+        val rows = buildRailRows(plan.railDays(PlanFixtures.MidAdaptation, emptyMap()), PlanFixtures.MidAdaptation, showEarlier = true)
+        rows.filterIsInstance<RailRow.Block>().flatMap { it.children }.map { it.advice.id } shouldContain dose.id
+        show(ready(PlanFixtures.MidAdaptation, plan = plan))
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.block(dose.id)))
+        compose.onNodeWithTag(PlanTags.block(dose.id)).assertContentDescriptionContains("0.5 mg", substring = true)
+    }
+
+    @Test
+    fun `day pills read their day, date and body offset to TalkBack`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("Day 2", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("today", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertContentDescriptionContains("body", substring = true)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - picking a day also brings its rows up on the rail`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - a day pick that goes live on its own brings the rail back to the Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        // The rail is left scrolled well past the picked day.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+
+        // The clock reaches Day 3: the pick goes live without a tap, and the rail follows the screen to Now.
+        val later = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(1)))
+        state = later
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(later.moment.active!!.id)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes with motion - picking today again brings the Now row back`() {
+        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `a day picked in one pane is followed by the rail once two panes appear`() {
+        var width by mutableStateOf(400.dp)
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                Box(Modifier.width(width)) { PlanContent(midAdaptation, actions) }
+            }
+        }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+
+        width = 1280.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the floating toolbar follows the Now card when a resize reorders the hero`() {
+        // 880 dp tall: strip, dial, Now card. 700 dp: dial, Now card, strip (keeps Done above the fold).
+        var height by mutableStateOf(880.dp)
+        compose.setContent {
+            OpusTheme(dynamicColor = false, reduceMotion = true) {
+                Box(Modifier.size(400.dp, height)) { PlanContent(midAdaptation, actions) }
+            }
+        }
+        compose.onNodeWithTag(PlanTags.Toolbar).assertDoesNotExist()
+
+        // The list keeps the strip at the top, so the dial and Now card are now scrolled away above it.
+        height = 700.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NowCard).assertIsNotDisplayed()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
     }
 
     @Test

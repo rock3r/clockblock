@@ -37,12 +37,21 @@ object PlanTags {
     const val Celebration = "plan_celebration"
     const val CelebrationDismiss = "plan_celebration_dismiss"
     const val EmptyPane = "plan_empty_pane"
+    const val DayStrip = "plan_day_strip"
+    const val JourneyChart = "plan_journey_chart"
+    const val LongWayRound = "plan_long_way_round"
 
     /** One advice block on the rail. */
     fun block(adviceId: String) = "plan_block_$adviceId"
 
     /** A day header on the rail ([index] = `PlanDay.index`, e.g. -1, 0, 2). */
     fun day(index: Int) = "plan_day_$index"
+
+    /** The divider where the rail's times switch zone, before the day with [index]. */
+    fun zoneSwitch(index: Int) = "plan_zone_switch_$index"
+
+    /** A pill in the day strip above the dial ([index] = `PlanDay.index`). */
+    fun dayPill(index: Int) = "plan_day_pill_$index"
 
     /** An entry in the toolbar's day picker. */
     fun dayPick(index: Int) = "plan_day_pick_$index"

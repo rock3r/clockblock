@@ -61,8 +61,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -79,6 +82,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
@@ -129,8 +133,36 @@ internal class PlanScreenState(
     val rail: LazyListState,
     val pane: ScrollState,
 ) {
-    /** Instant the dial is being scrubbed to (null = now). */
+    /** Instant the dial is being scrubbed to (null = now, or the picked day's anchor). */
     var preview: Instant? by mutableStateOf(null)
+
+    /**
+     * The day picked in the day strip (`PlanDay.index`) and the trip it was picked on. Keyed by trip because the
+     * top-level current plan can switch trip under the same screen, and a day index means nothing on another trip.
+     */
+    private var selection: DayPick? by mutableStateOf(null)
+
+    /** The day picked on [tripId] (null = live, or the pick belonged to another trip). */
+    fun selectedDay(tripId: String): Int? = selection?.takeIf { it.tripId == tripId }?.index
+
+    /** Whether the day picked on [tripId] was still to come when picked (such a pick expires once its day starts). */
+    fun pickedFuture(tripId: String): Boolean = selection?.takeIf { it.tripId == tripId }?.future == true
+
+    /** Picks [index] on [tripId] ([future]: that day hasn't started yet), or goes back to live when [index] is null. */
+    fun pickDay(tripId: String, index: Int?, future: Boolean = false) {
+        selection = index?.let { DayPick(tripId, it, future) }
+    }
+
+    private data class DayPick(val tripId: String, val index: Int, val future: Boolean)
+
+    /**
+     * Counts picks in the day strip: the two-pane rail follows each one (an event, so a pick mid-scroll counts).
+     * One pane leaves them unfollowed, so a pick made there is shown once a resize brings the rail into view.
+     */
+    var dayPicks: Int by mutableIntStateOf(0)
+
+    /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
+    var dayPicksFollowed: Int = 0
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
@@ -328,9 +360,31 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
-    val preview = screen.preview?.takeIf { it != state.now }
-    val shown = remember(plan, state.moment, preview) { if (preview == null) state.moment else plan.momentAt(preview) }
     val railDays = remember(plan, state.now, state.outcomes) { plan.railDays(state.now, state.outcomes) }
+    // A day picked in the strip anchors everything to that day at the current time of day; the dial's scrub is
+    // relative to that anchor and springs back to it.
+    val selectedDay = screen.selectedDay(plan.tripId)
+    val pickedFuture = screen.pickedFuture(plan.tripId)
+    val dayBase = remember(railDays, selectedDay, pickedFuture, state.now, state.moment.zone) {
+        selectedDayBase(railDays, selectedDay, state.now, state.moment.zone, pickedFuture)
+    }
+    // A pick that is (or has become) today, a look ahead whose day has come (even while the app was away), or a
+    // day the plan no longer has, is live: forget it, so the screen can't jump back to it once that day is past.
+    // Going live counts as a pick, so the two-pane rail follows back to the Now row too.
+    if (selectedDay != null && dayBase == null) {
+        SideEffect {
+            screen.pickDay(plan.tripId, null)
+            screen.dayPicks++
+        }
+    }
+    val anchor = dayBase ?: state.now
+    val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone
+    val preview = screen.preview?.takeIf { it != anchor } ?: dayBase
+    val shown = remember(plan, state.moment, preview) { if (preview == null) state.moment else plan.momentAt(preview) }
+    val todayIndex = remember(railDays, state.now) {
+        railDays.firstOrNull { !state.now.isBefore(it.start) && state.now.isBefore(it.end) }?.day?.index
+    }
+    val dayOffsets = remember(plan, railDays) { dayStripOffsets(plan, railDays) }
     val rows = remember(railDays, state.now, screen.showEarlier) { buildRailRows(railDays, state.now, screen.showEarlier) }
     val routes = remember(plan, state.trip, resources) { flightRoutes(plan, state.trip, resources) }
     val highlighted = remember(shown, preview) {
@@ -360,7 +414,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             if (screen.snackbar.showSnackbar(message, actionLabel = action) == SnackbarResult.ActionPerformed) onAction()
         }
     }
-    val sections = PlanSections(state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack)
+
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(screen.appBar)
     val title = planTitle(plan, state.trip)
     val nowOffsetPx = with(density) { -72.dp.roundToPx() }
@@ -382,6 +436,22 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val shortWindow = maxHeight < ShortWindowMaxHeight
+        // Compact phones: the dial gives up size before the Now card's Done drops below the fold (issue #11). Sized
+        // from the window, never from the collapsing header, so scrolling never resizes it.
+        // The day strip goes above the dial when that still leaves the dial its smallest size; otherwise it
+        // follows the Now card so Done stays above the fold.
+        val withStrip = railDays.size > 1
+        val stripFirst = withStrip && maxHeight - HeroReserve - StripReserve >= MinDialSize
+        val dialSize = (maxHeight - HeroReserve - if (stripFirst) StripReserve else 0.dp).coerceIn(MinDialSize, MaxDialSize)
+        val strip = if (withStrip) {
+            DayStripModel(railDays, dayOffsets, todayIndex, first = stripFirst)
+        } else {
+            null
+        }
+        val sections = PlanSections(
+            state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
+            anchor = anchor, anchorZone = anchorZone, strip = strip,
+        )
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -420,8 +490,10 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 // card already has its own "Why?", so it only appears once the Now card has scrolled away. That
                 // also keeps it from covering the Done button at rest. One owner for its motion: this visibility
                 // (no scroll-driven exit-always on top), on the calm navigation tier rather than a bouncy spring.
-                val toolbarVisible by remember(expanded) {
-                    derivedStateOf { expanded || screen.list.firstVisibleItemIndex > heroKeys.indexOf(PlanSections.KeyNow) }
+                // Keyed on the Now card's index too: a height change can move the strip above or below it.
+                val nowIndex = heroKeys.indexOf(PlanSections.KeyNow)
+                val toolbarVisible by remember(expanded, nowIndex) {
+                    derivedStateOf { expanded || screen.list.firstVisibleItemIndex > nowIndex }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
                     val scrim = MaterialTheme.colorScheme.surface
@@ -456,6 +528,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                 canWhy = shown.active != null || shown.upNext.isNotEmpty(),
                                 onNow = {
                                     screen.preview = null
+                                    screen.pickDay(plan.tripId, null)
                                     scope.launch {
                                         val now = rows.nowRowIndex()
                                         if (now >= 0) {
@@ -483,6 +556,21 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 }
 
                 if (expanded) {
+                    // Two panes: the rail is in view, so picking a day also brings that day's rows up (today:
+                    // the Now line).
+                    LaunchedEffect(screen.dayPicks) {
+                        if (screen.dayPicks == screen.dayPicksFollowed) return@LaunchedEffect
+                        screen.dayPicksFollowed = screen.dayPicks
+                        val picked = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }
+                        if (picked == null) {
+                            val now = rows.nowRowIndex()
+                            if (now >= 0) scrollRail(now, nowOffsetPx)
+                        } else {
+                            val key = RailRow.Header(picked, isToday = false).key
+                            if (rows.none { it.key == key }) screen.showEarlier = true
+                            screen.pendingScrollKey = key
+                        }
+                    }
                     Row(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
                         Column(
                             Modifier
@@ -514,8 +602,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     }
                     LaunchedEffect(Unit) {
                         if (!screen.scrolledToNow) {
+                            // A day already picked (in one pane, before a resize) is the follow-up's to show.
                             val now = rows.nowRowIndex()
-                            if (now > 0) screen.rail.scrollToItem(1 + now, nowOffsetPx)
+                            if (now > 0 && dayBase == null) screen.rail.scrollToItem(1 + now, nowOffsetPx)
                             screen.scrolledToNow = true
                         }
                     }
@@ -604,10 +693,17 @@ private class PlanSections(
     val screen: PlanScreenState,
     val showSnack: (String) -> Unit,
     val showActionSnack: (message: String, action: String, onAction: () -> Unit) -> Unit,
+    val dialSize: Dp = MaxDialSize,
+    /** What the dial is anchored to: now, or the picked day at the current time of day. */
+    val anchor: Instant = state.now,
+    val anchorZone: ZoneId = state.moment.zone,
+    val strip: DayStripModel? = null,
 ) {
     val heroKeys: List<String> = buildList {
+        if (strip?.first == true) add(KeyDays)
         add(KeyDial)
         add(KeyNow)
+        if (strip != null && !strip.first) add(KeyDays)
         if (shown.upNext.isNotEmpty() && shown.stage != PlanStage.Complete && shown.stage != PlanStage.Upcoming) add(KeyUpNext)
         if (shown.stage != PlanStage.Complete) add(KeyStatus)
     }
@@ -616,6 +712,25 @@ private class PlanSections(
     fun Section(key: String) {
         val width = Modifier.widthIn(max = 640.dp).fillMaxWidth()
         when (key) {
+            // Keyed by trip: the current plan can move on to another trip, whose strip starts from its own days
+            // rather than the old one's scroll position.
+            KeyDays -> strip?.let { model ->
+                key(state.plan.tripId) {
+                    PlanDayStrip(
+                        days = model.days,
+                        offsets = model.offsets,
+                        todayIndex = model.todayIndex,
+                        selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
+                        onSelect = { index ->
+                            screen.preview = null
+                            val future = model.days.firstOrNull { it.day.index == index }?.start?.isAfter(state.now) == true
+                            screen.pickDay(state.plan.tripId, index, future)
+                            screen.dayPicks++
+                        },
+                        modifier = width,
+                    )
+                }
+            }
             KeyDial -> Dial(width)
             KeyNow -> Now(width.padding(horizontal = 16.dp, vertical = 8.dp))
             KeyUpNext -> UpNextCard(shown, onClick = { screen.whyAdviceId = it.id }, modifier = width.padding(horizontal = 16.dp, vertical = 8.dp))
@@ -626,9 +741,10 @@ private class PlanSections(
     @Composable
     private fun Dial(modifier: Modifier) {
         val plan = state.plan
-        val now = state.now
-        val zone = state.moment.zone
-        // The dial owns the scrub offset; its state stays at "now" so the offset doesn't compound.
+        val now = anchor
+        val zone = anchorZone
+        // The dial owns the scrub offset; its state stays at the anchor (now, or the picked day) so the offset
+        // doesn't compound.
         val nowState = remember(plan, now, zone) { plan.toDialState(now, zone) }
         // Celebration: the rings start where they were on arrival and turn into alignment once navigation settles.
         val holdAtArrival = state.celebrate && screen.celebrationStage == CelebrationStage.Waiting
@@ -639,21 +755,25 @@ private class PlanSections(
         }
         val rewind = stringResource(R.string.plan_rewind)
         Box(modifier.padding(horizontal = 24.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-            TwoClocksDial(
-                state = dialState,
-                modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth().testTag(PlanTags.Dial),
-                onScrub = { instant ->
-                    val minute = instant.truncatedTo(ChronoUnit.MINUTES)
-                    screen.preview = if (minute == now) null else minute
-                },
-                onScrubEnd = { screen.preview = null },
-                onRewind = { showSnack(rewind) },
-                easterEggsEnabled = state.easterEggs,
-                returnOnRelease = true,
-                onRingsAligned = {
-                    if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
-                },
-            )
+            // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick is a
+            // new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.
+            key(screen.selectedDay(plan.tripId)) {
+                TwoClocksDial(
+                    state = dialState,
+                    modifier = Modifier.widthIn(max = dialSize).fillMaxWidth().testTag(PlanTags.Dial),
+                    onScrub = { instant ->
+                        val minute = instant.truncatedTo(ChronoUnit.MINUTES)
+                        screen.preview = if (minute == now) null else minute
+                    },
+                    onScrubEnd = { screen.preview = null },
+                    onRewind = { showSnack(rewind) },
+                    easterEggsEnabled = state.easterEggs,
+                    returnOnRelease = true,
+                    onRingsAligned = {
+                        if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
+                    },
+                )
+            }
         }
     }
 
@@ -661,10 +781,13 @@ private class PlanSections(
     private fun Now(modifier: Modifier) {
         val active = shown.active
         val resources = LocalContext.current.resources
+        // Previewing another day (picked, or scrubbed past midnight): the heading says which.
+        val previewDay = shown.day?.takeIf { previewing && it.index != state.moment.day?.index }?.let { resources.dayShortTitle(it) }
         when {
             active != null -> NowCard(
                 moment = shown,
                 previewing = previewing,
+                previewDay = previewDay,
                 outcome = state.outcomes[active.id],
                 flightRoute = routes[active.id],
                 onOutcome = { outcome ->
@@ -690,7 +813,7 @@ private class PlanSections(
             )
             shown.stage == PlanStage.Complete -> CompleteCard(state.plan, state.outcomes, modifier)
             shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier)
-            else -> FreeTimeCard(shown, previewing, modifier)
+            else -> FreeTimeCard(shown, previewing, modifier, previewDay = previewDay)
         }
     }
 
@@ -704,6 +827,7 @@ private class PlanSections(
     }
 
     companion object {
+        const val KeyDays = "hero-days"
         const val KeyDial = "hero-dial"
         const val KeyNow = "hero-now"
         const val KeyUpNext = "hero-up-next"
@@ -785,6 +909,28 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** The day strip's share of the hero (pills + padding). */
+private val StripReserve = 80.dp
+
+/** The day strip's data, and whether it sits above the dial ([first]) or after the Now card. */
+@Immutable
+internal class DayStripModel(
+    val days: List<RailDay>,
+    val offsets: Map<Int, Float>,
+    val todayIndex: Int?,
+    val first: Boolean,
+)
+
+/** The dial's size on roomy windows, and the smallest it gets on compact ones. */
+private val MaxDialSize = 320.dp
+private val MinDialSize = 200.dp
+
+/**
+ * Window height the expanded header, the Now card (with Done) and the paddings around the dial need, so the dial
+ * takes what is left (between [MinDialSize] and [MaxDialSize]).
+ */
+private val HeroReserve = 456.dp
 
 /** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
 private val ShortWindowMaxHeight = 480.dp
