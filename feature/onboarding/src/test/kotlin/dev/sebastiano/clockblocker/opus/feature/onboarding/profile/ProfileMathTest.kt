@@ -96,6 +96,12 @@ class SleepDialMathTest {
         SleepDialMath.nudge(pickedBed, SleepHandle.Bedtime, 15) shouldBe SleepWindow(LocalTime.of(23, 2), LocalTime.of(7, 0))
         // Sliding the whole arc keeps the exact duration.
         SleepDialMath.nudge(picked, SleepHandle.Both, 15) shouldBe SleepWindow(LocalTime.of(23, 15), LocalTime.of(6, 28))
+        // One minute from a limit, a step still reaches the limit instead of rounding to nothing.
+        val nearShortest = SleepWindow(LocalTime.of(23, 0), LocalTime.of(0, 1))
+        SleepDialMath.nudge(nearShortest, SleepHandle.Wake, -15) shouldBe SleepWindow(LocalTime.of(23, 0), LocalTime.of(0, 0))
+        SleepDialMath.nudge(nearShortest, SleepHandle.Bedtime, 15) shouldBe SleepWindow(LocalTime.of(23, 1), LocalTime.of(0, 1))
+        val nearLongest = SleepWindow(LocalTime.of(23, 0), LocalTime.of(22, 53))
+        SleepDialMath.nudge(nearLongest, SleepHandle.Wake, 15) shouldBe SleepWindow(LocalTime.of(23, 0), LocalTime.of(22, 55))
     }
 
     @Test

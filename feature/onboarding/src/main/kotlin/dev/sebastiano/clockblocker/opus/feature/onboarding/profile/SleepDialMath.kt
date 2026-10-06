@@ -145,8 +145,8 @@ class SleepDrag(val handle: SleepHandle, start: SleepWindow) {
             SleepHandle.Bedtime -> rawDuration -= deltaMinutes
             SleepHandle.Both -> rawShift += deltaMinutes
         }
-        val duration = (startDuration + snapDelta(rawDuration.coerceIn(min.toFloat(), max.toFloat()) - startDuration))
-            .coerceIn(min, max)
+        // Snap first, clamp last: an off-grid window one minute from a limit can still reach it.
+        val duration = (startDuration + snapDelta(rawDuration - startDuration)).coerceIn(min, max)
         val bed = when (handle) {
             SleepHandle.Wake -> startBed
             // The wake end stays put: bedtime is whatever is left before it.
