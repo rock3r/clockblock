@@ -108,12 +108,24 @@ enum class ImportMode {
     /** The device ends up with exactly the backup's trips (others are deleted), profile and settings. */
     Replace,
 
-    /** Backup trips are added or overwrite same-id trips; nothing is deleted. */
+    /**
+     * Only adds: backup trips and advice logs that aren't on the device (logs only onto matching trips and
+     * profile), and the backup's profile when the device has none. Nothing on the device is changed or deleted.
+     */
     Merge,
 }
 
-/** Summary of an import, for a confirmation snackbar. */
-data class ImportResult(val tripsImported: Int, val tripsDeleted: Int, val logsImported: Int)
+/**
+ * Summary of an import, for a confirmation snackbar. On a [merged] import every count is what was added;
+ * [profileImported] is true when the device had no profile and took the backup's.
+ */
+data class ImportResult(
+    val tripsImported: Int,
+    val tripsDeleted: Int,
+    val logsImported: Int,
+    val profileImported: Boolean = false,
+    val merged: Boolean = false,
+)
 
 /** Exports/imports everything through the repositories, so all observers update immediately. */
 @Inject
@@ -142,14 +154,17 @@ class BackupManager(
     @Throws(BackupException::class)
     suspend fun import(text: String, mode: ImportMode = ImportMode.Replace): ImportResult = restore(codec.decode(text), mode)
 
-    suspend fun restore(backup: Backup, mode: ImportMode = ImportMode.Replace): ImportResult {
+    suspend fun restore(backup: Backup, mode: ImportMode = ImportMode.Replace): ImportResult = when (mode) {
+        ImportMode.Replace -> replace(backup)
+        ImportMode.Merge -> merge(backup)
+    }
+
+    private suspend fun replace(backup: Backup): ImportResult {
+        val keep = backup.trips.mapTo(HashSet()) { it.id }
         var deleted = 0
-        if (mode == ImportMode.Replace) {
-            val keep = backup.trips.mapTo(HashSet()) { it.id }
-            trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
-        }
+        trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
         backup.profile?.let { profiles.save(it) }
-        if (mode == ImportMode.Replace) settings.update { backup.settings }
+        settings.update { backup.settings }
         backup.trips.forEach { trips.upsert(it) }
         var logs = 0
         backup.adviceLogs.forEach { (tripId, entries) ->
@@ -157,4 +172,39 @@ class BackupManager(
         }
         return ImportResult(tripsImported = backup.trips.size, tripsDeleted = deleted, logsImported = logs)
     }
+
+    /**
+     * Only adds: the device's profile, trips and check-ins win over the backup's.
+     *
+     * Advice ids are positional (trip, type, day, ordinal), so a check-in only means the same block on a plan
+     * built from the same trip and profile. Check-ins are therefore added only for trips that end up identical
+     * to the backup's, and only when the device ends up with the backup's profile.
+     */
+    private suspend fun merge(backup: Backup): ImportResult {
+        val deviceProfile = profiles.profile.first()
+        val adoptedProfile = backup.profile?.takeIf { deviceProfile == null }
+        adoptedProfile?.let { profiles.save(it) }
+        val sameProfile = (deviceProfile ?: backup.profile) == backup.profile
+        val onDevice = trips.trips.first().associateBy { it.id }
+        val added = backup.trips.filterNot { it.id in onDevice }
+        added.forEach { trips.upsert(it) }
+        var logs = 0
+        if (sameProfile) {
+            backup.trips.filter { trip -> onDevice[trip.id].let { it == null || it == trip } }.forEach { trip ->
+                val logged = adviceLogs.logs(trip.id).first().mapTo(HashSet()) { it.adviceId }
+                backup.adviceLogs[trip.id].orEmpty().filterNot { it.adviceId in logged }.forEach {
+                    adviceLogs.log(trip.id, it.adviceId, it.outcome)
+                    logs++
+                }
+            }
+        }
+        return ImportResult(
+            tripsImported = added.size,
+            tripsDeleted = 0,
+            logsImported = logs,
+            profileImported = adoptedProfile != null,
+            merged = true,
+        )
+    }
 }
+
