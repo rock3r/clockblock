@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
@@ -56,6 +57,9 @@ import java.time.ZoneId
 import kotlin.math.roundToInt
 
 private const val DIR = "src/test/screenshots"
+
+/** Four 2×2 cells per row only fit the 800 dp canvas unsqueezed with 6 dp gaps (8 dp squeezes the last by 8 dp). */
+private val SQUARES_GAP = 6.dp
 
 /**
  * Goldens for the widget visuals. Everything is pinned to a fixed instant (and, for Remote Compose, a fixed
@@ -205,30 +209,75 @@ class WidgetScreenshotTest {
                         remoteNextUp(model(WidgetTheme.Light, DemoPlans.Scenario.Adapted), NextUpLayout.Tall, 360, 260),
                     ),
                 ),
+                gap = SQUARES_GAP,
             )
         }
     }
 
-    /** Long labels (as used elsewhere in the app) at the tightest sizes: they ellipsize, never clip. */
+    /**
+     * Every label a widget shows (each advice type, "Plan step", free time, adapted, no trip) in the tightest Next up
+     * buckets, 1×1 and 2×1. Nothing may be cut off: see WidgetLabelFitTest for the measured guarantee.
+     */
     @Test
-    fun remoteLongLabels() {
-        fun longModel(theme: WidgetTheme, label: String): WidgetModel {
-            val m = model(theme)
-            return m.copy(texts = m.texts.copy(title = label, dialTitle = label))
+    fun remoteLabelsNextUp() {
+        captureRoboImage("$DIR/remote_labels_next_up.png") { LabelGrid(labelModels(is24 = true), small = true) }
+    }
+
+    /** Every label in the 2×2 buckets: the Next up stack and the Two Clocks dial caption. */
+    @Test
+    fun remoteLabelsSquare() {
+        captureRoboImage("$DIR/remote_labels_square.png") { LabelGrid(labelModels(is24 = true), small = false) }
+    }
+
+    /** [remoteLabelsNextUp] at 130 % font size, with 12-hour times and a long place name: the worst case. */
+    @Test
+    fun remoteLabelsNextUpLargeText() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        captureRoboImage("$DIR/remote_labels_next_up_130.png") {
+            LabelGrid(labelModels(is24 = false, place = "San Francisco"), small = true)
         }
-        val labels = listOf("Nap if you're tired", "Peak fatigue: take care")
-        captureRoboImage("$DIR/remote_long_labels.png") {
-            Grid(
-                labels.map { label ->
-                    listOf(
-                        remoteClocks(longModel(WidgetTheme.Light, label), TwoClocksLayout.Square, 176, 176),
-                        remoteNextUp(longModel(WidgetTheme.Dark, label), NextUpLayout.Small, 76, 76),
-                        remoteNextUp(longModel(WidgetTheme.Light, label), NextUpLayout.Medium, 176, 76),
-                        remoteNextUp(longModel(WidgetTheme.Dark, label), NextUpLayout.Square, 176, 176),
-                    )
-                },
-            )
+    }
+
+    /** [remoteLabelsSquare] at 130 % font size, with 12-hour times and a long place name. */
+    @Test
+    fun remoteLabelsSquareLargeText() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        captureRoboImage("$DIR/remote_labels_square_130.png") {
+            LabelGrid(labelModels(is24 = false, place = "San Francisco"), small = false)
         }
+    }
+
+    /**
+     * One real model per label: the demo plan with its current block switched to each advice type, the redacted
+     * melatonin ("Plan step"), free time, adapted and no trip. Light and dark alternate.
+     */
+    private fun labelModels(is24: Boolean, place: String? = null): List<WidgetModel> {
+        val names = place?.let { DemoPlans.PLACE_NAMES + ("Europe/Lisbon" to it) } ?: DemoPlans.PLACE_NAMES
+        fun state(scenario: DemoPlans.Scenario?): WidgetState = scenario?.let {
+            WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, it), now, route = DemoPlans.ROUTE, placeNames = names)
+        } ?: WidgetState.NoTrip
+        val active = state(DemoPlans.Scenario.AvoidLight) as WidgetState.Active
+        val current = checkNotNull(active.current)
+        val states = AdviceType.entries.map { active.copy(current = current.copy(type = it)) } +
+            WidgetStateMapper.redact(active.copy(current = current.copy(type = AdviceType.Melatonin))) +
+            listOf(state(DemoPlans.Scenario.FreeTime), state(DemoPlans.Scenario.Adapted), state(null))
+        return states.mapIndexed { i, state ->
+            val theme = if (i % 2 == 0) WidgetTheme.Light else WidgetTheme.Dark
+            WidgetModel(state, WidgetTexts.from(context, state, is24), WidgetPalette.of(theme))
+        }
+    }
+
+    /** Two labels per row. [small]: the 1×1 and 2×1 Next up of each. Else its 2×2 Next up and Two Clocks. */
+    @Composable
+    private fun LabelGrid(models: List<WidgetModel>, small: Boolean) {
+        val cells = models.map { m ->
+            if (small) {
+                listOf(remoteNextUp(m, NextUpLayout.Small, 76, 76), remoteNextUp(m, NextUpLayout.Medium, 176, 76))
+            } else {
+                listOf(remoteNextUp(m, NextUpLayout.Square, 176, 176), remoteClocks(m, TwoClocksLayout.Square, 176, 176))
+            }
+        }
+        Grid(cells.chunked(2).map { it.flatten() }, gap = SQUARES_GAP)
     }
 
     /** Text-heavy buckets at 150 % font size. */
@@ -294,15 +343,16 @@ class WidgetScreenshotTest {
         return Doc(widthDp, heightDp, w, h, document)
     }
 
+    /** [gap] spaces the cells and pads each backdrop; rows must fit the 800 dp canvas or the last cell is squeezed. */
     @Composable
-    private fun Grid(rows: List<List<Cell>>) {
-        Column(Modifier.background(Color(0xFF9AA0A6)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    private fun Grid(rows: List<List<Cell>>, gap: Dp = 8.dp) {
+        Column(Modifier.background(Color(0xFF9AA0A6)).padding(gap), verticalArrangement = Arrangement.spacedBy(gap)) {
             rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     row.forEach { cell ->
                         // A wallpaper-ish backdrop so the widget's own rounded background is visible.
                         val backdrop = if (cell.theme == WidgetTheme.Light) Color(0xFFDCE3EE) else Color(0xFF2B3140)
-                        Box(Modifier.background(backdrop).padding(8.dp)) { cell.content() }
+                        Box(Modifier.background(backdrop).padding(gap)) { cell.content() }
                     }
                 }
             }
