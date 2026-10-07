@@ -8,4 +8,5 @@ dependencies {
     api(libs.androidx.graphics.shapes)
     api(libs.kotlinx.collections.immutable)
     implementation(libs.androidx.core.ktx)
+    testImplementation(projects.core.testing)
 }

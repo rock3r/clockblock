@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
@@ -22,10 +21,10 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
-import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
 import org.junit.Rule
@@ -74,7 +73,7 @@ class PlanScreenshotTest {
                 }
             }
         }
-        if (capture) compose.onRoot().captureRoboImage("src/test/screenshots/plan_$name.png")
+        if (capture) compose.captureRoboImageInvalidated("src/test/screenshots/plan_$name.png")
     }
 
     private val actions = PlanActions(onBack = {})
@@ -165,7 +164,7 @@ class PlanScreenshotTest {
         snap("loading", capture = false) { PlanContent(PlanUiState.Loading, actions) }
         // Nothing shows during the show-delay (fast loads never flash a loader); capture once it's up.
         compose.mainClock.advanceTimeBy(LoaderShowDelayMillis + 100)
-        compose.onRoot().captureRoboImage("src/test/screenshots/plan_loading.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_loading.png")
     }
 
     @Test
@@ -189,7 +188,7 @@ class PlanScreenshotTest {
         snap("rail_scrolled", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
         compose.onNodeWithTag(PlanTags.Rail).performScrollToIndex(9)
         compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY, endY = centerY + 40f) }
-        compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_scrolled.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_rail_scrolled.png")
     }
 
     /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
@@ -220,7 +219,7 @@ class PlanScreenshotTest {
         snap("day_picked", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_day_picked.png")
     }
 
     @Test
@@ -229,7 +228,7 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(-1)))
         compose.onNodeWithTag(PlanTags.dayPill(-1)).performClick()
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/plan_day_picked_dark.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_day_picked_dark.png")
     }
 
     @Test
@@ -246,7 +245,7 @@ class PlanScreenshotTest {
             swipeDown(startY = centerY - 300f, endY = centerY + 300f, durationMillis = 1_000)
         }
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/plan_rail_travel_day.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_rail_travel_day.png")
     }
 
     @Test

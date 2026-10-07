@@ -3,11 +3,10 @@ package dev.sebastiano.clockblocker.opus.shell
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.TestApplication
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,7 +41,7 @@ class ShellScreenshotTest {
     }
 
     private fun snap(name: String) {
-        compose.onRoot().captureRoboImage("src/test/screenshots/shell_$name.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/shell_$name.png")
     }
 
     @Test

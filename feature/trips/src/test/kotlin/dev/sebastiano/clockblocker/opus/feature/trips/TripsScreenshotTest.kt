@@ -10,11 +10,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
-import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import org.junit.Rule
 import org.robolectric.RuntimeEnvironment
 
@@ -53,7 +52,7 @@ abstract class TripsScreenshotTest {
 
     fun capture(name: String) {
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/$name.png")
     }
 
     fun snap(
