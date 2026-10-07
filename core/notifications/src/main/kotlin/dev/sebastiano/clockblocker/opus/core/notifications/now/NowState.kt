@@ -8,28 +8,31 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
 import java.time.Instant
 
-/** The advice that takes over at [from] (it may have started earlier, overlapping the current one). */
-data class NextUp(val advice: Advice, val from: Instant) {
-    val until: Instant get() = advice.end
-}
-
 /**
  * What the ongoing "Now" notification (and any other glanceable surface) should say at an instant.
- * Pure data; rendering to text happens in [NowTextFormatter].
+ * Pure data; rendering to text happens in [NotificationTextFormatter][dev.sebastiano.clockblocker.opus.core.notifications.text.NotificationTextFormatter].
  */
 data class NowState(
     val tripId: String,
     /** The window to act on right now; `null` in a gap between windows. */
     val headline: Advice?,
     /**
-     * When the headline stops being the headline: its end, or earlier if a higher-priority window starts
-     * (e.g. Sleep beginning during Avoid light). `null` in a gap.
+     * The headline's own end, the same "until" as the plan screen's Now card and the widgets (#43). A block that
+     * outranks it and starts earlier doesn't cut it short: that block is [next], then [alongside]. `null` in a gap.
      */
     val until: Instant?,
-    /** What takes over at [until] (or the next window, in a gap). */
-    val next: NextUp?,
+    /**
+     * The next window to start after now (it may start before [until], overlapping the headline), or the next
+     * window at all in a gap. Ties go to the one that will be the headline.
+     */
+    val next: Advice?,
     /** What the user logged for [headline], if anything. */
     val outcome: AdviceOutcome?,
+    /**
+     * Other windows running right now besides the headline, each with its own end (never the flight marker, which
+     * the travel-day header covers), soonest end first.
+     */
+    val alongside: List<Advice> = emptyList(),
 )
 
 /**
@@ -68,30 +71,32 @@ object NowStateCalculator {
         if (!isInProgress(plan, now, lead)) return null
         val windows = plan.windows()
         val headline = headline(windows, now)
-        val boundaries = windows.flatMap { listOf(it.start, it.end) }.filter { it.isAfter(now) }.distinct().sorted()
-        // The headline changes at the first boundary where a different advice (or nothing) takes over.
-        val changeAt = boundaries.firstOrNull { headline(windows, it)?.id != headline?.id }
-        // Skip over gaps so "then …" always names the next thing to do.
-        val next = changeAt?.let { from ->
-            boundaries.asSequence()
-                .filter { !it.isBefore(from) }
-                .firstNotNullOfOrNull { b -> headline(windows, b)?.let { NextUp(it, b) } }
-        }
+        val next = windows.filter { it.start.isAfter(now) }.minWithOrNull(compareBy<Advice> { it.start }.then(priority))
+        val alongside = windows
+            .filter { now in it && it.id != headline?.id && it.type != AdviceType.Flight }
+            .sortedWith(compareBy<Advice> { it.end }.then(priority))
         return NowState(
             tripId = plan.tripId,
             headline = headline,
-            until = headline?.let { changeAt ?: it.end },
+            until = headline?.end,
             next = next,
             outcome = headline?.let { h -> logs.lastOrNull { it.adviceId == h.id }?.outcome },
+            alongside = if (headline == null) emptyList() else alongside,
         )
     }
 
-    private fun headline(windows: List<Advice>, instant: Instant): Advice? {
-        val active = windows.filter { instant in it }
-        return active.filter { it.type in sleepOrder }.minByOrNull { sleepOrder.indexOf(it.type) }
-            ?: active.filter { it.type != AdviceType.Flight }.minByOrNull { it.type.ordinal }
-            ?: active.firstOrNull { it.type == AdviceType.Flight }
+    /** Headline priority as a comparator: sleep kinds first, then [AdviceType] order, the flight marker last. */
+    private val priority: Comparator<Advice> = compareBy { advice ->
+        val sleepRank = sleepOrder.indexOf(advice.type)
+        when {
+            sleepRank >= 0 -> sleepRank
+            advice.type == AdviceType.Flight -> Int.MAX_VALUE
+            else -> sleepOrder.size + advice.type.ordinal
+        }
     }
+
+    private fun headline(windows: List<Advice>, instant: Instant): Advice? =
+        windows.filter { instant in it }.minWithOrNull(priority)
 
     private fun JetLagPlan.windows(): List<Advice> = allAdvice.filter { !it.type.isMoment }.distinctBy { it.id }
 }

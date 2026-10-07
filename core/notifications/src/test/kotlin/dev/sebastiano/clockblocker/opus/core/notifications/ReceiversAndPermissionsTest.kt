@@ -82,7 +82,7 @@ class ReceiversAndPermissionsTest {
 
         logs.logged.value["trip-1"] shouldBe listOf(AdviceLog(avoid.id, AdviceOutcome.Done))
         now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe
-            "Done · until 18:00 · then Sleep 18:00–02:00"
+            "Done · until 18:00 · 02:00 Tokyo"
     }
 
     @Test
@@ -91,7 +91,7 @@ class ReceiversAndPermissionsTest {
 
         logs.logged.value["trip-1"] shouldBe listOf(AdviceLog(avoid.id, AdviceOutcome.CantDo))
         now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe
-            "Noted, skip it · until 18:00 · then Sleep 18:00–02:00"
+            "Noted, skip it · until 18:00 · 02:00 Tokyo"
     }
 
     @Test
@@ -112,7 +112,7 @@ class ReceiversAndPermissionsTest {
         pressWith(AdviceAction.Undo)
 
         logs.logged.value["trip-1"].orEmpty().shouldBeEmpty()
-        now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · then Sleep 18:00–02:00"
+        now!!.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "until 18:00 · 02:00 Tokyo"
         now!!.actions.map { it.title.toString() } shouldContainExactly listOf("Done", "Can't do this", "Snooze 15 min")
         // Every surface (widgets too) re-renders from the reverted log.
         widget.refreshes shouldBe refreshesAfterDone + 1
@@ -155,7 +155,10 @@ class ReceiversAndPermissionsTest {
         testScheduler.advanceUntilIdle()
 
         val lead = java.time.Duration.ofMinutes(AppSettings().reminderLeadMinutes.toLong())
-        shadowOf(alarmManager).scheduledAlarms.map { it.triggerAtMs }.sorted() shouldBe listOf(
+        // Plan alarms wake the phone; the Now notification's progress tick (plain RTC) is checked on its own.
+        val (planAlarms, ticks) = shadowOf(alarmManager).scheduledAlarms.partition { it.type == android.app.AlarmManager.RTC_WAKEUP }
+        ticks.map { it.triggerAtMs } shouldBe listOf(clock.instant.plus(NowNotificationSurface.PROGRESS_TICK).toEpochMilli())
+        planAlarms.map { it.triggerAtMs }.sorted() shouldBe listOf(
             utc("2026-10-10T17:00").minus(lead), // Sleep coming up
             utc("2026-10-10T17:00"), // Avoid light ends, sleep starts
             utc("2026-10-11T01:00"), // Wake up

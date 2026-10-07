@@ -68,6 +68,19 @@ object NotificationIntents {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    /** Request code of the Now notification's progress tick. */
+    internal const val PROGRESS_TICK_REQUEST_CODE: Int = 998
+
+    fun progressTickAction(context: Context): String = "${context.packageName}.notifications.NOW_PROGRESS_TICK"
+
+    /** Re-renders the Now notification so its progress bar keeps up (see [NowNotificationSurface]). */
+    internal fun progressTick(context: Context): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        PROGRESS_TICK_REQUEST_CODE,
+        Intent(context, AdviceAlarmReceiver::class.java).setAction(progressTickAction(context)),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     internal fun actionIntent(context: Context, action: AdviceAction, tripId: String, adviceId: String): Intent =
         Intent(context, AdviceActionReceiver::class.java)
             .setAction(adviceAction(context, action))

@@ -1,8 +1,11 @@
 package dev.sebastiano.clockblocker.opus.core.notifications
 
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.Application
+import android.os.Build
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.getSystemService
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanSurface
@@ -73,12 +76,14 @@ class NowNotificationSurface(
             snoozeStore.active(now) != null
         ) {
             manager.cancel(NotificationIds.NOW)
+            cancelProgressTick()
             return NowRendering.Hidden
         }
         val logs = adviceLogRepository.logs(plan.tripId).first()
         val lead = Duration.ofMinutes(settings.reminderLeadMinutes.coerceAtLeast(0).toLong())
         val state = NowStateCalculator.compute(plan, now, logs, lead) ?: run {
             manager.cancel(NotificationIds.NOW)
+            cancelProgressTick()
             return NowRendering.Hidden
         }
         val progress = TravelPlanner.progress(plan, now)
@@ -94,9 +99,35 @@ class NowNotificationSurface(
         try {
             manager.notify(NotificationIds.NOW, notification)
         } catch (_: SecurityException) {
+            cancelProgressTick()
             return NowRendering.Hidden
         }
+        // The Live Update has its own (wake-up) tick in AdviceAlarmScheduler; a gap has no bar to move, and neither
+        // has the plain big-text template used below API 31. A blocked Now channel shows nothing to keep current.
+        val hasBar = !live && state.headline != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            manager.getNotificationChannelCompat(ClockblockChannel.Now.id)?.importance != NotificationManagerCompat.IMPORTANCE_NONE
+        if (hasBar) armProgressTick(now) else cancelProgressTick()
         return if (live) NowRendering.LiveUpdate else NowRendering.Ongoing
+    }
+
+    /**
+     * The Now notification's progress bar (how far through the current block you are) only moves when the
+     * notification is rebuilt. Plan boundaries rebuild it anyway; in between, this inexact, *non-wakeup* alarm does,
+     * every [PROGRESS_TICK]. A sleeping phone isn't woken for it: the alarm is delivered when the phone next wakes up
+     * (say, when you pick it up), so the bar is current when you look at it and costs nothing while you don't.
+     */
+    private fun armProgressTick(now: Instant) {
+        val alarms = application.getSystemService<AlarmManager>() ?: return
+        alarms.set(AlarmManager.RTC, now.plus(PROGRESS_TICK).toEpochMilli(), NotificationIntents.progressTick(application))
+    }
+
+    private fun cancelProgressTick() {
+        application.getSystemService<AlarmManager>()?.cancel(NotificationIntents.progressTick(application))
+    }
+
+    companion object {
+        /** How often the progress bar of the standard Now notification advances while the phone is awake. */
+        val PROGRESS_TICK: Duration = Duration.ofMinutes(5)
     }
 }
 
