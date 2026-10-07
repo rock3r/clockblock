@@ -461,6 +461,23 @@ class PlanContentTest {
 
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - switching to a trip that hasn't started yet starts its rail at the top`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+
+        // The current plan moves to a trip whose plan starts in ten days: it has no Now row, so its rail starts
+        // fresh at the top (its first day), not at the scroll position left over from the other trip.
+        val future = realPlan.copy(tripId = "future-trip")
+        state = ready(PlanFixtures.PreTrip.minus(Duration.ofDays(10)), plan = future)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(future.days.first().index)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `two panes with motion - picking today again brings the Now row back`() {
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()

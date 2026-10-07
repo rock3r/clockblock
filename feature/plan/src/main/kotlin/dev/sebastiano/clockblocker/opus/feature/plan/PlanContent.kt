@@ -131,9 +131,29 @@ internal class PlanScreenState(
     val snackbar: SnackbarHostState,
     val appBar: TopAppBarState,
     val list: LazyListState,
-    val rail: LazyListState,
+    rail: LazyListState,
     val pane: ScrollState,
 ) {
+    private var railTrip: String? = null
+    private var railState: LazyListState = rail
+
+    /**
+     * The two-pane rail's scroll state on [tripId]. Each trip gets a fresh one: when the current plan moves to another
+     * trip, a position on the old trip's rows means nothing on the new trip's, so its rail starts over (at its Now row,
+     * or at the top when it has none). The first trip shown gets the saveable state from [rememberPlanScreenState].
+     * Plain fields: swapping is idempotent, so a discarded composition can't leave anything half-done.
+     */
+    fun rail(tripId: String): LazyListState {
+        if (railTrip != tripId) {
+            if (railTrip != null) railState = LazyListState()
+            railTrip = tripId
+        }
+        return railState
+    }
+
+    /** The rail last brought to its Now row on first show (one per trip, see [rail]). */
+    var railPositioned: LazyListState? = null
+
     /** Instant the dial is being scrubbed to (null = now, or the picked day's anchor). */
     var preview: Instant? by mutableStateOf(null)
 
@@ -168,14 +188,11 @@ internal class PlanScreenState(
     /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
     var dayPicksFollowed: Int = 0
 
-    /** The trip the screen last showed (null before the first plan), to spot the current plan moving to another trip. */
-    var shownTrip: String? = null
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
     var celebrationDismissed: Boolean by mutableStateOf(false)
     var celebrationStage: CelebrationStage by mutableStateOf(CelebrationStage.Waiting)
-    var scrolledToNow: Boolean by mutableStateOf(false)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -386,15 +403,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     }
     // The current plan moved to another trip (A → B, or back to A once B is deleted or edited away). A pick made on
     // the other trip is hidden here; forget it too, or an A → B → A switch would bring A's old pick back instead of
-    // live time. The rail's scroll position on the other trip's rows means nothing here either, so a switch counts
-    // as a pick, like going live above, and the two-pane rail follows this trip's Now row.
-    if (screen.shownTrip != plan.tripId || screen.hasPickOnOtherTrip(plan.tripId)) {
-        SideEffect {
-            if (screen.hasPickOnOtherTrip(plan.tripId)) screen.pickDay(plan.tripId, null)
-            if (screen.shownTrip != null && screen.shownTrip != plan.tripId) screen.dayPicks++
-            screen.shownTrip = plan.tripId
-        }
+    // live time. (The two-pane rail starts over on each trip, see PlanScreenState.rail.)
+    if (screen.hasPickOnOtherTrip(plan.tripId)) {
+        SideEffect { screen.pickDay(plan.tripId, null) }
     }
+    val rail = screen.rail(plan.tripId)
     val anchor = dayBase ?: state.now
     val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone
     val preview = screen.preview?.takeIf { it != anchor } ?: dayBase
@@ -495,7 +508,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 // the dial.
                 val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
                 val heroKeys = sections.heroKeys
-                val railList = if (expanded) screen.rail else screen.list
+                val railList = if (expanded) rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
                 val bottomPadding = padding.calculateBottomPadding() + if (shortWindow) 80.dp else 104.dp
 
@@ -603,7 +616,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         }
                         Box(Modifier.weight(0.54f).fillMaxHeight()) {
                             LazyColumn(
-                                state = screen.rail,
+                                state = rail,
                                 modifier = Modifier.fillMaxSize().then(railGestures).testTag(PlanTags.Rail),
                                 contentPadding = PaddingValues(bottom = bottomPadding),
                             ) {
@@ -618,12 +631,14 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                             toolbar()
                         }
                     }
-                    LaunchedEffect(Unit) {
-                        if (!screen.scrolledToNow) {
+                    // First show of this trip's rail: bring up its Now row. With none (a trip that hasn't started), the
+                    // fresh rail stays at the top, on the first day.
+                    LaunchedEffect(rail) {
+                        if (screen.railPositioned !== rail) {
                             // A day already picked (in one pane, before a resize) is the follow-up's to show.
                             val now = rows.nowRowIndex()
-                            if (now > 0 && dayBase == null) screen.rail.scrollToItem(1 + now, nowOffsetPx)
-                            screen.scrolledToNow = true
+                            if (now > 0 && dayBase == null) rail.scrollToItem(1 + now, nowOffsetPx)
+                            screen.railPositioned = rail
                         }
                     }
                 } else {
