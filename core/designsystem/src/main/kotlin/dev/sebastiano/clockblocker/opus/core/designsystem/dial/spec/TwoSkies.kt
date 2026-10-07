@@ -23,6 +23,12 @@ object TwoSkies {
     /** Sweep-gradient stops per sky ring: one every 2° (8 minutes of sky). */
     private const val SamplesPerRing = 180
 
+    /** The place above the local time on the full dial, in units of side / 328. */
+    private val CentrePlaceText = TextSpec(9f, weight = 600, caps = true, tracking = 0.14f, tabular = false)
+
+    /** The hub's width at the place's line (hub radius 74, line 34 above the centre), less a little air. */
+    private const val CentrePlaceMaxWidth = 118f
+
     /**
      * Lays the dial out in a [widthDp] × [heightDp] box.
      *
@@ -107,7 +113,13 @@ object TwoSkies {
         val grow: Float,
     ) {
         val ops = mutableListOf<DialOp>()
-        val place: String = ZoneLabels.city(state.displayZoneId)
+        /**
+         * Where you are: the trip's stop (Tromsø keeps Oslo's zone id), else the zone's city. A stop name too wide
+         * for the hub falls back to the zone's city at every level, so the rings and the centre always agree.
+         */
+        val place: String = state.placeName
+            ?.takeIf { it.isNotBlank() && measurer.width(it.uppercase(), CentrePlaceText) <= CentrePlaceMaxWidth }
+            ?: ZoneLabels.city(state.displayZoneId)
         val localNight = BodySky.localNight(state)
         val bodyNight = BodySky.nightInLocal(state, mode, ahead)
         val focus = state.focusAt(display)
@@ -150,7 +162,7 @@ object TwoSkies {
             // Centre: where you are, local time upright, body time slanted, the offset in words.
             ops += DialOp.Text(
                 place.uppercase(), cx, cy - 34f * k,
-                TextSpec(9f * k, weight = 600, caps = true, tracking = 0.14f, tabular = false), p.inkMuted, part = DialPart.Readout,
+                CentrePlaceText.copy(size = CentrePlaceText.size * k), p.inkMuted, part = DialPart.Readout,
             )
             // The local time sits level with the 06 and 18 numerals: it may grow up to the gap between them.
             val sideNumeral = maxOf(measurer.width(labels.numeral(6), numeral), measurer.width(labels.numeral(18), numeral))
