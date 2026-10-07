@@ -170,6 +170,13 @@ class DialStateMapperTest {
     }
 
     @Test
+    fun `the dial is named after the place`() {
+        val narita = Place("NRT", "Narita International Airport", "Narita", "JP", "Asia/Tokyo", 35.765, 140.386)
+        plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo, narita).placeName shouldBe "Narita"
+        plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo).placeName.shouldBeNull()
+    }
+
+    @Test
     fun `without a place the sky keeps its default sun`() {
         val state = plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo)
         state.daylight shouldBe Daylight.RisesAndSets

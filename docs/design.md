@@ -238,7 +238,9 @@ once you're adapted the two rings are identical.
   washed back towards the face. Every mark carries its own label; no legend.
 - **Centre readouts:** the place, local time upright and big, body time beneath **slanted** (`slnt −10`,
   `ROND 100`; italic with the system font), and the offset in words in a pill ("4½ h behind", "in sync"). Type rule:
-  **upright = local, slanted = body.**
+  **upright = local, slanted = body.** The place (here and on the ring labels) is the trip's stop in the zone shown,
+  so Tromsø reads "TROMSØ" though it keeps Oslo's zone id. With no stop there, or a name too wide for the hub ("Qian
+  Gorlos Mongol Autonomous County"), the dial uses the zone's city at every detail level.
 - **Detail levels** by the dial's smaller side: **Full** ≥ 250 dp (everything above), **Simple** 110–250 dp (ring
   labels shortened to the city and "BODY", no narration, no numerals), **Glance** < 110 dp (the two skies, the needle
   and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card carries the words.
