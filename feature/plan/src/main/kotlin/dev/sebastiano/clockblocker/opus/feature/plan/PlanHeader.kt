@@ -274,7 +274,7 @@ private fun Density.celestialCenter(width: Float, top: Float, hour: Float, reser
  * Moon-phase easter egg: tap the moon [MoonTaps] times and it morphs through "phases" (circle, cookie, clover,
  * ghost, heart) into a cookie that gets a bite taken out of it, then [onTip] fires ("Midnight snack? Your gut
  * has a clock too."). Rare, earned delight: absent when ![eggEnabled] (reduce motion, or the plan says sleep)
- * and in the daytime, when there is no moon.
+ * and in the daytime, when there is no moon. Closing the gate also resets a hatched or half-tapped moon.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -321,6 +321,15 @@ private fun HeaderCelestial(
         if (!hatched) return@LaunchedEffect
         progress.animateTo(totalSteps.toFloat(), motion.eggChain(totalSteps))
         currentOnTip()
+    }
+    // The gate closing (Reduce motion turned on, or a sleep block starting) cancels the egg, hatched or half-tapped:
+    // the moon goes back to its plain phase (un-hatching also cancels the morph above, so no tip), and once the gate
+    // reopens the count starts over.
+    LaunchedEffect(eggEnabled) {
+        if (!eggEnabled && (taps > 0 || progress.value > 0f)) {
+            taps = 0
+            progress.snapTo(0f)
+        }
     }
     val label = stringResource(R.string.plan_moon_target)
     Layout(
