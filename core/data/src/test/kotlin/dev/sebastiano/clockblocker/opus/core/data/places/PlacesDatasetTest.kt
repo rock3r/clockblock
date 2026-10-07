@@ -104,6 +104,31 @@ class PlacesDatasetTest {
     }
 
     @Test
+    fun `city names are tidy`() {
+        // tools/places/build_places.py cleans the upstream municipality (see its CITY_OVERRIDES).
+        records.filter { Regex("\\bairport\\b", RegexOption.IGNORE_CASE).containsMatchIn(it.place.city) }.shouldBeEmpty()
+        records.filter { '/' in it.place.city }.shouldBeEmpty()
+        index.byCode("CXR")?.city shouldBe "Nha Trang"
+        index.byCode("BEJ")?.city shouldBe "Tanjung Redeb"
+        index.byCode("GTR")?.city shouldBe "Columbus"
+    }
+
+    @ParameterizedTest(name = "{0} still finds {1}")
+    @CsvSource(
+        "cam ranh,CXR",
+        "borneo,BEJ",
+        "starkville,GTR",
+        "durham,RDU",
+        "qian gorlos,YSQ",
+        "mongol,YSQ",
+        "pyrenees,LEU",
+        "san martin,CPC",
+    )
+    fun `the parts dropped from a city name still find it`(query: String, code: String) {
+        codes(query, 20) shouldContainAll listOf(code)
+    }
+
+    @Test
     fun `parsing and indexing the full dataset is fast`() {
         // Shared CI runners have noisy CPU/GC scheduling, so allow wider ceilings there (issues #34, #60).
         val ci = System.getenv("CI") != null
