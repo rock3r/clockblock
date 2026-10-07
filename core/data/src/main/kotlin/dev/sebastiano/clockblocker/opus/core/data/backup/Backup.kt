@@ -109,8 +109,8 @@ enum class ImportMode {
     Replace,
 
     /**
-     * Only adds: backup trips and advice logs that aren't on the device, and the backup's profile when the
-     * device has none. Nothing on the device is changed or deleted.
+     * Only adds: backup trips and advice logs that aren't on the device (logs only onto matching trips and
+     * profile), and the backup's profile when the device has none. Nothing on the device is changed or deleted.
      */
     Merge,
 }
@@ -164,16 +164,29 @@ class BackupManager(
         return ImportResult(tripsImported = backup.trips.size, tripsDeleted = deleted, logsImported = logs)
     }
 
-    /** Only adds: the device's profile, trips and check-ins win over the backup's. */
+    /**
+     * Only adds: the device's profile, trips and check-ins win over the backup's.
+     *
+     * Advice ids are positional (trip, type, day, ordinal), so a check-in only means the same block on a plan
+     * built from the same trip and profile. Check-ins are therefore added only for trips that end up identical
+     * to the backup's, and only when the device ends up with the backup's profile.
+     */
     private suspend fun merge(backup: Backup): ImportResult {
-        if (backup.profile != null && profiles.profile.first() == null) profiles.save(backup.profile)
-        val onDevice = trips.trips.first().mapTo(HashSet()) { it.id }
+        val deviceProfile = profiles.profile.first()
+        if (backup.profile != null && deviceProfile == null) profiles.save(backup.profile)
+        val sameProfile = (deviceProfile ?: backup.profile) == backup.profile
+        val onDevice = trips.trips.first().associateBy { it.id }
         val added = backup.trips.filterNot { it.id in onDevice }
         added.forEach { trips.upsert(it) }
         var logs = 0
-        backup.adviceLogs.forEach { (tripId, entries) ->
-            val logged = adviceLogs.logs(tripId).first().mapTo(HashSet()) { it.adviceId }
-            entries.filterNot { it.adviceId in logged }.forEach { adviceLogs.log(tripId, it.adviceId, it.outcome); logs++ }
+        if (sameProfile) {
+            backup.trips.filter { trip -> onDevice[trip.id].let { it == null || it == trip } }.forEach { trip ->
+                val logged = adviceLogs.logs(trip.id).first().mapTo(HashSet()) { it.adviceId }
+                backup.adviceLogs[trip.id].orEmpty().filterNot { it.adviceId in logged }.forEach {
+                    adviceLogs.log(trip.id, it.adviceId, it.outcome)
+                    logs++
+                }
+            }
         }
         return ImportResult(tripsImported = added.size, tripsDeleted = 0, logsImported = logs)
     }

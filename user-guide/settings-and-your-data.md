@@ -62,7 +62,8 @@ asks how to import it:
 - **Merge** only adds. It adds the backup's trips that aren't on this phone, and the backup's check-ins for
   blocks you haven't checked in here. It deletes and changes nothing: this phone keeps its settings, its
   profile, its trips (a trip in both places keeps this phone's version) and its check-ins. The backup's profile
-  is used only if this phone doesn't have one yet.
+  is used only if this phone doesn't have one yet. A check-in belongs to the plan it was made on, so Merge adds
+  a trip's check-ins only when the trip and the profile on this phone end up the same as in the backup.
 
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.
