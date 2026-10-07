@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -29,9 +30,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingMetricText
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.BloomArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.PillowMoonArt
@@ -197,8 +200,6 @@ private fun HeroComparison(plan: JetLagPlan) {
     val savedText = saved?.let {
         pluralStringResource(if (it.atLeast) R.plurals.plan_days_faster_at_least else R.plurals.plan_days_faster, it.days, it.days)
     }
-    val withText = estimateShort(plan.estimatedDaysToAdapt)
-    val withoutText = estimateShort(plan.estimatedDaysWithoutPlan)
     val description = stringResource(
         R.string.plan_hero_description,
         estimateLabel(plan.estimatedDaysToAdapt),
@@ -211,11 +212,12 @@ private fun HeroComparison(plan: JetLagPlan) {
         modifier = Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = description },
     ) {
         Column {
-            Text(withText, style = ClockblockTheme.textStyles.timeHeadline, color = MaterialTheme.colorScheme.primary)
+            // The numbers roll (up or down) when the plan is rebuilt with a new estimate.
+            EstimateShort(plan.estimatedDaysToAdapt, ClockblockTheme.textStyles.timeHeadline, MaterialTheme.colorScheme.primary)
             Text(stringResource(R.string.plan_hero_with), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
         Column {
-            Text(withoutText, style = ClockblockTheme.textStyles.timeTitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            EstimateShort(plan.estimatedDaysWithoutPlan, ClockblockTheme.textStyles.timeTitle, MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.plan_hero_without), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (savedText != null) {
@@ -231,12 +233,21 @@ private fun HeroComparison(plan: JetLagPlan) {
     }
 }
 
-/** "3 d", or "21+ d" when the model didn't see adaptation within its simulated window. */
+/**
+ * "3 d", or "21+ d" when the model didn't see adaptation within its simulated window, as a [RollingMetricText]: a new
+ * estimate (the plan rebuilt after a profile or trip change) rolls its digits rather than swapping them.
+ */
 @Composable
-private fun estimateShort(days: Double): String = stringResource(
-    if (days >= EstimateHorizonDays) R.string.plan_days_short_horizon else R.string.plan_days_short,
-    roundDays(days),
-)
+private fun EstimateShort(days: Double, style: TextStyle, color: Color) {
+    val resources = LocalContext.current.resources
+    val format = if (days >= EstimateHorizonDays) R.string.plan_days_short_horizon else R.string.plan_days_short
+    RollingMetricText(
+        value = roundDays(days).toFloat(),
+        style = style,
+        color = color,
+        format = { resources.getString(format, it.roundToInt()) },
+    )
+}
 
 /** "about 3 days", or "more than 21 days" at the simulation horizon (never an exact-time claim there). */
 @Composable
