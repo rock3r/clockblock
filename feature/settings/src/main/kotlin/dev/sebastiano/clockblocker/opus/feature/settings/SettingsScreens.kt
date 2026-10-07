@@ -335,7 +335,13 @@ private fun SettingsEvent.message(context: Context): String = with(context.resou
     when (this@message) {
         SettingsEvent.Exported -> getString(R.string.settings_event_exported)
         SettingsEvent.ExportFailed -> getString(R.string.settings_event_export_failed)
-        is SettingsEvent.Imported -> getQuantityString(R.plurals.settings_event_imported, result.tripsImported, result.tripsImported)
+        is SettingsEvent.Imported -> when (result.summary()) {
+            ImportSummary.Trips -> getQuantityString(R.plurals.settings_event_imported, result.tripsImported, result.tripsImported)
+            ImportSummary.CheckIns ->
+                getQuantityString(R.plurals.settings_event_merged_check_ins, result.logsImported, result.logsImported)
+            ImportSummary.Profile -> getString(R.string.settings_event_merged_profile)
+            ImportSummary.NothingNew -> getString(R.string.settings_event_merged_nothing)
+        }
         is SettingsEvent.ImportFailed -> getString(
             when (reason) {
                 ImportFailure.NotABackup -> R.string.settings_event_not_backup

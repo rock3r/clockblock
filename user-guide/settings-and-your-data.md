@@ -59,11 +59,11 @@ asks how to import it:
   trips and check-ins. Check-ins already on this phone stay, unless the backup has a check-in for the same block.
   That includes check-ins of the trips Replace deletes: they stay stored, hidden, and come back if a later
   import restores the same trip.
-- **Merge** adds the backup's trips and check-ins and deletes nothing. It keeps this phone's settings and any
-  trips that aren't in the backup. Three things are overwritten: a trip in both places takes the backup's
-  version, a block checked in both places takes the backup's answer, and your whole profile is replaced by the
-  backup's: home time zone, usual sleep, chronotype, tools (including melatonin) and how hard the plan pushes.
-  Plans are then worked out again from that profile.
+- **Merge** only adds. It adds the backup's trips that aren't on this phone, and the backup's check-ins for
+  blocks you haven't checked in here. It deletes and changes nothing: this phone keeps its settings, its
+  profile, its trips (a trip in both places keeps this phone's version) and its check-ins. The backup's profile
+  is used only if this phone doesn't have one yet. A check-in belongs to the plan it was made on, so Merge adds
+  a trip's check-ins only when the trip and the profile on this phone end up the same as in the backup.
 
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.
