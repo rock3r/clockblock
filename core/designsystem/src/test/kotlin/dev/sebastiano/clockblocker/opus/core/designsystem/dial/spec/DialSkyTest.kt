@@ -33,14 +33,14 @@ class DialSkyTest {
     private val polarNight = tokyo.copy(daylight = Daylight.AlwaysDown, sunriseMinute = 700f, sunsetMinute = 700f)
     private val midnightSun = tokyo.copy(daylight = Daylight.AlwaysUp, sunriseMinute = 700f, sunsetMinute = 700f)
 
-    private fun spec(state: DialState, mode: BodyRingMode = BodyRingMode.Simple) =
-        TwoSkies.spec(state, palette, labels, 328f, 328f, mode = mode)
+    private fun spec(state: DialState, mode: BodyRingMode = BodyRingMode.Simple, side: Float = 328f) =
+        TwoSkies.spec(state, palette, labels, side, side, mode = mode)
 
     private fun ring(state: DialState, part: DialPart, mode: BodyRingMode = BodyRingMode.Simple) =
         spec(state, mode).ops.filterIsInstance<DialOp.SweepRing>().single { it.part == part }
 
-    private fun ringLabels(state: DialState) =
-        spec(state).ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }.map { it.text }
+    private fun ringLabels(state: DialState, side: Float = 328f) =
+        spec(state, side = side).ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }.map { it.text }
 
     @Test
     fun `a polar night paints both skies night all round and labels only the night`() {
@@ -58,6 +58,14 @@ class DialSkyTest {
         val texts = ringLabels(midnightSun)
         texts shouldContain "TOKYO DAY"
         texts shouldNotContain "TOKYO NIGHT"
+    }
+
+    @Test
+    fun `the simple dial keeps both ring labels under every sky`() {
+        // Simple labels sit on the night; with no night they move to the day.
+        listOf(tokyo, polarNight, midnightSun).forEach { state ->
+            ringLabels(state, side = 180f).size shouldBe 2
+        }
     }
 
     @Test

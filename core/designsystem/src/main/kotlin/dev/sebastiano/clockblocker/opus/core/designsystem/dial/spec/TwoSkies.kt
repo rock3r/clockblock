@@ -176,8 +176,8 @@ object TwoSkies {
             face(80f * k)
             rings(outerR, innerR, ringW)
             val ringText = TextSpec(7.6f * k, weight = 700, caps = true, tracking = 0.1f, tabular = false)
-            ringLabel(place, outerR, localNight.centre, localNight.lengthMinutes, ringText, p.sky.onNight)
-            ringLabel(labels.body(), innerR, bodyNight.centre, bodyNight.lengthMinutes, ringText.copy(slanted = true), p.sky.onNight)
+            shortRingLabel(place, outerR, localNight, ringText)
+            shortRingLabel(labels.body(), innerR, bodyNight, ringText.copy(slanted = true))
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
@@ -234,6 +234,14 @@ object TwoSkies {
                 p.sky(DialGeometry.minuteForAngle(i * 360f / SamplesPerRing), sunrise = night.end, sunset = night.start, night.daylight)
             }
         }
+
+        /** A Simple-level ring label: on the night, or on the day under the midnight sun, when there is no night. */
+        fun shortRingLabel(text: String, r: Float, night: NightSpan, spec: TextSpec) =
+            if (night.daylight == Daylight.AlwaysUp) {
+                ringLabel(text, r, night.dayCentre, DialGeometry.MinutesPerDay, spec, p.sky.onDay)
+            } else {
+                ringLabel(text, r, night.centre, night.lengthMinutes, spec, p.sky.onNight)
+            }
 
         /**
          * A ring label centred on [centreMinute], dropped when it doesn't fit inside its half of the sky. When the
