@@ -14,7 +14,7 @@
 ## TL;DR (opinionated)
 
 1. **Timeshifter's science is good; its UX is fragile.** Users love the results but hate four things: (a) **brittle trip editing** (3-hour edit window, "times overlap" bugs, can't add flights without a flight number), (b) **notifications that are unreliable or contradict the in-app plan**, (c) **timezone confusion** (the plan only shows the timezone you're currently in), and (d) **pay-per-trip pricing for something that runs entirely on-device.** We fix all four by being **offline-first, account-free, manual-entry-friendly, dual-timezone, and free.**
-2. **Our signature visual is the "Two Clocks" dial**: a 24 h radial dial with an outer *local-time* ring (real sun/night arc) and an inner *body-clock* ring that rotates day by day until it lines up with the outer one. Jet lag = the visible gap between the rings. Everything else (timeline, widgets, notifications, celebration) comes out of that one idea.
+2. **Our signature visual is the "Two skies" dial**: a 24 h radial dial with an outer ring for the sky where you are and an inner ring for the sky your body thinks it is under, which turns day by day until it lines up with the outer one. Jet lag = the angle between the two nights. Everything else (timeline, widgets, notifications, celebration) comes out of that one idea.
 3. **Our M3 Expressive metaphor: "wavy = jet-lagged, flat = adapted."** The wavy progress indicator's amplitude shrinks as you adapt. Shape-morphing advice markers (Sun → `Sunny`, Sleep → `Pill`, Fatigue → `SoftBurst`…) come alive when an action becomes "now".
 4. **Identity**: "Dusk Instrument": a precise scientific instrument at twilight. Primary seed **Twilight Indigo `#4F46E5`**, tertiary **Marigold `#FFB000`** (light), fixed semantic "advice colours" harmonised to dynamic colour. Type: **Google Sans Flex**, which *is* open source (OFL) and on Google Fonts since 2025-11-12, with axes `wght 1–1000, wdth 25–151, opsz 6–144, ROND 0–100, GRAD 0–100, slnt −10–0` [verified via Google Fonts metadata + google/fonts repo METADATA.pb]. Bundle it as a variable TTF. Use **Fraunces** (SOFT/WONK axes) only for editorial moments.
 5. **Glanceable first**: a single ongoing **"Now" notification** instead of 15 separate pings. On travel day it becomes an Android 16 `Notification.ProgressStyle` Live Update with segments for advice blocks, points for take-off/landing, and a plane tracker icon. Glance widgets: *Next up*, *Two Clocks dial*, *Today ribbon*, *Trip countdown*.
@@ -134,7 +134,7 @@ Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet 
 **Plan**
 - **Now** card + next 2 (always with "until" times).
 - **Day timeline** grouped Pre-trip −2 / −1 · Travel · Arrival +1…, with local time + secondary tz + a "Why?" sheet.
-- **Two Clocks dial** per day.
+- **Two skies dial** per day.
 - Card types: See bright light, See light, Avoid light, Sleep, Nap, Optional nap, Melatonin, Caffeine OK, Avoid caffeine, Peak fatigue. Travel markers: Depart, Arrive, Layover.
 - **"Can't do this"** on any card → blocked → re-plan. Done/skipped logging.
 
@@ -214,21 +214,41 @@ Search links for further moodboarding (no specific shots verified): [Dribbble ci
 
 ## 2.3 Signature design concepts (concrete)
 
-### A. "Two Clocks" dial ⭐ (hero of Plan screen, onboarding, widget, celebration)
-- **Geometry:** 24 h dial, **noon at top, midnight at bottom** (sun overhead = day up).
-- **Outer ring = local clock** (12 dp). Filled with the local sky gradient, computed from real sunrise/sunset at the current or destination location (NOAA solar algorithm, offline). A `Sunny` sun glyph rides the ring at the current local time.
-- **Inner ring = body clock** (20 dp). The navy arc is the *biological night* (≈ DLMO → habitual wake). A small `PuffyDiamond` marks **CBTmin**, the pivot of the light PRC: light before it delays, light after it advances. That makes the science explainable in one glance.
-- **Advice track** between the rings:
-  - marigold arc = see bright light
-  - lighter marigold = see some light
-  - **diagonal hatch** = avoid light (hatch keeps it colour-blind-safe)
-  - navy = sleep
-  - lilac dot = melatonin
-  - copper ticks = caffeine
-- **Jet lag wedge:** a translucent wedge between *local midnight* and *body midnight*, labelled with the body clock relative to local time ("−5 h" = body 5 h behind; the app-wide sign convention). Swipe to the next day and the inner ring **rotates** toward alignment (Standard `slowSpatialSpec`, no overshoot: the ring is data). Arrival day → wedge gone → rings "click" (`HapticFeedbackConstants.CONFIRM`).
-- **Centre readouts:** local time upright, big (`displayLargeEmphasized`). Body time beneath, **slanted** (`slnt −10`, `ROND 100`). Type rule: **upright = local, slanted = body.**
-- **Scrub:** drag the hand (a `Pill`) to preview any time; the cards below sync. `CLOCK_TICK` haptic each hour.
-- **A11y:** TalkBack: "14:20 local. Your body clock is 09:20. Now: see bright light until 15:00. Next: avoid light 15:00–18:00." Custom accessibility actions "Next block" / "Previous block".
+### A. "Two skies" dial ⭐ (hero of Plan screen, widget, celebration)
+Chosen in #46 from three concepts. Two rings and nothing else structural: **the outer ring is the sky where you
+are, the inner ring is the sky your body thinks it is under.** The angle between the two nights *is* the jet lag;
+once you're adapted the two rings are identical.
+- **Geometry:** 24 h dial, **noon at top, midnight at bottom** (sun overhead = day up). Numerals 12 · 18 · 00 · 06
+  (12 p · 6 p · 12 a · 6 a on 12-hour clocks) sit just inside the body ring.
+- **Outer ring = local sky.** Day, dawn and dusk colours from sunrise/sunset at the place shown, labelled on the
+  ring: "TOKYO DAY", "TOKYO NIGHT". The target is real times (NOAA solar algorithm, offline); until #70 lands the
+  dial uses 06:30/19:00.
+- **Inner ring = body sky**, labelled "YOUR BODY'S DAY" / "YOUR BODY'S NIGHT". `BodyRingMode.Simple` (the default)
+  paints the same sky as the outer ring and turns it by the jet lag. `BodyRingMode.Precise` paints the body's night
+  from the model (habitual sleep moved by the offset); there is no setting for it yet (#52).
+- **Three encodings only:** the day/night colour of the two rings, **one needle** across both, and **one advice arc**
+  outside the rings: the block under the needle (or the next one when nothing is on) with its glyph at the start,
+  narrated along the rim ("See bright light until 15:00", then "then see some light" in a muted tone). Avoid
+  light keeps its **diagonal hatch** (the colour-blind carrier). The part of the block already behind the needle is
+  washed back towards the face. Every mark carries its own label; no legend.
+- **Centre readouts:** the place, local time upright and big, body time beneath **slanted** (`slnt −10`,
+  `ROND 100`; italic with the system font), and the offset in words in a pill ("4½ h behind", "in sync"). Type rule:
+  **upright = local, slanted = body.**
+- **Detail levels** by the dial's smaller side: **Full** ≥ 250 dp (everything above), **Simple** 110–250 dp (ring
+  labels shortened to the city and "BODY", no narration, no numerals), **Glance** < 110 dp (the two skies, the needle
+  and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card carries the words.
+- **Day change:** the body ring **turns** into place (`ClockblockMotion` slow spatial, no overshoot: the ring is
+  data). Rings aligned → `HapticFeedbackConstants.CONFIRM`.
+- **Scrub:** drag the needle to preview any time; the cards below sync. `CLOCK_TICK` haptic each hour, `SEGMENT_TICK` at
+  block boundaries, and a dot keeps the real now. Tap the centre to return.
+- **A11y:** TalkBack: "14:20 local. Your body clock is 09:56. Now: see bright light until 15:00. Next: …" Custom
+  actions *Next block*, *Previous block*, *Back to now*.
+- **Spec and renderer:** `TwoSkies.spec()` in `dial/spec` is pure Kotlin (no Android UI types) and returns a list of
+  `DialOp`s in dp. `drawDialSpec()` paints them with Compose; a Remote Compose widget can paint the same list. Notes
+  for that port: the sky rings are `SweepRing`s with `segments()` (Remote Compose has no sweep shader from Kotlin),
+  curved text needs `drawTextOnCircle` (to verify), only the needle animates, and widgets use the system font. See
+  `dial_widget_fonts.png` in the designsystem goldens for the app font next to the system font. Small widgets get a
+  separate "Two strips" layout (Phase 2 of #46).
 
 ### B. Day timeline ("Rail")
 Vertical rail (Structured-style). Each advice block is a capsule whose **height = duration**. A leading shape glyph sits in an advice-colour container. The rail background is a faint **body-clock sky gradient**, so you *see* that your body is at "night" while the local label says 14:00. The current block expands into the **Now card** with a `CircularWavyProgressIndicator` countdown ring around its glyph. A dual time column shows local time plus a muted secondary tz; tapping the column header cycles Local / Home / Destination / Body.
@@ -368,7 +388,7 @@ Always pair icons with a text label in cards (fixes complaint #9).
 
 - **Trips (home):** `LargeFlexibleTopAppBar` titled "Clockblock" with the current body-clock sky. Trip rows show destination (headlineEmphasized), dates, a mini dial, and a wavy adaptation line. `FloatingActionButtonMenu`: *Add trip* / *Shift schedule (v2)* / *Clock change (v2)*.
 - **Trip editor:** stacked leg cards connected by a dotted rail. Each leg: from → to chips, local times with a tz suffix, a duration chip. "+ Add leg" between legs. A sanity banner if the dates cross the date line.
-- **Plan:** sky header → **Two Clocks dial** → Now card (with `SplitButtonLayout`: **Done** | ▾ Skipped · Can't do this · Remind me in 15) → Rail timeline. Bottom `HorizontalFloatingToolbar`: [Now · Day · Trip] toggles + an "I'm delayed" FAB.
+- **Plan:** sky header → **Two skies dial** → Now card (with `SplitButtonLayout`: **Done** | ▾ Skipped · Can't do this · Remind me in 15) → Rail timeline. Bottom `HorizontalFloatingToolbar`: [Now · Day · Trip] toggles + an "I'm delayed" FAB.
 - **Card "Why?" sheet:** `ModalBottomSheet` with an illustration, a 2-sentence mechanism, "If you skip this: ~X h slower", alternatives ("Can't go outside? Sit by a window, lights on, screen bright"), citations.
 - **Onboarding:** full-bleed pages, Fraunces headlines, `ButtonGroup` for chronotype/effort, `ToggleButton`s for tools, the sleep-arc dial picker.
 - **Settings:** profile (sleep, chronotype, tools), reminders (lead time, channels, quiet rules, test reminder), appearance (dynamic colour, theme, reduce motion, Night-safe auto), data (export/import, delete all), about/science/licences.

@@ -116,7 +116,7 @@ object SamplePlan {
     /** The day before departure, 07:40 in Lisbon: body ≈ local, bright light now. */
     val preTripDial: DialState by lazy { plan.toDialState(at(Lisbon, -1, "07:40"), Lisbon) }
 
-    /** Arrival day 2, 14:20 in Tokyo: body ~4 h behind, wedge "−4 h", bright light now. */
+    /** Arrival day 2, 14:20 in Tokyo: body ~4 h behind ("4 h behind"), bright light now. */
     val midAdaptationDial: DialState by lazy { plan.toDialState(at(Tokyo, 2, "14:20"), Tokyo) }
 
     /** Day 5, 09:10 in Tokyo: rings aligned. */

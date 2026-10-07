@@ -56,7 +56,7 @@ features.
 | `:core:model` | JVM | Domain types: `Trip`, `UserProfile`, `JetLagPlan`, `Advice`, plus [`DeepLinks`](../core/model/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/model/DeepLinks.kt) and [`ZoneLabels`](../core/model/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/model/ZoneLabels.kt) |
 | `:core:circadian` | JVM | The [`JetLagPlanner`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/JetLagPlanner.kt) interface, its default implementation and the Forger99 and Hannay19 model ports |
 | `:core:data` | Android | Repositories backed by DataStore, offline airport search, the plan cache, backup, calendar export, the `PlanSurface` contract |
-| `:core:designsystem` | Android + Compose | Theme, colour, type, shapes, motion tokens, illustrations and the Two Clocks dial |
+| `:core:designsystem` | Android + Compose | Theme, colour, type, shapes, motion tokens, illustrations and the Two skies dial (a pure layout spec in `dial/spec` and its Compose renderer) |
 | `:core:notifications` | Android | The alarm scheduler, broadcast receivers and the Now notification (a Live Update on travel days) |
 | `:core:testing` | Android | Test rules, fakes and screenshot helpers |
 | `:feature:onboarding` | Android + Compose | The six setup steps |

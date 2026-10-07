@@ -38,8 +38,8 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
 
 - Plans for multi-leg trips with connections. You type the flights in by hand, with an offline search for
   airports and time zones.
-- The Two Clocks dial shows local time and your body clock together, with the gap between them and the blocks of
-  your plan. Drag the hand to look ahead.
+- The Two skies dial shows the sky where you are and the sky your body thinks it is under, so the jet lag is the
+  gap between the two nights. Drag the needle to look ahead.
 - The Now card always says what to do and until when, in local time with the other zone underneath. Mark advice
   as Done, Skipped or "Can't do this", with Undo.
 - Every piece of advice has a "Why?" that explains it in plain language and cites the research.

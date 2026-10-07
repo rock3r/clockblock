@@ -36,7 +36,19 @@
     <string name="dial_action_next_block">Next block</string>
     <string name="dial_action_previous_block">Previous block</string>
     <string name="dial_action_back_to_now">Back to now</string>
-    <string name="dial_body_suffix">body</string>
+    <!-- Two skies dial: the words on the dial itself. -->
+    <string name="dial_body_time">%1$s body</string>
+    <string name="dial_ring_place_day">%1$s day</string>
+    <string name="dial_ring_place_night">%1$s night</string>
+    <string name="dial_ring_body_day">your body’s day</string>
+    <string name="dial_ring_body_night">your body’s night</string>
+    <string name="dial_ring_body">body</string>
+    <string name="dial_offset_behind">%1$s behind</string>
+    <string name="dial_offset_ahead">%1$s ahead</string>
+    <string name="dial_in_sync">in sync</string>
+    <string name="dial_advice_until">%1$s until %2$s</string>
+    <string name="dial_advice_at">%1$s at %2$s</string>
+    <string name="dial_advice_then">then %1$s</string>
 
     <!-- Adaptation indicator. -->
     <string name="adaptation_description">%1$d%% adapted</string>
