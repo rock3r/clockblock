@@ -1,7 +1,13 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.clickable
 import kotlin.math.sin
@@ -94,6 +100,9 @@ internal fun planTitle(plan: JetLagPlan, trip: Trip?): String =
  * The header (design.md §2.4 C): a large flexible top app bar laid transparently over the body-clock sky, so the
  * header literally shows what time it is inside you. Title = the trip, subtitle = "Day 2 · Adapting · body 8 h behind".
  * The sky follows [moment] (so it moves while the dial is scrubbed).
+ *
+ * [skyKey] is the day picked in the day strip (`null` = live). Picking another day jumps the body clock by hours,
+ * so the sky cross-fades to it; anything else (scrubbing, the minute tick) repaints the same sky in place.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -110,6 +119,7 @@ internal fun PlanHeader(
     modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
     firstLight: Boolean = false,
+    skyKey: Int? = null,
 ) {
     val gradient = ClockblockTheme.sky.gradientAt(moment.bodyTime)
     val ink = gradient.contentColor()
@@ -122,7 +132,7 @@ internal fun PlanHeader(
     ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
-        BodyClockSky(bodyTime = moment.bodyTime, modifier = Modifier.matchParentSize(), showCelestial = false)
+        HeaderSky(moment.bodyTime, skyKey, Modifier.matchParentSize())
         val subtitle: @Composable () -> Unit = {
             PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
         }
@@ -176,6 +186,29 @@ internal fun PlanHeader(
             firstLight = firstLight,
             modifier = Modifier.matchParentSize(),
         )
+    }
+}
+
+/** What the header sky shows: [bodyTime] for the day keyed by [key] (the picked day, `null` = live). */
+private data class SkyFrame(val key: Int?, val bodyTime: LocalTime)
+
+/**
+ * The body-clock sky behind the header. A new [key] (a day picked in the strip) fades the new sky in over the old
+ * one on `colour()`; the old sky stays put underneath until the fade ends, so the header never shows through. The
+ * same key with a new [bodyTime] (scrubbing, the minute tick) repaints in place: no transition.
+ */
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun HeaderSky(bodyTime: LocalTime, key: Int?, modifier: Modifier = Modifier) {
+    val motion = ClockblockTheme.motion
+    AnimatedContent(
+        targetState = SkyFrame(key, bodyTime),
+        modifier = modifier,
+        transitionSpec = { fadeIn(motion.colour()) togetherWith ExitTransition.KeepUntilTransitionsFinished using null },
+        contentKey = { it.key },
+        label = "header sky",
+    ) { frame ->
+        BodyClockSky(bodyTime = frame.bodyTime, modifier = Modifier.fillMaxSize().testTag(PlanTags.HeaderSky), showCelestial = false)
     }
 }
 

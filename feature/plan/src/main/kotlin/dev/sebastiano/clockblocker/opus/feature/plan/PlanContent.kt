@@ -508,6 +508,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     scrollBehavior = scrollBehavior,
                     shortWindow = shortWindow,
                     firstLight = state.trip?.let { isFreshTrip(it.createdAt, state.now) } == true,
+                    skyKey = selectedDay,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },

@@ -53,6 +53,7 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Sleep dial readouts (bedtime / wake pills, centre duration) | follow a drag live with no roll (per-frame values); roll on discrete changes (TalkBack or keyboard nudge, a picked time, the 24.2 rubber band) as rolling readouts; text sized for the widest value so it never resizes | OBSERVED |
 | Tool row switched on (onboarding / settings tools) | leading advice glyph Circle → advice shape on `glyphMorph()` (rare: a setup choice), back on `dataSpatial()` (the melatonin glyph twinkles once, as on the plan); row container and text tint to the advice container on `colour()`, read in draw; the switch and label carry the state without them | OBSERVED |
 | Route arc banner: destination picked | flat dotted horizon springs up into the dashed arc on `containerSpatial()` (the dots stretch into dashes as it lifts); the plane glides to its position on `dataSpatial()`; destination code reveals as above | OBSERVED |
+| Header body sky on a day pick (day strip, toolbar day picker, a pick going live) | the new day's sky fades in over the old one on `colour()` (`AnimatedContent` keyed by the picked day; the old sky stays put underneath, so the header never shows through); scrubbing and the minute tick repaint in place with no transition. Header text and status-bar ink switch at once (they must stay readable on whichever sky wins) | OBSERVED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
@@ -72,7 +73,7 @@ on-screen time, not opens, is what gates its motion.
 | Airport picked in the trip editor | a few/month | Dot-matrix reveal + route arc apex spring (`containerSpatial`); the plane stays on `dataSpatial` |
 | Advice glyph morph | a few/day (advice boundaries) | `glyphMorph` (Expressive) + one ambient cycle |
 | Dial scrub / back to now | daily | `dataSpatial`, hour haptics |
-| Body-clock sky | continuous | Repaint only; no animation of its own |
+| Body-clock sky | continuous | Repaint only; no animation of its own (the header sky cross-fades once on a day pick, a state change the user asked for) |
 | Illustrations (Why? sheet, onboarding, empty state) | rare | Ambient loops + entrances |
 | Adaptation celebration (rings → Bloom + confetti) | once per trip | Full delight, one mover at a time |
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |

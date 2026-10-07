@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
@@ -495,6 +498,38 @@ class PlanContentTest {
         restoration.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `with motion on, picking a day cross-fades the header sky`() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        // Mid-fade: Day 2's sky stays underneath while Day 3's fades in over it.
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(2)
+
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+    }
+
+    @Test
+    fun `with motion on, scrubbing the dial repaints the header sky in place`() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.mainClock.advanceTimeBy(5_000)
+
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        Snapshot.sendApplyNotifications()
+        repeat(4) {
+            compose.mainClock.advanceTimeByFrame()
+            compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+        }
     }
 
     @Test
