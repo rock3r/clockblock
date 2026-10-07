@@ -206,6 +206,13 @@ fun SleepDial(
             egg = EggState.Hidden
         }
     }
+    // The gate can close mid-egg (a planned sleep block starts): drop the peek or note and stop the rubber band.
+    LaunchedEffect(easterEggEnabled) {
+        if (!easterEggEnabled) {
+            egg = EggState.Hidden
+            wakeReturn.snapTo(0f)
+        }
+    }
 
     val sleepRole = advice[AdviceType.Sleep]
     val sunColor = advice[AdviceType.SeeBrightLight].color
@@ -302,7 +309,7 @@ fun SleepDial(
                                     // Rubber-band back to where the gesture started.
                                     overshoot.snapTo(0f)
                                     currentOnChange(start)
-                                    if (currentReduce) {
+                                    if (currentReduce || !currentEggEnabled) {
                                         wakeReturn.snapTo(0f)
                                     } else {
                                         wakeReturn.snapTo(endDuration - SleepDialMath.durationMinutes(start))

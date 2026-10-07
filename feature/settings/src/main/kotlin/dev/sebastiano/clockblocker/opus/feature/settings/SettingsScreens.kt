@@ -465,6 +465,7 @@ fun SettingsContent(
                     initial = profile.sleep,
                     onSave = { window -> actions.updateProfile { it.copy(sleep = window) }; editor = ProfileEditor.None },
                     onCancel = { editor = ProfileEditor.None },
+                    easterEggs = state.easterEggs,
                 )
             }
             ProfileEditor.Chronotype -> EditorDialog(onDismiss = { editor = ProfileEditor.None }) {
@@ -1064,7 +1065,7 @@ private fun EditorButtons(onCancel: () -> Unit, onSave: () -> Unit) {
 
 /** Sleep editor: the onboarding dial on a draft; saved only on Save. */
 @Composable
-internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, onCancel: () -> Unit) {
+internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, onCancel: () -> Unit, easterEggs: Boolean = false) {
     var draft by rememberSaveable(stateSaver = SleepWindowSaver) { mutableStateOf(initial) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
@@ -1073,7 +1074,7 @@ internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, on
         // so the dial shrinks to what the window height leaves after the title, times and buttons.
         val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
         val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
-        SleepDial(draft, { draft = it }, Modifier.fillMaxWidth(), maxDialSize = maxDial)
+        SleepDial(draft, { draft = it }, Modifier.fillMaxWidth(), easterEggEnabled = easterEggs, maxDialSize = maxDial)
         Spacer(Modifier.size(16.dp))
         EditorButtons(onCancel = onCancel, onSave = { onSave(draft) })
     }

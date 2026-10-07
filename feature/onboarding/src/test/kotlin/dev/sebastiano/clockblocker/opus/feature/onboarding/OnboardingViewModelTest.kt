@@ -1,15 +1,22 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import app.cash.turbine.test
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.data.time.DeviceZone
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakePlanRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
+import dev.sebastiano.clockblocker.opus.core.testing.FakeSettingsRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
+import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContain
@@ -35,7 +42,35 @@ class OnboardingViewModelTest {
     private val clock = Clock.fixed(Instant.parse("2026-10-04T10:00:00Z"), java.time.ZoneOffset.UTC)
     private val deviceZone = DeviceZone { ZoneId.of("Europe/Rome") }
 
-    private fun viewModel() = OnboardingViewModel(profiles, places, permissions, clock, deviceZone)
+    private val settings = FakeSettingsRepository()
+    private val plans = FakePlanRepository()
+    private val ticker = MutableClock()
+
+    private fun viewModel() =
+        OnboardingViewModel(profiles, places, permissions, clock, deviceZone, EasterEggGate(settings, plans, ticker))
+
+    @Test
+    fun `the sleep dial egg is on by default`() = runTest {
+        viewModel().state.value.easterEggs.shouldBeTrue()
+    }
+
+    @Test
+    fun `the sleep dial egg is off with reduce motion on`() = runTest {
+        settings.set(AppSettings(reduceMotion = true))
+        viewModel().state.value.easterEggs.shouldBeFalse()
+    }
+
+    @Test
+    fun `the sleep dial egg is off while the current plan says sleep, and back after`() = runTest {
+        val plan = FakeJetLagPlanner().plan(DemoData.sfoToLhr(), DemoData.profile, ticker.instant())
+        val sleep = plan.allAdvice.first { it.type == AdviceType.Sleep }
+        plans.setCurrentPlan(plan)
+        ticker.set(sleep.start)
+        val vm = viewModel()
+        vm.state.value.easterEggs.shouldBeFalse()
+        ticker.set(sleep.end)
+        vm.state.value.easterEggs.shouldBeTrue()
+    }
 
     @Test
     fun `starts on welcome with the device zone and sensible defaults`() = runTest {

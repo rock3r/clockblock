@@ -77,4 +77,4 @@ Yes. It's free and open source under the Apache License 2.0. The code is on
 
 ### Are there any surprises hidden in the app?
 
-A few. The ones on the plan screen stay hidden while your plan says sleep or when Reduce motion is on.
+A few. They stay hidden while your plan says sleep, or when Reduce motion is on in Settings.

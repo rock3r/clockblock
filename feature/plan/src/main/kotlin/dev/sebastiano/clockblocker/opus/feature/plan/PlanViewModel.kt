@@ -13,12 +13,12 @@ import dev.sebastiano.clockblocker.opus.core.data.export.IcsExporter
 import dev.sebastiano.clockblocker.opus.core.data.time.Ticker
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
-import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.model.easterEggsAllowed
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
@@ -133,7 +133,6 @@ class PlanViewModel(
 
     private fun ready(plan: JetLagPlan, inputs: Inputs, celebrated: Boolean, now: Instant): PlanUiState.Ready {
         val moment = plan.momentAt(now)
-        val sleeping = moment.active?.type == AdviceType.Sleep
         return PlanUiState.Ready(
             plan = plan,
             trip = inputs.trip,
@@ -142,7 +141,7 @@ class PlanViewModel(
             outcomes = inputs.logs.associate { it.adviceId to it.outcome }.toImmutableMap(),
             nightSafe = inputs.settings.nightSafeAuto && moment.wantsNightSafe,
             celebrate = !celebrated && plan.isCelebrationDue(now),
-            easterEggs = !inputs.settings.reduceMotion && !sleeping,
+            easterEggs = easterEggsAllowed(inputs.settings.reduceMotion, plan, now),
             sleep = inputs.profile?.sleep ?: SleepWindow.Default,
         )
     }
