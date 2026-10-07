@@ -77,6 +77,16 @@ class SunTest {
     }
 
     @Test
+    fun `a day that sets after midnight ends with tonight's sunset`() {
+        // Tromsø, 17 May 2026, the eve of the midnight sun: up at about 01:14, down after midnight.
+        val oslo = ZoneId.of("Europe/Oslo")
+        val day = Sun.on(LocalDate.of(2026, 5, 17), oslo, 69.683, 18.919).shouldBeInstanceOf<SunDay.RisesAndSets>()
+        day.sunrise.atZone(oslo).toLocalDate() shouldBe LocalDate.of(2026, 5, 17)
+        day.sunset.atZone(oslo).toLocalDate() shouldBe LocalDate.of(2026, 5, 18)
+        (day.sunrise < day.solarNoon && day.solarNoon < day.sunset) shouldBe true
+    }
+
+    @Test
     fun `solar noon is the middle of the day, and of a polar night too`() {
         val london = ZoneId.of("Europe/London")
         val day = Sun.on(LocalDate.of(2026, 6, 21), london, 51.471, -0.460).shouldBeInstanceOf<SunDay.RisesAndSets>()

@@ -36,8 +36,10 @@ object Sun {
     private const val Zenith = 90.833
 
     /**
-     * The sun on the local [date] in [zone] at [latitude], [longitude] (degrees, north and east positive). The
-     * times are the ones around that date's solar noon, so they fall on [date] even across the date line.
+     * The sun on the local [date] in [zone] at [latitude], [longitude] (degrees, north and east positive): the
+     * sunrise before and the sunset after that date's solar noon, so the date line can't pull in another day. Days
+     * before and after the midnight sun can set after midnight: then the sunset is the next calendar day's, the one
+     * that ends this day (tonight's, which the dial is about to reach), not the one just after last midnight.
      */
     fun on(date: LocalDate, zone: ZoneId, latitude: Double, longitude: Double): SunDay {
         val clockNoon = date.atTime(LocalTime.NOON).atZone(zone).toInstant()
