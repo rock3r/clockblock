@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.opus.jvm.library)
+    alias(libs.plugins.clockblock.jvm.library)
 }
 
 dependencies {

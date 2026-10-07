@@ -63,7 +63,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawHatch
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawRoundDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawStarDots
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -222,7 +222,7 @@ internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer,
 @Composable
 internal fun rememberTimeColumnWidth(): Dp {
     val measurer = rememberTextMeasurer()
-    val style = OpusTheme.textStyles.timeTitle
+    val style = ClockblockTheme.textStyles.timeTitle
     val density = LocalDensity.current
     val formatter = rememberTimeFormatter()
     return remember(style, density, formatter) {
@@ -247,7 +247,7 @@ private fun DayHeader(row: RailRow.Header) {
     val scheme = MaterialTheme.colorScheme
     val (badgeColor, badgeContent) = when (day.day.kind) {
         DayKind.PreTrip -> scheme.secondaryContainer to scheme.onSecondaryContainer
-        DayKind.Travel -> OpusTheme.adviceColors[AdviceType.Flight].let { it.container to it.onContainer }
+        DayKind.Travel -> ClockblockTheme.adviceColors[AdviceType.Flight].let { it.container to it.onContainer }
         DayKind.Arrival -> scheme.primaryContainer to scheme.onPrimaryContainer
         DayKind.Adapted -> scheme.tertiaryContainer to scheme.onTertiaryContainer
     }
@@ -338,7 +338,7 @@ private const val SkyBandAlpha = 0.16f
 private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeColumn: Dp) {
     val formatter = rememberTimeFormatter()
     val color = MaterialTheme.colorScheme.primary
-    val sky = OpusTheme.sky
+    val sky = ClockblockTheme.sky
     val time = formatter.formatFull(row.instant.atZone(row.day.zone).toLocalTime())
     val band = row.bandAt?.let { at -> remember(at, sky) { sky.gradientAt(renderer.bodyHour(at)).mid } }
     Row(
@@ -347,7 +347,7 @@ private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeCol
     ) {
         Text(
             time,
-            style = OpusTheme.textStyles.timeLabel,
+            style = ClockblockTheme.textStyles.timeLabel,
             color = color,
             modifier = Modifier.width(timeColumn).padding(vertical = 4.dp),
         )
@@ -384,7 +384,7 @@ private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeCol
 @Composable
 private fun ZoneSwitchRow(row: RailRow.ZoneSwitch) {
     val scheme = MaterialTheme.colorScheme
-    val role = OpusTheme.adviceColors[AdviceType.Flight]
+    val role = ClockblockTheme.adviceColors[AdviceType.Flight]
     val title = stringResource(R.string.plan_zone_switch, row.to.cityName())
     val hours = zoneDeltaHours(row.from, row.to, row.at)
     val detail = stringResource(
@@ -413,7 +413,7 @@ private fun ZoneSwitchRow(row: RailRow.ZoneSwitch) {
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Text(title, style = MaterialTheme.typography.labelLarge)
-                    Text(detail, style = OpusTheme.textStyles.timeLabel, color = role.onContainer.copy(alpha = 0.85f))
+                    Text(detail, style = ClockblockTheme.textStyles.timeLabel, color = role.onContainer.copy(alpha = 0.85f))
                 }
             }
         }
@@ -434,11 +434,11 @@ internal fun utcLabel(offset: ZoneOffset): String {
 private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn: Dp, highlighted: Boolean) {
     val advice = row.item.advice
     val day = row.day
-    val role = OpusTheme.adviceColors[advice.type]
+    val role = ClockblockTheme.adviceColors[advice.type]
     val scheme = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
-    val sky = OpusTheme.sky
+    val sky = ClockblockTheme.sky
     val isNow = row.item.status == RailStatus.Now
     val past = row.item.status == RailStatus.Past
     val emphasised = isNow || highlighted
@@ -482,7 +482,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             if (row.showTime) {
                 Text(
                     formatter.format(advice.start.atZone(day.zone).toLocalTime()),
-                    style = OpusTheme.textStyles.timeTitle,
+                    style = ClockblockTheme.textStyles.timeTitle,
                     color = if (emphasised) scheme.onSurface else scheme.onSurfaceVariant,
                 )
                 formatter.marker(advice.start.atZone(day.zone).toLocalTime())?.let {
@@ -576,7 +576,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                     if (row.item.inFlight) InFlightBadge(inFlightText)
                     row.item.outcome?.let { OutcomeBadge(it) }
                 }
-                Text(range, style = OpusTheme.textStyles.timeLabel, color = scheme.onSurface)
+                Text(range, style = ClockblockTheme.textStyles.timeLabel, color = scheme.onSurface)
                 if (!detail.isNullOrBlank()) {
                     Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
@@ -631,7 +631,7 @@ private fun outcomeLabel(outcome: AdviceOutcome): String = stringResource(
 @Composable
 private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, onClick: () -> Unit) {
     val advice = item.advice
-    val role = OpusTheme.adviceColors[advice.type]
+    val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     val isNow = item.status == RailStatus.Now
@@ -663,7 +663,7 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
                     formatter.range(advice.start, advice.end, day.zone, resources) + (advice.detail?.let { " · $it" } ?: ""),
-                    style = OpusTheme.textStyles.timeLabel,
+                    style = ClockblockTheme.textStyles.timeLabel,
                 )
                 Text(secondary, style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.8f))
             }
@@ -678,7 +678,7 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
 /** Tonal "In flight" label on blocks that happen on board (text, never the plane alone). */
 @Composable
 private fun InFlightBadge(text: String) {
-    val role = OpusTheme.adviceColors[AdviceType.Flight]
+    val role = ClockblockTheme.adviceColors[AdviceType.Flight]
     Surface(shape = CircleShape, color = role.container, contentColor = role.onContainer) {
         Row(Modifier.padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(PlanIcons.Flight, contentDescription = null, modifier = Modifier.size(12.dp).graphicsLayer { rotationZ = 90f })

@@ -11,11 +11,11 @@ import androidx.core.content.getSystemService
  * Notification channels, grouped so users can mute one kind of advice (say caffeine) without losing the
  * others (design §3.4). Reminders alert; the ongoing channels never make a sound.
  */
-enum class OpusChannel(
+enum class ClockblockChannel(
     val id: String,
     @param:StringRes val title: Int,
     @param:StringRes val description: Int,
-    val group: OpusChannelGroup,
+    val group: ClockblockChannelGroup,
     val importance: Int,
     val silent: Boolean,
 ) {
@@ -23,7 +23,7 @@ enum class OpusChannel(
         id = "advice_light",
         title = R.string.notif_channel_light,
         description = R.string.notif_channel_light_desc,
-        group = OpusChannelGroup.Reminders,
+        group = ClockblockChannelGroup.Reminders,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         silent = false,
     ),
@@ -31,7 +31,7 @@ enum class OpusChannel(
         id = "advice_sleep",
         title = R.string.notif_channel_sleep,
         description = R.string.notif_channel_sleep_desc,
-        group = OpusChannelGroup.Reminders,
+        group = ClockblockChannelGroup.Reminders,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         silent = false,
     ),
@@ -39,7 +39,7 @@ enum class OpusChannel(
         id = "advice_supplements_caffeine",
         title = R.string.notif_channel_supplements,
         description = R.string.notif_channel_supplements_desc,
-        group = OpusChannelGroup.Reminders,
+        group = ClockblockChannelGroup.Reminders,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         silent = false,
     ),
@@ -49,7 +49,7 @@ enum class OpusChannel(
         id = "travel_live",
         title = R.string.notif_channel_travel_live,
         description = R.string.notif_channel_travel_live_desc,
-        group = OpusChannelGroup.Ongoing,
+        group = ClockblockChannelGroup.Ongoing,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         silent = true,
     ),
@@ -59,13 +59,13 @@ enum class OpusChannel(
         id = "now",
         title = R.string.notif_channel_now,
         description = R.string.notif_channel_now_desc,
-        group = OpusChannelGroup.Ongoing,
+        group = ClockblockChannelGroup.Ongoing,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         silent = true,
     ),
 }
 
-enum class OpusChannelGroup(val id: String, @param:StringRes val title: Int) {
+enum class ClockblockChannelGroup(val id: String, @param:StringRes val title: Int) {
     Reminders("reminders", R.string.notif_group_reminders),
     Ongoing("ongoing", R.string.notif_group_ongoing),
 }
@@ -75,10 +75,10 @@ object NotificationChannels {
     fun ensureCreated(context: Context) {
         val manager = context.getSystemService<NotificationManager>() ?: return
         manager.createNotificationChannelGroups(
-            OpusChannelGroup.entries.map { NotificationChannelGroup(it.id, context.getString(it.title)) },
+            ClockblockChannelGroup.entries.map { NotificationChannelGroup(it.id, context.getString(it.title)) },
         )
         manager.createNotificationChannels(
-            OpusChannel.entries.map { channel ->
+            ClockblockChannel.entries.map { channel ->
                 NotificationChannel(channel.id, context.getString(channel.title), channel.importance).apply {
                     description = context.getString(channel.description)
                     group = channel.group.id

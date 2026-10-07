@@ -15,7 +15,7 @@ import androidx.compose.ui.test.performScrollTo
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -82,7 +82,7 @@ class SettingsContentTest {
 
     private fun show(state: SettingsUiState = settingsState()) {
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 SettingsContent(state, actions, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
             }
         }
@@ -256,7 +256,7 @@ class AboutContentTest {
     fun `version taps, source and licences forward`() {
         val calls = mutableListOf<String>()
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 AboutContent(
                     versionName = "1.0.0",
                     onVersionTap = { calls += "version" },
@@ -277,7 +277,7 @@ class AboutContentTest {
     fun `licence cards open their project pages`() {
         val opened = mutableListOf<String>()
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize(), onOpenUrl = { opened += it })
             }
         }
@@ -297,7 +297,7 @@ class AboutContentTest {
     fun `title card dismisses`() {
         var dismissed = false
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) { OpusTitleCard(onDismiss = { dismissed = true }) }
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) { OpusTitleCard(onDismiss = { dismissed = true }) }
         }
         compose.onNodeWithTag(AboutTags.OpusTitleDismiss).performClick()
         dismissed shouldBe true
@@ -307,7 +307,7 @@ class AboutContentTest {
     fun `title card dialog plays its exit before it leaves`() {
         var visible by mutableStateOf(true)
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = false) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = false) {
                 OpusTitleCardDialog(visible = visible, onDismiss = { visible = false })
             }
         }

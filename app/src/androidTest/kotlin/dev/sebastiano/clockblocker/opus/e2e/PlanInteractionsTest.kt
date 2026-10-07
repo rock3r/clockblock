@@ -16,13 +16,13 @@ import java.util.regex.Pattern
 
 /** The plan screen: the Why sheet from the rail, the floating toolbar and exporting to a calendar file. */
 @RunWith(AndroidJUnit4::class)
-class PlanInteractionsTest : OpusE2eTest() {
+class PlanInteractionsTest : ClockblockE2eTest() {
 
     @Test
     fun railBlockOpensWhySheetAndToolbarJumpsBackToNow() {
         seedOnboarded()
         val active = graph.seedTripWithActiveAdvice()
-        launch(deepLink = "opusclockblock://plan/${active.trip.id}")
+        launch(deepLink = "clockblock://plan/${active.trip.id}")
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
 
         // Scroll the rail to a later block (past the hero cards), and open its explanation.
@@ -43,7 +43,7 @@ class PlanInteractionsTest : OpusE2eTest() {
     fun exportToCalendarOpensTheDocumentPicker() {
         seedOnboarded()
         val active = graph.seedTripWithActiveAdvice()
-        launch(deepLink = "opusclockblock://plan/${active.trip.id}")
+        launch(deepLink = "clockblock://plan/${active.trip.id}")
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
 
         awaitTag(PlanTags.Overflow).performClick()

@@ -29,8 +29,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterNotNull
@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
 internal class OnboardingStepTransition(
     private val state: SeekableTransitionState<OnboardingStep>,
     val transition: Transition<OnboardingStep>,
-    private val motion: OpusMotion,
+    private val motion: ClockblockMotion,
     private val axisOffsetPx: Int,
     private val layoutDirection: LayoutDirection,
 ) {
@@ -118,7 +118,7 @@ internal class OnboardingStepTransition(
  */
 @Composable
 internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -> Unit): OnboardingStepTransition {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val axisOffsetPx = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
     val seekable = remember { SeekableTransitionState(step) }

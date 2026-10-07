@@ -6,7 +6,7 @@ works fully offline: airport/city search → IANA time zone).
 ## Run
 
 ```sh
-python3 tools/places/build_places.py            # downloads sources to $TMPDIR/opus-places, writes the asset
+python3 tools/places/build_places.py            # downloads sources to $TMPDIR/clockblock-places, writes the asset
 python3 tools/places/build_places.py --refresh  # force re-download
 python3 tools/places/build_places.py --cache /path/to/cache --out /tmp/places.tsv
 ```

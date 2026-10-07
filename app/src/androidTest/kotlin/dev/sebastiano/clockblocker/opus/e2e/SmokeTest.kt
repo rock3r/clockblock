@@ -9,7 +9,7 @@ import org.junit.runner.RunWith
 
 /** The app starts past the splash screen into onboarding or a home destination, and the suite navigates. */
 @RunWith(AndroidJUnit4::class)
-class SmokeTest : OpusE2eTest() {
+class SmokeTest : ClockblockE2eTest() {
 
     @Test
     fun launchShowsOnboardingOrHome() {

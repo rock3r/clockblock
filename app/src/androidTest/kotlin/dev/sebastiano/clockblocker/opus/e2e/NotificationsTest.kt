@@ -29,7 +29,7 @@ import java.util.regex.Pattern
  */
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class NotificationsTest : OpusE2eTest() {
+class NotificationsTest : ClockblockE2eTest() {
 
     @Test
     fun a_firstRunAllowAndFinishGrantsNotificationsThroughSystemDialog() {
@@ -90,7 +90,7 @@ class NotificationsTest : OpusE2eTest() {
 
             assertTrue("tapped '$title' in the notification shade", device.clickWhenFound(By.text(title), DefaultTimeoutMillis))
 
-            // The tap opens the current plan (opusclockblock://plan/current → Now) in the running app.
+            // The tap opens the current plan (clockblock://plan/current → Now) in the running app.
             assertNotNull(device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), LongTimeoutMillis))
             awaitTag("route_now", LongTimeoutMillis).assertIsDisplayed()
             awaitTag(PlanTags.NowCard, LongTimeoutMillis).assertIsDisplayed()

@@ -1,6 +1,6 @@
 plugins {
-    alias(libs.plugins.opus.android.application)
-    alias(libs.plugins.opus.android.compose)
+    alias(libs.plugins.clockblock.android.application)
+    alias(libs.plugins.clockblock.android.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.metro)
 }

@@ -93,7 +93,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseO
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.EightBitMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.NightSafeTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -197,7 +197,7 @@ internal fun PlanContent(
     modifier: Modifier = Modifier,
     screenState: PlanScreenState = rememberPlanScreenState(),
 ) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     var loaderShown by remember { mutableStateOf(false) }
     AnimatedContent(
         targetState = state,
@@ -302,7 +302,7 @@ internal fun PlanEmptyState(
     ) {
         art()
         Spacer(Modifier.height(24.dp))
-        Text(title, style = OpusTheme.textStyles.editorialHeadline, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 480.dp))
+        Text(title, style = ClockblockTheme.textStyles.editorialHeadline, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 480.dp))
         Spacer(Modifier.height(12.dp))
         Text(
             body,
@@ -357,7 +357,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val plan = state.plan
     val resources = LocalContext.current.resources
     val reduce = LocalReduceMotion.current
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 

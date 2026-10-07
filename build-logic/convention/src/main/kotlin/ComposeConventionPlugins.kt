@@ -52,8 +52,8 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
 /** A feature module: Android library + Compose + the core modules every screen needs. */
 class AndroidFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
-        pluginManager.apply("opus.android.library")
-        pluginManager.apply("opus.android.compose")
+        pluginManager.apply("clockblock.android.library")
+        pluginManager.apply("clockblock.android.compose")
         pluginManager.apply("dev.zacsweers.metro")
         dependencies {
             add("implementation", project(":core:model"))

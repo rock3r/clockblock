@@ -133,7 +133,7 @@ class NowNotificationScreenshotTest {
     }
 
     private companion object {
-        const val APP_NAME = "Opus Clockblock"
+        const val APP_NAME = "Clockblock"
 
         /** A phone shade card on a 411dp-wide screen. */
         const val WIDTH_DP = 395

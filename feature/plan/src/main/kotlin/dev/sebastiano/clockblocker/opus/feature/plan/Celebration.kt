@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ConfettiBurst
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.BloomArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
@@ -93,8 +93,8 @@ internal fun JetLagPlan.arrivalBodyAheadMinutes(zone: ZoneId): Float {
  */
 @Composable
 internal fun CelebrationOverlay(plan: JetLagPlan, visible: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    val motion = OpusTheme.motion
-    val reduce = OpusTheme.reduceMotion
+    val motion = ClockblockTheme.motion
+    val reduce = ClockblockTheme.reduceMotion
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val scope = rememberCoroutineScope()
     // Starts hidden so the entrance fade actually plays (an AnimatedVisibility created visible never fades).
@@ -142,7 +142,7 @@ internal fun CelebrationOverlay(plan: JetLagPlan, visible: Boolean, onDismiss: (
                     onBloomPositioned = { bloomCentre = it },
                 )
             }
-            if (OpusTheme.variant != OpusThemeVariant.NightSafe) {
+            if (ClockblockTheme.variant != ClockblockThemeVariant.NightSafe) {
                 ConfettiBurst(
                     playing = finale,
                     modifier = Modifier.fillMaxSize(),
@@ -187,7 +187,7 @@ internal fun CelebrationContent(
         Spacer(Modifier.height(24.dp))
         Text(
             stringResource(R.string.plan_celebration_title),
-            style = OpusTheme.textStyles.editorialDisplay,
+            style = ClockblockTheme.textStyles.editorialDisplay,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics {
@@ -198,7 +198,7 @@ internal fun CelebrationContent(
         Spacer(Modifier.height(12.dp))
         Text(
             stringResource(R.string.plan_celebration_body, city),
-            style = OpusTheme.textStyles.editorialHeadline,
+            style = ClockblockTheme.textStyles.editorialHeadline,
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = 420.dp),
         )

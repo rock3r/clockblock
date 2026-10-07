@@ -20,7 +20,7 @@ import java.util.Locale
 data class ExportLabels(
     val adviceTitle: (AdviceType) -> String = ::defaultAdviceTitle,
     val reasonText: (AdviceReason) -> String = ::defaultReasonText,
-    val disclaimer: String = "Opus Clockblock plan. Not medical advice.",
+    val disclaimer: String = "Clockblock plan. Not medical advice.",
 ) {
     companion object {
         fun defaultAdviceTitle(type: AdviceType): String = when (type) {
@@ -84,7 +84,7 @@ class IcsExporter {
         val lines = mutableListOf(
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
-            "PRODID:-//Opus Clockblock//Jet lag plan//EN",
+            "PRODID:-//Clockblock//Jet lag plan//EN",
             "CALSCALE:GREGORIAN",
             "METHOD:PUBLISH",
             "X-WR-CALNAME:" + escape(trip?.title ?: "Jet lag plan"),

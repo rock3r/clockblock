@@ -1,6 +1,6 @@
-# Circadian Science for Opus Clockblock — Research Report & Algorithm Specification
+# Circadian Science for Clockblock — Research Report & Algorithm Specification
 
-*Prepared for the Opus Clockblock Android app (open source, fully offline, Kotlin). Version 1.0, 2026-10-04.*
+*Prepared for the Clockblock Android app (open source, fully offline, Kotlin). Version 1.0, 2026-10-04.*
 
 > [!CAUTION]
 > **Not medical advice.** The app gives general information about circadian timing, not a diagnosis or treatment. Melatonin is a drug, and how it is regulated varies by country (US: dietary supplement sold over the counter; UK: prescription only; EU: varies, with low doses sometimes sold as food supplements and higher doses classed as medicines; Australia: prescription, except one pharmacist-only 2 mg prolonged-release product for people aged 55+; Canada: natural health product; Japan: not approved). People who are pregnant or breastfeeding, have epilepsy, take anticoagulants (warfarin), take fluvoxamine or other CYP1A2 inhibitors, take immunosuppressants, have an autoimmune disease, or are children should not take melatonin unless a clinician says so. Do not drive or operate machinery for several hours after taking melatonin or after short sleep. The app must say all this clearly and let users switch melatonin and caffeine advice off.

@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.AdviceArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -70,7 +70,7 @@ internal fun WhySheetContent(
     flightRoute: String?,
     modifier: Modifier = Modifier,
 ) {
-    val role = OpusTheme.adviceColors[advice.type]
+    val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     Column(modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
@@ -94,7 +94,7 @@ internal fun WhySheetContent(
             formatter.range(advice.start, advice.end, zone, resources) + " " + zone.cityName(),
         ).plus(if (advice.type == AdviceType.Flight) flightDetails(flightRoute, advice.detail) else listOfNotNull(advice.detail))
             .joinToString(" · ")
-        Text(subtitle, style = OpusTheme.textStyles.timeLabel, color = MaterialTheme.colorScheme.onSurface)
+        Text(subtitle, style = ClockblockTheme.textStyles.timeLabel, color = MaterialTheme.colorScheme.onSurface)
         Text(
             formatter.range(advice.start, advice.end, secondaryZone, resources) + " " + secondaryZone.cityName(),
             style = MaterialTheme.typography.labelMedium,
@@ -131,7 +131,7 @@ private fun WhySection(title: String, body: String, small: Boolean = false) {
         )
         Text(
             body,
-            style = if (small) MaterialTheme.typography.bodyMedium else OpusTheme.textStyles.editorialBody,
+            style = if (small) MaterialTheme.typography.bodyMedium else ClockblockTheme.textStyles.editorialBody,
             color = if (small) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
         )
     }

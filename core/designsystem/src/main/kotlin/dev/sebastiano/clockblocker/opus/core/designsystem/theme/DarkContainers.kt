@@ -17,7 +17,7 @@ private const val QuietOnContainerLightness = 0.92f
  *
  * This keeps every container the system made dark exactly as it is, and moves only the light ones down to a
  * dark tone of the **same hue** (so it still reads as the wallpaper's colour), with a light tone of that hue as
- * its content colour. Applied to dynamic dark schemes only; the static Opus palettes already follow M3 tones.
+ * its content colour. Applied to dynamic dark schemes only; the static Clockblock palettes already follow M3 tones.
  */
 internal fun ColorScheme.withQuietDarkContainers(): ColorScheme {
     val (primary, onPrimary) = quiet(primaryContainer, onPrimaryContainer)

@@ -8,7 +8,7 @@
     <string name="onboarding_finish">Finish</string>
 
     <!-- 1. Welcome. -->
-    <string name="welcome_kicker">Opus Clockblock</string>
+    <string name="welcome_kicker">Clockblock</string>
     <string name="welcome_headline">Jet lag is two clocks disagreeing.</string>
     <string name="welcome_body">We help your body clock catch up with the one on the wall: light, sleep and caffeine, timed to the minute.</string>
     <string name="welcome_badge_offline">Works offline</string>

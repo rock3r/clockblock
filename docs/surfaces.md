@@ -15,7 +15,7 @@ The code is in `:core:notifications` and `:widget`. The shared contract,
 ## The scheduler
 
 [`AdviceAlarmScheduler`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/AdviceAlarmScheduler.kt)
-starts from `OpusApplication`. It watches `currentPlan` and the settings. When either changes, it re-arms its
+starts from `ClockblockApplication`. It watches `currentPlan` and the settings. When either changes, it re-arms its
 alarms and refreshes every surface.
 
 ```mermaid
@@ -101,7 +101,7 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded, in the shade: header "Opus Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded, in the shade: header "Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
 On Android 12 (API 31) and later, the notification is a `DecoratedCustomViewStyle` with our own content
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),

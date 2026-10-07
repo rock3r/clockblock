@@ -108,7 +108,7 @@
 
     <string name="settings_replay">Replay setup</string>
     <string name="settings_replay_description">Walk through the first-run questions again.</string>
-    <string name="settings_about">About Opus Clockblock</string>
+    <string name="settings_about">About Clockblock</string>
     <string name="settings_about_description">How it works, the science, licences.</string>
 
     <string name="settings_event_exported">Backup saved.</string>
@@ -117,7 +117,7 @@
         <item quantity="one">Imported %1$d trip.</item>
         <item quantity="other">Imported %1$d trips.</item>
     </plurals>
-    <string name="settings_event_not_backup">That file isn\'t an Opus Clockblock backup.</string>
+    <string name="settings_event_not_backup">That file isn\'t a Clockblock backup.</string>
     <string name="settings_event_newer">That backup is from a newer version. Update the app, then try again.</string>
     <string name="settings_event_unreadable">Couldn\'t read that file.</string>
     <string name="settings_event_test_sent">Test reminder sent. Check your notifications.</string>
@@ -126,7 +126,7 @@
 
     <!-- About -->
     <string name="about_title">About</string>
-    <string name="about_app_name">Opus Clockblock</string>
+    <string name="about_app_name">Clockblock</string>
     <string name="about_tagline">A jet lag planner that lives entirely on your phone. Free, open source, no account.</string>
     <string name="about_version">Version</string>
     <string name="about_version_unknown">Development build</string>
@@ -156,7 +156,7 @@
     <string name="about_ref_6">Czeisler et al. (1999). The human body clock runs at about 24.2 hours.</string>
 
     <string name="about_disclaimer_title">Not medical advice</string>
-    <string name="about_disclaimer_body">Opus Clockblock gives general information about timing light, sleep and caffeine. It isn\'t a diagnosis or treatment, and it\'s meant for healthy adults, not flight crew on duty.</string>
+    <string name="about_disclaimer_body">Clockblock gives general information about timing light, sleep and caffeine. It isn\'t a diagnosis or treatment, and it\'s meant for healthy adults, not flight crew on duty.</string>
     <string name="about_disclaimer_melatonin">Melatonin is a medicine in many countries. Talk to a doctor or pharmacist first, especially if you are pregnant, take other medicines or have a long-term condition.</string>
     <string name="about_disclaimer_drive">Don\'t drive when you\'re short on sleep, whatever the plan says.</string>
 
@@ -174,13 +174,13 @@
     <!-- Licences -->
     <string name="licenses_open">Open the %1$s page</string>
     <string name="licenses_title">Licences</string>
-    <string name="licenses_intro">Opus Clockblock stands on other people\'s generous work. Thank you.</string>
+    <string name="licenses_intro">Clockblock stands on other people\'s generous work. Thank you.</string>
     <string name="licenses_section_app">The app</string>
     <string name="licenses_section_fonts">Fonts</string>
     <string name="licenses_section_icons">Icons</string>
     <string name="licenses_section_data">Data</string>
     <string name="licenses_section_libraries">Libraries</string>
-    <string name="licenses_app_name">Opus Clockblock</string>
+    <string name="licenses_app_name">Clockblock</string>
     <string name="licenses_app_detail">Source code, illustrations and docs.</string>
     <string name="licenses_google_sans_flex">Google Sans Flex</string>
     <string name="licenses_google_sans_flex_detail">The interface typeface. © Google LLC.</string>

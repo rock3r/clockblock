@@ -41,7 +41,7 @@ import org.junit.runner.RunWith
  * grants the permission).
  */
 @RunWith(AndroidJUnit4::class)
-class FirstRunTest : OpusE2eTest() {
+class FirstRunTest : ClockblockE2eTest() {
 
     @Test
     fun onboardingThroughAllStepsWithMaybeLaterLandsOnTrips() {
@@ -96,7 +96,7 @@ data class OnboardingChoices(val bedtimeBefore: String?, val bedtimeAfter: Strin
  * actions, as TalkBack would) → chronotype → tools (melatonin behind its safety note, effort) → reminders.
  */
 @OptIn(ExperimentalTestApi::class)
-fun OpusE2eTest.walkOnboardingToReminders(): OnboardingChoices {
+fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
     awaitTag("route_onboarding", 20_000)
     awaitTag(OnboardingTags.GetStarted).performClick()
 

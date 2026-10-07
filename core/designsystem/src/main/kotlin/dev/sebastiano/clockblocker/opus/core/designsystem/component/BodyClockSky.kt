@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.sharedUnitPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ColorMath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DuskPalette
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusThemeVariant
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyGradient
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
@@ -80,16 +80,16 @@ fun BodyClockSky(
     showCelestial: Boolean = true,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-    val sky = OpusTheme.sky
-    val nightSafe = OpusTheme.variant == OpusThemeVariant.NightSafe
-    val art = OpusTheme.artColors
+    val sky = ClockblockTheme.sky
+    val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
+    val art = ClockblockTheme.artColors
     val hour = bodyTime.toHourFloat()
     val gradient = sky.gradientAt(hour, sunriseHour, sunsetHour)
     val position = celestialPosition(hour, sunriseHour, sunsetHour)
     val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else DuskPalette.MarigoldSeed
     val moonColor = if (nightSafe) art.onInverse.copy(alpha = 0.6f) else Color(0xFFF4F1FF)
     val sunny = MaterialShapes.Sunny.sharedUnitPath()
-    val pixelMode = OpusTheme.pixelMode
+    val pixelMode = ClockblockTheme.pixelMode
     val pixelSun = MaterialShapes.PixelCircle.sharedUnitPath()
     Box(
         modifier.drawBehind {

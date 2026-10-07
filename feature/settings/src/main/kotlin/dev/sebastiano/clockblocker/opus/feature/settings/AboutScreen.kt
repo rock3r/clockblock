@@ -68,7 +68,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.segmentedShape
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
@@ -143,7 +143,7 @@ internal fun OpusTitleCardDialog(visible: Boolean, onDismiss: () -> Unit) {
     ) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setWindowAnimations(0) }
-        val motion = OpusTheme.motion
+        val motion = ClockblockTheme.motion
         val transition = rememberTransition(state, label = "opusTitleCard")
         val scrimAlpha = transition.animateFloat(transitionSpec = { motion.colour() }, label = "scrim") { shown ->
             if (shown) 1f else 0f
@@ -200,7 +200,7 @@ fun AboutContent(
                     Spacer(Modifier.size(12.dp))
                     Text(
                         stringResource(R.string.about_app_name),
-                        style = OpusTheme.textStyles.editorialDisplay,
+                        style = ClockblockTheme.textStyles.editorialDisplay,
                         color = colors.onSurface,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.semantics { heading() },
@@ -263,7 +263,7 @@ fun AboutContent(
                             Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                                 Text(
                                     "${index + 1}",
-                                    style = OpusTheme.textStyles.editorialTitle,
+                                    style = ClockblockTheme.textStyles.editorialTitle,
                                     color = colors.primary,
                                     modifier = Modifier.width(28.dp),
                                 )
@@ -284,7 +284,7 @@ fun AboutContent(
                             R.string.about_ref_1, R.string.about_ref_2, R.string.about_ref_3,
                             R.string.about_ref_4, R.string.about_ref_5, R.string.about_ref_6,
                         ).forEach { ref ->
-                            Text(stringResource(ref), style = OpusTheme.textStyles.editorialBody, color = colors.onSurface)
+                            Text(stringResource(ref), style = ClockblockTheme.textStyles.editorialBody, color = colors.onSurface)
                         }
                     }
                 }
@@ -320,8 +320,8 @@ fun AboutContent(
  */
 @Composable
 fun OpusTitleCard(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    val reduce = OpusTheme.reduceMotion
-    OpusTheme(darkTheme = true, dynamicColor = false, opusMode = true, reduceMotion = reduce) {
+    val reduce = ClockblockTheme.reduceMotion
+    ClockblockTheme(darkTheme = true, dynamicColor = false, opusMode = true, reduceMotion = reduce) {
         val colors = MaterialTheme.colorScheme
         Surface(
             shape = RoundedCornerShape(32.dp),
@@ -335,7 +335,7 @@ fun OpusTitleCard(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                 Spacer(Modifier.size(20.dp))
                 Text(
                     stringResource(R.string.opus_title_card),
-                    style = OpusTheme.textStyles.editorialDisplay,
+                    style = ClockblockTheme.textStyles.editorialDisplay,
                     color = colors.onSurface,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.semantics { heading() },

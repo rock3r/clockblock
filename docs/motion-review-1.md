@@ -1,4 +1,4 @@
-# Motion review — Opus Clockblock (main @ 1a37da0)
+# Motion review — Clockblock (main @ 1a37da0)
 
 ## Verdict
 **Block**
@@ -65,7 +65,7 @@ Blocking: unresolved **floor** violations F-001 ×3 and F-002 ×2 (plus a latent
 | T-009 | TripCard.kt:71-75, PlanCards.kt:132-137, WavyAdaptationIndicator.kt:69 | taste | major | `waveSpeed = 0` on these surfaces; keep the amplitude |
 | — (A) | PlanContent.kt:296,335-342 | taste | major | One owner: keep the content gate, drop `exitAlwaysScrollBehavior`; enter on `navigationSpatial()`/`dataSpatial()`, not `containerSpatial()` |
 | — (A) | TwoClocksDial.kt:232-237, Motion.kt:93-94 | taste | major | Rewind: animate from the raw −1440 → 0, `report()` frames so the sky follows, use the Calm scheme when Night-safe |
-| O-/A | PlanContent.kt:154-160 | taste | major | Stable `OpusTheme` call shape; cross-fade the scheme on `colour()`. No `if` branch that rebuilds the subtree |
+| O-/A | PlanContent.kt:154-160 | taste | major | Stable `ClockblockTheme` call shape; cross-fade the scheme on `colour()`. No `if` branch that rebuilds the subtree |
 | T-019 | PlanContent.kt:151-153,186-199 | taste | minor | ≈150 ms show delay before the loader; cross-fade Loading → Ready; start in the night theme when Night-safe applies |
 | — (A) | NowCard.kt:172-181 | taste | major | Reserve the split-button slot while previewing (alpha 0, disabled); keep the card height stable |
 | T-026 / A | Celebration.kt:52-69, JourneyArt.kt:166-185, ConfettiBurst.kt:90 | taste | major | Sequence: nav settles → rings align (CONFIRM haptic) → overlay fade (MutableTransitionState(false)) → Bloom scale → burst from the Bloom centre + check trim; drop the orbit loop |
@@ -78,7 +78,7 @@ Blocking: unresolved **floor** violations F-001 ×3 and F-002 ×2 (plus a latent
 | — (A) | PlanHeader.kt:211-219,279,294 | taste | minor | Start the morph from the crescent; one continuous progress over the chain; light haptic on taps 1–6; restore the state layer |
 | T-010/T-020 | ToolsEditor.kt:153-156, SleepDial.kt:381-384, SettingsScreens.kt:708-711, TripsContent.kt:292-307 | taste | minor | Use one tier per block (expand/shrink on `fade()`-tier effects, or both spatial) |
 | — (A) | app-wide | taste | major | Derive Calm motion from body-clock night at app level (independent of the Night-safe colours); loops/periods read the scheme |
-| — (A) | OpusApp.kt:101-107 | taste | minor | Hide the suite without animation on the editor route |
+| — (A) | ClockblockApp.kt:101-107 | taste | minor | Hide the suite without animation on the editor route |
 | docs | MOTION.md | — | — | Fix the frequency map (plan screen 5–15 opens/day; continuous on-screen time); add rows (Night-safe cross-fade, moon egg, 24.2, toolbar, celebration sequence); settle ring overshoot = none; remove the unused `PlaneMillis` |
 
 ## Floor / taste split

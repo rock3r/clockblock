@@ -12,7 +12,7 @@ import androidx.core.content.getSystemService
  * notification there is no summary (a lone summary would show as an empty notification of its own).
  */
 internal object NotificationGroup {
-    const val KEY: String = "opus.plan"
+    const val KEY: String = "clockblock.plan"
 
     private val children = setOf(NotificationIds.NOW, NotificationIds.REMINDER, NotificationIds.TEST)
 

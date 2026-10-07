@@ -12,7 +12,7 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 
 /**
- * Puts the app's persistent state back to a fresh install, in-process (see [OpusE2eTest] for why not `pm clear`).
+ * Puts the app's persistent state back to a fresh install, in-process (see [ClockblockE2eTest] for why not `pm clear`).
  *
  * - Each repository's DataStore is reset to its default document through the repository singleton the app itself
  *   uses, so the reset flows to every observer (the shell sees the profile disappear, plans and widgets clear).

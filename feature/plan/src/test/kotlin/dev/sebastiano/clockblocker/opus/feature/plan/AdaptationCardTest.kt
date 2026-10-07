@@ -6,7 +6,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
 import io.kotest.matchers.shouldBe
@@ -29,7 +29,7 @@ class AdaptationCardTest {
         // The model's sentinel for "didn't adapt within the simulated window": shown visually as "21+ d".
         val plan = realPlan.copy(estimatedDaysWithoutPlan = EstimateHorizonDays)
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
             }
         }
@@ -45,7 +45,7 @@ class AdaptationCardTest {
     fun `a with-plan estimate at the simulation horizon reads as more than too`() {
         val plan = realPlan.copy(estimatedDaysToAdapt = EstimateHorizonDays, estimatedDaysWithoutPlan = EstimateHorizonDays)
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
             }
         }
@@ -67,7 +67,7 @@ class AdaptationCardTest {
         )
         plan.longWayRound() shouldBe LongWayRound.WestByAdvancing
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 AdaptationCard(plan, plan.momentAt(PlanFixtures.MidAdaptation))
             }
         }

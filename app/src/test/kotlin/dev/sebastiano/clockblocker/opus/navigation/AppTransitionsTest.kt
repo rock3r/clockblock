@@ -3,8 +3,8 @@ package dev.sebastiano.clockblocker.opus.navigation
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.LayoutDirection
 import dev.sebastiano.clockblocker.opus.TestApplication
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
@@ -20,8 +20,8 @@ class AppTransitionsTest {
     val compose = createComposeRule()
 
     private fun transitions(direction: LayoutDirection): AppTransitions {
-        lateinit var motion: OpusMotion
-        compose.setContent { OpusTheme { motion = OpusTheme.motion } }
+        lateinit var motion: ClockblockMotion
+        compose.setContent { ClockblockTheme { motion = ClockblockTheme.motion } }
         compose.waitForIdle()
         return AppTransitions(motion, axisOffsetPx = 30, layoutDirection = direction)
     }

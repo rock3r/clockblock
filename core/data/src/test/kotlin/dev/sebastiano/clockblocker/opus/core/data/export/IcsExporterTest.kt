@@ -38,7 +38,7 @@ class IcsExporterTest {
         val l = lines(ics)
         l.count { it == "BEGIN:VEVENT" } shouldBe plan.allAdvice.size
         l.count { it == "END:VEVENT" } shouldBe plan.allAdvice.size
-        l shouldContainAll listOf("PRODID:-//Opus Clockblock//Jet lag plan//EN", "X-WR-CALNAME:San Francisco → London")
+        l shouldContainAll listOf("PRODID:-//Clockblock//Jet lag plan//EN", "X-WR-CALNAME:San Francisco → London")
         l.filter { it.startsWith("DTSTAMP:") }.toSet() shouldBe setOf("DTSTAMP:20260601T120000Z")
     }
 

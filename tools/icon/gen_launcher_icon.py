@@ -1,4 +1,4 @@
-"""Generates the Opus Clockblock adaptive-icon foreground + monochrome vector drawables.
+"""Generates the Clockblock adaptive-icon foreground + monochrome vector drawables.
 
 "Two Clocks": a large marigold ring with a single hand (the clock you live by) and a smaller lavender ring with a
 crescent (your body clock) sitting in front of it, up and to the right. The overlap is a real gap in the marigold

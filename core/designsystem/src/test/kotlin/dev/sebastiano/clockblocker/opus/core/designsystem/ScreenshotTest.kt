@@ -19,7 +19,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 
@@ -100,7 +100,7 @@ abstract class ScreenshotTest {
         CompositionLocalProvider(
             LocalDensity provides if (fontScale != null) Density(density.density, fontScale) else density,
         ) {
-            OpusTheme(
+            ClockblockTheme(
                 darkTheme = darkTheme,
                 dynamicColor = false,
                 nightSafe = nightSafe,

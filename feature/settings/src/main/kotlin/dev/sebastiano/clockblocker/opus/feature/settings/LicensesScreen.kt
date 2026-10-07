@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.segmentedShape
 
 /** One attribution: what it is, who made it, its licence, and where it lives. */
@@ -97,7 +97,7 @@ fun LicensesContent(onBack: () -> Unit, modifier: Modifier = Modifier, onOpenUrl
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp)) {
                 Text(
                     stringResource(R.string.licenses_intro),
-                    style = OpusTheme.textStyles.editorialBody,
+                    style = ClockblockTheme.textStyles.editorialBody,
                     color = colors.onSurface,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 )

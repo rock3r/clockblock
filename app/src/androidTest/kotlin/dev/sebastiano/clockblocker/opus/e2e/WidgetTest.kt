@@ -26,7 +26,7 @@ import org.junit.runner.RunWith
  * afterwards.
  */
 @RunWith(AndroidJUnit4::class)
-class WidgetTest : OpusE2eTest() {
+class WidgetTest : ClockblockE2eTest() {
 
     @Before
     fun allowBinding() {

@@ -102,7 +102,7 @@ import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -726,7 +726,7 @@ internal fun <T> ConnectedChoice(
 private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
     val settings = state.settings
     val permissions = state.permissions
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     SectionHeader(stringResource(R.string.settings_section_reminders))
     SettingsGroup {
         ToolSwitchRow(
@@ -807,7 +807,7 @@ private val NotificationPermissionState.rows: List<PermissionKind>
  */
 @Composable
 private fun PermissionsSection(permissions: NotificationPermissionState, actions: SettingsActions) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val rows = permissions.rows
     val needsAttention = !permissions.isReliable
     var expanded by rememberSaveable { mutableStateOf(needsAttention) }
@@ -877,7 +877,7 @@ private fun PermissionsSection(permissions: NotificationPermissionState, actions
 @Composable
 private fun PermissionSummary(permissions: NotificationPermissionState, expanded: Boolean, onToggle: () -> Unit, shape: Shape) {
     val colors = MaterialTheme.colorScheme
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val attention = listOf(permissions.notificationsGranted, permissions.exactAlarmsAllowed).count { !it }
     val optionalOff = listOfNotNull(
         permissions.promotedAllowed.takeIf { permissions.liveUpdatesSupported },
@@ -1054,7 +1054,7 @@ private fun DataSection(actions: SettingsActions, busy: Boolean) {
 /** Editor title in the shared serif. */
 @Composable
 private fun EditorTitle(text: String) {
-    Text(text, style = OpusTheme.textStyles.editorialTitle, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth())
+    Text(text, style = ClockblockTheme.textStyles.editorialTitle, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth())
 }
 
 @Composable
@@ -1134,7 +1134,7 @@ internal fun HomeZoneEditor(
                 Text(
                     "${formatter.format(java.time.LocalTime.ofInstant(now, zone))} · ${gmtOffsetLabel(zone, now)}" +
                         ZoneLabels.longName(zone, now, LocalConfiguration.current.locales[0])?.let { " · $it" }.orEmpty(),
-                    style = OpusTheme.textStyles.timeLabel,
+                    style = ClockblockTheme.textStyles.timeLabel,
                     color = colors.onSecondaryContainer,
                 )
             }
@@ -1168,7 +1168,7 @@ internal fun HomeZoneEditor(
                             .testTag(SettingsTags.homeResult(place)),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(place.displayCode, style = OpusTheme.textStyles.timeLabel, color = colors.primary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 44.dp))
+                        Text(place.displayCode, style = ClockblockTheme.textStyles.timeLabel, color = colors.primary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 44.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(place.city, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1)

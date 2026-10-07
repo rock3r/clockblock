@@ -63,7 +63,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.PillowMoo
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.WindowLightArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -98,7 +98,7 @@ object RemindersTags {
 
 @Composable
 internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, actions: OnboardingActions, wide: Boolean) {
-    val animated = !OpusTheme.reduceMotion
+    val animated = !ClockblockTheme.reduceMotion
     when (step) {
         OnboardingStep.Welcome -> WelcomeStep(wide)
         OnboardingStep.HomeZone -> StepLayout(
@@ -201,7 +201,7 @@ private fun StepLayout(
                     art(Modifier.size(200.dp))
                     Spacer(Modifier.size(24.dp))
                 }
-                StepHeadline(headline, if (short) OpusTheme.textStyles.editorialTitle else OpusTheme.textStyles.editorialHeadline)
+                StepHeadline(headline, if (short) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialHeadline)
                 Spacer(Modifier.size(12.dp))
                 StepBody(body)
             }
@@ -261,7 +261,7 @@ private const val HeaderSlot = "header"
 private const val ControlsSlot = "controls"
 
 @Composable
-private fun StepHeadline(text: String, style: TextStyle = OpusTheme.textStyles.editorialHeadline) {
+private fun StepHeadline(text: String, style: TextStyle = ClockblockTheme.textStyles.editorialHeadline) {
     Text(
         text,
         style = style,
@@ -278,7 +278,7 @@ private fun StepBody(text: String) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WelcomeStep(wide: Boolean) {
-    val reduce = OpusTheme.reduceMotion
+    val reduce = ClockblockTheme.reduceMotion
     // The two clocks start apart and slide into line: the whole promise in one gesture (rare, first-run delight).
     var aligned by rememberSaveable { mutableStateOf(reduce) }
     LaunchedEffect(reduce) {
@@ -343,7 +343,7 @@ private fun WelcomeStep(wide: Boolean) {
             Box(Modifier.weight(0.45f), contentAlignment = Alignment.Center) { art(artSize) }
             Spacer(Modifier.width(48.dp))
             Column(Modifier.weight(0.55f).verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
-                words(if (short) OpusTheme.textStyles.editorialHeadline else OpusTheme.textStyles.editorialDisplay, TextAlign.Start)
+                words(if (short) ClockblockTheme.textStyles.editorialHeadline else ClockblockTheme.textStyles.editorialDisplay, TextAlign.Start)
             }
         }
     } else {
@@ -353,7 +353,7 @@ private fun WelcomeStep(wide: Boolean) {
         ) {
             art(220.dp)
             Spacer(Modifier.size(16.dp))
-            words(OpusTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp), TextAlign.Center)
+            words(ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp), TextAlign.Center)
         }
     }
 }
@@ -388,7 +388,7 @@ private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingAction
             Text(
                 stringResource(R.string.home_local_time, formatter.format(LocalTime.ofInstant(state.now, zone)), gmtLabel(zone, state.now)) +
                     longName?.let { " · $it" }.orEmpty(),
-                style = OpusTheme.textStyles.timeLabel,
+                style = ClockblockTheme.textStyles.timeLabel,
                 color = colors.onSurfaceVariant,
             )
             Spacer(Modifier.size(12.dp))
@@ -481,7 +481,7 @@ private fun PlaceRow(
             Surface(shape = MaterialTheme.shapes.medium, color = colors.primaryContainer, modifier = Modifier.widthIn(min = 56.dp)) {
                 Text(
                     place.displayCode,
-                    style = OpusTheme.textStyles.timeLabel,
+                    style = ClockblockTheme.textStyles.timeLabel,
                     color = colors.onPrimaryContainer,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -494,7 +494,7 @@ private fun PlaceRow(
             }
             Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
-                Text(local, style = OpusTheme.textStyles.timeLabel, color = colors.onSurface)
+                Text(local, style = ClockblockTheme.textStyles.timeLabel, color = colors.onSurface)
                 Text(gmtLabel(place.zone, now), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
             }
         }

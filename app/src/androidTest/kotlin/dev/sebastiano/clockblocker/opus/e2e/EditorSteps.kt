@@ -22,7 +22,7 @@ import java.util.Locale
  * Opens the editor from Trips: the empty state's "Plan a trip" button when there are no trips (the FAB is hidden
  * there), otherwise the FAB menu's "New trip".
  */
-fun OpusE2eTest.openNewTrip() {
+fun ClockblockE2eTest.openNewTrip() {
     when (awaitAnyTag(TripsTestTags.EmptyPlanTrip, TripsTestTags.Fab)) {
         TripsTestTags.EmptyPlanTrip -> awaitTag(TripsTestTags.EmptyPlanTrip).scrollIntoViewAndClick()
         else -> {
@@ -34,7 +34,7 @@ fun OpusE2eTest.openNewTrip() {
 }
 
 /** Types [query] into a place field and picks the result with IATA [code]. */
-fun OpusE2eTest.pickPlace(fieldTag: String, query: String, code: String) {
+fun ClockblockE2eTest.pickPlace(fieldTag: String, query: String, code: String) {
     awaitTag(fieldTag).scrollToIfScrollable().performTextInput(query)
     awaitTag(TripsTestTags.placeResult(code)).scrollIntoViewAndClick()
     awaitGone(TripsTestTags.placeResult(code))
@@ -54,8 +54,8 @@ fun departureDay(): LocalDate {
  * is on screen. Retries the tap if a dismissing dialog window or a settling IME/scroll animation swallowed the first
  * click near the bottom edge.
  */
-fun OpusE2eTest.openPicker(fieldTag: String) {
-    val deadline = SystemClock.uptimeMillis() + OpusE2eTest.DefaultTimeoutMillis
+fun ClockblockE2eTest.openPicker(fieldTag: String) {
+    val deadline = SystemClock.uptimeMillis() + ClockblockE2eTest.DefaultTimeoutMillis
     while (!exists(TripsTestTags.PickerConfirm)) {
         device.waitForIdle()
         awaitTag(fieldTag).scrollIntoViewAndClick()
@@ -75,7 +75,7 @@ fun OpusE2eTest.openPicker(fieldTag: String) {
  * Picks [date] in the open Material date picker. Day cells are announced with the full date (ICU skeleton
  * `yMMMMEEEEd`, in UTC like the picker itself), optionally prefixed with "Today".
  */
-fun OpusE2eTest.pickDateInOpenPicker(date: LocalDate) {
+fun ClockblockE2eTest.pickDateInOpenPicker(date: LocalDate) {
     val millis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     val label = DateFormat.getInstanceForSkeleton("yMMMMEEEEd", Locale.getDefault())
         .apply { timeZone = TimeZone.getTimeZone("UTC") }
@@ -87,7 +87,7 @@ fun OpusE2eTest.pickDateInOpenPicker(date: LocalDate) {
 }
 
 /** Opens a time picker field and confirms the time it offers (09:00 for an empty field). */
-fun OpusE2eTest.confirmTimePicker(fieldTag: String) {
+fun ClockblockE2eTest.confirmTimePicker(fieldTag: String) {
     openPicker(fieldTag)
     awaitTag(TripsTestTags.PickerConfirm).performClick()
     awaitGone(TripsTestTags.PickerConfirm)

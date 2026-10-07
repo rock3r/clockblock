@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.opus.android.library)
+    alias(libs.plugins.clockblock.android.library)
     alias(libs.plugins.metro)
     // Goldens of the Now notification's custom views (the plugin is on the classpath via build-logic).
     id("io.github.takahirom.roborazzi")

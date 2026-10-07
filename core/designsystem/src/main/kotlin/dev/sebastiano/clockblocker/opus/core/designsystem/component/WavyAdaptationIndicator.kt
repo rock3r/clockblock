@@ -15,7 +15,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -69,6 +69,6 @@ fun WavyAdaptationIndicator(
         trackColor = trackColor,
         amplitude = { amplitude },
         wavelength = wavelength,
-        waveSpeed = if (travel && !OpusTheme.reduceMotion) wavelength else 0.dp,
+        waveSpeed = if (travel && !ClockblockTheme.reduceMotion) wavelength else 0.dp,
     )
 }

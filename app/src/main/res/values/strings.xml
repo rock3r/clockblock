@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Opus Clockblock</string>
+    <string name="app_name">Clockblock</string>
     <string name="nav_now">Now</string>
     <string name="nav_trips">Trips</string>
     <string name="nav_settings">Settings</string>

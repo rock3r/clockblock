@@ -29,7 +29,7 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Opus Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It shows what to do now,
 with its symbol and colour, until when, and a bar that fills up as the block goes by, for example "See some
@@ -74,7 +74,7 @@ Home-screen widgets still show everything.
 
 The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
 home screen asks where to put it. (The section only appears if your home screen app supports this.) You can
-also touch and hold an empty area of your home screen, tap **Widgets**, find Opus Clockblock, and drag the widget
+also touch and hold an empty area of your home screen, tap **Widgets**, find Clockblock, and drag the widget
 you want onto the screen. You can resize both widgets.
 
 <img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two Clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />

@@ -62,7 +62,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefa
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.routeArcDescription
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.toHourFloat
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -227,9 +227,9 @@ internal fun LegCard(
  */
 @Composable
 private fun SkyRouteBanner(leg: LegDraft, modifier: Modifier = Modifier) {
-    val motion = OpusTheme.motion
+    val motion = ClockblockTheme.motion
     val time = leg.departureTime
-    val gradient = time?.let { OpusTheme.sky.gradientAt(it) }
+    val gradient = time?.let { ClockblockTheme.sky.gradientAt(it) }
     val neutral = MaterialTheme.colorScheme.surfaceContainerHigh
     val top = animateColorAsState(gradient?.top ?: neutral, motion.colour(), label = "skyTop")
     val bottom = animateColorAsState(gradient?.bottom ?: neutral, motion.colour(), label = "skyBottom")
@@ -395,7 +395,7 @@ private fun RoutePair(
 @Composable
 private fun SwapButton(index: Int, enabled: Boolean, vertical: Boolean, onSwap: () -> Unit, modifier: Modifier = Modifier) {
     var turns by rememberSaveable { mutableIntStateOf(0) }
-    val rotation = animateFloatAsState(turns * 180f, OpusTheme.motion.dataSpatial(), label = "swap")
+    val rotation = animateFloatAsState(turns * 180f, ClockblockTheme.motion.dataSpatial(), label = "swap")
     val base = if (vertical) 0f else 90f
     IconButton(
         onClick = {

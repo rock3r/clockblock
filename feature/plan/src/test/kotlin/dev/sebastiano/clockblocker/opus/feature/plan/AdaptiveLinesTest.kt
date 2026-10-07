@@ -13,7 +13,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
@@ -31,7 +31,7 @@ class AdaptiveLinesTest {
     val compose = createComposeRule()
 
     private fun pair(width: Int) = compose.setContent {
-        OpusTheme(dynamicColor = false, reduceMotion = true) {
+        ClockblockTheme(dynamicColor = false, reduceMotion = true) {
             InlineOrStacked(
                 first = { Text("62% adapted", Modifier.testTag("first")) },
                 second = { Text("about 2 days to go", Modifier.testTag("second")) },
@@ -57,7 +57,7 @@ class AdaptiveLinesTest {
     @Test
     fun `priority line drops the optional part before truncating the essential one`() {
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 PriorityLine(
                     optional = "Day 1 · Adapting",
                     essential = "body 2½ h ahead",
@@ -72,7 +72,7 @@ class AdaptiveLinesTest {
     @Test
     fun `priority line shows both when there is room`() {
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 PriorityLine(optional = "Day 1 · Adapting", essential = "body 2½ h ahead", modifier = Modifier.width(380.dp))
             }
         }

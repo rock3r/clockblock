@@ -21,7 +21,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import dev.sebastiano.clockblocker.opus.AppGraph
 import dev.sebastiano.clockblocker.opus.MainActivity
-import dev.sebastiano.clockblocker.opus.OpusApplication
+import dev.sebastiano.clockblocker.opus.ClockblockApplication
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
@@ -45,14 +45,14 @@ import org.junit.Rule
  * Screens are found through the shell's route tags (`route_now`, `route_trips`, … see `ShellTestTags`) and the
  * feature modules' test-tag objects.
  */
-abstract class OpusE2eTest {
+abstract class ClockblockE2eTest {
     @get:Rule
     val compose = createEmptyComposeRule()
 
     val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     val device: UiDevice = UiDevice.getInstance(instrumentation)
     val context: Context get() = instrumentation.targetContext
-    val graph: AppGraph get() = (context.applicationContext as OpusApplication).graph
+    val graph: AppGraph get() = (context.applicationContext as ClockblockApplication).graph
 
     @Before
     fun startFromClearedAppData() {
@@ -79,7 +79,7 @@ abstract class OpusE2eTest {
 
     /**
      * Launches [MainActivity] in a fresh task, like the launcher (no [deepLink]) or a notification/widget tap (an
-     * `opusclockblock://` [deepLink], resolved through the manifest's intent filter).
+     * `clockblock://` [deepLink], resolved through the manifest's intent filter).
      */
     fun launch(deepLink: String? = null) {
         val intent = if (deepLink == null) {

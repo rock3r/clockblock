@@ -58,7 +58,7 @@ private class RecordingActions : OnboardingActions {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
-class OnboardingContentTest : OpusScreenshotTest() {
+class OnboardingContentTest : ClockblockScreenshotTest() {
     private val actions = RecordingActions()
 
     private fun show(state: OnboardingUiState) =

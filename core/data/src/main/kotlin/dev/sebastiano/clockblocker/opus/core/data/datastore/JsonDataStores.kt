@@ -24,7 +24,7 @@ import java.time.ZoneOffset
  *   instead of failing the whole document.
  * - `encodeDefaults`: files are self-describing, so changing a default later doesn't silently change data.
  */
-val OpusJson: Json = Json {
+val ClockblockJson: Json = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
     encodeDefaults = true
@@ -40,7 +40,7 @@ val OpusJson: Json = Json {
 internal class JsonSerializer<T>(
     private val serializer: KSerializer<T>,
     override val defaultValue: T,
-    private val json: Json = OpusJson,
+    private val json: Json = ClockblockJson,
 ) : Serializer<T> {
     override suspend fun readFrom(input: InputStream): T {
         val text = input.readBytes().decodeToString()
@@ -74,7 +74,7 @@ internal object JsonDataStores {
         default: T,
         scope: CoroutineScope,
         clock: Clock = Clock.systemUTC(),
-        json: Json = OpusJson,
+        json: Json = ClockblockJson,
     ): DataStore<T> = DataStoreFactory.create(
         serializer = JsonSerializer(serializer, default, json),
         corruptionHandler = ReplaceFileCorruptionHandler { _ ->

@@ -43,7 +43,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
 
 /**
- * Renders every placed Opus widget from the current plan. Called by the providers (system updates, resizes),
+ * Renders every placed Clockblock widget from the current plan. Called by the providers (system updates, resizes),
  * by [WidgetPlanSurface] (advice boundaries, plan changes) and the debug gallery.
  *
  * [planRepository] / [settingsRepository] / [adviceLogRepository] / [tripRepository] are Metro *optional* bindings
@@ -204,7 +204,7 @@ class WidgetUpdater(
     }
 
     companion object {
-        private const val TAG = "OpusWidget"
+        private const val TAG = "ClockblockWidget"
         private const val PREFS = "opus_widgets"
         private const val KEY_PREVIEW = "generated_previews_key"
         private const val READ_TIMEOUT_MS = 3_000L

@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 /**
- * DEBUG ONLY. Hosts the Opus widgets in-process so they can be checked on an emulator without a launcher:
+ * DEBUG ONLY. Hosts the Clockblock widgets in-process so they can be checked on an emulator without a launcher:
  *
  * - demo frames: [WidgetRenderer] output (Remote Compose on API 36+, else classic) applied to plain
  *   [AppWidgetHostView]s at a typical cell size per responsive bucket, in every [WidgetTheme], fed with [DemoPlans];

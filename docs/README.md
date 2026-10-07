@@ -1,6 +1,6 @@
 # Documentation
 
-This folder is for people who want to understand, change or check Opus Clockblock. If you just want to use the
+This folder is for people who want to understand, change or check Clockblock. If you just want to use the
 app, read the [user guide](../user-guide/README.md) instead.
 
 ## Start here

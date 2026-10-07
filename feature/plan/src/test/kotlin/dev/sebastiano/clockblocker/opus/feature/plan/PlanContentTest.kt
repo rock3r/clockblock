@@ -28,7 +28,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.OpusTheme
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
@@ -77,7 +77,7 @@ class PlanContentTest {
     }
 
     private fun show(state: PlanUiState) {
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
     }
 
     private val midAdaptation = ready(PlanFixtures.MidAdaptation)
@@ -188,7 +188,7 @@ class PlanContentTest {
     fun `no plan offers to plan a trip`() {
         var newTrip = 0
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 PlanContent(PlanUiState.NoPlan(missing = false), PlanActions(onNewTrip = { newTrip++ }))
             }
         }
@@ -211,7 +211,7 @@ class PlanContentTest {
         val undone = mutableListOf<Pair<String, AdviceOutcome?>>()
         val state = ready(PlanFixtures.MidAdaptation, outcomes = mapOf(activeId to AdviceOutcome.Skipped))
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 PlanContent(state, PlanActions(onUndo = { id, previous -> undone += id to previous }))
             }
         }
@@ -225,7 +225,7 @@ class PlanContentTest {
     fun `with motion on, the celebration waits for navigation and the rings`() {
         compose.mainClock.autoAdvance = false
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = false) { PlanContent(ready(PlanFixtures.Adapted, celebrate = true), actions) }
+            ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(ready(PlanFixtures.Adapted, celebrate = true), actions) }
         }
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithTag(PlanTags.CelebrationDismiss).assertDoesNotExist()
@@ -258,7 +258,7 @@ class PlanContentTest {
     @Test
     fun `a day picked on one trip does not carry over when the current plan switches trip`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
         val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
         compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
@@ -281,7 +281,7 @@ class PlanContentTest {
     @Test
     fun `a new current trip starts its day strip from the first day`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         // Scroll the strip to its far end on this trip…
         val last = realPlan.days.last().index
         compose.onNodeWithTag(PlanTags.DayStrip).performScrollToNode(hasTestTag(PlanTags.dayPill(last)))
@@ -302,7 +302,7 @@ class PlanContentTest {
     @Test
     fun `a picked day that becomes today goes live for good`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
         val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
         compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
@@ -324,7 +324,7 @@ class PlanContentTest {
     @Test
     fun `a future pick expires once its day has passed, even unobserved, while a past pick stays`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
         val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
         compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
@@ -383,7 +383,7 @@ class PlanContentTest {
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `two panes - a day pick that goes live on its own brings the rail back to the Now row`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
         compose.waitForIdle()
         // The rail is left scrolled well past the picked day.
@@ -401,7 +401,7 @@ class PlanContentTest {
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `two panes with motion - picking today again brings the Now row back`() {
-        compose.setContent { OpusTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
@@ -416,7 +416,7 @@ class PlanContentTest {
     fun `a day picked in one pane is followed by the rail once two panes appear`() {
         var width by mutableStateOf(400.dp)
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 Box(Modifier.width(width)) { PlanContent(midAdaptation, actions) }
             }
         }
@@ -433,7 +433,7 @@ class PlanContentTest {
         // 880 dp tall: strip, dial, Now card. 700 dp: dial, Now card, strip (keeps Done above the fold).
         var height by mutableStateOf(880.dp)
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 Box(Modifier.size(400.dp, height)) { PlanContent(midAdaptation, actions) }
             }
         }
@@ -461,7 +461,7 @@ class PlanContentTest {
         var edits = 0
         var exports = 0
         compose.setContent {
-            OpusTheme(dynamicColor = false, reduceMotion = true) {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 PlanContent(midAdaptation, PlanActions(onEditTrip = { edits++ }, onExportCalendar = { exports++ }))
             }
         }
