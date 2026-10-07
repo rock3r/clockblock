@@ -519,6 +519,28 @@ class PlanContentTest {
     }
 
     @Test
+    fun `with motion on, picking another day mid-fade fades over what was showing`() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.mainClock.advanceTimeBy(5_000)
+
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        // Day 2's sky with Day 3's half faded in over it stays put (frozen), and Day 4's fades in over both: no jump
+        // to a fully opaque Day 3.
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(3)
+
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+    }
+
+    @Test
     fun `with motion on, scrubbing the dial repaints the header sky in place`() {
         compose.mainClock.autoAdvance = false
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
