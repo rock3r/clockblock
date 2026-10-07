@@ -44,6 +44,8 @@ abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private va
             // Clock/zone/locale changes alter every time label and the dial's zone offsets.
             Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED ->
                 goAsync { updater.update(kind, updater.ids(kind)) }
+            // The removed RemoteViews fallback's repeating alarm: cancel it the first time it fires after an update.
+            RetiredLegacyRefresh.ACTION -> RetiredLegacyRefresh.cancel(context)
             else -> super.onReceive(context, intent)
         }
     }

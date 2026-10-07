@@ -1,6 +1,8 @@
 package dev.sebastiano.clockblocker.opus.widget
 
+import android.app.AlarmManager
 import android.app.Application
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
@@ -21,7 +23,10 @@ import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -41,6 +46,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowAlarmManager
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -132,6 +138,36 @@ class WidgetUpdaterTest {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.Sleep)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
         texts(next) shouldContainText app.getString(R.string.widget_advice_sleep)
+    }
+
+    private fun scheduleRetiredLegacyRefresh(): ShadowAlarmManager {
+        val alarms = app.getSystemService(AlarmManager::class.java)
+        alarms.setInexactRepeating(
+            AlarmManager.RTC,
+            now.toEpochMilli(),
+            AlarmManager.INTERVAL_FIFTEEN_MINUTES,
+            RetiredLegacyRefresh.pendingIntent(app, 0)!!,
+        )
+        return shadowOf(alarms).also { it.scheduledAlarms.shouldNotBeEmpty() }
+    }
+
+    @Test
+    fun `an update cancels the retired fallback's repeating refresh alarm`() = runBlocking<Unit> {
+        val alarms = scheduleRetiredLegacyRefresh()
+        updater.updateAll()
+        alarms.scheduledAlarms.shouldBeEmpty()
+        RetiredLegacyRefresh.pendingIntent(app, PendingIntent.FLAG_NO_CREATE).shouldBeNull()
+    }
+
+    @Test
+    fun `the retired refresh alarm cancels itself when it fires`() {
+        val alarms = scheduleRetiredLegacyRefresh()
+        TwoClocksWidgetProvider(updater).onReceive(
+            app,
+            Intent(app, TwoClocksWidgetProvider::class.java).setAction(RetiredLegacyRefresh.ACTION),
+        )
+        alarms.scheduledAlarms.shouldBeEmpty()
+        RetiredLegacyRefresh.pendingIntent(app, PendingIntent.FLAG_NO_CREATE).shouldBeNull()
     }
 
     @Test

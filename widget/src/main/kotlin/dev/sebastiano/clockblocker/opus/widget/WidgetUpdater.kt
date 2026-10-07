@@ -112,6 +112,7 @@ class WidgetUpdater(
     }
 
     private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
+        RetiredLegacyRefresh.cancel(application)
         val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
         val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
         val settings = read ?: AppSettings()
