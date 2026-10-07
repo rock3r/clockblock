@@ -35,7 +35,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class DataStoreRepositoriesTest {
     @get:Rule
     val tmp = TemporaryFolder()

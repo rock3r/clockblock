@@ -78,7 +78,7 @@ on-screen time, not opens, is what gates its motion.
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
 
 ## Gestures and haptics
-- Dial drag scrubs time: `CLOCK_TICK` per local hour crossed, `SEGMENT_TICK` (API 34+) per advice boundary.
+- Dial drag scrubs time: `CLOCK_TICK` per local hour crossed, `SEGMENT_TICK` per advice boundary.
 - Dial centre tap → back to now (`dataSpatial`). Custom a11y actions: next / previous block / back to now.
 - Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).

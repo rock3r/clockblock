@@ -31,7 +31,7 @@ import java.time.LocalTime
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h1500dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h1500dp-xhdpi")
 class TripEditorScreenshotTest : TripsScreenshotTest() {
 
     @get:Rule

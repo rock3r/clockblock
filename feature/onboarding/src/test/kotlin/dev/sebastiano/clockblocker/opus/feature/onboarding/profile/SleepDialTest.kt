@@ -42,7 +42,7 @@ import kotlin.math.sin
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h800dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h800dp-xxhdpi")
 class SleepDialTest : ClockblockScreenshotTest() {
 
     @Test

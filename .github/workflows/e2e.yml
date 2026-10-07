@@ -38,7 +38,9 @@ jobs:
       - name: Connected tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          # minSdk is 37. The SDK names API 37 packages with a minor version (platforms;android-37.0,
+          # system-images;android-37.0;google_apis;x86_64), so the level is the string "37.0".
+          api-level: '37.0'
           target: google_apis
           arch: x86_64
           profile: pixel_7

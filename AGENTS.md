@@ -36,7 +36,7 @@ not have `build-brief` installed.
 ## Stack (do not change without reason)
 
 - AGP 9.4.1 with **built-in Kotlin**: never apply `org.jetbrains.kotlin.android`. Kotlin 2.4.20, JDK 21.
-- compileSdk 37.1 (`compileSdk { version = release(37) { minorApiLevel = 1 } }`), targetSdk 37, minSdk 29.
+- compileSdk 37.1 (`compileSdk { version = release(37) { minorApiLevel = 1 } }`), targetSdk 37, minSdk 37.
 - Compose **alpha BOM** (material3 1.5.0-alpha29) for public M3 Expressive APIs.
 - Navigation 3, Metro DI (`@Inject`, `@ContributesBinding(AppScope::class)`, `@SingleIn(AppScope::class)`,
   ViewModels via `@ViewModelKey @ContributesIntoMap(AppScope::class)` and `metroViewModel()` /
@@ -56,7 +56,7 @@ not have `build-brief` installed.
 | `:core:notifications` | Android | Exact-alarm scheduler, Now notification / Live Update |
 | `:core:testing` | Android | Test rules, fakes, screenshot helpers |
 | `:feature:*` | Android+Compose | onboarding, trips, plan, settings |
-| `:widget` | Android+Compose | Remote Compose widgets (+ RemoteViews fallback) |
+| `:widget` | Android+Compose | Remote Compose widgets (placeholder if capture fails) |
 | `:app` | Application | Nav3 shell, adaptive layouts, Metro graph |
 
 ## Testing conventions (TDD)
@@ -64,8 +64,9 @@ not have `build-brief` installed.
 - Write the failing test first. Pure logic → JUnit 6 Jupiter (`org.junit.jupiter.api.Test`) + Kotest
   assertions (`io.kotest.matchers.*`), property tests with `kotest-property` where invariants exist.
 - Android/Compose tests → JUnit 4 + Robolectric (`@RunWith(RobolectricTestRunner::class)`,
-  `@GraphicsMode(GraphicsMode.Mode.NATIVE)`, `@Config(sdk = [36])`), run on the JUnit Platform via Vintage.
-- Screenshots → Roborazzi `captureRoboImage()`; goldens are committed in `<module>/src/test/screenshots`.
+  `@GraphicsMode(GraphicsMode.Mode.NATIVE)`, `@Config(sdk = [37])`), run on the JUnit Platform via Vintage.
+- Screenshots → Roborazzi via `compose.captureRoboImageInvalidated()` (`:core:testing`; plain `onRoot().captureRoboImage()`
+  can record blank at SDK 37); goldens are committed in `<module>/src/test/screenshots`.
 - ViewModels → `MainDispatcherRule` from `:core:testing` + Turbine.
 - e2e → `app/src/androidTest` (Compose test + UiAutomator 2.4) on the emulator.
 

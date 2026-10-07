@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The only classic layout: the widgets' initial layout, and what WidgetRenderer shows when the host has no Remote
+    Compose player or a capture fails. One tappable view that opens the app.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_placeholder"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:ellipsize="end"
+    android:gravity="center"
+    android:maxLines="2"
+    android:padding="12dp"
+    android:text="@string/widget_placeholder"
+    android:textColor="@color/widget_on_surface"
+    android:textSize="14sp"
+    android:textStyle="bold" />

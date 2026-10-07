@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -288,10 +287,9 @@ fun SettingsScreen(
             override fun setHideLockScreenDetails(enabled: Boolean) = viewModel.setHideLockScreenDetails(enabled)
             override fun pinWidget(widget: PinnableWidget) = viewModel.pinWidget(widget)
             override fun fixNotifications() {
-                val permission = viewModel.runtimePermission
                 // Once denied twice the system stops asking; the settings screen is the only way back.
-                if (permission != null && !state.permissions.notificationsGranted) {
-                    permissionLauncher.launch(permission)
+                if (!state.permissions.notificationsGranted) {
+                    permissionLauncher.launch(viewModel.runtimePermission)
                 } else {
                     launchSafely(context, viewModel.notificationSettingsIntent())
                 }
@@ -359,7 +357,6 @@ private enum class ProfileEditor { None, Home, Sleep, Chronotype }
  * the sections split into two balanced columns: you, the app's look and More on the left; reminders, widgets
  * and data on the right.
  *
- * @param dynamicColorSupported shows the dynamic colour switch (API 31+).
  * @param now the instant used for GMT offset labels (fixed in screenshot tests; offsets move with DST).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -370,7 +367,6 @@ fun SettingsContent(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    dynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
     now: Instant = remember { Instant.now() },
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -404,7 +400,7 @@ fun SettingsContent(
                 state.profile?.let { profile ->
                     ProfileSection(profile, state.melatoninAcknowledged, actions, now, onEdit = { editor = it })
                 }
-                AppearanceSection(state, actions, dynamicColorSupported)
+                AppearanceSection(state, actions)
             }
             val system: @Composable ColumnScope.() -> Unit = {
                 RemindersSection(state, actions)
@@ -581,12 +577,12 @@ private fun ProfileSection(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AppearanceSection(state: SettingsUiState, actions: SettingsActions, dynamicColorSupported: Boolean) {
+private fun AppearanceSection(state: SettingsUiState, actions: SettingsActions) {
     val settings = state.settings
     SectionHeader(stringResource(R.string.settings_section_appearance))
     val rows = buildList {
         add("theme")
-        if (dynamicColorSupported) add("dynamic")
+        add("dynamic")
         add("motion")
         add("night")
         if (settings.opusModeUnlocked) add("opus")
@@ -796,20 +792,15 @@ private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
 
 private enum class PermissionKind { Notifications, Exact, Live, Battery }
 
-/** The rows that apply on this device: Live Updates only where Android has them (API 36+). */
-private val NotificationPermissionState.rows: List<PermissionKind>
-    get() = PermissionKind.entries.filter { it != PermissionKind.Live || liveUpdatesSupported }
-
 /**
  * "What Android allows": a one-line summary that expands to the permission rows. It starts expanded, and
  * expands again by itself, whenever reminders aren't dependable (notifications or exact timing missing); the
- * optional extras (Live Updates, battery) alone never force it open. Live Updates is left out entirely where
- * Android doesn't have it, so nothing unfixable is listed or counted.
+ * optional extras (Live Updates, battery) alone never force it open.
  */
 @Composable
 private fun PermissionsSection(permissions: NotificationPermissionState, actions: SettingsActions) {
     val motion = ClockblockTheme.motion
-    val rows = permissions.rows
+    val rows = PermissionKind.entries
     val needsAttention = !permissions.isReliable
     var expanded by rememberSaveable { mutableStateOf(needsAttention) }
     LaunchedEffect(needsAttention) { if (needsAttention) expanded = true }
@@ -881,7 +872,7 @@ private fun PermissionSummary(permissions: NotificationPermissionState, expanded
     val motion = ClockblockTheme.motion
     val attention = listOf(permissions.notificationsGranted, permissions.exactAlarmsAllowed).count { !it }
     val optionalOff = listOfNotNull(
-        permissions.promotedAllowed.takeIf { permissions.liveUpdatesSupported },
+        permissions.promotedAllowed,
         permissions.batteryOptimizationIgnored,
     ).count { !it }
     val title = when {
@@ -892,8 +883,7 @@ private fun PermissionSummary(permissions: NotificationPermissionState, expanded
     val supporting = when {
         attention > 0 -> stringResource(R.string.settings_perm_summary_attention_description)
         optionalOff > 0 -> pluralStringResource(R.plurals.settings_perm_summary_optional, optionalOff, optionalOff)
-        permissions.liveUpdatesSupported -> stringResource(R.string.settings_perm_summary_all_description)
-        else -> stringResource(R.string.settings_perm_summary_all_description_no_live)
+        else -> stringResource(R.string.settings_perm_summary_all_description)
     }
     val stateLabel = stringResource(if (expanded) R.string.settings_perm_expanded else R.string.settings_perm_collapsed)
     val clickLabel = stringResource(if (expanded) R.string.settings_perm_hide else R.string.settings_perm_show)

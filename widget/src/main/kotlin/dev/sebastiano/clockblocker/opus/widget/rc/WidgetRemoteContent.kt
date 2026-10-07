@@ -693,7 +693,7 @@ private fun MainRegion(
 
 @RemoteComposable
 @Composable
-private fun Glyph(kind: GlyphKind, palette: WidgetPalette, sizeDp: Int) {
+internal fun Glyph(kind: GlyphKind, palette: WidgetPalette, sizeDp: Int) {
     val ops = Glyphs.build(kind, palette)
     RemoteCanvas(modifier = RemoteModifier.size(sizeDp.rdp)) {
         val unit = width.min(height) / 2f.rf

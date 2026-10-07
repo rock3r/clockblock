@@ -33,13 +33,13 @@ class SystemNotificationClock : NotificationClock {
  * rendering are testable for every combination, including ones Robolectric can't simulate (promotion).
  */
 interface PlatformCapabilities {
-    /** App-level notification switch and, on API 33+, the POST_NOTIFICATIONS runtime permission. */
+    /** App-level notification switch and the POST_NOTIFICATIONS runtime permission. */
     fun areNotificationsEnabled(): Boolean
 
-    /** `SCHEDULE_EXACT_ALARM` state (always true below API 31). */
+    /** `SCHEDULE_EXACT_ALARM` state. */
     fun canScheduleExactAlarms(): Boolean
 
-    /** Whether Live Updates (promoted ongoing notifications) may be posted (false below API 36). */
+    /** Whether Live Updates (promoted ongoing notifications) may be posted. */
     fun canPostPromotedNotifications(): Boolean
 
     /** Battery optimisation exemption, which makes alarms and notifications more dependable on some OEMs. */

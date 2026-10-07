@@ -3,7 +3,6 @@ package dev.sebastiano.clockblocker.opus.core.notifications
 import android.app.Application
 import android.app.Notification
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -42,10 +41,10 @@ class NotificationFactory(
     /**
      * The standard ongoing "Now" notification. Its header carries the body clock ("Body 3½ h behind").
      *
-     * On API 31+ the content is custom ([NowNotificationViews], inside `DecoratedCustomViewStyle` so the system keeps
-     * its header, expand button and actions): glyph, label, until with the other zone as a tail, a progress bar, and,
-     * expanded, what runs alongside, what's next and a tip. Older APIs, and the redacted lock-screen version, use the
-     * standard template with the same text. Title and text are set either way (accessibility, wearables).
+     * The content is custom ([NowNotificationViews], inside `DecoratedCustomViewStyle` so the system keeps its
+     * header, expand button and actions): glyph, label, until with the other zone as a tail, a progress bar, and,
+     * expanded, what runs alongside, what's next and a tip. The redacted lock-screen version uses the standard
+     * template with the same text. Title and text are set either way (accessibility, wearables).
      *
      * @param redact hide details on the lock screen: the notification becomes `VISIBILITY_PRIVATE` with a public
      *   version that keeps labels and times but drops places, flight numbers and supplements.
@@ -54,7 +53,7 @@ class NotificationFactory(
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val text = formatter(publicText).now(state, plan, now)
             val builder = ongoingBuilder(ClockblockChannel.Now, state, text, redacted = redact)
-            if (!publicText && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!publicText) {
                 builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
                     .setCustomContentView(NowNotificationViews.collapsed(context, state, text, now))
                     .setCustomBigContentView(NowNotificationViews.expanded(context, state, text, now))

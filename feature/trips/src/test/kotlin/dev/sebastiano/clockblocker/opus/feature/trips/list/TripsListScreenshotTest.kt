@@ -14,7 +14,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h891dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h891dp-xhdpi")
 class TripsListScreenshotTest : TripsScreenshotTest() {
 
     private val callbacks = TripsCallbacks(

@@ -11,5 +11,4 @@
     <color name="widget_plum">#FF3B2F5C</color>
     <color name="widget_midnight">#FF1E2A78</color>
     <dimen name="widget_corner_radius">24dp</dimen>
-    <dimen name="widget_card_radius">16dp</dimen>
 </resources>

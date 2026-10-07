@@ -19,9 +19,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
-import com.github.takahirom.roborazzi.captureRoboImage
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,7 +34,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class, qualifiers = "w640dp-h400dp")
+@Config(sdk = [37], application = TestApplication::class, qualifiers = "w640dp-h400dp")
 class LauncherIconScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
@@ -55,7 +54,7 @@ class LauncherIconScreenshotTest {
                 ThemedIcon()
             }
         }
-        compose.onRoot().captureRoboImage("src/test/screenshots/launcher_icon.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/launcher_icon.png")
     }
 
     /** Legibility check: the circle-masked icon at 48, 72 and 192 px (this config is mdpi, so 1 dp == 1 px). */
@@ -72,7 +71,7 @@ class LauncherIconScreenshotTest {
                 AdaptiveIcon(shape = CircleShape, size = 192)
             }
         }
-        compose.onRoot().captureRoboImage("src/test/screenshots/launcher_icon_sizes.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/launcher_icon_sizes.png")
     }
 
     @Test
@@ -83,7 +82,7 @@ class LauncherIconScreenshotTest {
                 SplashIcon(background = Color(0xFF0B1026))
             }
         }
-        compose.onRoot().captureRoboImage("src/test/screenshots/launcher_splash.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/launcher_splash.png")
     }
 }
 

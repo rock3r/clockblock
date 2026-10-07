@@ -13,7 +13,7 @@ class FakeNotificationPermissions(
         promotedAllowed = false,
         batteryOptimizationIgnored = false,
     ),
-    override val runtimePermission: String? = "android.permission.POST_NOTIFICATIONS",
+    override val runtimePermission: String = "android.permission.POST_NOTIFICATIONS",
 ) : NotificationPermissions {
     var testReminders: Int = 0
         private set

@@ -2,11 +2,9 @@ package dev.sebastiano.clockblocker.opus.core.notifications
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.IdRes
-import androidx.annotation.RequiresApi
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowState
@@ -22,10 +20,9 @@ import java.time.Instant
  * far through the block you are; the expanded view adds what runs alongside, what starts next and a tip.
  *
  * Text uses the shade's own notification text appearances (so it follows dark mode and the font scale); the chips
- * and the bar get light and dark colours, and the shade picks the pair for its theme (API 31+ night-aware
- * `RemoteViews` colours). Glyphs are decorative for TalkBack: every one sits next to its text label.
+ * and the bar get light and dark colours, and the shade picks the pair for its theme (night-aware `RemoteViews`
+ * colours). Glyphs are decorative for TalkBack: every one sits next to its text label.
  */
-@RequiresApi(Build.VERSION_CODES.S)
 internal object NowNotificationViews {
 
     /**

@@ -57,7 +57,7 @@ private class RecordingActions : OnboardingActions {
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingContentTest : ClockblockScreenshotTest() {
     private val actions = RecordingActions()
 

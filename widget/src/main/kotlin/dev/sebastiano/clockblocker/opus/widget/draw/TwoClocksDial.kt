@@ -19,9 +19,9 @@ import kotlin.math.sin
  * - inner ring (r 0.60) = body clock: biological night arc, the body's noon and the CBTmin marker (PuffyDiamond);
  * - jet lag wedge between local midnight and body midnight.
  *
- * The hand is not part of [build]: on API 36+ it is driven by host time (see `RestrictedRemoteCompose.kt`),
- * on the fallback it is frozen at render time via [hand]. Its head is a Sunny sun by day and a crescent moon at
- * night (same rule as the app: day = between [SUNRISE_MINUTE] and [SUNSET_MINUTE] local time).
+ * The hand is not part of [build]: it is driven by host time (see `RestrictedRemoteCompose.kt` and
+ * `RemoteDrawOps.kt`). Its head is a Sunny sun by day and a crescent moon at night (same rule as the app: day =
+ * between [SUNRISE_MINUTE] and [SUNSET_MINUTE] local time).
  */
 object TwoClocksDial {
     const val LOCAL_RING_R = 0.93f
@@ -38,7 +38,7 @@ object TwoClocksDial {
     const val SUNRISE_MINUTE = 390
     const val SUNSET_MINUTE = 1140
 
-    /** Hand geometry shared by the static and the host-time-driven hand. */
+    /** Geometry of the host-time-driven hand. */
     object Hand {
         const val INNER_R = 0.72f
         const val OUTER_R = 0.88f
@@ -91,20 +91,6 @@ object TwoClocksDial {
         // Advice lanes: rest lane first, then light lane, so nothing in the outer lane is overdrawn.
         state.arcs.sortedBy { lane(it.type) }.forEach { addAll(adviceArc(it, p)) }
     }
-
-    /** Static hand at [minute] (fallback renderer and previews): line, halo, then sun by day or moon at night. */
-    fun hand(minute: Float, p: WidgetPalette): List<DrawOp> {
-        val deg = DialMath.canvasDegrees(minute)
-        val (x0, y0) = polar(Hand.INNER_R, deg)
-        val (x1, y1) = polar(Hand.OUTER_R, deg)
-        val (hx, hy) = polar(LOCAL_RING_R, deg)
-        return listOf(DrawOp.Line(x0, y0, x1, y1, p.hand, Hand.STROKE)) +
-            headHalo(p).map { it.scaled(1f, hy, hx) } +
-            (if (isDay(minute)) sunHead(p) else moonHead(p)).map { it.scaled(1f, hy, hx) }
-    }
-
-    /** True when [minute] (local, 0..1439) is between sunrise and sunset. */
-    fun isDay(minute: Float): Boolean = minute >= SUNRISE_MINUTE && minute < SUNSET_MINUTE
 
     /** The disc behind the hand head, at the origin (it lifts the head off the sky ring). */
     fun headHalo(p: WidgetPalette): List<DrawOp> = listOf(

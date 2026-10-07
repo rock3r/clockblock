@@ -6,7 +6,7 @@ Settings.
 
 ## What you need
 
-- An Android phone or tablet with Android 10 or later.
+- An Android phone or tablet with Android 17 or later.
 - No account and no internet connection. The app works the same in flight mode.
 
 Clockblock isn't in an app store yet. To install it, build it from the source code (see the

@@ -1,6 +1,5 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -282,7 +281,7 @@ private fun OutcomeSplitButton(
                 SplitButtonDefaults.LeadingButton(
                     onClick = {
                         // A few times a day, so a small earned moment: the click, and the check grows in.
-                        if (outcome != AdviceOutcome.Done && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        if (outcome != AdviceOutcome.Done) {
                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                         }
                         onOutcome(AdviceOutcome.Done)

@@ -151,15 +151,8 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             override fun acknowledgeMelatonin(acknowledged: Boolean) = viewModel.acknowledgeMelatoninNote(acknowledged)
             override fun intensityChange(intensity: Intensity) = viewModel.setIntensity(intensity)
             override fun requestNotifications(thenFinish: Boolean) {
-                val permission = viewModel.runtimePermission
-                if (permission != null) {
-                    finishAfterPermission = thenFinish
-                    permissionLauncher.launch(permission)
-                } else {
-                    // Below API 33 there is no runtime prompt: notifications were switched off in system settings.
-                    launchSafely(context, viewModel.notificationSettingsIntent())
-                    if (thenFinish) viewModel.finish()
-                }
+                finishAfterPermission = thenFinish
+                permissionLauncher.launch(viewModel.runtimePermission)
             }
             override fun openExactAlarmSettings() = launchSafely(context, viewModel.exactAlarmSettingsIntent())
             override fun finish() = viewModel.finish()

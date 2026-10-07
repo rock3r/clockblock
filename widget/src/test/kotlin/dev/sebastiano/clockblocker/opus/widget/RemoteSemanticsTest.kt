@@ -50,7 +50,7 @@ import kotlin.math.roundToInt
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w800dp-h1800dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w800dp-h1800dp-xhdpi")
 class RemoteSemanticsTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val zone = ZoneId.of("Asia/Tokyo")

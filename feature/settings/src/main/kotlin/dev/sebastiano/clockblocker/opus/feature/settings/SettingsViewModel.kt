@@ -158,8 +158,8 @@ class SettingsViewModel(
         SettingsUiState(permissions = permissions.value, widgetPinningSupported = transient.value.widgetPinningSupported),
     )
 
-    /** The runtime permission to request for notifications (`null` below API 33). */
-    val runtimePermission: String? get() = notificationPermissions.runtimePermission
+    /** The runtime permission to request for notifications. */
+    val runtimePermission: String get() = notificationPermissions.runtimePermission
 
     fun notificationSettingsIntent(): Intent = notificationPermissions.notificationSettingsIntent()
     fun exactAlarmSettingsIntent(): Intent = notificationPermissions.exactAlarmSettingsIntent()

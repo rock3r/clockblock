@@ -7,7 +7,6 @@ import android.content.ComponentCallbacks
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
@@ -22,8 +21,8 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
-import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
@@ -65,7 +64,10 @@ class WidgetUpdater(
 ) {
     internal var clock: Clock = Clock.systemDefaultZone()
     internal var readTimeoutMs: Long = READ_TIMEOUT_MS
-    internal var rendererFactory: (Context, Boolean) -> WidgetRenderer = { ctx, legacy -> WidgetRenderer(ctx, legacy) }
+    internal var rendererFactory: (Context) -> WidgetRenderer = { ctx -> WidgetRenderer(ctx) }
+
+    /** Test hook: the model each widget id was rendered from (the Remote Compose document has no view tree to read). */
+    internal var onRendered: (appWidgetId: Int, model: WidgetModel) -> Unit = { _, _ -> }
 
     private val mutex = Mutex()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
@@ -110,6 +112,7 @@ class WidgetUpdater(
     }
 
     private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
+        RetiredLegacyRefresh.cancel(application)
         val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
         val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
         val settings = read ?: AppSettings()
@@ -118,22 +121,20 @@ class WidgetUpdater(
         val logs = plan?.let { withTimeoutOrNull(readTimeoutMs) { adviceLogRepository.logs(it.tripId).first() } }
         val state = state(plan, settings, keyguard = false, logs = logs)
         val redacted by lazy { WidgetStateMapper.redact(state) }
-        val renderer = rendererFactory(application, false)
+        val renderer = rendererFactory(application)
         val theme = theme(settings, state, application.resources.configuration)
         appWidgetIds.forEach { id ->
             try {
                 val options = manager.getAppWidgetOptions(id)
                 val shown = if (hideOnLockScreen && isKeyguard(options)) redacted else state
-                val views = renderer.render(kind, shown, theme, sizeOf(options), clock.instant())
+                val model = renderer.model(shown, theme)
+                val views = renderer.render(kind, model)
+                onRendered(id, model)
                 manager.updateAppWidget(id, views)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update $kind widget $id", e)
             }
         }
-        LegacyRefresh.sync(
-            application,
-            enabled = renderer.backend == WidgetBackend.Legacy && ids(WidgetKind.TwoClocks).isNotEmpty(),
-        )
     }
 
     /**
@@ -154,11 +155,10 @@ class WidgetUpdater(
     }
 
     /**
-     * Generated widget-picker previews with a sample plan (API 35+; the platform rate-limits these calls). Keyed on
+     * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on
      * the app version *and* the system night mode, so the picker follows a light/dark switch.
      */
     suspend fun publishPreviewsIfNeeded(force: Boolean = false) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
         val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val version = application.packageManager.getPackageInfo(application.packageName, 0).longVersionCode
         val night = application.isNight()
@@ -171,12 +171,12 @@ class WidgetUpdater(
             route = DemoPlans.ROUTE,
             placeNames = DemoPlans.PLACE_NAMES,
         )
-        val renderer = rendererFactory(application, false)
+        val renderer = rendererFactory(application)
         // The picker is not the plan: always the regular palette, never night-safe.
         val theme = if (night) WidgetTheme.Dark else WidgetTheme.Light
         var ok = true
         WidgetKind.entries.forEach { kind ->
-            val views = renderer.render(kind, state, theme, null, now)
+            val views = renderer.render(kind, state, theme)
             ok = ok && runCatching {
                 manager.setWidgetPreview(
                     componentName(application, kind),
@@ -194,13 +194,6 @@ class WidgetUpdater(
     private fun isKeyguard(options: Bundle?): Boolean {
         val category = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY) ?: 0
         return (category and AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD) != 0
-    }
-
-    private fun sizeOf(options: Bundle?): WidgetSizeDp? {
-        if (options == null) return null
-        val w = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
-        val h = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
-        return if (w > 0 && h > 0) WidgetSizeDp(w.toFloat(), h.toFloat()) else null
     }
 
     companion object {
