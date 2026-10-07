@@ -54,10 +54,10 @@ import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.tintType
 import dev.sebastiano.clockblocker.opus.widget.text.DoneText
+import dev.sebastiano.clockblocker.opus.widget.text.Fitted
 import dev.sebastiano.clockblocker.opus.widget.text.TextFit
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import kotlin.math.ceil
-import kotlin.math.roundToInt
 import java.time.Duration
 
 /** Everything one capture needs. */
@@ -78,28 +78,9 @@ enum class NextUpLayout { Small, Medium, Wide, Square, Tall, Ribbon }
 private val CornerRadius = 24.rdp
 private val InnerRadius = 16.rdp
 
-// Room reserved at the end of wide Next up for the overlaid countdown (fits "23h 59m" at 18 sp).
-/** Width of the widest overlaid countdown ("23h 59m" at 18 sp) at font scale 1; grows with the font scale. */
-private const val COUNTDOWN_TEXT_DP = 68
-
 /** How much a card leans towards the current advice colour (the text stays on-surface, so keep it light). */
 private const val CARD_TINT = 0.6f
 private const val NEXT_UP_TINT = 0.35f
-
-/** Width share of the Done column next to a weight-1 main region (rows only take weights: see [NextUpRemote]). */
-private const val DONE_WEIGHT = 0.3f
-
-/**
- * "Up next" rows in the stacked layouts. Each row has two lines (time + label, then the secondary-zone time), so two
- * rows fit; the 2×3 / 4×3 Next up stack shows the adaptation bar only when nothing is up next.
- */
-internal const val UP_NEXT_ROWS = 2
-
-/**
- * Above this font scale the one-row (2×1 / 4×1) Next up has two lines: the secondary-zone time joins the "until" line
- * (three lines would be clipped) and the 4×1 countdown gives up its slot.
- */
-internal const val MAX_THREE_LINE_FONT_SCALE = 1.15f
 
 /** Two Clocks widget: 24 h dial with host-driven hand, local/body time readouts and the next action. */
 @RemoteComposable
@@ -108,10 +89,13 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
     val p = model.palette
     val texts = model.texts
     val active = model.state is WidgetState.Active
+    // Sizes, line counts and the optional parts are decided at capture time, so no label clips on the host.
+    val fit = LabelFit.twoClocks(LocalContext.current, texts, layout)
     // The now card shows "Tokyo · Day 2" (Tall, Wide): speak it too. The 4×3 strip speaks for itself (HeaderStrip).
     val withCardHeader = listOfNotNull(texts.header, texts.contentDescription).joinToString(". ").rs
+    val now = fit.now
     when {
-        layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Square || !active -> MainRegion(
+        layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Square || !active || now == null -> MainRegion(
             model,
             texts.contentDescription.rs,
             RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc),
@@ -121,17 +105,17 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                     DialWithReadouts(model, DialSize.Tiny)
                 }
             } else {
-                SquareDial(model)
+                SquareDial(model, fit.caption)
             }
         }
         layout == TwoClocksLayout.Tall -> Surface(p.surface) {
-            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(8.rdp)) {
+            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(CLOCKS_TALL_PAD_DP.rdp)) {
                 MainRegion(model, withCardHeader, RemoteModifier.fillMaxWidth().weight(1f)) {
                     RemoteColumn(modifier = RemoteModifier.fillMaxSize()) {
                         RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
                             DialWithReadouts(model, DialSize.Compact)
                         }
-                        NowCard(model, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = 6.rdp, end = 0.rdp, bottom = 0.rdp))
+                        NowCard(model, now, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = CARD_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp))
                     }
                 }
                 DoneRegion(model, RemoteModifier.fillMaxWidth().height(DoneHeight).padding(start = 0.rdp, top = 6.rdp, end = 0.rdp, bottom = 0.rdp))
@@ -139,10 +123,13 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
         }
         else -> Surface(p.surface) {
             val large = layout == TwoClocksLayout.Large
-            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(10.rdp)) {
+            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(SURFACE_PAD_DP.rdp)) {
                 // 4×3: "Tokyo · Day 2" moves out of the card into a full-width strip, with the route in dot matrix.
                 if (large) {
-                    HeaderStrip(model, RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 0.rdp, end = 2.rdp, bottom = 6.rdp))
+                    HeaderStrip(
+                        model,
+                        RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 0.rdp, end = 2.rdp, bottom = HEADER_STRIP_BOTTOM_DP.rdp),
+                    )
                 }
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth().weight(1f), verticalAlignment = RemoteAlignment.CenterVertically) {
                     MainRegion(
@@ -156,8 +143,9 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                             }
                             NowCard(
                                 model,
+                                now,
                                 // Gap as padding, not spacedBy(): weight children ignore arrangement spacing.
-                                RemoteModifier.weight(1.15f).padding(start = 10.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
+                                RemoteModifier.weight(CARD_WEIGHT).padding(start = CARD_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
                                 withHeader = !large,
                             )
                         }
@@ -170,7 +158,16 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
                     }
                 }
                 if (large) {
-                    UpNext(model, RemoteModifier.fillMaxWidth().padding(start = 2.rdp, top = 8.rdp, end = 2.rdp, bottom = 0.rdp), rows = true)
+                    UpNext(
+                        model,
+                        fit.upNext,
+                        RemoteModifier.fillMaxWidth().padding(
+                            start = UP_NEXT_SIDE_LARGE_DP.rdp,
+                            top = UP_NEXT_TOP_LARGE_DP.rdp,
+                            end = UP_NEXT_SIDE_LARGE_DP.rdp,
+                            bottom = 0.rdp,
+                        ),
+                    )
                 }
             }
         }
@@ -180,31 +177,24 @@ fun TwoClocksRemote(model: WidgetModel, layout: TwoClocksLayout = TwoClocksLayou
 /** The pre-bucket 2×2 layout: dial with readouts and a two-line caption. */
 @RemoteComposable
 @Composable
-private fun SquareDial(model: WidgetModel) {
+private fun SquareDial(model: WidgetModel, caption: CaptionFit?) {
     val p = model.palette
     RemoteColumn(
-        modifier = RemoteModifier.fillMaxSize().padding(8.rdp),
+        modifier = RemoteModifier.fillMaxSize().padding(SQUARE_DIAL_PAD_DP.rdp),
         horizontalAlignment = RemoteAlignment.CenterHorizontally,
-        verticalArrangement = RemoteArrangement.spacedBy(1.rdp),
+        verticalArrangement = RemoteArrangement.spacedBy(LINE_GAP_DP.rdp),
     ) {
         RemoteBox(
             modifier = RemoteModifier.fillMaxWidth().weight(1f),
             contentAlignment = RemoteAlignment.Center,
         ) { DialWithReadouts(model, DialSize.Compact) }
         // Without a plan the dial centre already reads "No trip / Plan one": give the dial the room.
-        if (model.state is WidgetState.Active) {
+        if (model.state is WidgetState.Active && caption != null) {
             // Two short lines rather than "Avoid light · until 18:00": that never fit a real 2×2 cell.
-            // Width-constrained (fillMaxWidth) so each line ellipsizes instead of being clipped.
-            Label(
-                model.texts.dialTitle.rs,
-                p.onSurface,
-                12,
-                weight = FontWeight.SemiBold,
-                align = TextAlign.Center,
-                modifier = RemoteModifier.fillMaxWidth(),
-            )
-            model.texts.dialDetail?.let {
-                Label(it.rs, p.onSurfaceVariant, 11, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
+            // Width-constrained (fillMaxWidth): centred text needs it (see [Label]).
+            FittedLabel(caption.title, p.onSurface, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
+            caption.detail?.let {
+                FittedLabel(it, p.onSurfaceVariant, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
             }
         }
     }
@@ -213,7 +203,7 @@ private fun SquareDial(model: WidgetModel) {
 /** "Tokyo · Day 2", the label, until / then and the secondary zone on a card tinted towards the current advice. */
 @RemoteComposable
 @Composable
-private fun NowCard(model: WidgetModel, modifier: RemoteModifier, withHeader: Boolean = true) {
+private fun NowCard(model: WidgetModel, now: NowFit, modifier: RemoteModifier, withHeader: Boolean = true) {
     val p = model.palette
     val texts = model.texts
     val type = model.state.tintType
@@ -221,15 +211,22 @@ private fun NowCard(model: WidgetModel, modifier: RemoteModifier, withHeader: Bo
         modifier = modifier
             .clip(RemoteRoundedCornerShape(InnerRadius))
             .background(Color(p.card(type, CARD_TINT)).rc)
-            .padding(horizontal = 10.rdp, vertical = 8.rdp),
-        verticalArrangement = RemoteArrangement.spacedBy(1.rdp),
+            .padding(horizontal = CARD_H_PAD_DP.rdp, vertical = CARD_V_PAD_DP.rdp),
+        verticalArrangement = RemoteArrangement.spacedBy(LINE_GAP_DP.rdp),
     ) {
-        texts.header?.takeIf { withHeader }?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
-        // One line on purpose: a wrapped title pushes the secondary-zone line out of the card.
-        Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
-        texts.subtitleLines.forEach { Label(it.rs, p.onSurfaceVariant, 12, maxLines = 1) }
-        texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+        texts.header?.takeIf { withHeader && now.header }?.let { Label(it.rs, p.onSurfaceVariant, LabelFit.HEADER_SP, maxLines = 1) }
+        NowLines(model, now)
     }
+}
+
+/** The label, the until / then lines and the other zone's time, at their fitted sizes. */
+@RemoteComposable
+@Composable
+private fun NowLines(model: WidgetModel, now: NowFit, modifier: RemoteModifier = RemoteModifier) {
+    val p = model.palette
+    FittedLabel(now.title, p.onSurface, weight = FontWeight.SemiBold, modifier = modifier)
+    now.details.forEach { FittedLabel(it, p.onSurfaceVariant, modifier = modifier) }
+    now.secondary?.let { FittedLabel(it, p.onSurfaceVariant, modifier = modifier) }
 }
 
 /**
@@ -261,8 +258,8 @@ private fun HeaderStrip(model: WidgetModel, modifier: RemoteModifier) {
     }
 }
 
-private val RouteWidthDp = ceil(RouteStrip.WIDTH * RouteStrip.PITCH_DP).toInt()
-private val RouteHeightDp = ceil(RouteStrip.HEIGHT * RouteStrip.PITCH_DP).toInt()
+internal val RouteWidthDp = ceil(RouteStrip.WIDTH * RouteStrip.PITCH_DP).toInt()
+internal val RouteHeightDp = ceil(RouteStrip.HEIGHT * RouteStrip.PITCH_DP).toInt()
 
 /** The route strip ([RouteStrip]): origin and destination codes in the design system's dot-matrix face. */
 @RemoteComposable
@@ -337,6 +334,10 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
     val texts = model.texts
     val type = model.state.tintType
     val bg = p.tinted(type, NEXT_UP_TINT)
+    // Sizes, line counts and the optional parts are decided at capture time, so no label clips on the host.
+    val fit = LabelFit.nextUp(LocalContext.current, texts, layout)
+    val now = fit.now
+    val end = LabelFit.rowEndDp(layout, texts)
     // Spoken: the visible text plus the other zone's time and the live countdown (words, host-evaluated).
     val description = spokenCountdown(model)?.let { texts.spokenNow.rs + ". ".rs + it } ?: texts.spokenNow.rs
     when (layout) {
@@ -345,14 +346,14 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
             description,
             RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(bg).rc),
         ) {
-            if (layout == NextUpLayout.Small) SmallNextUp(model) else NowRow(model, showCountdown = false, tight = true)
+            if (now == null) SmallNextUp(model) else NowRow(model, now, end)
         }
         NextUpLayout.Wide -> Surface(bg) {
             // Rows only take weights: alpha20's RemoteRow hands a weight(1f) sibling the space of trailing fixed-size
             // children (that pushed the countdown off the card), so Done is a weighted column, never a fixed one.
             RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
                 MainRegion(model, description, RemoteModifier.fillMaxHeight().weight(1f)) {
-                    NowRow(model, showCountdown = true, endPadding = if (texts.done != null) 4 else 14, tight = true)
+                    now?.let { NowRow(model, it, end) }
                 }
                 if (texts.done != null) {
                     DoneRegion(
@@ -363,34 +364,31 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
             }
         }
         NextUpLayout.Square, NextUpLayout.Tall -> Surface(bg) {
-            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(10.rdp)) {
+            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(SURFACE_PAD_DP.rdp)) {
                 val nowWeight = if (layout == NextUpLayout.Tall) 0f else 1f
                 MainRegion(
                     model,
                     description,
                     if (nowWeight > 0f) RemoteModifier.fillMaxWidth().weight(1f) else RemoteModifier.fillMaxWidth(),
                 ) {
-                    // Up next already says what comes next: the tall stack drops its "then …" line for the room.
-                    NowStack(model, withThen = layout != NextUpLayout.Tall || texts.upcoming.isEmpty())
+                    now?.let { NowStack(model, it) }
                 }
                 DoneRegion(model, RemoteModifier.fillMaxWidth().height(DoneHeight).padding(start = 0.rdp, top = 6.rdp, end = 0.rdp, bottom = 0.rdp))
                 if (layout == NextUpLayout.Tall) {
+                    // The trip's route in dot matrix at the end of the "Up next" title: no extra line in 2×3.
                     UpNext(
                         model,
-                        RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = 10.rdp, end = 0.rdp, bottom = 0.rdp),
-                        rows = true,
-                        barWithRows = false,
-                        // The trip's route in dot matrix at the end of the "Up next" title: no extra line in 2×3.
-                        withRoute = true,
+                        fit.upNext,
+                        RemoteModifier.fillMaxWidth().weight(1f).padding(start = 0.rdp, top = UP_NEXT_TOP_STACK_DP.rdp, end = 0.rdp, bottom = 0.rdp),
                     )
                 }
             }
         }
         NextUpLayout.Ribbon -> Surface(bg) {
-            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(start = 0.rdp, top = 0.rdp, end = 0.rdp, bottom = 8.rdp)) {
+            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(start = 0.rdp, top = 0.rdp, end = 0.rdp, bottom = RIBBON_BOTTOM_DP.rdp)) {
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth().weight(1f), verticalAlignment = RemoteAlignment.CenterVertically) {
                     MainRegion(model, description, RemoteModifier.fillMaxHeight().weight(1f)) {
-                        NowRow(model, showCountdown = true, endPadding = if (texts.done != null) 4 else 14)
+                        now?.let { NowRow(model, it, end) }
                     }
                     if (texts.done != null) {
                         DoneRegion(
@@ -399,7 +397,7 @@ fun NextUpRemote(model: WidgetModel, layout: NextUpLayout = NextUpLayout.Medium)
                         )
                     }
                 }
-                UpNext(model, RemoteModifier.fillMaxWidth().padding(horizontal = 8.rdp, vertical = 0.rdp), rows = false)
+                UpNext(model, fit.upNext, RemoteModifier.fillMaxWidth().padding(horizontal = CAPSULE_SIDE_DP.rdp, vertical = 0.rdp))
             }
         }
     }
@@ -443,51 +441,47 @@ private fun SmallNextUp(model: WidgetModel) {
 }
 
 /**
- * Glyph, label, until/then and the secondary zone in a row, with the countdown overlaid at the end. [tight] marks the
- * one-row sizes (2×1, 4×1): above [MAX_THREE_LINE_FONT_SCALE] they fold the secondary zone into the second line.
+ * Glyph, label, until/then and the secondary zone in a row, with the countdown overlaid at the end. [now] says what
+ * fits (see [LabelFit]): at large font sizes the "then …" tail, then the countdown, then the glyph give way.
  */
 @RemoteComposable
 @Composable
-private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int = 14, tight: Boolean = false) {
+private fun NowRow(model: WidgetModel, now: NowFit, endPadding: Int) {
     val p = model.palette
     val texts = model.texts
-    val fontScale = LocalContext.current.resources.configuration.fontScale
-    // A one-row widget fits three lines only near the default font size. Larger text gets two lines: the label, then
-    // "until 16:30 · 08:30 in Lisbon" (the other zone's time stays, "then …" goes). The countdown gives its slot to
-    // that line: the end time already says when, and the label and times matter more than the duration.
-    val twoLines = tight && fontScale > MAX_THREE_LINE_FONT_SCALE
-    val countdown = countdownText(model)?.takeIf { showCountdown && !twoLines }
+    val countdown = countdownText(model)?.takeIf { now.countdown }
     // The countdown is sp-sized: keep its slot in step so the label never runs under it.
-    val countdownSlot = (COUNTDOWN_TEXT_DP * fontScale.coerceAtLeast(1f)).roundToInt() + endPadding + 12
+    val countdownSlot = LabelFit.countdownSlotDp(LocalContext.current, endPadding)
     RemoteBox(modifier = RemoteModifier.fillMaxSize(), contentAlignment = RemoteAlignment.Center) {
         RemoteRow(
             modifier = RemoteModifier
                 .fillMaxSize()
-                .padding(start = 12.rdp, top = 8.rdp, end = if (countdown != null) countdownSlot.rdp else endPadding.rdp, bottom = 8.rdp),
+                .padding(
+                    start = ROW_START_DP.rdp,
+                    top = ROW_V_PAD_DP.rdp,
+                    end = if (countdown != null) countdownSlot.rdp else endPadding.rdp,
+                    bottom = ROW_V_PAD_DP.rdp,
+                ),
             verticalAlignment = RemoteAlignment.CenterVertically,
         ) {
-            Glyph(texts.glyph, p, 40)
+            if (now.glyph) Glyph(texts.glyph, p, ROW_GLYPH_DP)
             RemoteColumn(
                 // The glyph gap is padding, not spacedBy(): the platform player doesn't subtract arrangement spacing
                 // from a weight(1f) child, so the text ran 12 dp into the rounded corner.
-                modifier = RemoteModifier.weight(1f).padding(start = 12.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
-                verticalArrangement = RemoteArrangement.spacedBy(1.rdp),
+                modifier = RemoteModifier.weight(1f).padding(start = (if (now.glyph) ROW_GLYPH_GAP_DP else 0).rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
+                verticalArrangement = RemoteArrangement.spacedBy(LINE_GAP_DP.rdp),
             ) {
-                Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 1)
-                Label((if (twoLines) texts.subtitleWithSecondary else texts.subtitle).rs, p.onSurfaceVariant, 12, maxLines = 1)
-                if (!twoLines) {
-                    texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
-                }
+                NowLines(model, now)
             }
         }
         if (countdown != null) {
             // Overlaid rather than a trailing Row child (see NextUpRemote on trailing fixed children).
             RemoteBox(
-                modifier = RemoteModifier.fillMaxSize().padding(end = endPadding.rdp + 10.rdp),
+                modifier = RemoteModifier.fillMaxSize().padding(end = endPadding.rdp + COUNTDOWN_END_DP.rdp),
                 contentAlignment = RemoteAlignment.CenterEnd,
             ) {
                 // Start-aligned on purpose: the box places it at the end (see [Label] on alignment).
-                Label(countdown, p.primary, 18, weight = FontWeight.Medium)
+                Label(countdown, p.primary, LabelFit.COUNTDOWN_SP, weight = FontWeight.Medium)
             }
         }
     }
@@ -496,111 +490,97 @@ private fun NowRow(model: WidgetModel, showCountdown: Boolean, endPadding: Int =
 /** 2×2 / 2×3: glyph + countdown, then label, until/then and the secondary zone stacked. */
 @RemoteComposable
 @Composable
-private fun NowStack(model: WidgetModel, withThen: Boolean = true) {
+private fun NowStack(model: WidgetModel, now: NowFit) {
     val p = model.palette
     val texts = model.texts
-    RemoteColumn(modifier = RemoteModifier.fillMaxWidth(), verticalArrangement = RemoteArrangement.spacedBy(2.rdp)) {
-        RemoteRow(verticalAlignment = RemoteAlignment.CenterVertically) {
-            Glyph(texts.glyph, p, 36)
-            countdownText(model)?.let { countdown ->
-                RemoteBox(modifier = RemoteModifier.padding(start = 10.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
-                    Label(countdown, p.primary, 18, weight = FontWeight.Medium)
+    RemoteColumn(modifier = RemoteModifier.fillMaxWidth(), verticalArrangement = RemoteArrangement.spacedBy(LINE_GAP_DP.rdp)) {
+        if (now.glyph) {
+            RemoteRow(verticalAlignment = RemoteAlignment.CenterVertically) {
+                Glyph(texts.glyph, p, STACK_GLYPH_DP)
+                countdownText(model)?.takeIf { now.countdown }?.let { countdown ->
+                    RemoteBox(modifier = RemoteModifier.padding(start = STACK_COUNTDOWN_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
+                        Label(countdown, p.primary, LabelFit.COUNTDOWN_SP, weight = FontWeight.Medium)
+                    }
                 }
             }
         }
-        Label(texts.title.rs, p.onSurface, 16, weight = FontWeight.SemiBold, maxLines = 2, modifier = RemoteModifier.fillMaxWidth())
-        texts.subtitleLines.take(if (withThen) 2 else 1).forEach {
-            Label(it.rs, p.onSurfaceVariant, 12, maxLines = 1, modifier = RemoteModifier.fillMaxWidth())
-        }
-        texts.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1, modifier = RemoteModifier.fillMaxWidth()) }
+        NowLines(model, now, RemoteModifier.fillMaxWidth())
     }
 }
 
 /**
  * "Up next": the next blocks (glyph + start time + label, never a glyph alone, with the secondary-zone time below)
- * and the adaptation bar. [rows] lists at most [maxRows] vertically; the bar shows when [barWithRows] or when nothing
- * is up next. Otherwise they sit side by side as capsules (4×2 ribbon). Opens the plan like the main region.
+ * and the adaptation bar, as [fit] decided: rows stacked (2×3, 4×3) or capsules side by side (4×2 ribbon). Entries
+ * that cannot show their label whole are left out, the last first. Opens the plan like the main region.
  */
 @RemoteComposable
 @Composable
-private fun UpNext(
-    model: WidgetModel,
-    modifier: RemoteModifier,
-    rows: Boolean,
-    maxRows: Int = UP_NEXT_ROWS,
-    barWithRows: Boolean = true,
-    withRoute: Boolean = false,
-) {
+private fun UpNext(model: WidgetModel, fit: UpNextFit, modifier: RemoteModifier) {
     val p = model.palette
-    val texts = model.texts.let { t ->
-        val upcoming = t.upcoming.take(if (rows) maxRows else 3)
-        val bar = !rows || barWithRows || upcoming.isEmpty()
-        t.copy(upcoming = upcoming, adaptation = t.adaptation.takeIf { bar }, adaptationLabel = t.adaptationLabel.takeIf { bar })
-    }
-    if (texts.upcoming.isEmpty() && texts.adaptation == null) return
-    val route = texts.route?.takeIf { withRoute && rows && texts.upcoming.isNotEmpty() }
+    if (fit.rows.isEmpty() && !fit.bar) return
+    // Spoken: what is shown.
+    val texts = model.texts.copy(upcoming = fit.rows.map { it.item })
     val description = listOfNotNull(
-        texts.routeDescription?.takeIf { route != null },
+        texts.routeDescription?.takeIf { fit.route },
         texts.upcomingDescription,
-        texts.adaptationLabel,
+        texts.adaptationLabel?.takeIf { fit.bar },
     ).joinToString(". ")
     RemoteColumn(
         modifier = modifier.clickable(deepLinkAction(texts.deepLink)).semantics { contentDescription = description.rs },
-        verticalArrangement = RemoteArrangement.spacedBy(4.rdp),
+        verticalArrangement = RemoteArrangement.spacedBy(UP_NEXT_SPACING_DP.rdp),
     ) {
-        if (rows) {
-            if (texts.upcoming.isNotEmpty()) {
+        if (!fit.capsules) {
+            if (fit.rows.isNotEmpty()) {
                 RemoteBox(modifier = RemoteModifier.fillMaxWidth(), contentAlignment = RemoteAlignment.CenterStart) {
-                    Label(LocalContext.current.getString(R.string.widget_up_next).rs, p.onSurfaceVariant, 11, weight = FontWeight.SemiBold)
+                    Label(LocalContext.current.getString(R.string.widget_up_next).rs, p.onSurfaceVariant, LabelFit.UP_NEXT_TITLE_SP, weight = FontWeight.SemiBold)
                     // Overlaid at the end, not a trailing Row child (see NextUpRemote).
-                    route?.let {
+                    texts.route?.takeIf { fit.route }?.let {
                         RemoteBox(modifier = RemoteModifier.fillMaxWidth(), contentAlignment = RemoteAlignment.CenterEnd) { RouteDots(it, p) }
                     }
                 }
             }
-            texts.upcoming.forEach { item ->
+            fit.rows.forEach { row ->
                 RemoteRow(modifier = RemoteModifier.fillMaxWidth(), verticalAlignment = RemoteAlignment.CenterVertically) {
-                    Glyph(item.glyph, p, 20)
-                    RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 8.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
-                        Label("${item.time}  ${item.label}".rs, p.onSurface, 13, maxLines = 1)
-                        item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 11, maxLines = 1) }
+                    Glyph(row.item.glyph, p, UP_NEXT_GLYPH_DP)
+                    RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = UP_NEXT_GLYPH_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
+                        FittedLabel(row.line, p.onSurface)
+                        row.secondary?.let { FittedLabel(it, p.onSurfaceVariant) }
                     }
                 }
             }
-        } else if (texts.upcoming.isNotEmpty()) {
-            RemoteRow(modifier = RemoteModifier.fillMaxWidth().height(40.rdp), verticalAlignment = RemoteAlignment.CenterVertically) {
-                texts.upcoming.forEachIndexed { i, item ->
+        } else {
+            RemoteRow(modifier = RemoteModifier.fillMaxWidth().height(CAPSULE_HEIGHT_DP.rdp), verticalAlignment = RemoteAlignment.CenterVertically) {
+                fit.rows.forEachIndexed { i, row ->
+                    val start = if (i == 0) 0 else CAPSULE_GAP_DP
+                    val end = if (i == fit.rows.lastIndex) 0 else CAPSULE_GAP_DP
                     RemoteRow(
                         modifier = RemoteModifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .padding(start = if (i == 0) 0.rdp else 3.rdp, top = 0.rdp, end = if (i == texts.upcoming.lastIndex) 0.rdp else 3.rdp, bottom = 0.rdp)
+                            .padding(start = start.rdp, top = 0.rdp, end = end.rdp, bottom = 0.rdp)
                             .clip(RemoteRoundedCornerShape(InnerRadius))
                             .background(Color(p.surfaceContainer).rc)
-                            .padding(horizontal = 6.rdp, vertical = 0.rdp),
+                            .padding(horizontal = CAPSULE_PAD_DP.rdp, vertical = 0.rdp),
                         verticalAlignment = RemoteAlignment.CenterVertically,
                     ) {
-                        Glyph(item.glyph, p, 18)
-                        RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = 4.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
-                            Label("${item.time} ${item.label}".rs, p.onSurface, 11, maxLines = 1)
-                            item.secondary?.let { Label(it.rs, p.onSurfaceVariant, 10, maxLines = 1) }
+                        Glyph(row.item.glyph, p, CAPSULE_GLYPH_DP)
+                        RemoteColumn(modifier = RemoteModifier.weight(1f).padding(start = CAPSULE_GLYPH_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
+                            FittedLabel(row.line, p.onSurface)
+                            row.secondary?.let { FittedLabel(it, p.onSurfaceVariant) }
                         }
                     }
                 }
             }
         }
-        if (rows) {
-            val fraction = texts.adaptation
-            val label = texts.adaptationLabel
-            if (fraction != null && label != null) {
-                Label(
-                    listOfNotNull(label, texts.misalignment).joinToString(" · ").rs,
-                    p.onSurfaceVariant,
-                    11,
-                    modifier = RemoteModifier.padding(start = 0.rdp, top = 4.rdp, end = 0.rdp, bottom = 0.rdp),
-                )
-                AdaptationBar(fraction, p)
-            }
+        val fraction = texts.adaptation
+        if (fit.bar && fraction != null) {
+            Label(
+                LabelFit.adaptationText(texts).rs,
+                p.onSurfaceVariant,
+                LabelFit.SECONDARY_SP,
+                modifier = RemoteModifier.padding(start = 0.rdp, top = ADAPTATION_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp),
+            )
+            AdaptationBar(fraction, p)
         }
     }
 }
@@ -629,7 +609,7 @@ private fun AdaptationBar(fraction: Float, p: WidgetPalette) {
 }
 
 /** Height of the Done row in stacked layouts: a 48 dp touch target. */
-private val DoneHeight = 54.rdp
+private val DoneHeight = DONE_HEIGHT_DP.rdp
 
 /**
  * The Done button (a sibling click region of the main one, never nested: some document versions fire every
@@ -731,6 +711,19 @@ private fun Label(
         overflow = TextOverflow.Ellipsis,
         textAlign = align,
     )
+}
+
+/** A [Label] at the size and line count [TextFit] measured for it at capture time, so it shows whole. */
+@RemoteComposable
+@Composable
+private fun FittedLabel(
+    fitted: Fitted,
+    color: Int,
+    weight: FontWeight = FontWeight.Normal,
+    align: TextAlign = TextAlign.Start,
+    modifier: RemoteModifier = RemoteModifier,
+) {
+    Label(fitted.text.rs, color, fitted.sp, weight = weight, maxLines = fitted.lines, align = align, modifier = modifier)
 }
 
 private fun countdownMinutes(model: WidgetModel): Int? {

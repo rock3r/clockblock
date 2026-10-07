@@ -70,13 +70,6 @@ data class WidgetTexts(
     val countdownWords: CountdownWords = CountdownWords(),
 ) {
     /**
-     * Two-line rows at large font sizes: the first "until" line plus the [secondary] time ("until 16:30 · 08:30 in
-     * Lisbon"). The "then …" part goes first, so the time in the other zone always stays.
-     */
-    val subtitleWithSecondary: String
-        get() = listOfNotNull(subtitleLines.firstOrNull() ?: subtitle, secondary).joinToString(" · ")
-
-    /**
      * "Up next: Melatonin at 20:30 (12:30 in Lisbon), Sleep at 22:00 (14:00 in Lisbon)": spoken for the queue region.
      * Derived from [upcoming], so a copy with fewer rows speaks only the rows it shows.
      */
