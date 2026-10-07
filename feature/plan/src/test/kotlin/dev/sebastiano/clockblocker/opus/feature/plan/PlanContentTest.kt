@@ -54,7 +54,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.R as DesignR
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h880dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h880dp-xhdpi")
 class PlanContentTest {
     @get:Rule
     val compose = createComposeRule()

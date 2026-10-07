@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_two_clocks_description"
-    android:initialKeyguardLayout="@layout/widget_two_clocks_legacy"
-    android:initialLayout="@layout/widget_two_clocks_legacy"
+    android:initialKeyguardLayout="@layout/widget_placeholder"
+    android:initialLayout="@layout/widget_placeholder"
     android:minWidth="110dp"
     android:minHeight="110dp"
     android:minResizeWidth="40dp"

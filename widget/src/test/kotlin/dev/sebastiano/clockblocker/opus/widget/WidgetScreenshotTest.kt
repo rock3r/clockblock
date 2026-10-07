@@ -1,10 +1,6 @@
 package dev.sebastiano.clockblocker.opus.widget
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.widget.FrameLayout
-import android.widget.RemoteViews
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.remote.core.SystemClock
+import androidx.compose.remote.creation.compose.layout.RemoteRow
+import androidx.compose.remote.creation.compose.modifier.RemoteModifier
+import androidx.compose.remote.creation.compose.modifier.background
+import androidx.compose.remote.creation.compose.modifier.fillMaxSize
+import androidx.compose.remote.creation.compose.state.rc
 import androidx.compose.remote.creation.compose.capture.captureSingleRemoteDocument
 import androidx.compose.remote.creation.compose.capture.createCreationDisplayInfo
 import androidx.compose.remote.player.compose.RemoteDocumentPlayer
@@ -22,18 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
-import dev.sebastiano.clockblocker.opus.widget.draw.CanvasOps
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
-import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
-import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRemoteViews
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.Glyph
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
@@ -55,7 +53,6 @@ import java.io.ByteArrayInputStream
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 private const val DIR = "src/test/screenshots"
@@ -66,7 +63,7 @@ private const val DIR = "src/test/screenshots"
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w800dp-h1800dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w800dp-h1800dp-xhdpi")
 class WidgetScreenshotTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val zone = ZoneId.of("Asia/Tokyo")
@@ -88,99 +85,29 @@ class WidgetScreenshotTest {
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
     }
 
-    // --- Classic RemoteViews fallback (API 29–35) -------------------------------------------------------------
+    // --- Remote Compose documents, played back by the androidx player ------------------------------------------
 
+    /** Every glyph on the widget surface, in every theme. */
     @Test
-    fun legacyDial() {
-        val models = WidgetTheme.entries.map { model(it) } + model(WidgetTheme.Light, scenario = null)
-        sideBySide(models.map { LegacyRemoteViews.dialBitmap(it, 400, now) }, models.map { it.palette.surface })
-            .captureRoboImage("$DIR/legacy_dial.png")
-    }
-
-    @Test
-    fun legacyGlyphs() {
-        val kinds = AdviceType.entries.map { GlyphKind.Advice(it) } + listOf(GlyphKind.Free, GlyphKind.Adapted, GlyphKind.NoTrip, GlyphKind.PlanStep)
-        val rows = WidgetTheme.entries.map { WidgetPalette.of(it) }.map { p ->
-            sideBySide(kinds.map { CanvasOps.bitmap(Glyphs.build(it, p), 96) }, List(kinds.size) { p.surface })
-        }
-        stacked(rows).captureRoboImage("$DIR/legacy_glyphs.png")
-    }
-
-    /** The classic RemoteViews as a launcher would inflate them (API 29–35 and hosts without RC). Docs overview. */
-    @Test
-    @Config(sdk = [33])
-    fun legacyWidgets() {
-        captureRoboImage("$DIR/legacy_widgets.png") {
+    fun remoteGlyphs() {
+        val kinds = AdviceType.entries.map { GlyphKind.Advice(it) } +
+            listOf(GlyphKind.Free, GlyphKind.Adapted, GlyphKind.NoTrip, GlyphKind.PlanStep)
+        val size = 40
+        captureRoboImage("$DIR/remote_glyphs.png") {
             Grid(
-                listOf(
-                    themed { legacyClocks(it, TwoClocksLayout.Square, 176, 176) },
-                    listOf(legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76)),
-                    themed { legacyNextUp(model(it), NextUpLayout.Small, 76, 76) } +
-                        legacyNextUp(model(WidgetTheme.Light, scenario = null), NextUpLayout.Medium, 176, 76),
-                ),
-            )
-        }
-    }
-
-    @Test
-    @Config(sdk = [33])
-    fun legacyTwoClocksBuckets() {
-        captureRoboImage("$DIR/legacy_two_clocks_buckets.png") {
-            Grid(
-                listOf(
-                    themed { legacyClocks(it, TwoClocksLayout.Compact, 76, 76) } +
-                        legacyClocks(WidgetTheme.Light, TwoClocksLayout.Compact, 76, 76, scenario = null),
-                    themed { legacyClocks(it, TwoClocksLayout.Tall, 176, 260) },
+                WidgetTheme.entries.map { theme ->
+                    val palette = WidgetPalette.of(theme)
+                    val doc = document(kinds.size * size, size) {
+                        RemoteRow(RemoteModifier.fillMaxSize().background(Color(palette.surface).rc)) {
+                            kinds.forEach { Glyph(it, palette, size) }
+                        }
+                    }
                     listOf(
-                        legacyClocks(WidgetTheme.Light, TwoClocksLayout.Wide, 360, 172),
-                        legacyClocks(WidgetTheme.NightSafe, TwoClocksLayout.Wide, 360, 172),
-                    ),
-                    listOf(
-                        legacyClocks(WidgetTheme.Dark, TwoClocksLayout.Large, 360, 260),
-                        legacyClocks(WidgetTheme.Light, TwoClocksLayout.Large, 360, 260, logged = AdviceOutcome.Done),
-                    ),
-                ),
-            )
-        }
-    }
-
-    @Test
-    @Config(sdk = [33])
-    fun legacyNextUpBuckets() {
-        captureRoboImage("$DIR/legacy_next_up_buckets.png") {
-            Grid(
-                listOf(
-                    themed { legacyNextUp(model(it, DemoPlans.Scenario.FreeTime), NextUpLayout.Medium, 176, 76) },
-                    listOf(
-                        legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Wide, 360, 76),
-                        legacyNextUp(model(WidgetTheme.NightSafe, DemoPlans.Scenario.Sleep), NextUpLayout.Wide, 360, 76),
-                    ),
-                    themed { legacyNextUp(model(it), NextUpLayout.Square, 176, 176) },
-                    themed { legacyNextUp(model(it), NextUpLayout.Tall, 176, 260) },
-                    listOf(
-                        legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Ribbon, 360, 172),
-                        legacyNextUp(model(WidgetTheme.Dark, logged = AdviceOutcome.Done), NextUpLayout.Ribbon, 360, 172),
-                    ),
-                    listOf(legacyNextUp(model(WidgetTheme.NightSafe), NextUpLayout.Tall, 360, 260)),
-                ),
-            )
-        }
-    }
-
-    /** The 4×1 and 2×1 rows and the ribbon at 150 % font size: two lines, the other zone's time kept. */
-    @Test
-    @Config(sdk = [33])
-    fun legacyFontScale() {
-        RuntimeEnvironment.setFontScale(1.5f)
-        captureRoboImage("$DIR/legacy_font_scale.png") {
-            Grid(
-                listOf(
-                    listOf(
-                        legacyNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76),
-                        legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Medium, 176, 76),
-                    ),
-                    listOf(legacyNextUp(model(WidgetTheme.Dark), NextUpLayout.Ribbon, 360, 172)),
-                ),
+                        Cell(theme, doc.widthDp, doc.heightDp) {
+                            RemoteDocumentPlayer(doc.doc.document, doc.widthPx, doc.heightPx, Modifier.size(doc.widthDp.dp, doc.heightDp.dp))
+                        },
+                    )
+                },
             )
         }
     }
@@ -189,24 +116,6 @@ class WidgetScreenshotTest {
      * Lock-screen instances with "Hide details on the lock screen" on: no places or route, melatonin as a neutral
      * "Plan step" (it is up next here). Light and dark.
      */
-    @Test
-    @Config(sdk = [33])
-    fun legacyKeyguard() {
-        captureRoboImage("$DIR/legacy_keyguard.png") {
-            Grid(
-                listOf(WidgetTheme.Light, WidgetTheme.Dark).map { theme ->
-                    listOf(
-                        legacyClocks(theme, TwoClocksLayout.Large, 360, 260, redacted = true),
-                        legacyNextUp(model(theme, redacted = true), NextUpLayout.Tall, 176, 260),
-                    )
-                },
-            )
-        }
-    }
-
-    // --- Remote Compose documents, played back by the androidx player ------------------------------------------
-
-    /** Remote Compose version of [legacyKeyguard]. */
     @Test
     fun remoteKeyguard() {
         captureRoboImage("$DIR/remote_keyguard.png") {
@@ -362,29 +271,6 @@ class WidgetScreenshotTest {
         }
     }
 
-    private fun legacyClocks(
-        theme: WidgetTheme,
-        layout: TwoClocksLayout,
-        w: Int,
-        h: Int,
-        scenario: DemoPlans.Scenario? = DemoPlans.Scenario.AvoidLight,
-        logged: AdviceOutcome? = null,
-        redacted: Boolean = false,
-    ): Cell {
-        val m = model(theme, scenario, logged, redacted)
-        val density = context.resources.displayMetrics.density
-        val dial = LegacyRemoteViews.dialBitmap(m, (min(w, h - 24) * density).roundToInt(), now)
-        return legacy(m, w, h) { LegacyRemoteViews.twoClocks(context, m, layout, dial) }
-    }
-
-    private fun legacyNextUp(model: WidgetModel, layout: NextUpLayout, w: Int, h: Int): Cell =
-        legacy(model, w, h) { LegacyRemoteViews.nextUp(context, model, layout, context.resources.displayMetrics.density, now) }
-
-    private fun legacy(model: WidgetModel, w: Int, h: Int, build: () -> RemoteViews): Cell =
-        Cell(model.theme(), w, h) {
-            AndroidView(modifier = Modifier.size(w.dp, h.dp), factory = { ctx -> build().apply(ctx, FrameLayout(ctx)) })
-        }
-
     private fun WidgetModel.theme(): WidgetTheme = WidgetTheme.entries.first { WidgetPalette.of(it) == palette }
 
     private class Doc(val widthDp: Int, val heightDp: Int, val widthPx: Int, val heightPx: Int, val doc: RemoteDocument)
@@ -419,38 +305,6 @@ class WidgetScreenshotTest {
                         Box(Modifier.background(backdrop).padding(8.dp)) { cell.content() }
                     }
                 }
-            }
-        }
-    }
-
-    private fun sideBySide(bitmaps: List<Bitmap>, backgrounds: List<Int>, gap: Int = 16): Bitmap {
-        val w = bitmaps.sumOf { it.width } + gap * (bitmaps.size + 1)
-        val h = bitmaps.maxOf { it.height } + gap * 2
-        return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { out ->
-            val c = Canvas(out)
-            c.drawColor(0xFF9AA0A6.toInt())
-            var x = gap
-            bitmaps.forEachIndexed { i, b ->
-                if (backgrounds[i] != 0) {
-                    c.drawRect(x.toFloat(), gap.toFloat(), (x + b.width).toFloat(), (gap + b.height).toFloat(),
-                        android.graphics.Paint().apply { color = backgrounds[i] })
-                }
-                c.drawBitmap(b, x.toFloat(), gap.toFloat(), null)
-                x += b.width + gap
-            }
-        }
-    }
-
-    private fun stacked(bitmaps: List<Bitmap>): Bitmap {
-        val w = bitmaps.maxOf { it.width }
-        val h = bitmaps.sumOf { it.height }
-        return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { out ->
-            val c = Canvas(out)
-            c.drawColor(0xFF9AA0A6.toInt())
-            var y = 0
-            bitmaps.forEach { b ->
-                c.drawBitmap(b, 0f, y.toFloat(), null)
-                y += b.height
             }
         }
     }

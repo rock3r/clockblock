@@ -38,7 +38,7 @@ import java.time.LocalDate
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h640dp-420dpi")
+@Config(sdk = [37], qualifiers = "w411dp-h640dp-420dpi")
 class NowCardAboveTheFoldTest {
     @get:Rule
     val compose = createComposeRule()

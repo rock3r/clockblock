@@ -103,7 +103,7 @@ private fun DrawOp.Path.toRemotePath(): RemotePath = RemotePath().apply {
 
 /**
  * The dial hand, positioned by the host clock: it keeps moving with the launcher's clock between app updates
- * (no process wake-ups, survives Doze). Geometry mirrors [TwoClocksDial.hand].
+ * (no process wake-ups, survives Doze). Geometry: [TwoClocksDial.Hand].
  */
 internal fun RemoteDrawScope.drawHostHand(
     displayOffsetMinutes: Int,

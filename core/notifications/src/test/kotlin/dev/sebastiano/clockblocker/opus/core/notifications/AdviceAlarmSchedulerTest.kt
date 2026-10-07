@@ -37,7 +37,7 @@ import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class AdviceAlarmSchedulerTest {
 
     private val context: Application = ApplicationProvider.getApplicationContext()

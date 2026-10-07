@@ -1,6 +1,5 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
@@ -157,7 +156,7 @@ fun ClockblockTheme(
     }
     val dark = darkTheme || variant != ClockblockThemeVariant.Standard
     val context = LocalContext.current
-    val useDynamic = dynamicColor && variant == ClockblockThemeVariant.Standard && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useDynamic = dynamicColor && variant == ClockblockThemeVariant.Standard
     val systemAnimations = rememberSystemAnimationsEnabled()
     val reduce = reduceMotion || !systemAnimations
     val motionScheme = when {

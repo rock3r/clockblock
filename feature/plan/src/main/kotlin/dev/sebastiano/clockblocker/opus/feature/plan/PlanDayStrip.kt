@@ -1,6 +1,5 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -152,9 +151,7 @@ internal fun PlanDayStrip(
                 selected = index == shownIndex,
                 onClick = {
                     if (index != shownIndex) {
-                        view.performHapticFeedback(
-                            if (Build.VERSION.SDK_INT >= 34) HapticFeedbackConstants.SEGMENT_TICK else HapticFeedbackConstants.CLOCK_TICK,
-                        )
+                        view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
                     }
                     onSelect(if (index == todayIndex) null else index)
                 },

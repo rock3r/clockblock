@@ -6,7 +6,7 @@ ksp = "2.3.12"
 compileSdk = "37"
 compileSdkMinor = "1"
 targetSdk = "37"
-minSdk = "29"
+minSdk = "37"
 jvmToolchain = "21"
 
 # Compose / UI — alpha BOM is the only line where M3 Expressive APIs are public.

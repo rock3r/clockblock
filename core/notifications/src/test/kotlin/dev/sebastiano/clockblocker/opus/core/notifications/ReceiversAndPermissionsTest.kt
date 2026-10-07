@@ -35,7 +35,7 @@ import org.robolectric.shadows.ShadowAlarmManager
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class ReceiversAndPermissionsTest {
 
     private val context: Application = ApplicationProvider.getApplicationContext()
@@ -189,12 +189,6 @@ class ReceiversAndPermissionsTest {
         permissions.state().isReliable shouldBe false
         capabilities.exact = true
         permissions.state().isReliable shouldBe true
-    }
-
-    @Test
-    @Config(sdk = [35])
-    fun `Live Updates only exist from Android 16`() {
-        permissions.state().liveUpdatesSupported shouldBe false
     }
 
     @Test

@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 
 /** Direction symmetry (T-024): every reverse motion returns toward the edge the forward motion came from. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36], application = TestApplication::class)
+@Config(sdk = [37], application = TestApplication::class)
 class AppTransitionsTest {
     @get:Rule
     val compose = createComposeRule()

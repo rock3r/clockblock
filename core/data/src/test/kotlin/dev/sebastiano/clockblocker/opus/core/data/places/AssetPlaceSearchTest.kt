@@ -21,7 +21,7 @@ import java.io.ByteArrayInputStream
 import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class AssetPlaceSearchTest {
     private val application: Application = ApplicationProvider.getApplicationContext()
 

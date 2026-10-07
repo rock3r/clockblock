@@ -2,10 +2,8 @@ package dev.sebastiano.clockblocker.opus.widget.rc
 
 import android.app.PendingIntent
 import android.content.Context
-import android.os.Build
 import android.util.SizeF
 import android.widget.RemoteViews
-import androidx.annotation.RequiresApi
 import androidx.compose.remote.creation.ExperimentalRemoteCreationApi
 import androidx.compose.remote.creation.compose.ExperimentalRemoteCreationComposeApi
 import androidx.compose.remote.creation.compose.capture.CapturedDocument
@@ -17,18 +15,16 @@ import androidx.compose.runtime.Composable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Whether (and with which document profile) the platform widget host can play Remote Compose documents. */
+/**
+ * Which document profile the platform widget host can play. Every supported Android version (API 37+) ships the
+ * platform Remote Compose player behind `RemoteViews.DrawInstructions`, so this only checks the document version it
+ * reports; null (an unknown, older version, or a failing query) means the widgets show their placeholder.
+ */
 object RemoteComposeSupport {
-    /** API 36 (Android 16) shipped the platform Remote Compose player behind `RemoteViews.DrawInstructions`. */
-    const val MIN_SDK = Build.VERSION_CODES.BAKLAVA
+    fun profileOrNull(): Profile? = runCatching { widgetProfileFor(supportedVersion()) }.getOrNull()
 
-    fun profileOrNull(sdkInt: Int = Build.VERSION.SDK_INT): Profile? {
-        if (sdkInt < MIN_SDK) return null
-        return runCatching { widgetProfileFor(supportedVersion()) }.getOrNull()
-    }
-
-    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
-    private fun supportedVersion(): Int = RemoteViews.DrawInstructions.getSupportedVersion().toInt()
+    /** The document version the platform player reports. */
+    fun supportedVersion(): Int = RemoteViews.DrawInstructions.getSupportedVersion().toInt()
 }
 
 /** Captures `@RemoteComposable` content into platform `RemoteViews(DrawInstructions)`. */
@@ -54,7 +50,6 @@ object RemoteComposeRenderer {
      * ([DeepLinkIntents.CLICK_ACTION_ID]) and [done] the Done button's ([DeepLinkIntents.DONE_ACTION_ID]): the
      * platform player forwards id actions to the click response registered under that id.
      */
-    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun remoteViews(document: CapturedDocument, click: PendingIntent? = null, done: PendingIntent? = null): RemoteViews {
         val views = RemoteViews(RemoteViews.DrawInstructions.Builder(listOf(document.bytes)).build())
         document.pendingIntents.forEach { key, pendingIntent -> views.setOnClickPendingIntent(key, pendingIntent) }
@@ -64,10 +59,9 @@ object RemoteComposeRenderer {
     }
 
     /**
-     * One document per responsive size; the host picks the largest that fits (API 31+ size mapping). Sizes that map
+     * One document per responsive size; the host picks the largest that fits. Sizes that map
      * to the same layout share one capture.
      */
-    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     suspend fun <L> responsive(
         context: Context,
         profile: Profile,

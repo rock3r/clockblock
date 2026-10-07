@@ -1,6 +1,5 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial
 
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.animation.core.Animatable
@@ -157,7 +156,7 @@ fun TwoClocksDial(
         if (reduce) bodyAhead.snapTo(target) else bodyAhead.animateTo(target, motion.dialDayRotation())
         labelFrom = target
         if (state.isAligned && !wasAligned) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
             currentOnRingsAligned?.invoke()
         }
         wasAligned = state.isAligned
@@ -256,9 +255,7 @@ fun TwoClocksDial(
                             change.consume()
                             if (!fired && total <= -360f) {
                                 fired = true
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                }
+                                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                 currentOnRewind?.invoke()
                                 break
                             }
@@ -685,7 +682,7 @@ private class DialPainter(val scope: DrawScope, val center: Offset, val u: Float
     }
 }
 
-/** Fires CLOCK_TICK on every hour crossed while scrubbing, SEGMENT_TICK (API 34+) on advice boundaries. */
+/** Fires CLOCK_TICK on every hour crossed while scrubbing, SEGMENT_TICK on advice boundaries. */
 private class ScrubHaptics(private val view: View, private val state: DialState, private val boundaries: List<Float>) {
     private var lastHour: Int? = null
     private var lastOffset: Float? = null
@@ -696,7 +693,7 @@ private class ScrubHaptics(private val view: View, private val state: DialState,
         if (previous != null) {
             val crossedBoundary = boundaries.any { b -> (previous < b && offset >= b) || (previous > b && offset <= b) }
             when {
-                crossedBoundary && Build.VERSION.SDK_INT >= 34 ->
+                crossedBoundary ->
                     view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
                 hour != lastHour -> view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }

@@ -5,8 +5,7 @@ package dev.sebastiano.clockblocker.opus.widget.draw
  * a backend maps them to pixels with `centre + value * unit`. Angles follow android.graphics.Canvas
  * (degrees, 0 = 3 o'clock, clockwise).
  *
- * The same list is replayed into a Remote Compose canvas (host-rendered, API 36+) and into an
- * android.graphics.Canvas bitmap (classic RemoteViews fallback), so both widget backends look identical.
+ * The list is replayed into a Remote Compose canvas (host-rendered) by `RemoteDrawOps.kt`.
  */
 sealed interface DrawOp {
     val color: Int

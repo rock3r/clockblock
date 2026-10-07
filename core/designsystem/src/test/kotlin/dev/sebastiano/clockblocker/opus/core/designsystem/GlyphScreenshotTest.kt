@@ -21,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w360dp-h900dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w360dp-h900dp-xhdpi")
 class GlyphScreenshotTest : ScreenshotTest() {
 
     @Test
