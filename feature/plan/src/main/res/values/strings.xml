@@ -45,6 +45,8 @@
     <!-- TalkBack for a day pill: "Day 2, Wed 17 Jun, today, body 3½ h behind". -->
     <string name="plan_strip_pill_description">%1$s, %2$s, %3$s</string>
     <string name="plan_strip_pill_description_today">%1$s, %2$s, today, %3$s</string>
+    <!-- State of a day pill whose rows the two-pane timeline is showing (scrolled there by hand). -->
+    <string name="plan_strip_pill_in_view">In view on your plan</string>
     <string name="plan_until">until %1$s</string>
     <string name="plan_at">at %1$s</string>
     <string name="plan_until_label">until</string>

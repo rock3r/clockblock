@@ -49,7 +49,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -101,6 +103,10 @@ private val PillDate: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d")
 private val PillHeight = 68.dp
 private val PillCorner = 16.dp
 
+/** The mark on the pill of the day the two-pane rail shows: a bar this size, this far above the pill's foot. */
+private val InViewBarSize = DpSize(20.dp, 3.dp)
+private val InViewBarInset = 2.dp
+
 /**
  * A row of day pills above the dial (design: "see how any day of the plan looks"). Picking a day anchors the
  * dial, the Now card and the header to that day at the current time of day; picking today (or the toolbar's
@@ -109,6 +115,10 @@ private val PillCorner = 16.dp
  *
  * Frequency gate: the plan screen is opened many times a day, so the strip has no entrance motion. Selection
  * moves with the container tokens; the pill's look (colour + outline) is the static carrier under reduce motion.
+ *
+ * [inViewIndex]: the day the two-pane rail is showing (scrolled there by hand), or null. Its pill gets a secondary
+ * mark (a short bar, no motion: rail scrolling is frequent) unless it is the selected one, and the strip keeps it in
+ * sight. It never picks the day.
  */
 @Composable
 internal fun PlanDayStrip(
@@ -118,23 +128,28 @@ internal fun PlanDayStrip(
     selectedIndex: Int?,
     onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    inViewIndex: Int? = null,
 ) {
     val view = LocalView.current
     val reduce = LocalReduceMotion.current
     val listState = rememberLazyListState()
     val shownIndex = selectedIndex ?: todayIndex
+    // The strip keeps in sight the day the rail shows (two panes), else the one shown.
+    val focusIndex = inViewIndex ?: shownIndex
     var positioned by remember { mutableStateOf(false) }
-    LaunchedEffect(shownIndex, days.size) {
-        val position = days.indexOfFirst { it.day.index == shownIndex }.takeIf { it >= 0 } ?: return@LaunchedEffect
+    LaunchedEffect(focusIndex, days.size) {
+        val position = days.indexOfFirst { it.day.index == focusIndex }.takeIf { it >= 0 } ?: return@LaunchedEffect
         val target = (position - 1).coerceAtLeast(0)
-        if (!positioned || reduce) {
+        if (!positioned) {
             listState.scrollToItem(target)
             positioned = true
-        } else {
-            val visible = listState.layoutInfo.visibleItemsInfo
-            val fullyVisible = visible.any { it.index == position && it.offset >= 0 && it.offset + it.size <= listState.layoutInfo.viewportEndOffset }
-            if (!fullyVisible) listState.animateScrollToItem(target)
+            return@LaunchedEffect
         }
+        // Already in sight: the strip stays put (the rail can move the focus at every day boundary).
+        val layout = listState.layoutInfo
+        val fullyVisible = layout.visibleItemsInfo.any { it.index == position && it.offset >= 0 && it.offset + it.size <= layout.viewportEndOffset }
+        if (fullyVisible) return@LaunchedEffect
+        if (reduce) listState.scrollToItem(target) else listState.animateScrollToItem(target)
     }
     LazyRow(
         state = listState,
@@ -149,6 +164,7 @@ internal fun PlanDayStrip(
                 offset = offsets[index] ?: 0f,
                 isToday = index == todayIndex,
                 selected = index == shownIndex,
+                inView = index == inViewIndex && index != shownIndex,
                 onClick = {
                     if (index != shownIndex) {
                         view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
@@ -161,7 +177,7 @@ internal fun PlanDayStrip(
 }
 
 @Composable
-private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boolean, onClick: () -> Unit) {
+private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boolean, inView: Boolean, onClick: () -> Unit) {
     val motion = ClockblockTheme.motion
     val colors = MaterialTheme.colorScheme
     val resources = LocalContext.current.resources
@@ -177,6 +193,7 @@ private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boo
         formatDayDate(day.day.date),
         resources.bodyShiftLabel(offset),
     )
+    val inViewLabel = stringResource(R.string.plan_strip_pill_in_view)
     Box(
         Modifier
             .heightIn(min = PillHeight)
@@ -195,10 +212,23 @@ private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boo
                         style = Stroke(stroke),
                     )
                 }
+                if (inView) {
+                    // The rail's day: a short bar at the pill's foot, under the alignment dots.
+                    val bar = InViewBarSize.toSize()
+                    drawRoundRect(
+                        outline,
+                        topLeft = Offset((size.width - bar.width) / 2f, size.height - InViewBarInset.toPx() - bar.height),
+                        size = bar,
+                        cornerRadius = CornerRadius(bar.height / 2f),
+                    )
+                }
             }
             .clip(RoundedCornerShape(PillCorner))
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
-            .semantics { contentDescription = description }
+            .semantics {
+                contentDescription = description
+                if (inView) stateDescription = inViewLabel
+            }
             .testTag(PlanTags.dayPill(day.day.index))
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,

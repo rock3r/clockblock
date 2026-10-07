@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -199,6 +200,36 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
 /** Index (within [rows]) of the "now" position: the marker or the block containing now. */
 internal fun List<RailRow>.nowRowIndex(): Int =
     indexOfFirst { it is RailRow.NowMarker || (it is RailRow.Block && it.nowFraction != null) }
+
+/** The day (`PlanDay.index`) this row belongs to; null for the "earlier days" toggle. */
+internal val RailRow.dayIndex: Int?
+    get() = when (this) {
+        is RailRow.Earlier -> null
+        is RailRow.Header -> day.day.index
+        is RailRow.ZoneSwitch -> day.day.index
+        is RailRow.Block -> day.day.index
+        is RailRow.NowMarker -> day.day.index
+    }
+
+/**
+ * The day (`PlanDay.index`) the rail is showing: the one whose row crosses a reading line a third of the way down
+ * [layout]'s viewport, or the last day's once the list can't scroll further ([atEnd]: a short last day never
+ * reaches the line). [firstRow] is the list index of `this[0]`. Null with nothing laid out, or over the "earlier
+ * days" toggle or the title.
+ */
+internal fun List<RailRow>.dayInView(layout: LazyListLayoutInfo, firstRow: Int, atEnd: Boolean): Int? {
+    val visible = layout.visibleItemsInfo
+    if (visible.isEmpty()) return null
+    val item = if (atEnd) {
+        visible.maxBy { it.index }
+    } else {
+        val line = layout.viewportStartOffset + (layout.viewportEndOffset - layout.viewportStartOffset) / 3
+        // Highest index starting above the line: a sticky header pinned at the top (a lower index) never wins over
+        // the row actually under the line.
+        visible.filter { it.offset <= line }.maxByOrNull { it.index } ?: return null
+    }
+    return getOrNull(item.index - firstRow)?.dayIndex
+}
 
 /**
  * Everything a rail row needs besides its own data. [onCheckOff]: a row's check-off circle was ticked (`true`: log
