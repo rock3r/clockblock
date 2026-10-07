@@ -8,6 +8,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /** The user's profile. `null` until onboarding completes. */
 interface ProfileRepository {
@@ -40,6 +41,22 @@ interface AdviceLogRepository {
 
     /** Forgets the outcome logged for [adviceId] in [tripId] (Undo). No-op when nothing was logged. */
     suspend fun clear(tripId: String, adviceId: String)
+
+    /**
+     * Logs [outcome] only if nothing is logged for [adviceId] in [tripId] yet. Returns whether it logged.
+     * Implementations do the check and the write in one step, so an outcome logged meanwhile is never overwritten.
+     */
+    suspend fun logIfAbsent(tripId: String, adviceId: String, outcome: AdviceOutcome): Boolean {
+        if (logs(tripId).first().any { it.adviceId == adviceId }) return false
+        log(tripId, adviceId, outcome)
+        return true
+    }
+
+    /** Sets [tripId]'s log to exactly [entries] (import). Implementations do it in one write. */
+    suspend fun replaceAll(tripId: String, entries: List<AdviceLog>) {
+        logs(tripId).first().forEach { clear(tripId, it.adviceId) }
+        entries.forEach { log(tripId, it.adviceId, it.outcome) }
+    }
 }
 
 /** Offline airport/city search (bundled dataset). */

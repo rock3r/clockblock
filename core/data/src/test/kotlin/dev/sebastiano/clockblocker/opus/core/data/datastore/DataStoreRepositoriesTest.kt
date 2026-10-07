@@ -234,5 +234,26 @@ class DataStoreRepositoriesTest {
         repo.logs("t1").first() shouldBe listOf(AdviceLog("a2", AdviceOutcome.Skipped))
     }
 
+    @Test
+    fun logIfAbsentNeverOverwritesAnOutcome() = runTest {
+        val repo = logs(File(tmp.root, "advice_logs_if_absent.json"))
+        repo.log("t1", "a1", AdviceOutcome.Done)
+        repo.logIfAbsent("t1", "a1", AdviceOutcome.CantDo) shouldBe false
+        repo.logIfAbsent("t1", "a2", AdviceOutcome.Skipped) shouldBe true
+        repo.logs("t1").first() shouldBe listOf(AdviceLog("a1", AdviceOutcome.Done), AdviceLog("a2", AdviceOutcome.Skipped))
+    }
+
+    @Test
+    fun replaceAllSetsOneTripsLogsExactly() = runTest {
+        val repo = logs(File(tmp.root, "advice_logs_replace.json"))
+        repo.log("t1", "stale", AdviceOutcome.Done)
+        repo.log("t2", "a1", AdviceOutcome.CantDo)
+        repo.replaceAll("t1", listOf(AdviceLog("a1", AdviceOutcome.Skipped)))
+        repo.logs("t1").first() shouldBe listOf(AdviceLog("a1", AdviceOutcome.Skipped))
+        repo.logs("t2").first() shouldBe listOf(AdviceLog("a1", AdviceOutcome.CantDo))
+        repo.replaceAll("t1", emptyList())
+        repo.logs("t1").first().shouldBeEmpty()
+    }
+
     // endregion
 }

@@ -57,8 +57,8 @@ asks how to import it:
 
 - **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
   trips and check-ins. Check-ins already on this phone stay, unless the backup has a check-in for the same block.
-  That includes check-ins of the trips Replace deletes: they stay stored, hidden, and come back if a later
-  import restores the same trip.
+  A trip Replace adds that isn't on this phone gets only the backup's check-ins, even if you once had (and
+  deleted) a trip with the same id here.
 - **Merge** only adds. It adds the backup's trips that aren't on this phone, and the backup's check-ins for
   blocks you haven't checked in here. It deletes and changes nothing: this phone keeps its settings, its
   profile, its trips (a trip in both places keeps this phone's version) and its check-ins. The backup's profile
