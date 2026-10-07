@@ -70,6 +70,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -131,24 +134,21 @@ internal class PlanScreenState(
     val snackbar: SnackbarHostState,
     val appBar: TopAppBarState,
     val list: LazyListState,
-    rail: LazyListState,
+    private val tripRail: TripRail,
     val pane: ScrollState,
 ) {
-    private var railTrip: String? = null
-    private var railState: LazyListState = rail
-
     /**
      * The two-pane rail's scroll state on [tripId]. Each trip gets a fresh one: when the current plan moves to another
      * trip, a position on the old trip's rows means nothing on the new trip's, so its rail starts over (at its Now row,
-     * or at the top when it has none). The first trip shown gets the saveable state from [rememberPlanScreenState].
+     * or at the top when it has none). The shown trip's state is the one saved across recreation ([TripRail.Saver]).
      * Plain fields: swapping is idempotent, so a discarded composition can't leave anything half-done.
      */
     fun rail(tripId: String): LazyListState {
-        if (railTrip != tripId) {
-            if (railTrip != null) railState = LazyListState()
-            railTrip = tripId
+        if (tripRail.tripId != tripId) {
+            if (tripRail.tripId != null) tripRail.state = LazyListState()
+            tripRail.tripId = tripId
         }
-        return railState
+        return tripRail.state
     }
 
     /** The rail last brought to its Now row on first show (one per trip, see [rail]). */
@@ -201,9 +201,19 @@ internal fun rememberPlanScreenState(): PlanScreenState {
     val snackbar = remember { SnackbarHostState() }
     val appBar = rememberTopAppBarState()
     val list = rememberLazyListState()
-    val rail = rememberLazyListState()
+    val rail = rememberSaveable(saver = TripRail.Saver) { TripRail(null, LazyListState()) }
     val pane = rememberScrollState()
     return remember(snackbar, appBar, list, rail, pane) { PlanScreenState(snackbar, appBar, list, rail, pane) }
+}
+
+/** The two-pane rail's scroll state and the trip it belongs to; saved together, so a restore can't mix trips. */
+internal class TripRail(var tripId: String?, var state: LazyListState) {
+    companion object {
+        val Saver: Saver<TripRail, Any> = listSaver(
+            save = { listOf(it.tripId.orEmpty(), it.state.firstVisibleItemIndex, it.state.firstVisibleItemScrollOffset) },
+            restore = { TripRail((it[0] as String).ifEmpty { null }, LazyListState(it[1] as Int, it[2] as Int)) },
+        )
+    }
 }
 
 /** Width from which the plan splits into hero pane + timeline pane (M3 "expanded"). */

@@ -18,6 +18,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -474,6 +475,26 @@ class PlanContentTest {
         state = ready(PlanFixtures.PreTrip.minus(Duration.ofDays(10)), plan = future)
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.day(future.days.first().index)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - the shown trip's own rail position survives recreation`() {
+        val restoration = StateRestorationTester(compose)
+        val future = realPlan.copy(tripId = "future-trip")
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        restoration.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Switch to a trip that hasn't started (no Now row to jump to on restore) and scroll its rail down.
+        state = ready(PlanFixtures.PreTrip.minus(Duration.ofDays(10)), plan = future)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(future.days.first().index)).assertIsNotDisplayed()
+
+        // Activity recreation restores this trip's rail where it was, not the first trip's saved position.
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
     }
 
     @Test
