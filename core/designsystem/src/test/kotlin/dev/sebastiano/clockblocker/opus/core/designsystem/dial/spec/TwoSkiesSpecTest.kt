@@ -257,6 +257,16 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `twelve-hour clocks keep AM and PM at every size`() {
+        listOf(180f, 96f).forEach { side ->
+            val s = TwoSkies.spec(tokyo, palette, DefaultDialLabels(is24Hour = false), side, side)
+            val texts = s.ops.filterIsInstance<DialOp.Text>().filter { it.part == DialPart.Readout }.map { it.text }
+            texts shouldContain "3:20"
+            texts shouldContain "PM"
+        }
+    }
+
+    @Test
     fun `large text never runs the local time into the side numerals`() = runTest {
         checkAll(Arb.numericFloat(0f, 1439f), Arb.element(true, false)) { minute, is24 ->
             val l = DefaultDialLabels(is24Hour = is24)

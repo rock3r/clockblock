@@ -137,4 +137,20 @@ class DialStateMapperTest {
         state.arcs shouldHaveSize 0
         state.now.shouldBeNull()
     }
+
+    @Test
+    fun `arcs span the wall clock across a DST change`() {
+        // New York springs forward at 02:00 on 8 March 2026: sleep 01:00 EST to 04:00 EDT is 2 h long but covers
+        // 3 h of the clock face, and the dial is a clock face.
+        val newYork = ZoneId.of("America/New_York")
+        val base = plan(60)
+        val sleep = advice("s", AdviceType.Sleep, "2026-03-08T06:00:00Z", "2026-03-08T08:00:00Z")
+        val dst = base.copy(days = listOf(base.days.single().copy(date = LocalDate.of(2026, 3, 8), zoneId = newYork.id, advice = listOf(sleep))))
+        val state = dst.toDialState(Instant.parse("2026-03-08T07:30:00Z"), newYork)
+
+        val arc = state.arcs.single()
+        arc.startMinute shouldBe (60f plusOrMinus 0.01f)
+        arc.sweepMinutes shouldBe (180f plusOrMinus 0.01f)
+        arc.endMinute shouldBe (240f plusOrMinus 0.01f)
+    }
 }

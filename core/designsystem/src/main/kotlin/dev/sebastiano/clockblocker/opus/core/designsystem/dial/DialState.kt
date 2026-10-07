@@ -48,7 +48,7 @@ data class DialArc(
     val adviceId: String,
     val type: AdviceType,
     val startMinute: Float,
-    /** 0 for instantaneous advice (melatonin): drawn as a dot. */
+    /** Clock-face (wall-clock) minutes, so DST changes stay right; 0 for instantaneous advice (melatonin). */
     val sweepMinutes: Float,
     val isNow: Boolean = false,
 ) {

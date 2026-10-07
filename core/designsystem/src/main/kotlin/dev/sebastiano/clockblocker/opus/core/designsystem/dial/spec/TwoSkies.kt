@@ -160,7 +160,7 @@ object TwoSkies {
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
-            ops += DialOp.Text(labels.time(display), cx, cy - 5f * k, TextSpec(20f * k * grow, weight = 480), p.ink, part = DialPart.Readout)
+            localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
             ops += DialOp.Text(
                 if (aligned) labels.inSync() else labels.time(bodyMinute), cx, cy + 12f * k,
                 TextSpec(10.5f * k * grow, weight = 550, slanted = true), p.body, part = DialPart.Readout,
@@ -176,7 +176,7 @@ object TwoSkies {
             face(44f * k)
             rings(outerR, innerR, ringW)
             needle(innerR - ringW / 2f, outerR + ringW / 2f, 1.8f * k, tip = null)
-            ops += DialOp.Text(labels.time(display), cx, cy - 5f * k, TextSpec(16.5f * k, weight = 520), p.ink, part = DialPart.Readout)
+            localTime(cy - 5f * k, TextSpec(16.5f * k, weight = 520), markerSize = 6.5f * k, maxWidth = 52f * k)
             ops += DialOp.Text(
                 if (aligned) labels.inSync() else labels.time(bodyMinute), cx, cy + 10f * k,
                 TextSpec(11f * k, weight = 580, slanted = true), p.body, part = DialPart.Readout,

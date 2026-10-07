@@ -35,6 +35,9 @@ class DialSheetsScreenshotTest : ScreenshotTest() {
     fun levelsDark() = snap("dial_levels_dark", darkTheme = true) { Levels() }
 
     @Test
+    fun levelsTwelveHour() = snap("dial_levels_12h", use24Hour = false) { Levels() }
+
+    @Test
     fun widgetFonts() = snap("dial_widget_fonts") { WidgetFonts() }
 
     @Test

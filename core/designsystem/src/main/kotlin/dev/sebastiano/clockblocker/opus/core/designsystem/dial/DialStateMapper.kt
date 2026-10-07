@@ -41,7 +41,11 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId): DialState {
                     adviceId = advice.id,
                     type = advice.type,
                     startMinute = minuteOf(s),
-                    sweepMinutes = Duration.between(s, e).seconds / 60f,
+                    // The dial is a clock face: across a DST change the arc spans wall-clock minutes, not elapsed ones.
+                    sweepMinutes = Duration.between(
+                        s.atZone(displayZone).toLocalDateTime(),
+                        e.atZone(displayZone).toLocalDateTime(),
+                    ).seconds.coerceIn(60L, 86_400L) / 60f,
                     isNow = instant in advice,
                 )
             }
