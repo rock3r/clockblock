@@ -15,9 +15,11 @@ Pipeline:
      falling back to the nearest airport anywhere. Deprecated aliases are canonicalised.
   4. Every zone is validated against Java's `ZoneId.getAvailableZoneIds()` (via ZoneIds.java) so the app
      can always `ZoneId.of()` it. Any invalid zone aborts the build.
-  5. Airports of multi-airport metros get the metro's city name ("Newark" -> "New York", "Narita" ->
+  5. City names are tidied (`tidy_city`): trailing "Airport" and " - <Name> Island" suffixes go, only the
+     first of "A/B" is kept, and CITY_OVERRIDES fixes garbled or over-long names. Dropped parts become aliases.
+  6. Airports of multi-airport metros get the metro's city name ("Newark" -> "New York", "Narita" ->
      "Tokyo") with the original municipality and metro code kept as search aliases.
-  6. A `size` score ranks results: type tier x 100 + a passenger-traffic bonus for a curated list of hubs.
+  7. A `size` score ranks results: type tier x 100 + a passenger-traffic bonus for a curated list of hubs.
 
 Output: UTF-8 TSV, one airport per line, sorted by size desc then code:
   code  name  city  country  zone  lat  lon  size  aliases(|-separated)
@@ -36,6 +38,7 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -147,6 +150,30 @@ METROS = {
     "EAP": ("Basel", ["BSL"]),
 }
 
+# City names longer than this need a hand fix in CITY_OVERRIDES (which may also confirm a long name as it is).
+MAX_CITY_CHARS = 24
+
+# Hand-fixed city names: code -> (city, extra search aliases). For upstream names that are garbled, far too long,
+# or whose first "/" part isn't the place people would look for.
+CITY_OVERRIDES: dict[str, tuple[str, list[str]]] = {
+    "CXR": ("Nha Trang", ["Cam Ranh"]),  # upstream: "Nha Trang/nha Trang aiurportCam Ranh"
+    "YSQ": ("Songyuan", ["Qian Gorlos Mongol Autonomous County"]),
+    "LEU": ("La Seu d'Urgell", ["Pyrenees", "Andorra"]),  # "La Seu d'Urgell Pyrenees and Andorra"
+    "CPC": ("San Martín de los Andes", ["Chapelco"]),  # "Chapelco/San Martin de los Andes"
+    "TRS": ("Trieste", ["Ronchi dei Legionari"]),  # "Ronchi dei Legionari/Trieste"
+    "RFD": ("Rockford", ["Chicago"]),  # "Chicago/Rockford"
+    "VST": ("Västerås", ["Stockholm"]),  # "Stockholm / Västerås"
+    "ZGS": ("La Romaine", ["Le Golfe-du-Saint-Laurent"]),
+    "RNS": ("Rennes", ["Saint-Jacques-de-la-Lande"]),
+    "JYV": ("Jyväskylä", ["Jyväskylän Maalaiskunta"]),
+    "KLU": ("Klagenfurt", ["Klagenfurt am Wörthersee"]),
+    "MFM": ("Macau", ["Nossa Senhora do Carmo"]),
+    "DWO": ("Kotte", ["Sri Jayawardenepura Kotte"]),
+    # Long, but the real names.
+    "KMC": ("King Khaled Military City", []),
+    "IRZ": ("Santa Isabel do Rio Negro", []),
+}
+
 # Busiest passenger airports (roughly ACI 2023-24 order). Only used to order results inside a tier;
 # exact positions don't matter much, but hubs must beat regional fields with the same type.
 HUBS = """
@@ -231,6 +258,32 @@ def municipality_city(raw: str) -> tuple[str, str | None]:
         qualifier = clean(rest.split(")")[0].split(",")[0]) or None
         raw = head + rest.partition(")")[2]
     return clean(raw.split(",")[0]), qualifier
+
+
+_AIRPORT_SUFFIX = re.compile(r"\s+airport$", re.IGNORECASE)
+# "Tanjung Redeb - Borneo Island", "Tanjung Pinang-Bintan Island" (but not "Wangi-wangi Island": the island part
+# must be capitalised).
+_ISLAND_SUFFIX = re.compile(r"\s*-\s*([A-Z][^-/]* Island)$")
+
+
+def tidy_city(code: str, raw: str) -> tuple[str, list[str]]:
+    """
+    The display city for an upstream municipality, and the search aliases that keep the dropped parts findable:
+    a hand fix from CITY_OVERRIDES, else the first of several "/"-separated places, without a trailing "Airport"
+    or a " - <Name> Island" suffix.
+    """
+    if code in CITY_OVERRIDES:
+        city, aliases = CITY_OVERRIDES[code]
+        return city, list(aliases)
+    parts = [p for p in (clean(_AIRPORT_SUFFIX.sub("", x)) for x in raw.split("/")) if p]
+    if not parts:
+        return clean(raw), []
+    city, aliases = parts[0], parts[1:]
+    island = _ISLAND_SUFFIX.search(city)
+    if island:
+        city = city[: island.start()].strip()
+        aliases.insert(0, island.group(1))
+    return city, aliases
 
 
 def load_ourairports(path: Path) -> list[Airport]:
@@ -345,6 +398,8 @@ def build(cache: Path, out: Path) -> None:
             errors.append(f"{a.code}: invalid zone {a.zone!r}")
         if not a.city:
             a.city = a.name
+        a.city, extra = tidy_city(a.code, a.city)
+        a.aliases.extend(extra)
     if errors:
         raise SystemExit("Invalid zones:\n" + "\n".join(errors))
 
