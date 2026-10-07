@@ -220,12 +220,16 @@ are, the inner ring is the sky your body thinks it is under.** The angle between
 once you're adapted the two rings are identical.
 - **Geometry:** 24 h dial, **noon at top, midnight at bottom** (sun overhead = day up). Numerals 12 · 18 · 00 · 06
   (12 p · 6 p · 12 a · 6 a on 12-hour clocks) sit just inside the body ring.
-- **Outer ring = local sky.** Day, dawn and dusk colours from sunrise/sunset at the place shown, labelled on the
-  ring: "TOKYO DAY", "TOKYO NIGHT". The target is real times (NOAA solar algorithm, offline); until #70 lands the
-  dial uses 06:30/19:00.
+- **Outer ring = local sky.** Day, dawn and dusk colours from that day's real sunrise and sunset at the trip's
+  airport in the zone shown (`Sun` in `:core:model`: NOAA's solar equations, offline, checked against the US Naval
+  Observatory), labelled on the ring: "TOKYO DAY", "TOKYO NIGHT". Short days and nights squeeze their twilight so
+  mid-day stays day and mid-night stays night. A polar night paints the ring night all round, labelled only with the
+  night and centred on solar midnight; the midnight sun paints it day all round. With no airport for the zone the dial
+  falls back to 06:30/19:00.
 - **Inner ring = body sky**, labelled "YOUR BODY'S DAY" / "YOUR BODY'S NIGHT". `BodyRingMode.Simple` (the default)
-  paints the same sky as the outer ring and turns it by the jet lag. `BodyRingMode.Precise` paints the body's night
-  from the model (habitual sleep moved by the offset); there is no setting for it yet (#52).
+  paints the same sky as the outer ring, polar days and nights included, and turns it by the jet lag.
+  `BodyRingMode.Precise` paints the body's night from the model (habitual sleep moved by the offset); there is no
+  setting for it yet (#52).
 - **Three encodings only:** the day/night colour of the two rings, **one needle** across both, and **one advice arc**
   outside the rings: the block under the needle (or the next one when nothing is on) with its glyph at the start,
   narrated along the rim ("See bright light until 15:00", then "then see some light" in a muted tone; advice that

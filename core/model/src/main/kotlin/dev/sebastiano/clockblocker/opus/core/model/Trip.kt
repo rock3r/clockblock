@@ -65,6 +65,17 @@ data class Trip(
     val departure: Instant get() = legs.first().departure
     val arrival: Instant get() = legs.last().arrival
 
+    /**
+     * The trip's place in [zone] at [at], e.g. to find where the plan's local time is: where the traveller is then
+     * (still at the origin while in the air) if that is in [zone], else the trip's last stop in [zone]; null if no
+     * stop is in that zone.
+     */
+    fun placeIn(zone: ZoneId, at: Instant): Place? {
+        val here = legs.firstOrNull { at.isBefore(it.arrival) }?.origin ?: destination
+        if (here.zoneId == zone.id) return here
+        return legs.flatMap { listOf(it.origin, it.destination) }.lastOrNull { it.zoneId == zone.id }
+    }
+
     /** Layovers between consecutive legs. */
     val layovers: List<Layover>
         get() = legs.zipWithNext { a, b -> Layover(a.destination, a.arrival, b.departure) }

@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.Daylight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import kotlin.math.cbrt
 import kotlin.math.pow
@@ -61,18 +62,27 @@ data class DialPalette(
     /**
      * Sky colour at [minute] for a day with the given [sunrise] and [sunset] (all minutes of the day): night →
      * violet twilight → warm glow → day, and back, about 2 h of twilight each side. Interpolated in Oklab with a
-     * smoothstep so the ring never bands.
+     * smoothstep so the ring never bands. Short days and nights (high latitudes) squeeze their side of the
+     * twilight so mid-day is still day and mid-night still night; a polar day or night ([daylight]) is one colour.
      */
-    fun sky(minute: Float, sunrise: Float, sunset: Float): Argb {
+    fun sky(minute: Float, sunrise: Float, sunset: Float, daylight: Daylight = Daylight.RisesAndSets): Argb {
+        when (daylight) {
+            Daylight.AlwaysUp -> return sky.day
+            Daylight.AlwaysDown -> return sky.night
+            Daylight.RisesAndSets -> Unit
+        }
+        val dayLength = (sunset - sunrise).mod(1440f)
+        val d = (dayLength / FullTwilightDay).coerceAtMost(1f)
+        val n = ((1440f - dayLength) / FullTwilightNight).coerceAtMost(1f)
         val frames = listOf(
-            sunrise - 75f to sky.night,
-            sunrise - 30f to sky.twilight,
-            sunrise + 10f to sky.dawn,
-            sunrise + 55f to sky.day,
-            sunset - 55f to sky.day,
-            sunset - 10f to sky.dusk,
-            sunset + 30f to sky.twilight,
-            sunset + 75f to sky.night,
+            sunrise - 75f * n to sky.night,
+            sunrise - 30f * n to sky.twilight,
+            sunrise + 10f * d to sky.dawn,
+            sunrise + 55f * d to sky.day,
+            sunset - 55f * d to sky.day,
+            sunset - 10f * d to sky.dusk,
+            sunset + 30f * n to sky.twilight,
+            sunset + 75f * n to sky.night,
         ).map { (m, c) -> m.mod(1440f) to c }.sortedBy { it.first }
         val m = minute.mod(1440f)
         val nextIndex = frames.indexOfFirst { it.first > m }.let { if (it == -1) 0 else it }
@@ -107,7 +117,7 @@ data class DialPalette(
 object ArgbMath {
     /** Oklab interpolation from [a] to [b] (alpha linearly). */
     fun lerp(a: Argb, b: Argb, t: Float): Argb {
-        if (t <= 0f) return a
+        if (t <= 0f || a == b) return a
         if (t >= 1f) return b
         val la = toOklab(a)
         val lb = toOklab(b)
@@ -146,3 +156,7 @@ object ArgbMath {
         return Argb(((alpha.coerceIn(0f, 1f) * 255f).roundToInt() shl 24) or (byte(r) shl 16) or (byte(g) shl 8) or byte(b))
     }
 }
+
+/** The day (sunrise to sunset) and night lengths, in minutes, that fit the sky's twilight keyframes unsqueezed. */
+private const val FullTwilightDay = 130f
+private const val FullTwilightNight = 170f
