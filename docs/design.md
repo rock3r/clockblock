@@ -220,8 +220,9 @@ are, the inner ring is the sky your body thinks it is under.** The angle between
 once you're adapted the two rings are identical.
 - **Geometry:** 24 h dial, **noon at top, midnight at bottom** (sun overhead = day up). Numerals 12 · 18 · 00 · 06
   (12 p · 6 p · 12 a · 6 a on 12-hour clocks) sit just inside the body ring.
-- **Outer ring = local sky.** Day, dawn and dusk colours from real sunrise/sunset at the place shown (NOAA solar
-  algorithm, offline), labelled on the ring: "TOKYO DAY", "TOKYO NIGHT".
+- **Outer ring = local sky.** Day, dawn and dusk colours from sunrise/sunset at the place shown, labelled on the
+  ring: "TOKYO DAY", "TOKYO NIGHT". The target is real times (NOAA solar algorithm, offline); until #70 lands the
+  dial uses 06:30/19:00.
 - **Inner ring = body sky**, labelled "YOUR BODY'S DAY" / "YOUR BODY'S NIGHT". `BodyRingMode.Simple` (the default)
   paints the same sky as the outer ring and turns it by the jet lag. `BodyRingMode.Precise` paints the body's night
   from the model (habitual sleep moved by the offset); there is no setting for it yet (#52).
