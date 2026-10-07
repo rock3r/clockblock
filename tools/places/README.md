@@ -15,9 +15,10 @@ Requirements: Python 3.10+ (stdlib only) and a JDK on `PATH` (`java`), used to r
 zone is validated against exactly what `java.time.ZoneId.of()` accepts. Without a JDK the script falls back
 to Python's `zoneinfo` and prints a warning.
 
-Then run the dataset tests and commit the asset:
+Then run the generator and dataset tests and commit the asset:
 
 ```sh
+python3 -m unittest discover -s tools/places -p 'test_*.py' -v
 ./gradlew :core:data:testDebugUnitTest
 ```
 
@@ -40,11 +41,17 @@ OpenFlights is deliberately **not** used (AGPL-3.0 code, ODbL data).
    (great-circle distance), else the nearest anywhere. Deprecated tz links are canonicalised
    (`Asia/Calcutta` → `Asia/Kolkata`, `Europe/Kiev` → `Europe/Kyiv`, …).
 4. Validate every zone against `ZoneId.getAvailableZoneIds()`; any invalid zone aborts the build.
-5. Multi-airport metros (`METROS` in the script) get the metro's city name ("Newark" → "New York",
+5. City names are tidied (`tidy_city`): a trailing "Airport" goes ("Fakarava Airport" → "Fakarava"), and so
+   does a " - <Name> Island" suffix ("Tanjung Redeb - Borneo Island" → "Tanjung Redeb"). Of several places
+   ("Raleigh/Durham") the first is kept. `CITY_OVERRIDES` hand-fixes garbled or very long names ("Nha
+   Trang/nha Trang aiurportCam Ranh" → "Nha Trang") and confirms the few real names over 24 characters. The
+   dropped parts become search aliases, so "Durham" and "Cam Ranh" still find their airports. The generator
+   tests fail on any city containing "Airport" or "/", or longer than 24 characters without an override.
+6. Multi-airport metros (`METROS` in the script) get the metro's city name ("Newark" → "New York",
    "Narita" → "Tokyo") and keep the real municipality and the metro code (`LON`, `NYC`, `TYO`…) as aliases.
-6. `size` = type tier × 100 (large 300, medium 200, small 100, seaplane 0; unscheduled large 150) plus a
+7. `size` = type tier × 100 (large 300, medium 200, small 100, seaplane 0; unscheduled large 150) plus a
    bonus for a curated list of the world's busiest airports, so hubs rank first within a tier.
-7. Sorted by size, written as UTF-8 TSV; the build fails above 600 KB.
+8. Sorted by size, written as UTF-8 TSV; the build fails above 600 KB.
 
 ## Format
 
