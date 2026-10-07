@@ -245,6 +245,23 @@ class WidgetLabelFitTest {
     }
 
     @Test
+    fun `the header strip keeps the route when the place is too long to fit`() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        val texts = cases(is24 = false, place = "San Francisco").first { it.name == "See bright light" }.texts
+        val large = WidgetSizes.smallest(WidgetSizes.TWO_CLOCKS, TwoClocksLayout.Large)
+        twoClocks(texts, large).let { fit ->
+            fit.headerStrip?.text shouldBe texts.header
+            fit.headerRoute shouldBe true
+        }
+        // No header fits even across the whole strip: the fixed-width route still shows alone.
+        val long = texts.copy(header = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch · Day 2")
+        twoClocks(long, large).let { fit ->
+            fit.headerStrip shouldBe null
+            fit.headerRoute shouldBe true
+        }
+    }
+
+    @Test
     fun `the 1x1 tile shows the label whole, with the glyph when there is room`() {
         val texts = cases(is24 = true, place = "Lisbon").first { it.name == "Sleep" }.texts
         val small = nextUp(texts, WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Small)).small!!

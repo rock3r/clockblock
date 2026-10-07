@@ -484,10 +484,10 @@ internal object LabelFit {
         val inner = cell.width - 2 * SURFACE_PAD_DP
         val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
         val route = texts.route != null
-        // The route goes first when the strip is too narrow for both.
-        val withRoute = fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP)
-        val headerRoute = route && (texts.header == null || withRoute != null)
-        val header = if (headerRoute) withRoute else fitHeader(context, texts.header, stripWidth)
+        // The route goes first when the strip is too narrow for both, but comes back alone when no header fits.
+        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
+        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
+        val headerRoute = route && (besideRoute != null || header == null)
         val strip = if (header != null || headerRoute) {
             max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
         } else {
