@@ -9,7 +9,11 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
@@ -148,4 +152,73 @@ fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean 
     clickWhenFound(timeoutMillis) { findObject(selector) }
 
 private const val ShadePollMillis = 250L
+
+/**
+ * Taps the search result [resultTag] once the keyboard and the layout have settled, then waits until [picked]
+ * matches. Retries the tap once if the first one selected nothing.
+ *
+ * Typing into a search field raises the keyboard, and the results move up with the IME insets animation, which
+ * can take well over a second on a cold CI emulator. A synthetic tap sent while the rows are still moving can land
+ * between them and select nothing (issue #54). So: wait for the keyboard to show and the layout to stop moving,
+ * bring the row into view (the viewport is final by then), let that scroll settle too, and only then tap.
+ */
+fun ClockblockE2eTest.pickSearchResult(resultTag: String, picked: SemanticsMatcher) {
+    repeat(PickAttempts) { attempt ->
+        awaitImeShown()
+        awaitSettledBounds(resultTag)
+        awaitTag(resultTag).scrollToIfScrollable()
+        awaitSettledBounds(resultTag)
+        awaitTag(resultTag).performClick()
+        val last = attempt == PickAttempts - 1
+        val selected = runCatching {
+            await(picked, if (last) ClockblockE2eTest.DefaultTimeoutMillis else PickRetryAfterMillis)
+        }
+        if (selected.isSuccess) return
+        if (last) selected.getOrThrow()
+    }
+}
+
+/**
+ * Waits up to [timeoutMillis] for the keyboard to be showing in the resumed activity's window. Carries on
+ * silently when it never shows (e.g. a device with a hardware keyboard): the layout settle check still applies.
+ */
+fun awaitImeShown(timeoutMillis: Long = ImeShowTimeoutMillis) {
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    val deadline = SystemClock.uptimeMillis() + timeoutMillis
+    while (SystemClock.uptimeMillis() < deadline) {
+        var shown = false
+        instrumentation.runOnMainSync {
+            val activity = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED).firstOrNull()
+            val insets = activity?.window?.decorView?.let(ViewCompat::getRootWindowInsets)
+            shown = insets?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        }
+        if (shown) return
+        SystemClock.sleep(SettlePollMillis)
+    }
+}
+
+/**
+ * Waits until the node tagged [tag] has kept the same bounds for [SettleStablePolls] polls in a row, i.e. the
+ * IME insets animation (or a scroll) that moves it has finished. The root insets report the keyboard as visible
+ * as soon as its animation starts, so this is what tells that the layout has caught up. Gives up after
+ * [timeoutMillis] and lets the caller's retry handle a layout that never settles.
+ */
+fun ClockblockE2eTest.awaitSettledBounds(tag: String, timeoutMillis: Long = ClockblockE2eTest.DefaultTimeoutMillis) {
+    val deadline = SystemClock.uptimeMillis() + timeoutMillis
+    var last = awaitTag(tag).fetchSemanticsNode().boundsInWindow
+    var stable = 0
+    while (stable < SettleStablePolls && SystemClock.uptimeMillis() < deadline) {
+        device.waitForIdle(SettlePollMillis)
+        SystemClock.sleep(SettlePollMillis)
+        val bounds = awaitTag(tag).fetchSemanticsNode().boundsInWindow
+        stable = if (bounds == last) stable + 1 else 0
+        last = bounds
+    }
+}
+
+private const val PickAttempts = 2
+private const val PickRetryAfterMillis = 3_000L
+private const val ImeShowTimeoutMillis = 5_000L
+private const val SettlePollMillis = 100L
+private const val SettleStablePolls = 3
 
