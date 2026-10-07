@@ -17,11 +17,14 @@ interface NotificationStrings {
     /** "until 18:00" */
     fun until(time: String): String
 
-    /** "then Sleep 18:00–02:00" */
-    fun then(label: String, range: String): String
+    /** "Next: Sleep at 23:00" (the plan screen's wording). */
+    fun next(label: String, time: String): String
 
-    /** "Next: Sleep 23:00–07:00" (used in gaps). */
-    fun next(label: String, range: String): String
+    /** "Also now: Avoid caffeine until 20:00" (the plan screen's wording); [items] already joined. */
+    fun alsoNow(items: String): String
+
+    /** "Avoid caffeine until 20:00", an item of [alsoNow]. */
+    fun labelUntil(label: String, time: String): String
 
     /** Title in a gap between windows. */
     fun nothingNow(): String
@@ -29,11 +32,11 @@ interface NotificationStrings {
     /** "Done", "Noted, skip it"… */
     fun outcome(outcome: AdviceOutcome): String
 
-    /** Joins clauses: "until 18:00 · then Sleep 18:00–02:00". */
+    /** Joins clauses: "until 18:00 · 02:00 Tokyo". */
     fun join(first: String, second: String): String
 
-    /** The same sentence in a second zone: "Tokyo: until 02:00". */
-    fun inZone(city: String, text: String): String
+    /** A time in the trip's other zone, as a tail: "02:00 Tokyo" (like the plan screen's "10:00 San Francisco"). */
+    fun zoneTail(time: String, city: String): String
 
     /** "Avoid light at 18:00" */
     fun upcomingTitle(label: String, time: String): String
