@@ -5,19 +5,15 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Bundle
-import android.view.View
-import android.view.ViewGroup
-import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
-import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
@@ -25,14 +21,15 @@ import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain as shouldContainText
 import io.kotest.matchers.string.shouldNotContain
+import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
+import dev.sebastiano.clockblocker.opus.core.data.TripRepository
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -48,17 +45,30 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
-/** Provider/updater update paths on the classic RemoteViews backend (API < 36). */
+/**
+ * Provider/updater update paths. A Remote Compose document has no view tree to read, so the assertions check the
+ * model each widget id was rendered from ([WidgetUpdater.onRendered]): the texts it shows and speaks. The renderer
+ * skips the capture (it shows the placeholder): [WidgetRendererTest] and the screenshot tests cover the documents.
+ */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [30])
+@Config(sdk = [37])
 class WidgetUpdaterTest {
     private val app: Application = ApplicationProvider.getApplicationContext()
     private val manager = AppWidgetManager.getInstance(app)
     private val now = Instant.parse("2026-10-06T09:00:00Z")
     private val plans = FakePlanRepository()
-    private val updater = WidgetUpdater(app, plans, FakeSettingsRepository()).apply {
+    private val rendered = mutableMapOf<Int, WidgetModel>()
+    private val updater = updater()
+
+    private fun updater(
+        settings: SettingsRepository = FakeSettingsRepository(),
+        logs: AdviceLogRepository = NoAdviceLogRepository,
+        trips: TripRepository = NoTripRepository,
+    ) = WidgetUpdater(app, plans, settings, logs, trips).apply {
         clock = Clock.fixed(now, ZoneOffset.UTC)
+        rendererFactory = { WidgetRenderer(it, profileProvider = { null }) }
+        onRendered = { id, model -> rendered[id] = model }
     }
 
     @Before
@@ -69,31 +79,23 @@ class WidgetUpdaterTest {
     private fun place(
         kind: WidgetKind,
         id: Int,
-        widthDp: Int = 300,
-        heightDp: Int = 60,
         category: Int = AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
     ): Int {
         manager.bindAppWidgetIdIfAllowed(id, WidgetUpdater.componentName(app, kind)).shouldBeTrue()
         manager.updateAppWidgetOptions(
             id,
-            Bundle().apply {
-                putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, widthDp)
-                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, heightDp)
-                putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, category)
-            },
+            Bundle().apply { putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, category) },
         )
         return id
     }
 
-    private fun texts(id: Int): List<String> {
-        val root = shadowOf(manager).getViewFor(id).shouldNotBeNull()
-        return buildList {
-            fun walk(v: View) {
-                if (v is TextView && v.visibility == View.VISIBLE) add(v.text.toString())
-                if (v is ViewGroup) (0 until v.childCount).forEach { walk(v.getChildAt(it)) }
-            }
-            walk(root)
-        }
+    /** Every text widget [id] was rendered with: what its layouts show and what TalkBack reads. */
+    private fun texts(id: Int): String {
+        val t = rendered[id].shouldNotBeNull().texts
+        return (
+            listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.spokenNow) +
+                t.subtitleLines + t.upcoming.flatMap { listOf(it.label, it.spoken) } + listOfNotNull(t.done?.label, t.done?.contentDescription)
+            ).joinToString("\n")
     }
 
     @Test
@@ -107,11 +109,11 @@ class WidgetUpdaterTest {
 
     @Test
     fun `without a plan both widgets show the empty state`() = runBlocking<Unit> {
-        val clocks = place(WidgetKind.TwoClocks, 1, widthDp = 176, heightDp = 176)
+        val clocks = place(WidgetKind.TwoClocks, 1)
         val next = place(WidgetKind.NextUp, 2)
         updater.updateAll()
-        texts(clocks) shouldContain app.getString(R.string.widget_no_trip_full)
-        texts(next) shouldContain app.getString(R.string.widget_no_trip_title)
+        texts(clocks) shouldContainText app.getString(R.string.widget_no_trip_full)
+        texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
     }
 
     @Test
@@ -119,35 +121,17 @@ class WidgetUpdaterTest {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val next = place(WidgetKind.NextUp, 7)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        texts(next) shouldContain app.getString(R.string.widget_advice_avoid_light)
+        texts(next) shouldContainText app.getString(R.string.widget_advice_avoid_light)
     }
 
     @Test
     fun `plan changes are picked up on the next update`() = runBlocking<Unit> {
         val next = place(WidgetKind.NextUp, 7)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        texts(next) shouldContain app.getString(R.string.widget_no_trip_title)
+        texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.Sleep)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        texts(next) shouldContain app.getString(R.string.widget_advice_sleep)
-    }
-
-    @Test
-    fun `classic Two Clocks schedules the inexact refresh and onDisabled cancels it`() = runBlocking<Unit> {
-        val clocks = place(WidgetKind.TwoClocks, 1)
-        updater.update(WidgetKind.TwoClocks, intArrayOf(clocks))
-        LegacyRefresh.isScheduled(app).shouldBeTrue()
-        shadowOf(app.getSystemService(android.app.AlarmManager::class.java)).scheduledAlarms.size shouldBe 1
-
-        TwoClocksWidgetProvider(updater).onDisabled(app)
-        LegacyRefresh.isScheduled(app).shouldBeFalse()
-    }
-
-    @Test
-    fun `no refresh alarm when only Next up is placed`() = runBlocking<Unit> {
-        val next = place(WidgetKind.NextUp, 2)
-        updater.update(WidgetKind.NextUp, intArrayOf(next))
-        LegacyRefresh.isScheduled(app).shouldBeFalse()
+        texts(next) shouldContainText app.getString(R.string.widget_advice_sleep)
     }
 
     @Test
@@ -160,10 +144,10 @@ class WidgetUpdaterTest {
         )
         // The provider renders on a background coroutine (goAsync): wait for it.
         val deadline = System.currentTimeMillis() + 10_000
-        while (shadowOf(manager).getViewFor(next) == null && System.currentTimeMillis() < deadline) {
+        while (next !in rendered && System.currentTimeMillis() < deadline) {
             Thread.sleep(20)
         }
-        texts(next) shouldContain app.getString(R.string.widget_no_trip_title)
+        texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
     }
 
     @Test
@@ -211,27 +195,24 @@ class WidgetUpdaterTest {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         plans.current.value = plan
         val logs = FakeAdviceLogRepository()
-        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), logs).apply {
-            clock = Clock.fixed(now, ZoneOffset.UTC)
-        }
-        // 4×2: Next up with its Done button.
-        val next = place(WidgetKind.NextUp, 9, widthDp = 300, heightDp = 130)
+        val updater = updater(logs = logs)
+        val next = place(WidgetKind.NextUp, 9)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
         val done = app.getString(R.string.widget_done)
-        texts(next) shouldContain done
+        texts(next) shouldContainText done
 
         val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current!!
         logs.log(plan.tripId, current.adviceId, AdviceOutcome.Skipped)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        texts(next) shouldContain app.getString(R.string.widget_skipped)
+        texts(next) shouldContainText app.getString(R.string.widget_skipped)
     }
 
     @Test
-    fun `the 2x1 size shows the time in the other zone`() = runBlocking<Unit> {
+    fun `Next up carries the time in the other zone`() = runBlocking<Unit> {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
-        val next = place(WidgetKind.NextUp, 11, widthDp = 180, heightDp = 70)
+        val next = place(WidgetKind.NextUp, 11)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        texts(next).joinToString("\n") shouldContainText "in Lisbon"
+        texts(next) shouldContainText "in Lisbon"
     }
 
     @Test
@@ -239,32 +220,32 @@ class WidgetUpdaterTest {
         // Melatonin is up next on the 4×3 Two Clocks; at the moment itself it is the current block.
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val settings = FakeSettingsRepository(AppSettings(hideLockScreenDetails = true))
-        val updater = WidgetUpdater(app, plans, settings).apply { clock = Clock.fixed(now, ZoneOffset.UTC) }
+        val updater = updater(settings)
         val keyguard = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD
-        val lock = place(WidgetKind.TwoClocks, 21, widthDp = 300, heightDp = 300, category = keyguard)
-        val home = place(WidgetKind.TwoClocks, 22, widthDp = 300, heightDp = 300)
+        val lock = place(WidgetKind.TwoClocks, 21, category = keyguard)
+        val home = place(WidgetKind.TwoClocks, 22)
         updater.update(WidgetKind.TwoClocks, intArrayOf(lock, home))
 
-        val locked = texts(lock).joinToString("\n")
+        val locked = texts(lock)
         locked shouldNotContain "Lisbon"
         locked shouldNotContain "Tokyo"
         locked shouldNotContain app.getString(R.string.widget_advice_melatonin)
         locked shouldContainText app.getString(R.string.widget_advice_redacted)
         // The same widget on the home screen keeps every detail.
-        texts(home).joinToString("\n") shouldContainText "in Lisbon"
-        texts(home).joinToString("\n") shouldContainText app.getString(R.string.widget_advice_melatonin)
+        texts(home) shouldContainText "in Lisbon"
+        texts(home) shouldContainText app.getString(R.string.widget_advice_melatonin)
     }
 
     @Test
     fun `a host category that includes the keyguard bit counts as the lock screen`() = runBlocking<Unit> {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val settings = FakeSettingsRepository(AppSettings(hideLockScreenDetails = true))
-        val updater = WidgetUpdater(app, plans, settings).apply { clock = Clock.fixed(now, ZoneOffset.UTC) }
+        val updater = updater(settings)
         // The host category is a bit mask; a host may report keyguard together with another category.
         val category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD or AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN
         val lock = place(WidgetKind.NextUp, 24, category = category)
         updater.update(WidgetKind.NextUp, intArrayOf(lock))
-        texts(lock).joinToString("\n") shouldNotContain "Lisbon"
+        texts(lock) shouldNotContain "Lisbon"
     }
 
     @Test
@@ -274,16 +255,13 @@ class WidgetUpdaterTest {
             override val settings: Flow<AppSettings> = flow { awaitCancellation() }
             override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
         }
-        val updater = WidgetUpdater(app, plans, stuck).apply {
-            clock = Clock.fixed(now, ZoneOffset.UTC)
-            readTimeoutMs = 50
-        }
+        val updater = updater(stuck).apply { readTimeoutMs = 50 }
         val lock = place(WidgetKind.NextUp, 25, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
         val home = place(WidgetKind.NextUp, 26)
         updater.update(WidgetKind.NextUp, intArrayOf(lock, home))
         // Privacy fails closed on the lock screen; the home screen keeps its details.
-        texts(lock).joinToString("\n") shouldNotContain "Lisbon"
-        texts(home).joinToString("\n") shouldContainText "in Lisbon"
+        texts(lock) shouldNotContain "Lisbon"
+        texts(home) shouldContainText "in Lisbon"
     }
 
     @Test
@@ -291,7 +269,7 @@ class WidgetUpdaterTest {
         plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val lock = place(WidgetKind.NextUp, 23, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
         updater.update(WidgetKind.NextUp, intArrayOf(lock))
-        texts(lock).joinToString("\n") shouldContainText "in Lisbon"
+        texts(lock) shouldContainText "in Lisbon"
     }
 
     @Test
@@ -299,9 +277,7 @@ class WidgetUpdaterTest {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         plans.current.value = plan
         val trips = FakeTripRepository(listOf(DemoPlans.trip()))
-        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), tripRepository = trips).apply {
-            clock = Clock.fixed(now, ZoneOffset.UTC)
-        }
+        val updater = updater(trips = trips)
         updater.state(plan, AppSettings(), keyguard = false).shouldBeInstanceOf<WidgetState.Active>().route shouldBe
             WidgetRoute("LIS", "HND")
         updater.state(plan, AppSettings(hideLockScreenDetails = true), keyguard = true)
@@ -316,14 +292,12 @@ class WidgetUpdaterTest {
         val demo = DemoPlans.trip()
         val leg = demo.legs.single()
         val trip = demo.copy(legs = listOf(leg.copy(destination = leg.destination.copy(city = "Yokohama"))))
-        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), tripRepository = FakeTripRepository(listOf(trip))).apply {
-            clock = Clock.fixed(now, ZoneOffset.UTC)
-        }
+        val updater = updater(trips = FakeTripRepository(listOf(trip)))
         updater.state(plan, AppSettings(), keyguard = false).shouldBeInstanceOf<WidgetState.Active>().placeNames shouldBe
             mapOf("Europe/Lisbon" to "Lisbon", "Asia/Tokyo" to "Yokohama")
-        val clocks = place(WidgetKind.TwoClocks, 31, widthDp = 300, heightDp = 300)
+        val clocks = place(WidgetKind.TwoClocks, 31)
         updater.update(WidgetKind.TwoClocks, intArrayOf(clocks))
-        val shown = texts(clocks).joinToString("\n")
+        val shown = texts(clocks)
         shown shouldContainText "Yokohama · Day 2"
         shown shouldNotContain "Tokyo"
     }
@@ -333,16 +307,14 @@ class WidgetUpdaterTest {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         plans.current.value = plan
         val logs = FakeAdviceLogRepository()
-        val updater = WidgetUpdater(app, plans, FakeSettingsRepository(), logs).apply {
-            clock = Clock.fixed(now, ZoneOffset.UTC)
-        }
+        val updater = updater(logs = logs)
         val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current!!
         logs.log(plan.tripId, current.adviceId, AdviceOutcome.Done)
-        val next = place(WidgetKind.NextUp, 32, widthDp = 300, heightDp = 130)
+        val next = place(WidgetKind.NextUp, 32)
         updater.update(WidgetKind.NextUp, intArrayOf(next))
-        val chip = shadowOf(manager).getViewFor(next).shouldNotBeNull().findViewById<View>(R.id.done)
-        chip.visibility shouldBe View.VISIBLE
-        chip.performClick().shouldBeTrue()
-        shadowOf(app).nextStartedActivity.shouldNotBeNull().data shouldBe Uri.parse(DeepLinks.plan(plan.tripId))
+        // A logged chip has no Done action: its tap falls through to the widget's click, which opens the plan.
+        val texts = rendered[next].shouldNotBeNull().texts
+        texts.done.shouldNotBeNull().logged shouldBe AdviceOutcome.Done
+        texts.deepLink shouldBe DeepLinks.plan(plan.tripId)
     }
 }

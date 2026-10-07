@@ -28,7 +28,6 @@ internal fun settingsState(
     promotedAllowed: Boolean = true,
     batteryOptimizationIgnored: Boolean = false,
     widgetPinningSupported: Boolean = true,
-    liveUpdatesSupported: Boolean = true,
 ) = SettingsUiState(
     settings = settings,
     profile = profile,
@@ -37,7 +36,6 @@ internal fun settingsState(
         exactAlarmsAllowed = exactAlarmsAllowed,
         promotedAllowed = promotedAllowed,
         batteryOptimizationIgnored = batteryOptimizationIgnored,
-        liveUpdatesSupported = liveUpdatesSupported,
     ),
     widgetPinningSupported = widgetPinningSupported,
 )
@@ -49,7 +47,7 @@ internal fun settingsState(
 class SettingsScreenshotTest : ClockblockScreenshotTest() {
     private fun settings(name: String, state: SettingsUiState = settingsState(), dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
-            SettingsContent(state, SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+            SettingsContent(state, SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
         }
 
     @Test fun full() = settings("settings_full")
@@ -83,7 +81,7 @@ class SettingsScreenshotTest : ClockblockScreenshotTest() {
 @Config(sdk = [37], qualifiers = "w1280dp-h1650dp-xhdpi")
 class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun full() = snap("settings_two_pane_full") {
-        SettingsContent(settingsState(), SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+        SettingsContent(settingsState(), SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
     }
 }
 
@@ -93,7 +91,7 @@ class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun top() = snap("settings_phone") {
-        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
     }
 
     @Test fun reminders() {
@@ -106,7 +104,7 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun widgetsFontScale() {
         setContent(fontScale = 1.5f) {
-            SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+            SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
         }
         compose.onNodeWithTag(SettingsTags.pinWidget(PinnableWidget.NextUp)).performScrollTo()
         capture("settings_phone_widgets_fontscale_1_5")
@@ -179,7 +177,7 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
 @Config(sdk = [37], qualifiers = "w1280dp-h800dp-xhdpi")
 class SettingsExpandedScreenshotTest : ClockblockScreenshotTest() {
     @Test fun settings() = snap("settings_expanded") {
-        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
     }
 
     @Test fun about() = snap("about_expanded") {

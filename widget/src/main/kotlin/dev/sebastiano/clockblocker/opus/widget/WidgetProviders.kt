@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import dev.sebastiano.clockblocker.opus.widget.legacy.LegacyRefresh
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -43,14 +42,10 @@ abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private va
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             // Clock/zone/locale changes alter every time label and the dial's zone offsets.
-            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED,
-            LegacyRefresh.ACTION_REFRESH -> goAsync { updater.update(kind, updater.ids(kind)) }
+            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED ->
+                goAsync { updater.update(kind, updater.ids(kind)) }
             else -> super.onReceive(context, intent)
         }
-    }
-
-    override fun onDisabled(context: Context) {
-        if (kind == WidgetKind.TwoClocks) LegacyRefresh.sync(context, enabled = false)
     }
 }
 

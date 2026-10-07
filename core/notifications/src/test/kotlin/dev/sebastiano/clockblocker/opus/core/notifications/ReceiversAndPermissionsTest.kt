@@ -189,12 +189,6 @@ class ReceiversAndPermissionsTest {
     }
 
     @Test
-    @Config(sdk = [35])
-    fun `Live Updates only exist from Android 16`() {
-        permissions.state().liveUpdatesSupported shouldBe false
-    }
-
-    @Test
     fun `settings intents point at this app's screens`() {
         permissions.runtimePermission shouldBe android.Manifest.permission.POST_NOTIFICATIONS
         permissions.notificationSettingsIntent().let {

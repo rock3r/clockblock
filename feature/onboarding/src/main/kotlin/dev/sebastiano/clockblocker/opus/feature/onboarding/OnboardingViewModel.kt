@@ -114,12 +114,10 @@ class OnboardingViewModel(
         }
     }
 
-    /** The runtime permission to request on the Reminders step (`null` below API 33). */
-    val runtimePermission: String? get() = notificationPermissions.runtimePermission
+    /** The runtime permission to request on the Reminders step. */
+    val runtimePermission: String get() = notificationPermissions.runtimePermission
 
     fun exactAlarmSettingsIntent(): Intent = notificationPermissions.exactAlarmSettingsIntent()
-
-    fun notificationSettingsIntent(): Intent = notificationPermissions.notificationSettingsIntent()
 
     fun next() {
         _state.update { s -> s.copy(step = OnboardingStep.entries.getOrElse(s.step.ordinal + 1) { s.step }) }

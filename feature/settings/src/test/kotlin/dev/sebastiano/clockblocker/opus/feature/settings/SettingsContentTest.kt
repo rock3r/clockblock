@@ -83,7 +83,7 @@ class SettingsContentTest {
     private fun show(state: SettingsUiState = settingsState()) {
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = true) {
-                SettingsContent(state, actions, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
+                SettingsContent(state, actions, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
             }
         }
     }
@@ -151,16 +151,6 @@ class SettingsContentTest {
     fun `summary says everything is allowed when it is`() {
         show(settingsState(exactAlarmsAllowed = true, batteryOptimizationIgnored = true))
         compose.onNodeWithText("Everything is allowed").performScrollTo().assertIsDisplayed()
-    }
-
-    @Test
-    fun `without Live Updates on this Android, the row is gone and not counted as an extra`() {
-        show(settingsState(exactAlarmsAllowed = true, promotedAllowed = false, batteryOptimizationIgnored = true, liveUpdatesSupported = false))
-        compose.onNodeWithText("Everything is allowed").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Reminders arrive on time.").assertIsDisplayed()
-        click(SettingsTags.PermSummary)
-        compose.onNodeWithTag(SettingsTags.PermBattery).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag(SettingsTags.PermLive).assertDoesNotExist()
     }
 
     @Test
