@@ -746,8 +746,8 @@ private class PlanSections(
         val zone = anchorZone
         // The dial owns the scrub offset; its state stays at the anchor (now, or the picked day) so the offset
         // doesn't compound.
-        // The sky rings follow the real sun at the trip's stop in that zone (the default sun if it has none).
-        val place = remember(state.trip, zone) { state.trip?.placeIn(zone) }
+        // The sky rings follow the real sun where the traveller is in that zone (the default sun if no stop is).
+        val place = remember(state.trip, zone, now) { state.trip?.placeIn(zone, at = now) }
         val nowState = remember(plan, now, zone, place) { plan.toDialState(now, zone, place) }
         // Celebration: the rings start where they were on arrival and turn into alignment once navigation settles.
         val holdAtArrival = state.celebrate && screen.celebrationStage == CelebrationStage.Waiting
