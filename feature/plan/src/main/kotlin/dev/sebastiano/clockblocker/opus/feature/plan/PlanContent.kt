@@ -434,15 +434,6 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             shown.concurrent.forEach { add(it.id) }
         }
     }
-    val renderer = remember(highlighted, routes, plan, screen) {
-        RailRenderer(
-            highlighted = highlighted,
-            flightRoute = { routes[it] },
-            bodyHour = { plan.bodyClockTimeAt(it).toHourFloat() },
-            onBlockClick = { screen.whyAdviceId = it },
-            onToggleEarlier = { screen.showEarlier = !screen.showEarlier },
-        )
-    }
     val showSnack: (String) -> Unit = { message ->
         scope.launch {
             screen.snackbar.currentSnackbarData?.dismiss()
@@ -454,6 +445,31 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             screen.snackbar.currentSnackbarData?.dismiss()
             if (screen.snackbar.showSnackbar(message, actionLabel = action) == SnackbarResult.ActionPerformed) onAction()
         }
+    }
+    // The renderer outlives recompositions; its check-off reads the latest log and actions.
+    val currentOutcomes by rememberUpdatedState(state.outcomes)
+    val currentActions by rememberUpdatedState(actions)
+    val renderer = remember(highlighted, routes, plan, screen) {
+        RailRenderer(
+            highlighted = highlighted,
+            flightRoute = { routes[it] },
+            bodyHour = { plan.bodyClockTimeAt(it).toHourFloat() },
+            onBlockClick = { screen.whyAdviceId = it },
+            onToggleEarlier = { screen.showEarlier = !screen.showEarlier },
+            // Ticking a row's circle is the Now card's Done (same snackbar and Undo, which puts back what the log
+            // held before); unticking forgets the log.
+            onCheckOff = { id, done ->
+                if (done) {
+                    val previous = currentOutcomes[id]
+                    currentActions.onLog(id, AdviceOutcome.Done)
+                    showActionSnack(resources.getString(R.string.plan_logged_done), resources.getString(R.string.plan_undo)) {
+                        currentActions.onUndo(id, previous)
+                    }
+                } else {
+                    currentActions.onUndo(id, null)
+                }
+            },
+        )
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(screen.appBar)

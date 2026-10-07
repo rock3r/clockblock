@@ -56,6 +56,8 @@
     <string name="plan_cant_do">Can\'t do this</string>
     <string name="plan_snooze">Snooze 15 min</string>
     <string name="plan_logged_done">Marked done. Nicely done.</string>
+    <!-- The check-off circle on a rail row (a checkbox; TalkBack adds "checked" / "not checked"). %1$s = "See bright light". -->
+    <string name="plan_check_off">Mark %1$s as done</string>
     <string name="plan_logged_skipped">Marked skipped. No guilt: the plan carries on.</string>
     <string name="plan_logged_cant">Noted. Missing one block costs a little time; the rest still works.</string>
     <string name="plan_snoozed">Quiet for 15 minutes</string>

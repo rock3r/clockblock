@@ -109,6 +109,9 @@ A few details help you read it:
 - Blocks that happen on board are marked **In flight**.
 - Where the times switch from one time zone to the other, a divider says so, for example "Switching to London
   time · UTC+1 · +8 h from Los Angeles".
+- Blocks that have started have a circle on the right. Tap it to mark the block done, the same as **Done** on the
+  Now card: a message appears with **Undo**. Tap a filled circle to clear it. Flights and blocks that haven't
+  started yet have no circle.
 
 The toolbar at the bottom jumps to **Now**, lets you pick any day of the plan (**Day**), or opens **Why?** for the
 current block.
