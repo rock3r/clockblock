@@ -114,7 +114,16 @@ class PlacesDatasetTest {
     }
 
     @ParameterizedTest(name = "{0} still finds {1}")
-    @CsvSource("cam ranh,CXR", "borneo,BEJ", "starkville,GTR", "durham,RDU", "qian gorlos,YSQ")
+    @CsvSource(
+        "cam ranh,CXR",
+        "borneo,BEJ",
+        "starkville,GTR",
+        "durham,RDU",
+        "qian gorlos,YSQ",
+        "mongol,YSQ",
+        "pyrenees,LEU",
+        "san martin,CPC",
+    )
     fun `the parts dropped from a city name still find it`(query: String, code: String) {
         codes(query, 20) shouldContainAll listOf(code)
     }

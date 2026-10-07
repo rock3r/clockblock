@@ -157,8 +157,8 @@ MAX_CITY_CHARS = 24
 # or whose first "/" part isn't the place people would look for.
 CITY_OVERRIDES: dict[str, tuple[str, list[str]]] = {
     "CXR": ("Nha Trang", ["Cam Ranh"]),  # upstream: "Nha Trang/nha Trang aiurportCam Ranh"
-    "YSQ": ("Songyuan", ["Qian Gorlos"]),  # "Qian Gorlos Mongol Autonomous County"
-    "LEU": ("La Seu d'Urgell", ["Andorra"]),  # "La Seu d'Urgell Pyrenees and Andorra"
+    "YSQ": ("Songyuan", ["Qian Gorlos Mongol Autonomous County"]),
+    "LEU": ("La Seu d'Urgell", ["Pyrenees", "Andorra"]),  # "La Seu d'Urgell Pyrenees and Andorra"
     "CPC": ("San Martín de los Andes", ["Chapelco"]),  # "Chapelco/San Martin de los Andes"
     "TRS": ("Trieste", ["Ronchi dei Legionari"]),  # "Ronchi dei Legionari/Trieste"
     "RFD": ("Rockford", ["Chicago"]),  # "Chicago/Rockford"
