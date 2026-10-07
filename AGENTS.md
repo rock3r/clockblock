@@ -26,8 +26,8 @@ not have `build-brief` installed.
 ## Pull requests & CI
 
 - All changes land on `main` through pull requests. CI (`.github/workflows/ci.yml`) runs wrapper validation, unit
-  tests, Roborazzi verification, APK assembly and the babysit watcher tests on every PR; emulator e2e runs in its
-  own workflow (`.github/workflows/e2e.yml`) so the watcher can retry emulator flakes.
+  tests, Roborazzi verification, APK assembly, the babysit watcher tests and the places generator tests on every
+  PR; emulator e2e runs in its own workflow (`.github/workflows/e2e.yml`) so the watcher can retry emulator flakes.
 - Codex reviews PRs. After opening a PR, babysit it with the vendored skill in `.agents/skills/babysit-pr/`
   (read its `SKILL.md`; project settings in `config.json`) until it is ready or needs the owner.
 - Run the local gate from that config before every push.

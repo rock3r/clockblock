@@ -25,7 +25,7 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 |---|---|---|
 | `:app` | 89 | 12 |
 | `:core:circadian` | 76 | 0 |
-| `:core:data` | 158 | 0 |
+| `:core:data` | 184 | 0 |
 | `:core:designsystem` | 184 | 66 |
 | `:core:model` | 28 | 0 |
 | `:core:notifications` | 146 | 0 |
@@ -34,7 +34,7 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:settings` | 71 | 30 |
 | `:feature:trips` | 97 | 25 |
 | `:widget` | 110 | 14 |
-| **Total** | **1173** | **210** |
+| **Total** | **1199** | **210** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 
@@ -108,7 +108,7 @@ notifications. Runtime permissions stay granted between tests.
 
 ## CI
 
-There are two workflows. `.github/workflows/ci.yml` (CI) has five jobs, and `.github/workflows/e2e.yml` (e2e)
+There are two workflows. `.github/workflows/ci.yml` (CI) has six jobs, and `.github/workflows/e2e.yml` (e2e)
 has the emulator job. Both run on every pull request, on every push to `main`, and on demand. A new push to a pull request
 cancels the run that is still in progress. The emulator job has its own workflow so the babysit-pr watcher, which
 retries failed workflows by name, can rerun an emulator flake automatically without rerunning the rest of CI.
@@ -122,10 +122,11 @@ flowchart LR
     ci --> shots["Screenshots"]
     ci --> assemble["Assemble"]
     ci --> babysit["babysit-pr watcher tests"]
+    ci --> places["Places generator tests"]
     e2ewf --> e2e["e2e (emulator)"]
 ```
 
-All six jobs run in parallel. Each one reports its own check on the pull request.
+All seven jobs run in parallel. Each one reports its own check on the pull request.
 
 | Job | Workflow | What it runs | Artefacts |
 |---|---|---|---|
@@ -134,6 +135,7 @@ All six jobs run in parallel. Each one reports its own check on the pull request
 | Screenshots | CI | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
 | Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
+| Places generator tests | CI | Python 3.12 `unittest` over `tools/places`: the city-name rules and the committed `places.tsv` | none |
 | e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
@@ -155,7 +157,7 @@ expects:
 
 ```mermaid
 flowchart TD
-    open["Open a pull request"] --> ci["CI and e2e workflows run the six jobs"]
+    open["Open a pull request"] --> ci["CI and e2e workflows run the seven jobs"]
     open --> codex["Codex reviews the change"]
     ci --> watch{"babysit-pr watcher"}
     codex --> watch

@@ -130,7 +130,7 @@ CMN	Mohammed V International Airport	Casablanca	MA	Africa/Casablanca	33.367	-7.5
 LOS	Murtala Muhammed International Airport	Lagos	NG	Africa/Lagos	6.577	3.321	355	
 NBO	Jomo Kenyatta International Airport	Nairobi	KE	Africa/Nairobi	-1.319	36.928	355	
 AUH	Zayed International Airport	Abu Dhabi	AE	Asia/Dubai	24.441	54.649	354	
-MCT	Muscat International Airport	Muscat/Seeb	OM	Asia/Muscat	23.600	58.285	354	
+MCT	Muscat International Airport	Muscat	OM	Asia/Muscat	23.600	58.285	354	Seeb
 TLV	Ben Gurion International Airport	Tel Aviv	IL	Asia/Jerusalem	32.011	34.887	354	
 BAH	Bahrain International Airport	Manama	BH	Asia/Bahrain	26.267	50.638	353	
 KWI	Kuwait International Airport	Kuwait City	KW	Asia/Kuwait	29.224	47.970	353	
@@ -147,7 +147,7 @@ DAL	Dallas Love Field	Dallas	US	America/Chicago	32.845	-96.848	349	QDF
 HOU	William P. Hobby Airport	Houston	US	America/Chicago	29.645	-95.277	349	QHO
 PDX	Portland International Airport	Portland	US	America/Los_Angeles	45.589	-122.598	349	
 OAK	Oakland San Francisco Bay Airport	San Francisco	US	America/Los_Angeles	37.720	-122.221	348	Oakland|QSF
-RDU	Raleigh-Durham International Airport	Raleigh/Durham	US	America/New_York	35.879	-78.787	348	
+RDU	Raleigh-Durham International Airport	Raleigh	US	America/New_York	35.879	-78.787	348	Durham
 STL	St. Louis Lambert International Airport	St Louis	US	America/Chicago	38.749	-90.370	348	
 MSY	Louis Armstrong New Orleans International Airport	New Orleans	US	America/Chicago	29.993	-90.265	347	
 SJC	Mineta San Jose International Airport	San Francisco	US	America/Los_Angeles	37.362	-121.929	347	San Jose|QSF
@@ -169,7 +169,7 @@ VCE	Venice Marco Polo Airport	Venice	IT	Europe/Rome	45.505	12.352	342	VE|Venezia
 FAO	Faro - Gago Coutinho International Airport	Faro	PT	Europe/Lisbon	37.016	-7.971	341	
 GVA	Geneva International Airport	Geneva	CH	Europe/Paris	46.238	6.109	341	
 OPO	Francisco de Sá Carneiro Airport	Porto	PT	Europe/Lisbon	41.248	-8.681	341	
-BSL	EuroAirport Basel–Mulhouse–Freiburg	Basel	FR	Europe/Paris	47.601	7.521	340	Bâle / Mulhouse|EAP
+BSL	EuroAirport Basel–Mulhouse–Freiburg	Basel	FR	Europe/Paris	47.601	7.521	340	Mulhouse|Bâle|EAP
 CGN	Cologne Bonn Airport	Köln	DE	Europe/Berlin	50.866	7.143	340	Cologne
 STR	Stuttgart Airport	Stuttgart	DE	Europe/Berlin	48.690	9.222	340	
 DME	Domodedovo International Airport	Moscow	RU	Europe/Moscow	55.409	37.906	339	MOW
@@ -242,7 +242,7 @@ SAT	San Antonio International Airport	San Antonio	US	America/Chicago	29.534	-98.
 CLE	Cleveland Hopkins International Airport	Cleveland	US	America/New_York	41.412	-81.850	315	
 CMH	John Glenn Columbus International Airport	Columbus	US	America/New_York	39.998	-82.892	315	
 PIT	Pittsburgh International Airport	Pittsburgh	US	America/New_York	40.492	-80.233	315	
-CVG	Cincinnati Northern Kentucky International Airport	Cincinnati / Covington	US	America/New_York	39.049	-84.668	314	
+CVG	Cincinnati Northern Kentucky International Airport	Cincinnati	US	America/New_York	39.049	-84.668	314	Covington
 JAX	Jacksonville International Airport	Jacksonville	US	America/New_York	30.492	-81.688	314	
 MKE	General Mitchell International Airport	Milwaukee	US	America/Chicago	42.947	-87.897	314	
 KOA	Ellison Onizuka Kona International Airport at Keāhole	Kailua-Kona	US	Pacific/Honolulu	19.739	-156.046	313	
@@ -255,7 +255,7 @@ ELP	El Paso International Airport	El Paso	US	America/Denver	31.810	-106.376	311
 TUS	Tucson International Airport	Tucson	US	America/Phoenix	32.115	-110.938	311	
 BDL	Bradley International Airport	Hartford	US	America/New_York	41.939	-72.688	310	
 OMA	Eppley Airfield	Omaha	US	America/Chicago	41.303	-95.894	310	
-PVD	Rhode Island T. F. Green International Airport	Providence/Warwick	US	America/New_York	41.725	-71.426	310	
+PVD	Rhode Island T. F. Green International Airport	Providence	US	America/New_York	41.725	-71.426	310	Warwick
 BUF	Buffalo Niagara International Airport	Buffalo	US	America/New_York	42.940	-78.732	309	
 ORF	Norfolk International Airport	Norfolk	US	America/New_York	36.895	-76.201	309	
 RIC	Richmond International Airport	Richmond	US	America/New_York	37.505	-77.320	309	
@@ -324,7 +324,7 @@ ASW	Aswan International Airport	Aswan	EG	Africa/Cairo	23.961	32.820	300
 ATQ	Sri Guru Ram Das Ji International Airport	Amritsar	IN	Asia/Kolkata	31.710	74.797	300	
 ATZ	Asyut International Airport	Asyut	EG	Africa/Cairo	27.046	31.013	300	
 AUA	Queen Beatrix International Airport	Oranjestad	AW	America/Aruba	12.501	-70.014	300	
-AVV	Melbourne Avalon International Airport	Geelong/Melbourne	AU	Australia/Melbourne	-38.040	144.467	300	
+AVV	Melbourne Avalon International Airport	Geelong	AU	Australia/Melbourne	-38.040	144.467	300	Melbourne
 AWA	Hawassa International Airport	Hawassa	ET	Africa/Addis_Ababa	7.101	38.396	300	
 AWZ	Qasem Soleimani International Airport	Ahvaz	IR	Asia/Tehran	31.336	48.764	300	
 BAQ	Ernesto Cortissoz International Airport	Barranquilla	CO	America/Bogota	10.890	-74.781	300	
@@ -409,7 +409,7 @@ CBR	Canberra Airport	Canberra	AU	Australia/Sydney	-35.307	149.195	300
 CCJ	Calicut International Airport	Calicut	IN	Asia/Kolkata	11.136	75.955	300	
 CCK	Cocos (Keeling) Islands Airport	West Island	CC	Indian/Cocos	-12.192	96.834	300	
 CCP	Carriel Sur International Airport	Concepcion	CL	America/Santiago	-36.772	-73.063	300	
-CEB	Mactan Cebu International Airport	Cebu City/Lapu-Lapu City	PH	Asia/Manila	10.309	123.980	300	
+CEB	Mactan Cebu International Airport	Cebu City	PH	Asia/Manila	10.309	123.980	300	Lapu-Lapu City
 CEI	Mae Fah Luang - Chiang Rai International Airport	Chiang Rai	TH	Asia/Bangkok	19.952	99.883	300	
 CEK	Kurchatov Chelyabinsk International Airport	Chelyabinsk	RU	Asia/Yekaterinburg	55.303	61.505	300	
 CFE	Clermont-Ferrand Auvergne airport	Clermont-Ferrand	FR	Europe/Paris	45.787	3.169	300	
@@ -451,7 +451,7 @@ CUU	General Roberto Fierro Villalobos International Airport	Chihuahua	MX	America
 CUZ	Alejandro Velasco Astete International Airport	Cusco	PE	America/Lima	-13.536	-71.939	300	
 CWL	Cardiff International Airport	Cardiff	GB	Europe/London	51.397	-3.343	300	
 CXI	Cassidy International Airport	Kiritimati	KI	Pacific/Kiritimati	1.986	-157.350	300	
-CXR	Cam Ranh International Airport / Cam Ranh Air Base	Nha Trang/nha Trang aiurportCam Ranh	VN	Asia/Ho_Chi_Minh	11.998	109.219	300	
+CXR	Cam Ranh International Airport / Cam Ranh Air Base	Nha Trang	VN	Asia/Ho_Chi_Minh	11.998	109.219	300	Cam Ranh
 CZL	Mohamed Boudiaf International Airport	Constantine	DZ	Africa/Algiers	36.276	6.620	300	
 CZM	Cozumel International Airport	Cozumel	MX	America/Cancun	20.515	-86.929	300	
 DAD	Da Nang International Airport	Da Nang	VN	Asia/Ho_Chi_Minh	16.044	108.199	300	
@@ -531,7 +531,7 @@ FOC	Fuzhou Changle International Airport	Fuzhou	CN	Asia/Shanghai	25.929	119.673	
 FPO	Grand Bahama International Airport	Freeport	BS	America/Nassau	26.558	-78.696	300	
 FRW	Phillip Gaonwe Matante International Airport	Francistown	BW	Africa/Gaborone	-21.159	27.469	300	
 FSC	Figari Sud-Corse Airport	Figari	FR	Europe/Paris	41.502	9.097	300	
-FSZ	Mount Fuji Shizuoka Airport	Makinohara / Shimada	JP	Asia/Tokyo	34.795	138.191	300	
+FSZ	Mount Fuji Shizuoka Airport	Makinohara	JP	Asia/Tokyo	34.795	138.191	300	Shimada
 FUE	Fuerteventura Airport	El Matorral	ES	Atlantic/Canary	28.453	-13.864	300	
 GAN	Gan International Airport	Gan	MV	Indian/Maldives	-0.693	73.153	300	
 GAU	Lokpriya Gopinath Bordoloi International Airport	Guwahati	IN	Asia/Kolkata	26.107	91.585	300	
@@ -617,7 +617,7 @@ IKA	Imam Khomeini International Airport	Tehran	IR	Asia/Tehran	35.416	51.152	300	
 IKT	Irkutsk International Airport	Irkutsk	RU	Asia/Irkutsk	52.267	104.396	300	
 IKU	Issyk-Kul International Airport	Tamchy	KG	Asia/Bishkek	42.586	76.701	300	
 ILO	Iloilo International Airport	Cabatuan	PH	Asia/Manila	10.833	122.493	300	
-ILR	General Tunde Idiagbon International Airport	Ilorin/Ogbomosho	NG	Africa/Lagos	8.440	4.494	300	
+ILR	General Tunde Idiagbon International Airport	Ilorin	NG	Africa/Lagos	8.440	4.494	300	Ogbomosho
 IMF	Bir Tikendrajit International Airport	Imphal	IN	Asia/Kolkata	24.760	93.897	300	
 INC	Yinchuan Hedong International Airport	Yinchuan	CN	Asia/Shanghai	38.323	106.393	300	
 INI	Niš Constantine the Great Airport	Niš	RS	Europe/Belgrade	43.337	21.856	300	
@@ -674,7 +674,7 @@ KIS	Kisumu International Airport	Kisumu	KE	Africa/Nairobi	-0.086	34.729	300
 KJA	Krasnoyarsk International Airport	Krasnoyarsk	RU	Asia/Krasnoyarsk	56.176	92.486	300	
 KKJ	Kitakyushu Airport	Kitakyushu	JP	Asia/Tokyo	33.846	131.035	300	
 KLO	Kalibo International Airport	Kalibo	PH	Asia/Manila	11.679	122.376	300	
-KLU	Klagenfurt Airport	Klagenfurt am Wörthersee	AT	Europe/Vienna	46.643	14.338	300	
+KLU	Klagenfurt Airport	Klagenfurt	AT	Europe/Vienna	46.643	14.338	300	Klagenfurt am Wörthersee
 KLV	Karlovy Vary Airport	Karlovy Vary	CZ	Europe/Prague	50.203	12.915	300	
 KMI	Miyazaki Airport	Miyazaki	JP	Asia/Tokyo	31.877	131.449	300	
 KMJ	Kumamoto Airport	Kumamoto	JP	Asia/Tokyo	32.837	130.855	300	
@@ -698,7 +698,7 @@ KTT	Kittilä International Airport	Kittilä	FI	Europe/Helsinki	67.701	24.847	300
 KTW	Katowice Wojciech Korfanty International Airport	Katowice	PL	Europe/Warsaw	50.476	19.081	300	
 KUF	Kurumoch International Airport	Samara	RU	Europe/Samara	53.505	50.164	300	
 KUN	Kaunas International Airport	Kaunas	LT	Europe/Vilnius	54.964	24.086	300	
-KUO	Kuopio Airport	Kuopio / Siilinjärvi	FI	Europe/Helsinki	63.007	27.798	300	
+KUO	Kuopio Airport	Kuopio	FI	Europe/Helsinki	63.007	27.798	300	Siilinjärvi
 KUT	David the Builder Kutaisi International Airport	Kopitnari	GE	Asia/Tbilisi	42.177	42.485	300	
 KVA	Kavala Alexander the Great International Airport	Kavala	GR	Europe/Athens	40.913	24.619	300	
 KWE	Guiyang Longdongbao International Airport	Guiyang	CN	Asia/Shanghai	26.542	106.804	300	Nanming
@@ -731,7 +731,7 @@ LLW	Kamuzu International Airport	Lumbadzi	MW	Africa/Blantyre	-13.789	33.781	300
 LNZ	Linz-Hörsching Airport	Linz	AT	Europe/Vienna	48.235	14.188	300	
 LOP	Lombok International Airport	Mataram	ID	Asia/Makassar	-8.760	116.278	300	Pujut
 LPA	Gran Canaria Airport	Gran Canaria Island	ES	Atlantic/Canary	27.932	-15.387	300	
-LPB	El Alto International Airport	La Paz / El Alto	BO	America/La_Paz	-16.510	-68.189	300	
+LPB	El Alto International Airport	La Paz	BO	America/La_Paz	-16.510	-68.189	300	El Alto
 LPI	Linköping City Airport	Linköping	SE	Europe/Stockholm	58.405	15.684	300	
 LPL	Liverpool John Lennon Airport	Liverpool	GB	Europe/London	53.335	-2.850	300	
 LPP	Lappeenranta Airport	Lappeenranta	FI	Europe/Helsinki	61.045	28.145	300	
@@ -761,7 +761,7 @@ MDE	Jose Maria Córdova International Airport	Medellín	CO	America/Bogota	6.165	
 MDL	Mandalay International Airport	Mandalay	MM	Asia/Yangon	21.702	95.978	300	
 MDZ	Governor Francisco Gabrielli International Airport	Mendoza	AR	America/Argentina/Mendoza	-32.832	-68.793	300	
 MED	Prince Mohammad Bin Abdulaziz Airport	Medina	SA	Asia/Riyadh	24.553	39.705	300	
-MFM	Macau International Airport	Nossa Senhora do Carmo	MO	Asia/Macau	22.150	113.592	300	
+MFM	Macau International Airport	Macau	MO	Asia/Macau	22.150	113.592	300	Nossa Senhora do Carmo
 MFU	Mfuwe International Airport	Mfuwe	ZM	Africa/Lusaka	-13.259	31.937	300	
 MGA	Augusto C. Sandino (Managua) International Airport	Managua	NI	America/Managua	12.142	-86.168	300	
 MGQ	Aden Adde International Airport	Mogadishu	SO	Africa/Mogadishu	2.014	45.305	300	
@@ -775,7 +775,7 @@ MLM	General Francisco J. Mujica International Airport	Morelia	MX	America/Mexico_
 MMK	Emperor Nicholas II Murmansk Airport	Murmansk	RU	Europe/Moscow	68.782	32.751	300	
 MMX	Malmö Sturup Airport	Malmö	SE	Europe/Stockholm	55.536	13.376	300	
 MNI	John A. Osborne Airport	Gerald's Park	MS	America/Montserrat	16.792	-62.193	300	
-MPL	Montpellier-Méditerranée Airport	Montpellier/Méditerranée	FR	Europe/Paris	43.576	3.963	300	
+MPL	Montpellier-Méditerranée Airport	Montpellier	FR	Europe/Paris	43.576	3.963	300	Méditerranée
 MPM	Maputo Airport	Maputo	MZ	Africa/Maputo	-25.921	32.573	300	
 MQF	Magnitogorsk International Airport	Magnitogorsk	RU	Asia/Yekaterinburg	53.392	58.755	300	
 MQP	Kruger Mpumalanga International Airport	Mbombela	ZA	Africa/Johannesburg	-25.383	31.105	300	
@@ -851,7 +851,7 @@ OSS	Osh International Airport	Osh	KG	Asia/Bishkek	40.609	72.793	300
 OST	Ostend-Bruges International Airport	Oostende	BE	Europe/Brussels	51.200	2.875	300	
 OUA	Ouagadougou Thomas Sankara International Airport	Ouagadougou	BF	Africa/Ouagadougou	12.353	-1.512	300	
 OUD	Oujda Angads Airport	Ahl Angad	MA	Africa/Casablanca	34.790	-1.926	300	
-OUL	Oulu Airport	Oulu / Oulunsalo	FI	Europe/Helsinki	64.930	25.355	300	
+OUL	Oulu Airport	Oulu	FI	Europe/Helsinki	64.930	25.355	300	Oulunsalo
 OVB	Novosibirsk Tolmachevo Airport	Novosibirsk	RU	Asia/Novosibirsk	55.020	82.619	300	
 OVD	Asturias Airport	Ranón	ES	Europe/Madrid	43.564	-6.035	300	
 OXB	Osvaldo Vieira International Airport	Bissau	GW	Africa/Bissau	11.894	-15.654	300	
@@ -977,7 +977,7 @@ SKX	Saransk International Airport	Saransk	RU	Europe/Moscow	54.125	45.212	300
 SLA	Martín Miguel de Güemes International Airport	Salta	AR	America/Argentina/Salta	-24.856	-65.486	300	
 SLL	Salalah International Airport	Salalah	OM	Asia/Muscat	17.039	54.091	300	
 SLZ	Marechal Cunha Machado International Airport	São Luís	BR	America/Fortaleza	-2.586	-44.235	300	
-SNC	General Ulpiano Paez International Airport	Salinas/La Libertad	EC	America/Guayaquil	-2.210	-80.985	300	
+SNC	General Ulpiano Paez International Airport	Salinas	EC	America/Guayaquil	-2.210	-80.985	300	La Libertad
 SNN	Shannon Airport	Shannon	IE	Europe/Dublin	52.702	-8.925	300	
 SNU	Abel Santamaria International Airport	Santa Clara	CU	America/Havana	22.492	-79.943	300	
 SOC	Adisoemarmo International Airport	Surakarta	ID	Asia/Jakarta	-7.516	110.757	300	
@@ -985,7 +985,7 @@ SPU	Split Saint Jerome Airport	Split	HR	Europe/Zagreb	43.539	16.298	300
 SPX	Sphinx International Airport	Al Jiza	EG	Africa/Cairo	30.108	30.896	300	
 SRE	Alcantarí International Airport	Sucre	BO	America/La_Paz	-19.247	-65.150	300	
 SRG	Jenderal Ahmad Yani Airport	Semarang	ID	Asia/Jakarta	-6.971	110.373	300	
-SRQ	Sarasota Bradenton International Airport	Sarasota/Bradenton	US	America/New_York	27.395	-82.554	300	
+SRQ	Sarasota Bradenton International Airport	Sarasota	US	America/New_York	27.395	-82.554	300	Bradenton
 SSG	Malabo International Airport	Malabo	GQ	Africa/Malabo	3.755	8.709	300	
 STI	Cibao International Airport	Santiago	DO	America/Santo_Domingo	19.404	-70.604	300	
 STT	Cyril E. King Airport	Charlotte Amalie	VI	America/St_Thomas	18.337	-64.977	300	
@@ -1033,10 +1033,10 @@ TKU	Turku Airport	Turku	FI	Europe/Helsinki	60.514	22.263	300
 TLC	Adolfo López Mateos International Airport	Toluca	MX	America/Mexico_City	19.337	-99.566	300	
 TLL	Lennart Meri Tallinn Airport	Tallinn	EE	Europe/Tallinn	59.413	24.833	300	
 TLM	Zenata – Messali El Hadj Airport	Zenata	DZ	Africa/Algiers	35.013	-1.457	300	
-TLS	Toulouse-Blagnac Airport	Toulouse/Blagnac	FR	Europe/Paris	43.629	1.364	300	
+TLS	Toulouse-Blagnac Airport	Toulouse	FR	Europe/Paris	43.629	1.364	300	Blagnac
 TML	Yakubu Tali International Airport	Tamale	GH	Africa/Accra	9.554	-0.866	300	
 TMM	Toamasina Ambalamanasy Airport	Toamasina	MG	Indian/Antananarivo	-18.114	49.392	300	
-TMP	Tampere-Pirkkala Airport	Tampere / Pirkkala	FI	Europe/Helsinki	61.414	23.604	300	
+TMP	Tampere-Pirkkala Airport	Tampere	FI	Europe/Helsinki	61.414	23.604	300	Pirkkala
 TMR	Aguenar – Hadj Bey Akhamok Airport	Tamanrasset	DZ	Africa/Algiers	22.811	5.451	300	
 TMS	São Tomé International Airport	São Tomé	ST	Africa/Sao_Tome	0.378	6.712	300	
 TNA	Jinan Yaoqiang International Airport	Jinan	CN	Asia/Shanghai	36.857	117.216	300	Licheng
@@ -1050,7 +1050,7 @@ TQO	Felipe Carrillo Puerto International Airport Tulum	Tulum	MX	America/Cancun	2
 TRD	Trondheim Airport, Værnes	Trondheim	NO	Europe/Oslo	63.458	10.924	300	
 TRF	Sandefjord Airport, Torp	Oslo	NO	Europe/Oslo	59.187	10.259	300	Torp|Sandefjord|OSL
 TRN	Turin Airport	Caselle Torinese	IT	Europe/Rome	45.201	7.650	300	TO
-TRS	Trieste Airport	Ronchi dei Legionari/Trieste	IT	Europe/Rome	45.828	13.467	300	
+TRS	Trieste Airport	Trieste	IT	Europe/Rome	45.828	13.467	300	Ronchi dei Legionari
 TRU	Capitán FAP Carlos Martínez de Pinillos International Airport	Trujillo	PE	America/Lima	-8.082	-79.109	300	
 TRV	Thiruvananthapuram International Airport	Thiruvananthapuram	IN	Asia/Kolkata	8.482	76.920	300	
 TRW	Bonriki International Airport	South Tarawa	KI	Pacific/Tarawa	1.382	173.147	300	
@@ -1065,7 +1065,7 @@ TUK	Turbat International Airport	Turbat	PK	Asia/Karachi	25.985	63.029	300
 TUU	Prince Sultan bin Abdulaziz International Airport	Tabuk	SA	Asia/Riyadh	28.371	36.625	300	
 TXN	Huangshan Tunxi International Airport	Huangshan	CN	Asia/Shanghai	29.733	118.256	300	
 TYN	Taiyuan Wusu International Airport	Taiyuan	CN	Asia/Shanghai	37.747	112.628	300	
-TYS	McGhee Tyson Airport	Knoxville/Maryville	US	America/New_York	35.811	-83.994	300	
+TYS	McGhee Tyson Airport	Knoxville	US	America/New_York	35.811	-83.994	300	Maryville
 TZL	Tuzla International Airport	Dubrave Gornje	BA	Europe/Sarajevo	44.460	18.724	300	
 UBN	Ulaanbaatar Chinggis Khaan International Airport	Ulaanbaatar	MN	Asia/Ulaanbaatar	47.647	106.820	300	Sergelen
 UET	Quetta International Airport	Quetta	PK	Asia/Karachi	30.251	66.938	300	
@@ -1103,7 +1103,7 @@ VOG	Volgograd International Airport	Volgograd	RU	Europe/Volgograd	48.781	44.339	
 VRA	Juan Gualberto Gomez International Airport	Matanzas	CU	America/Havana	23.034	-81.435	300	
 VRN	Verona Villafranca Valerio Catullo Airport	Caselle	IT	Europe/Rome	45.395	10.887	300	VR
 VSA	Carlos Rovirosa Pérez International Airport	Villahermosa	MX	America/Mexico_City	17.994	-92.818	300	
-VST	Stockholm Västerås Airport	Stockholm / Västerås	SE	Europe/Stockholm	59.589	16.634	300	
+VST	Stockholm Västerås Airport	Västerås	SE	Europe/Stockholm	59.589	16.634	300	Stockholm
 VTE	Wattay International Airport	Vientiane	LA	Asia/Vientiane	17.985	102.567	300	
 VTZ	Alluri Sitarama Raju International Airport (Vizag)	Visakhapatnam	IN	Asia/Kolkata	17.972	83.504	300	
 VVI	Viru Viru International Airport	Santa Cruz	BO	America/La_Paz	-17.645	-63.135	300	
@@ -1126,7 +1126,7 @@ YEG	Edmonton International Airport	Edmonton	CA	America/Edmonton	53.310	-113.580	
 YHM	John C. Munro Hamilton International Airport	Hamilton	CA	America/Toronto	43.171	-79.929	300	
 YHZ	Halifax / Stanfield International Airport	Halifax	CA	America/Halifax	44.881	-63.509	300	
 YIA	Yogyakarta International Airport	Yogyakarta	ID	Asia/Jakarta	-7.905	110.057	300	
-YIW	Yiwu Airport	Yiwu/Jinhua	CN	Asia/Shanghai	29.342	120.031	300	
+YIW	Yiwu Airport	Yiwu	CN	Asia/Shanghai	29.342	120.031	300	Jinhua
 YKS	Platon Oyunsky Yakutsk International Airport	Yakutsk	RU	Asia/Yakutsk	62.093	129.771	300	
 YLW	Kelowna International Airport	Kelowna	CA	America/Vancouver	49.956	-119.378	300	
 YNB	Prince Abdulmohsen Bin Abdulaziz International Airport	Yanbu	SA	Asia/Riyadh	24.144	38.063	300	
@@ -1159,7 +1159,7 @@ AAP	Aji Pangeran Tumenggung Pranoto International Airport	Samarinda	ID	Asia/Maka
 AAT	Altay Xuedu Airport	Altay	CN	Asia/Shanghai	47.750	88.086	200	
 AAX	Romeu Zema Airport	Araxá	BR	America/Sao_Paulo	-19.563	-46.960	200	
 AAY	Al Ghaydah International Airport	Al Ghaydah	YE	Asia/Aden	16.193	52.174	200	
-ABE	Lehigh Valley International Airport	Allentown/Bethlehem	US	America/New_York	40.652	-75.443	200	
+ABE	Lehigh Valley International Airport	Allentown	US	America/New_York	40.652	-75.443	200	Bethlehem
 ABI	Abilene Regional Airport	Abilene	US	America/Chicago	32.411	-99.682	200	
 ABK	Kebri Dahar Airport	Kebri Dahar	ET	Africa/Addis_Ababa	6.733	44.241	200	
 ABL	Ambler Airport	Ambler	US	America/Anchorage	67.106	-157.855	200	
@@ -1172,7 +1172,7 @@ ACH	Sankt Gallen Altenrhein Airport	St. Gallen	CH	Europe/Vienna	47.485	9.561	200
 ACI	Alderney Airport	Saint Anne	GG	Europe/Guernsey	49.706	-2.215	200	
 ACK	Nantucket Memorial Airport	Nantucket	US	America/New_York	41.253	-70.060	200	
 ACT	Waco Regional Airport	Waco	US	America/Chicago	31.611	-97.230	200	
-ACV	California Redwood Coast-Humboldt County Airport	Arcata/Eureka	US	America/Los_Angeles	40.978	-124.109	200	
+ACV	California Redwood Coast-Humboldt County Airport	Arcata	US	America/Los_Angeles	40.978	-124.109	200	Eureka
 ACX	Xingyi Wanfenglin Airport	Xingyi	CN	Asia/Shanghai	25.083	104.961	200	
 ACY	Atlantic City International Airport	Atlantic City	US	America/New_York	39.456	-74.578	200	
 ADF	Adıyaman Airport	Adıyaman	TR	Europe/Istanbul	37.731	38.469	200	
@@ -1259,7 +1259,7 @@ AVA	Anshun Huangguoshu Airport	Anshun	CN	Asia/Shanghai	26.261	105.873	200	Xixiu
 AVK	Arvaikheer Airport	Arvaikheer	MN	Asia/Ulaanbaatar	46.250	102.802	200	
 AVL	Asheville Regional Airport	Asheville	US	America/New_York	35.435	-82.542	200	
 AVN	Avignon Caumont airport	Avignon	FR	Europe/Paris	43.907	4.902	200	
-AVP	Wilkes-Barre/Scranton International Airport	Wilkes-Barre/Scranton	US	America/New_York	41.337	-75.724	200	
+AVP	Wilkes-Barre/Scranton International Airport	Wilkes-Barre	US	America/New_York	41.337	-75.724	200	Scranton
 AVR	Amravati Airport	Amravati	IN	Asia/Kolkata	20.815	77.718	200	
 AWK	Wake Island Airfield	Wake Island	UM	Pacific/Wake	19.282	166.637	200	
 AXA	Clayton J. Lloyd International Airport	The Valley	AI	America/Anguilla	18.205	-63.054	200	
@@ -1300,7 +1300,7 @@ BDU	Bardufoss Airport	Målselv	NO	Europe/Oslo	69.056	18.540	200
 BEB	Benbecula Airport	Balivanich	GB	Europe/London	57.481	-7.363	200	
 BED	Laurence G Hanscom Field	Bedford	US	America/New_York	42.470	-71.289	200	
 BEF	Bluefields Airport	Bluefields	NI	America/Managua	11.991	-83.774	200	
-BEJ	Kalimarau Airport	Tanjung Redeb - Borneo Island	ID	Asia/Makassar	2.148	117.431	200	
+BEJ	Kalimarau Airport	Tanjung Redeb	ID	Asia/Makassar	2.148	117.431	200	Borneo Island
 BEK	Bareilly Air Force Station	Bareilly	IN	Asia/Kolkata	28.422	79.451	200	
 BET	Bethel Airport	Bethel	US	America/Anchorage	60.780	-161.838	200	
 BEU	Bedourie Airport	Bedourie	AU	Australia/Brisbane	-24.346	139.460	200	
@@ -1349,7 +1349,7 @@ BLE	Dala Airport	Borlange	SE	Europe/Stockholm	60.422	15.515	200
 BLI	Bellingham International Airport	Bellingham	US	America/Los_Angeles	48.793	-122.538	200	
 BLV	Scott AFB/Midamerica Airport	Belleville	US	America/Chicago	38.545	-89.835	200	
 BMA	Stockholm-Bromma Airport	Stockholm	SE	Europe/Stockholm	59.354	17.942	200	STO
-BMI	Central Illinois Regional Airport at Bloomington-Normal	Bloomington/Normal	US	America/Chicago	40.477	-88.916	200	
+BMI	Central Illinois Regional Airport at Bloomington-Normal	Bloomington	US	America/Chicago	40.477	-88.916	200	Normal
 BMU	Sultan Muhammad Salahuddin Airport	Bima	ID	Asia/Makassar	-8.537	118.685	200	
 BMV	Buon Ma Thuot Airport	Buon Ma Thuot	VN	Asia/Ho_Chi_Minh	12.668	108.120	200	
 BMW	Bordj Badji Mokhtar Airport	Bordj Badji Mokhtar	DZ	Africa/Algiers	21.378	0.927	200	
@@ -1363,7 +1363,7 @@ BOH	Bournemouth Airport	Bournemouth	GB	Europe/London	50.780	-1.840	200
 BOR	Bokeo International Airport	Ton Phueng	LA	Asia/Bangkok	20.324	100.165	200	
 BPE	Qinhuangdao Beidaihe Airport	Qinhuangdao	CN	Asia/Shanghai	39.666	119.061	200	Changli
 BPL	Bole Alashankou Airport	Bole	CN	Asia/Shanghai	44.895	82.300	200	
-BPT	Jack Brooks Regional Airport	Beaumont/Port Arthur	US	America/Chicago	29.951	-94.021	200	
+BPT	Jack Brooks Regional Airport	Beaumont	US	America/Chicago	29.951	-94.021	200	Port Arthur
 BPX	Qamdo Bangda Airport	Bangda	CN	Asia/Shanghai	30.554	97.108	200	
 BPY	Besalampy Airport	Besalampy	MG	Indian/Antananarivo	-16.745	44.482	200	
 BQK	Brunswick Golden Isles Airport	Brunswick	US	America/New_York	31.259	-81.466	200	
@@ -1495,7 +1495,7 @@ CNY	Canyonlands Regional Airport	Moab	US	America/Denver	38.755	-109.755	200
 COD	Yellowstone Regional Airport	Cody	US	America/Denver	44.520	-109.024	200	
 COQ	Choibalsan Airport	Choibalsan	MN	Asia/Choibalsan	48.135	114.647	200	
 COU	Columbia Regional Airport	Columbia	US	America/Chicago	38.818	-92.220	200	
-CPC	Aviador C. Campos Airport	Chapelco/San Martin de los Andes	AR	America/Argentina/Salta	-40.075	-71.137	200	
+CPC	Aviador C. Campos Airport	San Martín de los Andes	AR	America/Argentina/Salta	-40.075	-71.137	200	Chapelco
 CPD	Coober Pedy Airport	Coober Pedy	AU	Australia/Adelaide	-29.038	134.722	200	
 CPE	Ingeniero Alberto Acuña Ongay International Airport	Campeche	MX	America/Merida	19.816	-90.500	200	
 CPO	Desierto de Atacama Airport	Copiapo	CL	America/Santiago	-27.261	-70.779	200	
@@ -1631,7 +1631,7 @@ ELD	South Arkansas Regional Airport at Goodwin Field	El Dorado	US	America/Chicag
 ELF	El Fasher Airport	El Fasher	SD	Africa/Khartoum	13.615	25.325	200	
 ELG	El Golea Airport	El Menia	DZ	Africa/Algiers	30.581	2.862	200	
 ELH	North Eleuthera Airport	North Eleuthera	BS	America/Nassau	25.476	-76.681	200	
-ELM	Elmira Corning Regional Airport	Elmira/Corning	US	America/New_York	42.160	-76.892	200	
+ELM	Elmira Corning Regional Airport	Elmira	US	America/New_York	42.160	-76.892	200	Corning
 ELU	Guemar Airport - مطار قمار بالوادي	Guemar	DZ	Africa/Algiers	33.511	6.777	200	
 EMD	Emerald Airport	Emerald	AU	Australia/Brisbane	-23.567	148.179	200	
 EMK	Emmonak Airport	Emmonak	US	America/Nome	62.786	-164.491	200	
@@ -1663,13 +1663,13 @@ EVV	Evansville Regional Airport	Evansville	US	America/Chicago	38.037	-87.532	200
 EWB	New Bedford Regional Airport	New Bedford	US	America/New_York	41.676	-70.957	200	
 EWN	Coastal Carolina Regional Airport	New Bern	US	America/New_York	35.073	-77.043	200	
 EXT	Exeter International Airport	Exeter	GB	Europe/London	50.734	-3.414	200	
-EYK	Beloyarskiy Airport	Beloyarskiy Airport	RU	Asia/Yekaterinburg	63.687	66.699	200	
+EYK	Beloyarskiy Airport	Beloyarskiy	RU	Asia/Yekaterinburg	63.687	66.699	200	
 EYP	El Alcaravan - Yopal Airport	Yopal	CO	America/Bogota	5.319	-72.384	200	
 EYW	Key West International Airport	Key West	US	America/New_York	24.556	-81.760	200	
 EZS	Elazığ Airport	Elazığ	TR	Europe/Istanbul	38.598	39.283	200	
 FAI	Fairbanks International Airport	Fairbanks	US	America/Anchorage	64.815	-147.856	200	
 FAR	Hector International Airport	Fargo	US	America/Chicago	46.921	-96.816	200	
-FAV	Fakarava Airport	Fakarava Airport	PF	Pacific/Tahiti	-16.054	-145.657	200	
+FAV	Fakarava Airport	Fakarava	PF	Pacific/Tahiti	-16.054	-145.657	200	
 FAY	Fayetteville Regional Airport - Grannis Field	Fayetteville	US	America/New_York	34.991	-78.880	200	
 FCA	Glacier Park International Airport	Kalispell	US	America/Denver	48.311	-114.256	200	
 FCN	Sea-Airport Cuxhaven/Nordholz / Nordholz Naval Airbase	Wurster Nordseeküste	DE	Europe/Berlin	53.768	8.659	200	
@@ -1687,7 +1687,7 @@ FLW	Flores Airport	Santa Cruz das Flores	PT	Atlantic/Azores	39.455	-31.131	200
 FLZ	Dr. Ferdinand Lumban Tobing Airport	Sibolga	ID	Asia/Jakarta	1.557	98.887	200	Pinangsori
 FMA	Formosa National Airport	Formosa	AR	America/Argentina/Cordoba	-26.213	-58.228	200	
 FMI	Kalemie Airport	Kalemie	CD	Africa/Lubumbashi	-5.876	29.250	200	
-FNI	Nîmes-Arles-Camargue Airport	Nîmes/Garons	FR	Europe/Paris	43.757	4.416	200	
+FNI	Nîmes-Arles-Camargue Airport	Nîmes	FR	Europe/Paris	43.757	4.416	200	Garons
 FNT	Bishop International Airport	Flint	US	America/Detroit	42.969	-83.743	200	
 FOD	Fort Dodge Regional Airport	Fort Dodge	US	America/Chicago	42.553	-94.191	200	
 FOG	Foggia Gino Lisa Airport	Foggia	IT	Europe/Rome	41.434	15.535	200	FG
@@ -1758,7 +1758,7 @@ GMB	Gambela Airport	Gambela	ET	Africa/Addis_Ababa	8.129	34.563	200
 GME	Gomel Airport	Gomel	BY	Europe/Minsk	52.527	31.017	200	
 GMO	Gombe Lawanti International Airport	Gombe	NG	Africa/Lagos	10.299	10.900	200	
 GMQ	Golog Maqên Airport	Golog	CN	Asia/Shanghai	34.418	100.301	200	Maqên
-GMR	Totegegie Airport	Totegegie Airport	PF	Pacific/Gambier	-23.080	-134.890	200	
+GMR	Totegegie Airport	Totegegie	PF	Pacific/Gambier	-23.080	-134.890	200	
 GNB	Grenoble Alpes Isère Airport	Grenoble	FR	Europe/Paris	45.363	5.329	200	
 GNS	Binaka Airport	Gunungsitoli	ID	Asia/Jakarta	1.166	97.705	200	
 GNV	Gainesville Regional Airport	Gainesville	US	America/New_York	29.690	-82.272	200	
@@ -1774,12 +1774,12 @@ GRI	Central Nebraska Regional Airport	Grand Island	US	America/Chicago	40.967	-98
 GRK	Killeen Regional Airport / Robert Gray Army Airfield	Fort Cavazos	US	America/Chicago	31.067	-97.829	200	
 GRW	Graciosa Airport	Santa Cruz da Graciosa	PT	Atlantic/Azores	39.092	-28.030	200	
 GRX	F.G.L. Airport Granada-Jaén Airport	Granada	ES	Europe/Madrid	37.189	-3.777	200	
-GRY	Grímsey Airport	Grímsey/Sandvík	IS	Atlantic/Reykjavik	66.546	-18.017	200	
-GSP	Greenville-Spartanburg International Airport	Greenville/Greer/Spartanburg	US	America/New_York	34.896	-82.219	200	
+GRY	Grímsey Airport	Grímsey	IS	Atlantic/Reykjavik	66.546	-18.017	200	Sandvík
+GSP	Greenville-Spartanburg International Airport	Greenville	US	America/New_York	34.896	-82.219	200	Greer|Spartanburg
 GST	Gustavus Airport	Gustavus	US	America/Juneau	58.425	-135.707	200	
 GTE	Groote Eylandt Airport	Groote Eylandt	AU	Australia/Darwin	-13.972	136.459	200	
 GTF	Great Falls International Airport	Great Falls	US	America/Denver	47.482	-111.371	200	
-GTR	Golden Triangle Regional Airport	Columbus/W Point/Starkville	US	America/Chicago	33.450	-88.591	200	
+GTR	Golden Triangle Regional Airport	Columbus	US	America/Chicago	33.450	-88.591	200	W Point|Starkville
 GUC	Gunnison Crested Butte Regional Airport	Gunnison	US	America/Denver	38.535	-106.935	200	
 GUP	Gallup Municipal Airport	Gallup	US	America/Denver	35.512	-108.788	200	
 GUR	Gurney Airport	Gurney	PG	Pacific/Port_Moresby	-10.311	150.334	200	
@@ -2000,7 +2000,7 @@ JST	John Murtha Johnstown Cambria County Airport	Johnstown	US	America/New_York	4
 JTC	Bauru/Arealva–Moussa Nakhal Tobias State Airport	Bauru	BR	America/Sao_Paulo	-22.161	-49.070	200	
 JUZ	Quzhou Airport	Quzhou	CN	Asia/Shanghai	28.966	118.899	200	Kezheng
 JXA	Jixi Xingkaihu Airport	Jixi	CN	Asia/Shanghai	45.293	131.193	200	
-JYV	Jyväskylä Airport	Jyväskylän Maalaiskunta	FI	Europe/Helsinki	62.400	25.678	200	
+JYV	Jyväskylä Airport	Jyväskylä	FI	Europe/Helsinki	62.400	25.678	200	Jyväskylän Maalaiskunta
 JZH	Jiuzhai Huanglong Airport	Ngawa	CN	Asia/Shanghai	32.853	103.682	200	Songpan
 KAB	Kariba Airport	Kariba	ZW	Africa/Harare	-16.520	28.885	200	
 KAC	Qamishli International Airport	Qamishli	SY	Asia/Damascus	37.021	41.191	200	
@@ -2016,7 +2016,7 @@ KCY	Krasnoyarsk Cheremshanka Airport	Krasnoyarsk	RU	Asia/Krasnoyarsk	56.178	92.5
 KDL	Kärdla Airport	Kärdla	EE	Europe/Tallinn	58.991	22.831	200	
 KDM	Kaadedhdhoo Airport	Huvadhu Atoll	MV	Indian/Maldives	0.488	72.997	200	
 KDO	Kadhdhoo Airport	Kadhdhoo	MV	Indian/Maldives	1.859	73.522	200	
-KEM	Kemi-Tornio Airport	Kemi / Tornio	FI	Europe/Helsinki	65.779	24.582	200	
+KEM	Kemi-Tornio Airport	Kemi	FI	Europe/Helsinki	65.779	24.582	200	Tornio
 KEP	Nepalgunj Airport	Nepalgunj	NP	Asia/Kathmandu	28.104	81.667	200	
 KET	Kengtung Airport	Kengtung	MM	Asia/Yangon	21.302	99.636	200	
 KFS	Kastamonu Airport	Kastamonu	TR	Europe/Istanbul	41.314	33.796	200	
@@ -2060,7 +2060,7 @@ KNU	Kanpur Airport	Kanpur	IN	Asia/Kolkata	26.404	80.410	200
 KNX	East Kimberley Regional (Kununurra) Airport	Kununurra	AU	Australia/Perth	-15.778	128.708	200	
 KOE	El Tari Airport	Kupang	ID	Asia/Makassar	-10.172	123.671	200	
 KOI	Kirkwall Airport	Kirkwall	GB	Europe/London	58.958	-2.905	200	
-KOK	Kokkola-Pietarsaari Airport	Kokkola / Kruunupyy	FI	Europe/Helsinki	63.721	23.143	200	
+KOK	Kokkola-Pietarsaari Airport	Kokkola	FI	Europe/Helsinki	63.721	23.143	200	Kruunupyy
 KOP	Nakhon Phanom Airport	Nakhon Phanom	TH	Asia/Bangkok	17.384	104.643	200	
 KPO	Pohang Airport (G-815/K-3)	Pohang	KR	Asia/Seoul	35.988	129.420	200	
 KPW	Keperveem Airport	Keperveem	RU	Asia/Anadyr	67.845	166.140	200	
@@ -2124,7 +2124,7 @@ LCH	Lake Charles Regional Airport	Lake Charles	US	America/Chicago	30.126	-93.223
 LCK	Rickenbacker International Airport	Columbus	US	America/New_York	39.814	-82.928	200	
 LCX	Liancheng Guanzhishan Airport	Longyan	CN	Asia/Shanghai	25.676	116.746	200	Liancheng
 LDB	Governor José Richa Airport	Londrina	BR	America/Sao_Paulo	-23.334	-51.128	200	
-LDE	Tarbes-Lourdes-Pyrénées Airport	Tarbes/Lourdes/Pyrénées	FR	Europe/Paris	43.179	-0.006	200	
+LDE	Tarbes-Lourdes-Pyrénées Airport	Tarbes	FR	Europe/Paris	43.179	-0.006	200	Lourdes|Pyrénées
 LDS	Yichun Lindu Airport	Yichun	CN	Asia/Shanghai	47.752	129.019	200	
 LDU	Lahad Datu Airport	Lahad Datu	MY	Asia/Kuching	5.032	118.324	200	
 LDX	Saint-Laurent-du-Maroni Airport	Saint-Laurent-du-Maroni	GF	America/Cayenne	5.482	-54.035	200	
@@ -2135,7 +2135,7 @@ LEI	Almería Airport	Almería	ES	Europe/Madrid	36.844	-2.370	200
 LEN	León Airport	La Virgen del Camino	ES	Europe/Madrid	42.591	-5.653	200	
 LER	Leinster Airport	Leinster	AU	Australia/Perth	-27.843	120.703	200	
 LET	Alfredo Vásquez Cobo International Airport	Leticia	CO	America/Bogota	-4.191	-69.942	200	
-LEU	Pirineus - la Seu d'Urgel Airport	La Seu d'Urgell Pyrenees and Andorra	ES	Europe/Madrid	42.339	1.409	200	
+LEU	Pirineus - la Seu d'Urgel Airport	La Seu d'Urgell	ES	Europe/Madrid	42.339	1.409	200	Pyrenees|Andorra
 LEX	Blue Grass Airport	Lexington	US	America/New_York	38.035	-84.607	200	
 LFM	Lamerd Airport	Lamerd	IR	Asia/Tehran	27.373	53.189	200	
 LFQ	Linfen Yaodu Airport	Linfen	CN	Asia/Shanghai	36.133	111.641	200	Yaodu
@@ -2146,7 +2146,7 @@ LHG	Lightning Ridge Airport	Lightning Ridge	AU	Australia/Sydney	-29.453	147.977	
 LHL	Lachin International Airport	Lachin	AZ	Asia/Baku	39.884	46.363	200	
 LHS	Las Heras Airport	Las Heras	AR	America/Argentina/Rio_Gallegos	-46.539	-68.965	200	
 LIF	Lifou Airport	Lifou	NC	Pacific/Noumea	-20.775	167.239	200	
-LIG	Limoges Airport	Limoges/Bellegarde	FR	Europe/Paris	45.863	1.179	200	
+LIG	Limoges Airport	Limoges	FR	Europe/Paris	45.863	1.179	200	Bellegarde
 LIO	Limón International Airport	Limón	CR	America/Costa_Rica	9.958	-83.022	200	
 LIT	Bill & Hillary Clinton National Airport/Adams Field	Little Rock	US	America/Chicago	34.729	-92.224	200	
 LIW	Loikaw Airport	Loikaw	MM	Asia/Yangon	19.691	97.215	200	
@@ -2387,7 +2387,7 @@ NKM	Nagoya Airport / JASDF Komaki Air Base	Nagoya	JP	Asia/Tokyo	35.256	136.924	2
 NKT	Şırnak Şerafettin Elçi Airport	Şırnak	TR	Europe/Istanbul	37.365	42.058	200	
 NLD	Quetzalcóatl International Airport	Nuevo Laredo	MX	America/Matamoros	27.444	-99.571	200	
 NLH	Ninglang Luguhu Airport	Ninglang	CN	Asia/Shanghai	27.540	100.759	200	
-NLI	Nikolayevsk-na-Amure Airport	Nikolayevsk-na-Amure Airport	RU	Asia/Vladivostok	53.155	140.650	200	
+NLI	Nikolayevsk-na-Amure Airport	Nikolayevsk-na-Amure	RU	Asia/Vladivostok	53.155	140.650	200	
 NLK	Norfolk Island International Airport	Burnt Pine	NF	Pacific/Norfolk	-29.042	167.939	200	
 NLT	Xinyuan Nalati Airport	Xinyuan	CN	Asia/Shanghai	43.432	83.379	200	
 NMF	Maafaru International Airport	Noonu Atoll	MV	Indian/Maldives	5.817	73.468	200	
@@ -2400,7 +2400,7 @@ NOV	Albano Machado Airport	Huambo	AO	Africa/Luanda	-12.809	15.761	200
 NOZ	Spichenkovo Airport	Novokuznetsk	RU	Asia/Novokuznetsk	53.811	86.877	200	
 NPE	Hawke's Bay Airport	Napier	NZ	Pacific/Auckland	-39.466	176.870	200	
 NPL	New Plymouth Airport	New Plymouth	NZ	Pacific/Auckland	-39.009	174.179	200	
-NPO	Nanga Pinoh Airport	Nanga Pinoh-Borneo Island	ID	Asia/Pontianak	-0.349	111.746	200	
+NPO	Nanga Pinoh Airport	Nanga Pinoh	ID	Asia/Pontianak	-0.349	111.746	200	Borneo Island
 NPT	Newport State Airport	Newport	US	America/New_York	41.532	-71.281	200	
 NQY	Cornwall Airport Newquay	Newquay	GB	Europe/London	50.441	-4.995	200	
 NRA	Narrandera Airport	Narrandera	AU	Australia/Sydney	-34.702	146.512	200	
@@ -2412,7 +2412,7 @@ NST	Nakhon Si Thammarat Airport	Nakhon Si Thammarat	TH	Asia/Bangkok	8.540	99.945
 NTG	Nantong Xingdong International Airport	Nantong	CN	Asia/Shanghai	32.074	120.980	200	Tongzhou
 NTN	Normanton Airport	Normanton	AU	Australia/Brisbane	-17.684	141.070	200	
 NTQ	Noto Satoyama Airport	Wajima	JP	Asia/Tokyo	37.293	136.962	200	
-NTX	Ranai Airport	Ranai-Natuna Besar Island	ID	Asia/Jakarta	3.909	108.388	200	
+NTX	Ranai Airport	Ranai	ID	Asia/Jakarta	3.909	108.388	200	Natuna Besar Island
 NUI	Nuiqsut Airport	Nuiqsut	US	America/Anchorage	70.210	-151.006	200	
 NUX	Novy Urengoy Airport	Novy Urengoy	RU	Asia/Yekaterinburg	66.069	76.520	200	
 NVA	Benito Salas Airport	Neiva	CO	America/Bogota	2.950	-75.294	200	
@@ -2494,7 +2494,7 @@ PCP	Principe Airport	São Tomé & Príncipe	ST	Africa/Sao_Tome	1.661	7.411	200
 PCR	German Olano Airport	Puerto Carreño	CO	America/Bogota	6.185	-67.493	200	
 PDA	Obando Cesar Gaviria Trujillo Airport	Puerto Inírida	CO	America/Bogota	3.854	-67.906	200	
 PDK	DeKalb Peachtree Airport	Atlanta	US	America/New_York	33.876	-84.302	200	
-PDO	Pendopo Airport	Talang Gudang-Sumatra Island	ID	Asia/Jakarta	-3.286	103.880	200	
+PDO	Pendopo Airport	Talang Gudang	ID	Asia/Jakarta	-3.286	103.880	200	Sumatra Island
 PDP	Capitan Corbeta CA Curbelo International Airport	Punta del Este	UY	America/Montevideo	-34.855	-55.094	200	
 PDS	Piedras Negras International Airport	Piedras Negras	MX	America/Matamoros	28.628	-100.535	200	
 PDT	Eastern Oregon Regional Airport at Pendleton	Pendleton	US	America/Los_Angeles	45.695	-118.841	200	
@@ -2507,7 +2507,7 @@ PEZ	Penza Airport	Penza	RU	Europe/Moscow	53.111	45.021	200
 PFB	Lauro Kurtz Airport	Passo Fundo	BR	America/Sao_Paulo	-28.244	-52.328	200	
 PGA	Page Municipal Airport	Page	US	America/Phoenix	36.924	-111.448	200	
 PGD	Punta Gorda Airport	Punta Gorda	US	America/New_York	26.920	-81.991	200	
-PGF	Perpignan-Rivesaltes (Llabanère) Airport	Perpignan/Rivesaltes	FR	Europe/Paris	42.740	2.871	200	
+PGF	Perpignan-Rivesaltes (Llabanère) Airport	Perpignan	FR	Europe/Paris	42.740	2.871	200	Rivesaltes
 PGH	Pantnagar Airport	Pantnagar	IN	Asia/Kolkata	29.033	79.474	200	
 PGK	Depati Amir Airport	Pangkal Pinang	ID	Asia/Jakarta	-2.162	106.139	200	
 PGU	Persian Gulf International Airport	Khiyaroo	IR	Asia/Tehran	27.380	52.738	200	
@@ -2523,7 +2523,7 @@ PIA	General Wayne A. Downing Peoria International Airport	Peoria	US	America/Chic
 PIB	Hattiesburg Laurel Regional Airport	Moselle	US	America/Chicago	31.467	-89.337	200	
 PIH	Pocatello Regional Airport	Pocatello	US	America/Boise	42.910	-112.596	200	
 PIR	Pierre Regional Airport	Pierre	US	America/Chicago	44.383	-100.286	200	
-PIS	Poitiers-Biard Airport	Poitiers/Biard	FR	Europe/Paris	46.588	0.307	200	
+PIS	Poitiers-Biard Airport	Poitiers	FR	Europe/Paris	46.588	0.307	200	Biard
 PIU	PAF Captain Guillermo Concha Iberico International Airport	Piura	PE	America/Lima	-5.206	-80.616	200	
 PIX	Pico Airport	Pico Island	PT	Atlantic/Azores	38.554	-28.441	200	
 PIZ	Point Lay LRRS Airport	Point Lay	US	America/Nome	69.733	-163.005	200	
@@ -2570,14 +2570,14 @@ PSG	Petersburg James A Johnson Airport	Petersburg	US	America/Sitka	56.802	-132.9
 PSM	Portsmouth International Airport at Pease	Portsmouth	US	America/New_York	43.078	-70.823	200	
 PSO	Antonio Nariño Airport	Chachagüí	CO	America/Bogota	1.397	-77.291	200	
 PSS	Libertador Gral D Jose De San Martin Airport	Posadas	AR	America/Argentina/Cordoba	-27.386	-55.971	200	
-PSU	Pangsuma Airport	Putussibau-Borneo Island	ID	Asia/Pontianak	0.835	112.940	200	
+PSU	Pangsuma Airport	Putussibau	ID	Asia/Pontianak	0.835	112.940	200	Borneo Island
 PSZ	Capitán Av. Salvador Ogaya G. airport	Puerto Suárez	BO	America/La_Paz	-18.975	-57.821	200	
 PTH	Port Heiden Airport	Port Heiden	US	America/Anchorage	56.958	-158.630	200	
 PTJ	Portland Airport	Portland	AU	Australia/Melbourne	-38.318	141.471	200	
 PTU	Platinum Airport	Platinum	US	America/Anchorage	59.018	-161.828	200	
 PUB	Pueblo Memorial Airport	Pueblo	US	America/Denver	38.289	-104.497	200	
 PUD	Puerto Deseado Airport	Puerto Deseado	AR	America/Argentina/Rio_Gallegos	-47.735	-65.904	200	
-PUF	Pau Pyrénées Airport	Pau/Pyrénées	FR	Europe/Paris	43.380	-0.419	200	Uzein
+PUF	Pau Pyrénées Airport	Pau	FR	Europe/Paris	43.380	-0.419	200	Uzein|Pyrénées
 PUG	Port Augusta Airport	Port Augusta	AU	Australia/Adelaide	-32.507	137.717	200	
 PUU	Tres De Mayo Airport	Puerto Asís	CO	America/Bogota	0.505	-76.501	200	
 PUW	Pullman-Moscow Regional Airport	Pullman	US	America/Los_Angeles	46.742	-117.112	200	
@@ -2614,14 +2614,14 @@ RDD	Redding Municipal Airport	Redding	US	America/Los_Angeles	40.509	-122.293	200
 RDM	Roberts Field	Redmond	US	America/Los_Angeles	44.254	-121.150	200	
 RDO	Warsaw Radom Airport	Radom	PL	Europe/Warsaw	51.389	21.215	200	
 RDP	Kazi Nazrul Islam Airport	Durgapur	IN	Asia/Kolkata	23.622	87.243	200	
-RDZ	Rodez–Aveyron Airport	Rodez/Marcillac	FR	Europe/Paris	44.408	2.483	200	
+RDZ	Rodez–Aveyron Airport	Rodez	FR	Europe/Paris	44.408	2.483	200	Marcillac
 REG	Reggio Calabria Airport	Reggio Calabria	IT	Europe/Rome	38.071	15.652	200	
 REL	Almirante Marco Andres Zar Airport	Rawson	AR	America/Argentina/Catamarca	-43.211	-65.270	200	
 REN	Orenburg Central Airport	Orenburg	RU	Asia/Yekaterinburg	51.793	55.457	200	
 RER	Retalhuleu Airport	Retalhuleu	GT	America/Guatemala	14.521	-91.697	200	
 REW	Rewa Airport, Chorhata, REWA	Rewa	IN	Asia/Kolkata	24.503	81.220	200	
 REX	General Lucio Blanco International Airport	Reynosa	MX	America/Matamoros	26.009	-98.228	200	
-RFD	Chicago Rockford International Airport	Chicago/Rockford	US	America/Chicago	42.195	-89.097	200	
+RFD	Chicago Rockford International Airport	Rockford	US	America/Chicago	42.195	-89.097	200	Chicago
 RFP	Raiatea Airport	Uturoa	PF	Pacific/Tahiti	-16.723	-151.466	200	
 RGA	Gobernador Ramón Trejo Noel International Airport	Rio Grande	AR	America/Argentina/Ushuaia	-53.778	-67.749	200	
 RGI	Rangiroa Airport	Rangiroa	PF	Pacific/Tahiti	-14.954	-147.661	200	
@@ -2648,7 +2648,7 @@ RMZ	Tobolsk Remezov Airport	Tobolsk	RU	Asia/Yekaterinburg	58.060	68.348	200
 RNB	Ronneby Airport	Ronneby	SE	Europe/Stockholm	56.267	15.265	200	
 RNJ	Yoron Airport	Yoron	JP	Asia/Tokyo	27.044	128.402	200	
 RNN	Bornholm Airport	Rønne	DK	Europe/Copenhagen	55.063	14.760	200	
-RNS	Rennes-Saint-Jacques Airport	Saint-Jacques-de-la-Lande	FR	Europe/Paris	48.069	-1.735	200	
+RNS	Rennes-Saint-Jacques Airport	Rennes	FR	Europe/Paris	48.069	-1.735	200	Saint-Jacques-de-la-Lande
 ROA	Roanoke–Blacksburg Regional Airport	Roanoke	US	America/New_York	37.325	-79.975	200	
 ROI	Roi Et Airport	Roi Et	TH	Asia/Bangkok	16.117	103.774	200	
 ROK	Rockhampton Airport	Rockhampton	AU	Australia/Brisbane	-23.380	150.475	200	
@@ -2657,7 +2657,7 @@ ROT	Rotorua Regional Airport	Rotorua	NZ	Pacific/Auckland	-38.109	176.317	200
 ROW	Roswell Air Center Airport	Roswell	US	America/Denver	33.302	-104.531	200	
 RPR	Swami Vivekananda Airport	Raipur	IN	Asia/Kolkata	21.180	81.739	200	
 RQA	Ruoqiang Loulan Airport	Ruoqiang Town	CN	Asia/Shanghai	38.975	88.008	200	
-RRG	Sir Charles Gaetan Duval Airport	Port Mathurin	MU	Indian/Mauritius	-19.757	63.359	200	
+RRG	Sir Charles Gaetan Duval Airport	Port Mathurin	MU	Indian/Mauritius	-19.758	63.361	200	
 RRS	Røros Airport	Røros	NO	Europe/Oslo	62.578	11.342	200	
 RSA	Santa Rosa Airport	Santa Rosa	AR	America/Argentina/Salta	-36.588	-64.276	200	
 RSD	Rock Sound International Airport	Rock Sound	BS	America/Nassau	24.892	-76.178	200	
@@ -2667,7 +2667,7 @@ RUA	Arua Airport	Arua	UG	Africa/Kampala	3.049	30.912	200
 RUR	Rurutu Airport	Moerai	PF	Pacific/Tahiti	-22.434	-151.361	200	
 RUT	Rutland - Southern Vermont Regional Airport	Rutland	US	America/New_York	43.529	-72.950	200	
 RVK	Rørvik Airport, Ryum	Rørvik	NO	Europe/Oslo	64.838	11.146	200	
-RVY	Pres. Gral. Óscar D. Gestido Binational Airport	Rivera/Santana do Livramento	UY	America/Montevideo	-30.975	-55.476	200	
+RVY	Pres. Gral. Óscar D. Gestido Binational Airport	Rivera	UY	America/Montevideo	-30.975	-55.476	200	Santana do Livramento
 RXS	Roxas Airport	Roxas City	PH	Asia/Manila	11.598	122.752	200	
 RYK	Shaikh Zaid Airport	Rahim Yar Khan	PK	Asia/Karachi	28.384	70.280	200	
 RZR	Ramsar Airport	Ramsar	IR	Asia/Tehran	36.907	50.687	200	
@@ -2692,7 +2692,7 @@ SDD	Lubango Mukanka International Airport	Lubango	AO	Africa/Luanda	-14.925	13.57
 SDE	Vicecomodoro Angel D. La Paz Aragonés Airport	Santiago del Estero	AR	America/Argentina/Cordoba	-27.766	-64.310	200	
 SDG	Sanandaj Airport	Sanandaj	IR	Asia/Tehran	35.246	47.009	200	
 SDK	Sandakan Airport	Sandakan	MY	Asia/Kuching	5.901	118.059	200	
-SDL	Sundsvall-Härnösand Airport	Sundsvall/ Härnösand	SE	Europe/Stockholm	62.528	17.444	200	
+SDL	Sundsvall-Härnösand Airport	Sundsvall	SE	Europe/Stockholm	62.528	17.444	200	Härnösand
 SDP	Sand Point Airport	Sand Point	US	America/Anchorage	55.314	-160.522	200	
 SDR	Seve Ballesteros-Santander Airport	Santander	ES	Europe/Madrid	43.427	-3.820	200	
 SDS	Sado Airport	Sado	JP	Asia/Tokyo	38.060	138.414	200	
@@ -2868,7 +2868,7 @@ TKD	Takoradi Airport	Sekondi-Takoradi	GH	Africa/Accra	4.896	-1.775	200
 TKF	Truckee Tahoe Airport	Truckee	US	America/Los_Angeles	39.319	-120.141	200	
 TKG	Radin Inten II International Airport	Bandar Lampung	ID	Asia/Jakarta	-5.247	105.183	200	
 TKN	Tokunoshima Airport	Amagi	JP	Asia/Tokyo	27.836	128.881	200	
-TKP	Takapoto Airport	Takapoto Airport	PF	Pacific/Tahiti	-14.710	-145.246	200	
+TKP	Takapoto Airport	Takapoto	PF	Pacific/Tahiti	-14.710	-145.246	200	
 TKX	Takaroa Airport	Takaroa	PF	Pacific/Tahiti	-14.456	-145.025	200	
 TLE	Toliara Airport	Toliara	MG	Indian/Antananarivo	-23.383	43.728	200	
 TLH	Tallahassee International Airport	Tallahassee	US	America/New_York	30.401	-84.354	200	
@@ -2883,7 +2883,7 @@ TMX	Timimoun Airport	Timimoun	DZ	Africa/Algiers	29.237	0.276	200
 TND	Alberto Delgado Airport	Trinidad	CU	America/Havana	21.788	-79.997	200	
 TNE	New Tanegashima Airport	Tanegashima	JP	Asia/Tokyo	30.605	130.991	200	
 TNH	Tonghua Sanyuanpu Airport	Tonghua	CN	Asia/Shanghai	42.048	125.734	200	
-TNJ	Raja Haji Fisabilillah International Airport	Tanjung Pinang-Bintan Island	ID	Asia/Jakarta	0.924	104.533	200	
+TNJ	Raja Haji Fisabilillah International Airport	Tanjung Pinang	ID	Asia/Jakarta	0.924	104.533	200	Bintan Island
 TOD	Tioman Airport	Tioman Island	MY	Asia/Kuala_Lumpur	2.818	104.160	200	
 TOE	Tozeur Nefta International Airport	Tozeur	TN	Africa/Tunis	33.940	8.111	200	
 TOL	Eugene F. Kranz Toledo Express Airport	Toledo	US	America/New_York	41.587	-83.808	200	
@@ -2911,7 +2911,7 @@ TTJ	Tottori Sand Dunes Conan Airport	Tottori	JP	Asia/Tokyo	35.530	134.165	200
 TTN	Trenton Mercer Airport	Ewing Township	US	America/New_York	40.277	-74.813	200	
 TTT	Taitung Airport	Taitung City	TW	Asia/Taipei	22.755	121.102	200	
 TUA	Lieutenant Colonel Luis A. Mantilla International Airport	Tulcán	EC	America/Guayaquil	0.810	-77.708	200	
-TUB	Tubuai Airport	Tubuai Airport	PF	Pacific/Tahiti	-23.365	-149.524	200	
+TUB	Tubuai Airport	Tubuai	PF	Pacific/Tahiti	-23.365	-149.524	200	
 TUF	Tours Val de Loire Airport	Tours	FR	Europe/Paris	47.432	0.728	200	
 TUG	Tuguegarao Airport	Tuguegarao City	PH	Asia/Manila	17.643	121.733	200	
 TUI	Turaif Domestic Airport	Turaif	SA	Asia/Riyadh	31.692	38.732	200	
@@ -2994,7 +2994,7 @@ VCT	Victoria Regional Airport	Victoria	US	America/Chicago	28.853	-96.919	200
 VDC	Glauber de Andrade Rocha Airport	Vitória da Conquista	BR	America/Bahia	-14.908	-40.915	200	
 VDE	El Hierro Airport	El Hierro Island	ES	Atlantic/Canary	27.815	-17.887	200	
 VDH	Dong Hoi Airport	Dong Hoi	VN	Asia/Bangkok	17.515	106.591	200	
-VDM	Gobernador Castello Airport	Viedma / Carmen de Patagones	AR	America/Argentina/Salta	-40.869	-63.000	200	
+VDM	Gobernador Castello Airport	Viedma	AR	America/Argentina/Salta	-40.869	-63.000	200	Carmen de Patagones
 VDO	Van Don International Airport	Van Don	VN	Asia/Bangkok	21.121	107.415	200	
 VDS	Vadsø Airport	Vadsø	NO	Europe/Oslo	70.065	29.845	200	
 VDZ	Valdez Pioneer Field	Valdez	US	America/Anchorage	61.133	-146.247	200	
@@ -3080,9 +3080,9 @@ XFN	Xiangyang Liuji Airport	Xiangyang	CN	Asia/Shanghai	32.152	112.292	200	Xiangz
 XIC	Xichang Qingshan Airport	Liangshan	CN	Asia/Shanghai	27.989	102.184	200	Xichang
 XIL	Xilinhot Airport	Xilinhot	CN	Asia/Shanghai	43.916	115.964	200	
 XKS	Kasabonika Airport	Kasabonika	CA	America/Winnipeg	53.525	-88.643	200	
-XMH	Manihi Airport	Manihi Airport	PF	Pacific/Tahiti	-14.437	-146.070	200	
+XMH	Manihi Airport	Manihi	PF	Pacific/Tahiti	-14.437	-146.070	200	
 XMS	Coronel E Carvajal Airport	Macas	EC	America/Guayaquil	-2.299	-78.121	200	
-XNA	Northwest Arkansas National Airport	Fayetteville/Springdale/Rogers	US	America/Chicago	36.282	-94.307	200	
+XNA	Northwest Arkansas National Airport	Fayetteville	US	America/Chicago	36.282	-94.307	200	Springdale|Rogers
 XQP	Quepos Managua Airport	Quepos	CR	America/Costa_Rica	9.443	-84.130	200	
 XQU	Qualicum Beach Airport	Qualicum Beach	CA	America/Vancouver	49.337	-124.393	200	
 XRY	Jerez Airport	Jerez de la Frontera	ES	Europe/Madrid	36.745	-6.060	200	
@@ -3184,7 +3184,7 @@ YSB	Sudbury Airport	Sudbury	CA	America/Toronto	46.625	-80.799	200
 YSF	Stony Rapids Airport	Stony Rapids	CA	America/Regina	59.250	-105.841	200	
 YSJ	Saint John Airport	Saint John	CA	America/Moncton	45.316	-65.890	200	
 YSM	Fort Smith Airport	Fort Smith	CA	America/Edmonton	60.020	-111.962	200	
-YSQ	Songyuan Chaganhu Airport	Qian Gorlos Mongol Autonomous County	CN	Asia/Shanghai	44.931	124.552	200	
+YSQ	Songyuan Chaganhu Airport	Songyuan	CN	Asia/Shanghai	44.931	124.552	200	Qian Gorlos Mongol Autonomous County
 YTH	Thompson Airport	Thompson	CA	America/Winnipeg	55.801	-97.864	200	
 YTS	Timmins/Victor M. Power	Timmins	CA	America/Toronto	48.570	-81.377	200	
 YTY	Yangzhou Taizhou Airport	Yangzhou	CN	Asia/Shanghai	32.563	119.720	200	
@@ -3328,7 +3328,7 @@ BUU	Muara Bungo Airport	Muara Bungo	ID	Asia/Jakarta	-1.542	102.182	100
 BVS	Breves Airport	Breves	BR	America/Belem	-1.637	-50.444	100	
 BWX	Banyuwangi Airport	Rogojampi	ID	Asia/Makassar	-8.310	114.340	100	
 BXG	Bendigo Airport	Bendigo	AU	Australia/Melbourne	-36.739	144.330	100	
-BXT	LNG Badak Airport	Bontang-Borneo Island	ID	Asia/Makassar	0.122	117.477	100	
+BXT	LNG Badak Airport	Bontang	ID	Asia/Makassar	0.122	117.477	100	Borneo Island
 BYO	Bonito Airport	Bonito	BR	America/Campo_Grande	-21.247	-56.452	100	
 BYR	Læsø Airport	Læsø	DK	Europe/Copenhagen	57.277	11.000	100	
 BYW	Blakely Island Airport	Blakely Island	US	America/Los_Angeles	48.579	-122.824	100	
@@ -3350,7 +3350,7 @@ CKW	Christmas Creek Airport	Christmas Creek Mine	AU	Australia/Perth	-22.354	119.
 CKX	Chicken Airport	Chicken	US	America/Anchorage	64.066	-141.951	100	
 CLP	Clarks Point Airport	Clarks Point	US	America/Anchorage	58.834	-158.529	100	
 CLV	Nelson Ribeiro Guimarães Airport	Caldas Novas	BR	America/Sao_Paulo	-17.725	-48.606	100	
-CNC	Coconut Island Airport	Coconut Island Airport	AU	Australia/Brisbane	-10.050	143.070	100	
+CNC	Coconut Island Airport	Coconut Island	AU	Australia/Brisbane	-10.050	143.070	100	
 CNI	Changhai Dachangshandao Airport	Dalian	CN	Asia/Shanghai	39.266	122.667	100	Changhai
 COL	Coll Airport	Coll Island	GB	Europe/London	56.602	-6.618	100	
 CRU	Lauriston Airport	Carriacou Island	GD	America/Grenada	12.476	-61.473	100	
@@ -3381,7 +3381,7 @@ DRV	Dharavandhoo Airport	Baa Atoll	MV	Indian/Maldives	5.156	73.130	100
 DSD	La Désirade Airport	Grande Anse	GP	America/Guadeloupe	16.297	-61.084	100	
 DSE	Kombolcha Airport	Dessie	ET	Africa/Addis_Ababa	11.110	39.726	100	
 DTB	Silangit Airport	Siborong-Borong	ID	Asia/Jakarta	2.260	98.992	100	
-DTD	Datadawai Airport	Datadawai-Borneo Island	ID	Asia/Makassar	0.807	114.529	100	
+DTD	Datadawai Airport	Datadawai	ID	Asia/Makassar	0.807	114.529	100	Borneo Island
 DTR	Decatur Shores Airport	Decatur	US	America/Los_Angeles	48.500	-122.814	100	
 DWB	Soalala Airport	Soalala	MG	Indian/Antananarivo	-16.102	45.359	100	
 DXJ	Xiangxi Biancheng Airport	Xiangxi	CN	Asia/Shanghai	28.497	109.522	100	
@@ -3610,13 +3610,13 @@ LOH	Ciudad de Catamayo Airport	La Toma	EC	America/Guayaquil	-3.996	-79.372	100	C
 LPD	La Pedrera Airport	La Pedrera	CO	America/Bogota	-1.325	-69.581	100	
 LPM	Lamap Airport	Lamap	VU	Pacific/Efate	-16.461	167.829	100	
 LPS	Lopez Island Airport	Lopez	US	America/Los_Angeles	48.484	-122.938	100	
-LPU	Long Apung Airport	Long Apung-Borneo Island	ID	Asia/Makassar	1.707	114.970	100	
+LPU	Long Apung Airport	Long Apung	ID	Asia/Makassar	1.707	114.970	100	Borneo Island
 LPY	Le Puy-Loudes Airfield	Chaspuzac	FR	Europe/Paris	45.081	3.763	100	
 LQM	Caucaya Airport	Puerto Leguízamo	CO	America/Bogota	-0.182	-74.771	100	
 LRS	Leros Airport	Leros Island	GR	Europe/Athens	37.185	26.800	100	
 LRV	Los Roques Airport	Gran Roque Island	VE	America/Caracas	11.947	-66.668	100	
 LSA	Losuia Airport	Losuia	PG	Pacific/Port_Moresby	-8.506	151.081	100	
-LSW	Malikus Saleh Airport	Lhok Seumawe-Sumatra Island	ID	Asia/Jakarta	5.227	96.950	100	
+LSW	Malikus Saleh Airport	Lhok Seumawe	ID	Asia/Jakarta	5.227	96.950	100	Sumatra Island
 LTT	La Môle Airport	Saint-Tropez	FR	Europe/Paris	43.205	6.482	100	
 LUP	Kalaupapa Airport	Kalaupapa	US	Pacific/Honolulu	21.211	-156.974	100	
 LVO	Laverton Airport	Laverton	AU	Australia/Perth	-28.614	122.429	100	
@@ -3730,7 +3730,7 @@ PJA	Pajala Airport	Pajala	SE	Europe/Stockholm	67.245	23.075	100
 PKA	Napaskiak Airport	Napaskiak	US	America/Anchorage	60.703	-161.778	100	
 PKG	Pulau Pangkor Airport	Pangkor Island	MY	Asia/Kuala_Lumpur	4.245	100.553	100	
 PKN	Iskandar Airport	Pangkalanbun	ID	Asia/Pontianak	-2.705	111.673	100	
-PKP	Puka Puka Airport	Puka Puka Airport	PF	Pacific/Tahiti	-14.810	-138.813	100	
+PKP	Puka Puka Airport	Puka Puka	PF	Pacific/Tahiti	-14.810	-138.813	100	
 PMK	Palm Island Airport	Palm Island	AU	Australia/Brisbane	-18.755	146.581	100	
 PND	Punta Gorda Airport	Punta Gorda	BZ	America/Belize	16.102	-88.808	100	
 PPE	Mar de Cortés International Airport	Puerto Peñasco	MX	America/Hermosillo	31.352	-113.305	100	
@@ -3740,7 +3740,7 @@ PSY	Port Stanley Airport	Stanley	FK	Atlantic/Stanley	-51.686	-57.778	100
 PTA	Port Alsworth Airport	Port Alsworth	US	America/Anchorage	60.202	-154.326	100	
 PTF	Malolo Lailai Island Airport	Malolo Lailai Island	FJ	Pacific/Fiji	-17.778	177.197	100	
 PTO	Juvenal Loureiro Cardoso Airport	Pato Branco	BR	America/Sao_Paulo	-26.217	-52.694	100	
-PUR	Puerto Rico Airport	Puerto Rico/Manuripi	BO	America/La_Paz	-11.108	-67.551	100	
+PUR	Puerto Rico Airport	Puerto Rico	BO	America/La_Paz	-11.108	-67.551	100	Manuripi
 PXH	Prominent Hill Airport	Mount Eba	AU	Australia/Adelaide	-29.716	135.524	100	
 PYT	Pedro Rabelo de Souza Airport	Paracatu	BR	America/Sao_Paulo	-17.243	-46.883	100	
 RAM	Ramingining Airport	Ramingining	AU	Australia/Darwin	-12.356	134.898	100	
@@ -3764,16 +3764,16 @@ RRR	Raroia Airport	Raroia	PF	Pacific/Tahiti	-16.050	-142.477	100
 RSH	Russian Mission Airport	Russian Mission	US	America/Anchorage	61.775	-161.319	100	
 RTA	Rotuma Airport	Rotuma	FJ	Pacific/Fiji	-12.483	177.071	100	
 RTG	Frans Sales Lega Airport	Satar Tacik	ID	Asia/Makassar	-8.596	120.478	100	
-RTI	David Constantijn Saudale Airport	Ba'a - Rote Island	ID	Asia/Makassar	-10.766	123.076	100	
+RTI	David Constantijn Saudale Airport	Ba'a	ID	Asia/Makassar	-10.766	123.076	100	Rote Island
 RUL	Maavaarulaa Airport	Maavaarulu	MV	Indian/Maldives	0.338	73.513	100	
 RUS	Marau Airport	Marau	SB	Pacific/Guadalcanal	-9.862	160.825	100	
 RVE	Los Colonizadores Airport	Saravena	CO	America/Bogota	6.952	-71.857	100	
-RVV	Raivavae Airport	Raivavae Airport	PF	Pacific/Tahiti	-23.885	-147.662	100	
+RVV	Raivavae Airport	Raivavae	PF	Pacific/Tahiti	-23.885	-147.662	100	
 RYO	28 de Noviembre Airport	Rio Turbio	AR	America/Argentina/Rio_Gallegos	-51.605	-72.220	100	
 SBR	Saibai Island Airport	Saibai Island	AU	Australia/Brisbane	-9.378	142.625	100	
 SCM	Scammon Bay Airport	Scammon Bay	US	America/Nome	61.845	-165.575	100	
 SCY	San Cristóbal Airport	Puerto Baquerizo Moreno	EC	Pacific/Galapagos	-0.910	-89.617	100	
-SCZ	Santa Cruz/Graciosa Bay/Luova Airport	Santa Cruz/Graciosa Bay/Luova	SB	Pacific/Guadalcanal	-10.720	165.795	100	
+SCZ	Santa Cruz/Graciosa Bay/Luova Airport	Santa Cruz	SB	Pacific/Guadalcanal	-10.720	165.795	100	Graciosa Bay|Luova
 SDN	Sandane Airport, Anda	Sandane	NO	Europe/Oslo	61.830	6.106	100	
 SET	Santa Magalhães Airport	Serra Talhada	BR	America/Recife	-8.061	-38.329	100	
 SEU	Seronera Airport	Seronera	TZ	Africa/Dar_es_Salaam	-2.458	34.822	100	
@@ -3816,7 +3816,7 @@ SVU	Savusavu Airport	Savusavu	FJ	Pacific/Fiji	-16.803	179.341	100
 SWL	San Vicente Airport	San Vicente	PH	Asia/Manila	10.524	119.273	100	
 SWQ	Sultan Muhammad Kaharuddin III Airport	Sumbawa Besar	ID	Asia/Makassar	-8.489	117.412	100	
 SWX	Shakawe Airport	Shakawe	BW	Africa/Gaborone	-18.374	21.833	100	
-SXK	Mathilda Batlayeri Airport	Saumlaki-Yamdena Island	ID	Asia/Jayapura	-7.848	131.337	100	
+SXK	Mathilda Batlayeri Airport	Saumlaki	ID	Asia/Jayapura	-7.848	131.337	100	Yamdena Island
 SXP	Nunam Iqua Airport	Nunam Iqua	US	America/Nome	62.521	-164.848	100	
 SYM	Pu'er Simao Airport	Pu'er	CN	Asia/Shanghai	22.793	100.959	100	
 SYU	Warraber Island Airport	Sue Islet	AU	Australia/Brisbane	-10.208	142.825	100	
@@ -3824,7 +3824,7 @@ SZE	Semera Airport	Semera	ET	Africa/Addis_Ababa	11.787	40.992	100
 SZI	Zaysan Airport	Zaysan	KZ	Asia/Almaty	47.487	84.888	100	
 TAL	Ralph M Calhoun Memorial Airport	Tanana	US	America/Anchorage	65.174	-152.109	100	
 TBG	Tabubil Airport	Tabubil	PG	Pacific/Port_Moresby	-5.280	141.228	100	
-TBM	Tumbang Samba Airport	Tumbang Samba-Borneo Island	ID	Asia/Pontianak	-1.469	113.081	100	
+TBM	Tumbang Samba Airport	Tumbang Samba	ID	Asia/Pontianak	-1.469	113.081	100	Borneo Island
 TBO	Tabora Airport	Tabora	TZ	Africa/Dar_es_Salaam	-5.076	32.833	100	
 TCD	Tarapacá Airport	Tarapacá	CO	America/Bogota	-2.896	-69.750	100	
 TCG	Tacheng Qianquan Airport	Tacheng	CN	Asia/Shanghai	46.673	83.341	100	
@@ -3842,13 +3842,13 @@ TIE	Tippi Airport	Tippi	ET	Africa/Addis_Ababa	7.202	35.415	100
 TIZ	Tari Airport	Tari	PG	Pacific/Port_Moresby	-5.845	142.948	100	
 TJL	Plínio Alarcom Airport	Três Lagoas	BR	America/Campo_Grande	-20.753	-51.682	100	
 TJQ	H A S Hanandjoeddin International Airport	Tanjung Pandan	ID	Asia/Jakarta	-2.744	107.755	100	
-TJS	Tanjung Harapan Airport	Tanjung Selor-Borneo Island	ID	Asia/Makassar	2.838	117.375	100	
+TJS	Tanjung Harapan Airport	Tanjung Selor	ID	Asia/Makassar	2.838	117.375	100	Borneo Island
 TKJ	Tok Junction Airport	Tok	US	America/Anchorage	63.329	-142.954	100	
 TKM	Taksimo Airport	Taksimo	RU	Asia/Irkutsk	56.362	114.930	100	
 TKQ	Kigoma Airport	Kigoma	TZ	Africa/Dar_es_Salaam	-4.886	29.671	100	
 TKV	Tatakoto Airport	Tatakoto	PF	Pacific/Tahiti	-17.355	-138.447	100	
 TLA	Teller Airport	Teller	US	America/Nome	65.240	-166.339	100	
-TLI	Sultan Bantilan Airport	Toli Toli-Celebes Island	ID	Asia/Makassar	1.123	120.794	100	
+TLI	Sultan Bantilan Airport	Toli Toli	ID	Asia/Makassar	1.123	120.794	100	Celebes Island
 TLT	Tuluksak Airport	Tuluksak	US	America/Anchorage	61.087	-160.923	100	
 TLU	Golfo de Morrosquillo Airport	Santiago de Tolú	CO	America/Bogota	9.509	-75.585	100	
 TLY	Plastun Airport	Plastun	RU	Asia/Vladivostok	44.815	136.292	100	
@@ -3897,7 +3897,7 @@ WAA	Wales Airport	Wales	US	America/Nome	65.623	-168.095	100
 WBB	Stebbins Airport	Stebbins	US	America/Nome	63.516	-162.278	100	
 WBQ	Beaver Airport	Beaver	US	America/Anchorage	66.362	-147.407	100	
 WDN	Waldron Airstrip	Eastsound	US	America/Los_Angeles	48.711	-123.018	100	
-WGP	Umbu Mehang Kunda Airport	Waingapu-Sumba Island	ID	Asia/Makassar	-9.669	120.302	100	
+WGP	Umbu Mehang Kunda Airport	Waingapu	ID	Asia/Makassar	-9.669	120.302	100	Sumba Island
 WLH	Walaha Airport	Walaha	VU	Pacific/Efate	-15.412	167.691	100	
 WLK	Selawik Airport	Selawik	US	America/Anchorage	66.600	-159.986	100	
 WMO	White Mountain Airport	White Mountain	US	America/Nome	64.689	-163.413	100	
@@ -4021,7 +4021,7 @@ ZFL	Zhaosu Tianma Airport	Zhaosu	CN	Asia/Shanghai	43.088	81.223	100
 ZFM	Fort Mcpherson Airport	Fort Mcpherson	CA	America/Inuvik	67.407	-134.860	100	
 ZFN	Tulita Airport	Tulita	CA	America/Inuvik	64.909	-125.570	100	
 ZGI	Gods River Airport	Gods River	CA	America/Winnipeg	54.840	-94.079	100	
-ZGS	La Romaine Airport	Le Golfe-du-Saint-Laurent	CA	America/Blanc-Sablon	50.260	-60.674	100	
+ZGS	La Romaine Airport	La Romaine	CA	America/Blanc-Sablon	50.260	-60.674	100	Le Golfe-du-Saint-Laurent
 ZKE	Kashechewan Airport	Kashechewan	CA	America/Toronto	52.283	-81.678	100	
 ZLT	La Tabatière Airport	La Tabatière	CA	America/Blanc-Sablon	50.831	-58.976	100	
 ZPB	Sachigo Lake Airport	Sachigo Lake	CA	America/Winnipeg	53.891	-92.196	100	
@@ -4040,7 +4040,7 @@ CGA	Craig Seaplane Base	Craig	US	America/Sitka	55.479	-133.148	1
 CXH	Vancouver Harbour Water Aerodrome	Vancouver	CA	America/Vancouver	49.291	-123.119	1	
 CYM	Chatham Seaplane Base	Chatham	US	America/Juneau	57.515	-134.946	1	
 DHB	Deer Harbor SPB	Deer Harbor	US	America/Los_Angeles	48.617	-123.003	1	
-DWO	Diyawanna Oya Seaplane Base	Sri Jayawardenepura Kotte	LK	Asia/Colombo	6.907	79.909	1	
+DWO	Diyawanna Oya Seaplane Base	Kotte	LK	Asia/Colombo	6.907	79.909	1	Sri Jayawardenepura Kotte
 EDA	Edna Bay Seaplane Base	Edna Bay	US	America/Sitka	55.950	-133.661	1	
 ELV	Elfin Cove Seaplane Base	Elfin Cove	US	America/Juneau	58.195	-136.347	1	
 EXI	Excursion Inlet Seaplane Base	Excursion Inlet	US	America/Juneau	58.421	-135.449	1	
