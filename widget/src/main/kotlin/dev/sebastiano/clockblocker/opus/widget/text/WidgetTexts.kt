@@ -73,6 +73,11 @@ data class WidgetTexts(
      * XNA", see `PlaceNames`). Shown only where [secondary] can't fit whole; screen readers keep [secondary].
      */
     val secondaryShort: List<String> = emptyList(),
+    /**
+     * The "until" line with the other zone's time joined on, as short as it gets: "until 16:30 · 08:30 LIS". For
+     * cells where the other zone's time can't have its own line. Null without a secondary zone.
+     */
+    val untilCompact: String? = null,
 ) {
     /** [secondary], then [secondaryShort]: the forms a layout tries, in order. Empty without a secondary zone. */
     val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
@@ -209,6 +214,13 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         }
         val secondaryForms = secondaryAt?.let { at -> s.secondaryZoneId?.let { otherZone(at, it) } }.orEmpty()
         val secondary = secondaryForms.firstOrNull()
+        // "until 18:00 · 10:00 LIS": the until line (first whenever there is an other-zone time) and the shortest place.
+        val untilCompact = secondaryAt?.let { at ->
+            s.secondaryZoneId?.let { zoneId ->
+                val compact = str(R.string.widget_secondary_compact, time(at, ZoneId.of(zoneId)), s.placeNameOptions(zoneId).last())
+                str(R.string.widget_until_compact, subtitleLines.first(), compact)
+            }
+        }
         val countdownEnd = current?.end?.takeIf { Duration.between(s.capturedAt, it) < Duration.ofHours(24) }
         // Spoken: the other zone's time joins the line whose time it repeats ("until 18:00 (10:00 in Lisbon)").
         val spokenSubtitle = subtitleLines.mapIndexed { i, line ->
@@ -250,6 +262,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             subtitleLines = subtitleLines,
             secondary = secondary,
             secondaryShort = secondaryForms.drop(1),
+            untilCompact = untilCompact,
             countdownEnd = countdownEnd,
             misalignment = misalignment,
             dialTitle = title,

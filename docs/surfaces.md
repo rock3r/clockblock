@@ -276,9 +276,9 @@ widgets. The table shows the layout on a typical portrait home screen.
 | 2×3 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route |
 | 4×3 | A header strip with the route, the dial, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
 
-Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row: the label and the other zone's time
-next to Done. A 2×2 Two Clocks gets the dial, the now card and Done side by side, and a 2×2 Next up gets the 4×2
-capsules.
+Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row next to Done: the label, and the
+"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 2×2 Two Clocks gets the
+dial, the now card and Done side by side, and a 2×2 Next up gets the 4×2 capsules.
 
 [`WidgetSizes`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetSizes.kt) lists every
 layout with its minimum size in dp. The launcher plays the layout whose minimum is closest to the widget's size
@@ -316,22 +316,32 @@ so if the app isn't running at the time, the next widget update or advice bounda
   and for Done.
 - The label and the "until" line take two lines where the height allows; the other zone's time stays on one. The
   offset ("−7 h") never splits across lines.
-- When text still doesn't fit, parts go in this order: "then …", the countdown, the glyph or the now card's
-  header, then the "until" line. As a last resort the other zone's time drops to 9 sp and the label to 11 sp.
-  The label and the other zone's time always stay.
-- A long place name gets shorter before the label shrinks: first the name up to the first "/", " - " or "(",
-  then the airport code ("11:30 PM in YSQ"). Screen readers still read the full name.
-- "Up next" rows drop last first, so the current block keeps its room: every row goes before the now block's
-  "until" line. The 4×2 Next up shows only the capsules whose label fits whole: two at most font sizes.
+- What matters most: the label, then the local "until" line, then the other zone's time, then "then …". The
+  label always shows, and local time is the primary one, so the "until" line stays as long as the label does.
+- When text doesn't fit, parts go in this order:
+  1. "then …";
+  2. the other zone's place gets shorter: first the name up to the first "/", " - " or "(", then the airport code
+     ("11:30 PM in YSQ");
+  3. the other zone's time joins the "until" line: "until 4:30 PM · 11:30 PM SFO";
+  4. the label shrinks;
+  5. "Up next" rows, the last one first;
+  6. the countdown, then the glyph or the now card's header;
+  7. as a last resort the other zone's time drops to 9 sp and the label to 11 sp;
+  8. the other zone's time, only at the tightest minimums at 1.3×: "Avoid light / until 4:30 PM". The "until" line
+     may then drop to 9 sp too.
+- Screen readers always hear everything: both times and the full place name.
+- The 4×2 Next up shows only the capsules whose label fits whole: two at most font sizes. Like the rows, they go
+  before the now row loses anything else.
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
   screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
 checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times and the four longest
-city names in the bundled places list. It
-runs at five densities, from mdpi to xxxhdpi, because text rounds to whole pixels differently on each. It also
-checks that each docs cell gets a layout no larger than itself. The `remote_labels_*` goldens show every real label,
-and the `remote_minimums_*` goldens show each layout at its minimum size with the longest texts.
+city names in the bundled places list. It runs at five densities, from mdpi to xxxhdpi, because text rounds to
+whole pixels differently on each. It also checks that the "until" line never drops, that the other zone's time
+drops only at 1.3×, that "Up next" never keeps a row the now block needs, and that each docs cell gets a layout no
+larger than itself. The `remote_labels_*` goldens show every real label, and the `remote_minimums_*` goldens show
+each layout at its minimum size with the longest texts.
 
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the

@@ -101,6 +101,8 @@ class WidgetTextsTest {
         t.secondaryShort.map { it.substringAfter(" in ") } shouldBe listOf("Chapelco", "CPC")
         t.contentDescription shouldContain long
         t.upcoming.first().secondaryShort.map { it.substringAfter(" in ") } shouldBe listOf("Chapelco", "CPC")
+        // The smallest cells join the other zone's time to the until line, place at its shortest.
+        t.untilCompact shouldBe "${t.subtitleLines.first()} · ${t.secondary!!.substringBefore(" in ")} CPC"
     }
 
     @Test

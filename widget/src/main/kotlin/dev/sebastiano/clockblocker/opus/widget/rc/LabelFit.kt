@@ -114,7 +114,12 @@ internal data class NowFit(
     val heightDp: Float,
     /** False only for the fallback when nothing fits (the matrix test proves real labels never get there). */
     val fits: Boolean,
-)
+    /** True when the other zone's time didn't fit in any form, even joined to the until line (tightest minimums). */
+    val secondaryDropped: Boolean = false,
+) {
+    /** Fits with its until line and the other zone's time, in some form: what Up next entries give way to. */
+    val whole: Boolean get() = fits && details.isNotEmpty() && !secondaryDropped
+}
 
 /** The 1×1 Next up: the glyph (and the countdown beside it, when it fits) above the label, or the label alone. */
 internal data class SmallFit(val glyph: Boolean, val countdownSp: Int?, val label: Fitted, val fits: Boolean)
@@ -162,17 +167,20 @@ internal data class WidgetFit(
  * layout is fitted for the **smallest size the host can give it**: its bucket's [Bucket.fitAt] (see [WidgetSizes]).
  * The document is drawn stretched to the real widget, and text that fits the minimum fits every larger size.
  *
- * The label and the other zone's time always stay. When space runs out, parts give way in this order:
+ * What matters most: the label (always shown), then the local "until" line, then the other zone's time, then
+ * "then …". When space runs out, parts give way in this order:
  * 1. the "then …" tail;
  * 2. the other zone's place shortens: cut at its first "/", " - " or "(", then its airport code
  *    ([WidgetTexts.secondaryOptions]; screen readers keep the full name);
- * 3. the label shrinks, down to [TITLE_MIN_SP] (it may take two lines where the height allows);
- * 4. the countdown, then the glyph (the label still names the block), or the card's "Tokyo · Day 2" header;
- * 5. the "until" line (a short row keeps the label and the other zone's time only);
- * 6. as a last resort the other zone's time goes down to [SECONDARY_LAST_RESORT_SP] and the label to
+ * 3. the other zone's time joins the until line, "until 16:30 · 08:30 LIS" ([WidgetTexts.untilCompact]);
+ * 4. the label shrinks, down to [TITLE_MIN_SP] (it may take two lines where the height allows);
+ * 5. "Up next" entries, the last one first (they are never cut off mid-label; their place shortens like the now
+ *    block's first);
+ * 6. the countdown, then the glyph (the label still names the block), or the card's "Tokyo · Day 2" header;
+ * 7. as a last resort the other zone's time goes down to [SECONDARY_LAST_RESORT_SP] and the label to
  *    [TITLE_LAST_RESORT_SP];
- * 7. "Up next" entries, the last one first (they are never cut off mid-label; their place shortens like the now
- *    block's first).
+ * 8. the other zone's time, at the tightest minimums only: "Avoid light / until 16:30", the until line down to
+ *    [DETAIL_LAST_RESORT_SP]. Screen readers still hear it.
  *
  * The building blocks ([fitNow] with its [NowSlot]s, [fitDone], [fitHeader]) are what any new layout should use:
  * describe where the now block can go, smallest-first, and draw what comes back (`FittedLabel`).
@@ -181,10 +189,13 @@ internal object LabelFit {
     const val TITLE_SP = 16
     const val TITLE_MIN_SP = 13
 
-    /** Floor of the label in the barest arrangement, once the "until" line is gone (a long single word at 1.3×). */
+    /** Floor of the label in the barest slot, as a last resort (a long single word at 1.3×). */
     const val TITLE_LAST_RESORT_SP = 11
     const val DETAIL_SP = 12
     const val DETAIL_MIN_SP = 11
+
+    /** Floor of the until line once the other zone's time has gone and nothing else is left to give (1.3×). */
+    const val DETAIL_LAST_RESORT_SP = 9
     const val SECONDARY_SP = 11
     const val SECONDARY_MIN_SP = 10
 
@@ -247,10 +258,10 @@ internal object LabelFit {
                 done = rowDone(context, texts, layout, cell, cell.height),
             )
             NextUpLayout.Ribbon -> {
-                // Capsules only while the now row keeps its until line beside them; else the row gets the room.
+                // Capsules only while the now row stays whole beside them; else the row gets the room.
                 val capsules = capsules(context, texts, cell.width)
                 val withCapsules = nowRow(context, texts, layout, cell, capsules = capsules.rows.isNotEmpty())
-                val keep = capsules.rows.isNotEmpty() && withCapsules.fits && withCapsules.details.isNotEmpty()
+                val keep = capsules.rows.isNotEmpty() && withCapsules.whole
                 val rowHeight = cell.height - RIBBON_BOTTOM_DP - if (keep) CAPSULE_HEIGHT_DP else 0
                 WidgetFit(
                     now = if (keep) withCapsules else nowRow(context, texts, layout, cell, capsules = false),
@@ -315,59 +326,96 @@ internal object LabelFit {
         val secondaryMinSp: Int = SECONDARY_MIN_SP,
     )
 
+    /** One way to show the now block's lines under the label: each of [options] in turn, plus [secondary] below. */
+    private class Arrangement(
+        val options: List<List<String>>,
+        val secondary: Fitted?,
+        val secondaryDropped: Boolean = false,
+        val detailMinSp: Int = DETAIL_MIN_SP,
+    ) {
+        /**
+         * The largest sizes to try the lines at. Normally only [DETAIL_SP]: each line takes the largest size that fits
+         * its width. Below [DETAIL_MIN_SP] (the last resort), lines also shrink to fit the height.
+         */
+        val detailCaps: IntProgression get() = DETAIL_SP downTo if (detailMinSp < DETAIL_MIN_SP) detailMinSp else DETAIL_SP
+    }
+
+    /** One pass of [fitNow]: the slots it tries, how far the label may shrink, and the arrangements for a slot. */
+    private class Pass(val slots: List<NowSlot>, val titleMinSp: Int, val arrangements: (NowSlot) -> List<Arrangement>)
+
     /**
-     * The first arrangement of [texts]' now block that fits. Three passes: first with an "until" line (each of
-     * [detailOptions] in order, e.g. with "then …", then without), across every slot; then, for short rows, the label
-     * and the other zone's time alone; last, in the barest slot only, the label down to [TITLE_LAST_RESORT_SP] (a
-     * long single word, "Clockblocked", at a large font scale). Within a slot the label goes from [TITLE_SP] down to
-     * [TITLE_MIN_SP]. The label and the other zone's time are in every arrangement.
+     * The first arrangement of [texts]' now block that fits. The label always shows, and the local "until" line comes
+     * next: it stays as long as anything does. Passes, in order:
+     * 1. every slot, the label down to [TITLE_MIN_SP], with the other zone's time: on its own line in each of its forms
+     *    ([WidgetTexts.secondaryOptions]: full, cut, airport code), each with every one of [detailOptions] (with
+     *    "then …", then without); then joined to the until line ([WidgetTexts.untilCompact]);
+     * 2. the same in the barest slot, the label down to [TITLE_LAST_RESORT_SP];
+     * 3. every slot, the label and the until line only (the tightest minimums at a large font scale);
+     * 4. the same in the barest slot, the label down to [TITLE_LAST_RESORT_SP] and the until line down to
+     *    [DETAIL_LAST_RESORT_SP];
+     * 5. the label alone, in case even that doesn't fit (never with a time to show, see WidgetLabelFitTest).
      */
     fun fitNow(context: Context, texts: WidgetTexts, slots: List<NowSlot>, detailOptions: List<List<String>>): NowFit {
         val until = until(texts)
+        val barest = listOf(slots.last())
+        val dropped = texts.secondary != null
+        fun withSecondary(slot: NowSlot): List<Arrangement> = buildList {
+            if (texts.secondaryOptions.isEmpty()) {
+                add(Arrangement(detailOptions, null))
+                return@buildList
+            }
+            texts.secondaryOptions.forEach { form ->
+                TextFit.fit(context, form, slot.widthDp, SECONDARY_SP, slot.secondaryMinSp, maxLines = 2, fewerLinesFirst = true)
+                    ?.let { add(Arrangement(detailOptions, it)) }
+            }
+            texts.untilCompact?.let { add(Arrangement(listOf(listOf(it)), null)) }
+        }
+        val untilOnly = listOf(Arrangement(listOf(listOf(until)), null, secondaryDropped = dropped))
+        val untilLastResort = listOf(Arrangement(listOf(listOf(until)), null, secondaryDropped = dropped, detailMinSp = DETAIL_LAST_RESORT_SP))
+        val labelOnly = listOf(Arrangement(listOf(emptyList()), null, secondaryDropped = dropped))
         val passes = listOf(
-            Triple(detailOptions, slots, TITLE_MIN_SP),
-            Triple(listOf(emptyList()), slots, TITLE_MIN_SP),
-            Triple(listOf(emptyList()), listOf(slots.last()), TITLE_LAST_RESORT_SP),
+            Pass(slots, TITLE_MIN_SP, ::withSecondary),
+            Pass(barest, TITLE_LAST_RESORT_SP, ::withSecondary),
+            Pass(slots, TITLE_MIN_SP) { untilOnly },
+            Pass(barest, TITLE_LAST_RESORT_SP) { untilLastResort },
+            Pass(barest, TITLE_LAST_RESORT_SP) { labelOnly },
         )
-        for ((options, passSlots, titleMinSp) in passes) {
-            for (slot in passSlots) {
-                // The other zone's time, then its shorter forms (a long place cut, or its airport code).
-                val secondaries: List<Fitted?> = if (texts.secondaryOptions.isEmpty()) {
-                    listOf(null)
-                } else {
-                    texts.secondaryOptions.mapNotNull {
-                        TextFit.fit(context, it, slot.widthDp, SECONDARY_SP, slot.secondaryMinSp, maxLines = 2, fewerLinesFirst = true)
-                    }.ifEmpty { continue }
-                }
-                for (sp in TITLE_SP downTo titleMinSp) {
+        for (pass in passes) {
+            for (slot in pass.slots) {
+                val arrangements = pass.arrangements(slot)
+                for (sp in TITLE_SP downTo pass.titleMinSp) {
                     val title = TextFit.measure(context, texts.title, slot.widthDp, sp, maxLines = 2, semibold = true)
                     if (!title.fits) continue
-                    // "then …" goes before the place name shortens; the place shortens before the label shrinks.
-                    for (secondary in secondaries) {
-                        for (option in options) {
+                    // "then …" goes first, then the place shortens, then the other zone's time joins the until line;
+                    // all of that before the label shrinks.
+                    for (arrangement in arrangements) {
+                        for (option in arrangement.options) for (cap in arrangement.detailCaps) {
                             val details = option.map { line ->
                                 // "until 18:00" (or the adapted line) may wrap; a joined or "then …" line never does.
-                                TextFit.fit(context, line, slot.widthDp, DETAIL_SP, DETAIL_MIN_SP, maxLines = if (line == until) 2 else 1, fewerLinesFirst = true)
+                                val maxLines = if (line == until) 2 else 1
+                                TextFit.fit(context, line, slot.widthDp, cap, arrangement.detailMinSp, maxLines = maxLines, fewerLinesFirst = true)
                             }
                             if (details.any { it == null }) continue
-                            val items = listOf(title) + details.filterNotNull() + listOfNotNull(secondary)
+                            val items = listOf(title) + details.filterNotNull() + listOfNotNull(arrangement.secondary)
                             val height = slot.fixedDp + items.sumOf { it.heightDp.toDouble() }.toFloat() + LINE_GAP_DP * (items.size - 1)
                             if (height <= slot.heightDp) {
-                                return NowFit(slot.glyph, slot.countdown, slot.header, title, details.filterNotNull(), secondary, height, fits = true)
+                                return NowFit(
+                                    slot.glyph, slot.countdown, slot.header, title, details.filterNotNull(), arrangement.secondary, height,
+                                    fits = true, secondaryDropped = arrangement.secondaryDropped,
+                                )
                             }
                         }
                     }
                 }
             }
         }
-        // Nothing fits (never for the real labels at a bucket's minimum, see WidgetLabelFitTest): the barest
-        // arrangement, ellipsized.
+        // Nothing fits (never for the real labels at a bucket's minimum, see WidgetLabelFitTest): the label, ellipsized.
         val slot = slots.last()
         val title = TextFit.measure(context, texts.title, slot.widthDp, TITLE_LAST_RESORT_SP, maxLines = 2, semibold = true)
-        val secondary = texts.secondaryOptions.lastOrNull()?.let { TextFit.measure(context, it, slot.widthDp, slot.secondaryMinSp) }
-        val items = listOf(title) + listOfNotNull(secondary)
-        val height = slot.fixedDp + items.sumOf { it.heightDp.toDouble() }.toFloat() + LINE_GAP_DP * (items.size - 1)
-        return NowFit(slot.glyph, slot.countdown, slot.header, title, emptyList(), secondary, height, fits = false)
+        return NowFit(
+            slot.glyph, slot.countdown, slot.header, title, emptyList(), null, slot.fixedDp + title.heightDp,
+            fits = false, secondaryDropped = texts.secondary != null,
+        )
     }
 
     /** The Done button's label in a [widthDp] × [heightDp] button: shrinks, then wraps; null without a Done button. */
@@ -485,13 +533,13 @@ internal object LabelFit {
         val done = stackDone(context, texts, width)
         // Up next already says what comes next: the stack drops its "then …" line for the room.
         val withThen = texts.upcoming.isEmpty()
-        // Rows go first, then the glyph and countdown, and only then the now block's "until" line.
+        // Rows go first, then the glyph and countdown; the now block keeps its until line and the other zone longest.
         for (glyphOptional in listOf(false, true)) {
             for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
                 val upNext = upNextRows(context, texts, width, rows, barWithRows = false, withRoute = true) ?: continue
                 val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_STACK_DP else 0f
                 val now = nowStack(context, texts, cell, total - upNextHeight, withThen, glyphOptional)
-                if (now.fits && now.details.isNotEmpty()) return WidgetFit(now = now, upNext = upNext, done = done)
+                if (now.whole) return WidgetFit(now = now, upNext = upNext, done = done)
             }
         }
         return WidgetFit(now = nowStack(context, texts, cell, total, withThen), done = done)
@@ -514,12 +562,12 @@ internal object LabelFit {
         val total = cell.height - 2 * SURFACE_PAD_DP - strip
         val cardWidth = cardWidthDp(TwoClocksLayout.Large, texts, cell)
         val done = clocksDone(context, texts, cell, total)
-        // Rows go before the now card's "until" line.
+        // Rows go before the now card loses its until line or the other zone's time.
         for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
             val upNext = upNextRows(context, texts, inner - 2 * UP_NEXT_SIDE_LARGE_DP, rows, barWithRows = true, withRoute = false) ?: continue
             val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
             val now = nowCard(context, texts, cardWidth, total - upNextHeight - 2 * CARD_V_PAD_DP, withHeader = false)
-            if (now.fits && now.details.isNotEmpty()) {
+            if (now.whole) {
                 return WidgetFit(now = now, upNext = upNext, done = done, headerStrip = header, headerRoute = headerRoute)
             }
         }

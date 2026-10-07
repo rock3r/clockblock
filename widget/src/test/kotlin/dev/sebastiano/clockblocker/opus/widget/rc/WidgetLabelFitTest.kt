@@ -16,6 +16,7 @@ import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldStartWith
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -74,9 +75,11 @@ class WidgetLabelFitTest {
     private fun cases(is24: Boolean, place: TestPlace): List<Case> {
         val time = if (is24) "23:30" else "11:30 PM"
         val until = str(R.string.widget_until, time)
-        val forms = PlaceNames.options(place.city, place.code).map { str(R.string.widget_secondary_time, time, it) }
+        val names = PlaceNames.options(place.city, place.code)
+        val forms = names.map { str(R.string.widget_secondary_time, time, it) }
         val secondary = forms.first()
         val secondaryShort = forms.drop(1)
+        val untilCompact = str(R.string.widget_until_compact, until, str(R.string.widget_secondary_compact, time, names.last()))
         val longest = WidgetTextFactory(context, is24).label(AdviceType.SeeBrightLight)
         val active = base(is24, DemoPlans.Scenario.AvoidLight)
         val done = active.done ?: DoneText("trip", "advice", null, str(R.string.widget_done), "Mark as done")
@@ -87,6 +90,7 @@ class WidgetLabelFitTest {
             subtitle = listOf(until, str(R.string.widget_then, label)).joinToString(" · "),
             secondary = secondary,
             secondaryShort = secondaryShort,
+            untilCompact = untilCompact,
             dialDetail = until,
             done = done,
             upcoming = List(3) { UpcomingText(type, label, time, secondary, secondaryShort = secondaryShort) },
@@ -100,6 +104,7 @@ class WidgetLabelFitTest {
                 subtitle = listOf(until, str(R.string.widget_then, longest)).joinToString(" · "),
                 secondary = secondary,
                 secondaryShort = secondaryShort,
+                untilCompact = untilCompact,
                 dialDetail = until,
                 upcoming = List(3) { UpcomingText(AdviceType.SeeBrightLight, longest, time, secondary, secondaryShort = secondaryShort) },
             )
@@ -163,17 +168,31 @@ class WidgetLabelFitTest {
     }
 
     @Test
-    fun `up next rows give way before the now block's until line`() {
+    fun `up next rows give way before the now block loses its until line or the other zone's time`() {
         val failures = sortedSetOf<String>()
         everyDisplay { display ->
             for (place in places) for (case in cases(is24 = false, place)) {
-                val until = case.texts.subtitleLines.firstOrNull() ?: continue
                 fun verify(fit: WidgetFit, where: String) {
                     val now = fit.now ?: return
-                    val keptUntil = now.details.any { it.text.contains(until) }
-                    if (!keptUntil && fit.upNext.rows.isNotEmpty()) {
-                        failures += "${case.name} $display $place $where: ${fit.upNext.rows.size} up next rows, no \"$until\""
+                    if (!now.whole && (fit.upNext.rows.isNotEmpty() || fit.upNext.capsules)) {
+                        failures += "${case.name} $display $place $where: ${fit.upNext.rows.size} up next rows, now ${now.describe()}"
                     }
+                }
+                WidgetSizes.NEXT_UP.forEach { verify(nextUp(case.texts, it), "Next up ${it.layout} ${it.min}") }
+                WidgetSizes.TWO_CLOCKS.forEach { verify(twoClocks(case.texts, it), "Two Clocks ${it.layout} ${it.min}") }
+            }
+        }
+        withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
+    }
+
+    @Test
+    fun `the other zone's time drops only at the tightest minimums at the largest font scale`() {
+        val failures = sortedSetOf<String>()
+        everyDisplay { display ->
+            if (display.startsWith("@1.3x")) return@everyDisplay
+            for (place in places) for (case in cases(is24 = false, place)) {
+                fun verify(fit: WidgetFit, where: String) {
+                    if (fit.now?.secondaryDropped == true) failures += "${case.name} $display $place $where"
                 }
                 WidgetSizes.NEXT_UP.forEach { verify(nextUp(case.texts, it), "Next up ${it.layout} ${it.min}") }
                 WidgetSizes.TWO_CLOCKS.forEach { verify(twoClocks(case.texts, it), "Two Clocks ${it.layout} ${it.min}") }
@@ -279,14 +298,24 @@ class WidgetLabelFitTest {
     }
 
     @Test
-    fun `a short row keeps the label and the other zone's time, and drops the until line`() {
-        RuntimeEnvironment.setFontScale(1.3f)
+    fun `a short row keeps the label and the local until line, and the other zone's time joins it while it fits`() {
         val texts = cases(is24 = false, place = SAN_FRANCISCO).first { it.name == "See bright light" }.texts
-        val row = nextUp(texts, WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Wide)).now!!
-        row.fits shouldBe true
-        row.title.text shouldBe texts.title
-        row.secondary?.text shouldBe texts.secondary
-        row.details.shouldBeEmpty()
+        val until = texts.subtitleLines.first()
+        val wide = WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Wide)
+        nextUp(texts, wide).now!!.let { row ->
+            row.fits shouldBe true
+            row.title.text shouldBe texts.title
+            row.secondaryDropped shouldBe false
+            (row.details.single().text == texts.untilCompact || row.secondary != null) shouldBe true
+            row.details.single().text shouldStartWith until
+        }
+        // At 1.3× the tightest row keeps "See bright light / until 11:30 PM": local time beats the other zone's.
+        RuntimeEnvironment.setFontScale(1.3f)
+        nextUp(texts, wide).now!!.let { row ->
+            row.fits shouldBe true
+            row.title.text shouldBe texts.title
+            row.details.single().text shouldStartWith until
+        }
     }
 
     @Test
@@ -333,7 +362,15 @@ class WidgetLabelFitTest {
             if (now.title.sp < LabelFit.TITLE_LAST_RESORT_SP) add("$where: label at ${now.title.sp} sp, below the floor")
             if (!now.title.fits) add("$where: label \"${texts.title}\" clipped at ${now.title.sp} sp")
             now.details.filterNot { it.fits }.forEach { add("$where: \"${it.text}\" clipped") }
-            if (texts.secondary != null && now.secondary == null) add("$where: the other zone's time was dropped")
+            // Local time first: the until line is never dropped. (The adapted line, which names no time, may go.)
+            val until = texts.subtitleLines.firstOrNull() ?: texts.subtitle
+            if (texts.secondary != null && now.details.none { it.text.startsWith(until) }) add("$where: the until line \"$until\" was dropped")
+            now.details.filter { it.sp < LabelFit.DETAIL_LAST_RESORT_SP }.forEach { add("$where: \"${it.text}\" at ${it.sp} sp") }
+            // The other zone's time: on its own line, joined to the until line, or (tightest minimums) flagged dropped.
+            val joined = now.details.any { it.text == texts.untilCompact }
+            if (texts.secondary != null && now.secondary == null && !joined && !now.secondaryDropped) {
+                add("$where: the other zone's time went missing")
+            }
             now.secondary?.takeIf { it.text !in texts.secondaryOptions }?.let { add("$where: other zone's time replaced by \"${it.text}\"") }
             now.secondary?.takeUnless { it.fits }?.let { add("$where: \"${it.text}\" clipped") }
             now.header?.takeUnless { it.fits }?.let { add("$where: header \"${it.text}\" clipped") }
@@ -356,24 +393,30 @@ class WidgetLabelFitTest {
     @Test
     fun `a long place shortens before anything clips, and shows in full where it fits`() {
         val cpc = TestPlace("Chapelco/San Martin de los Andes", "CPC")
+        val ysq = TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ")
         val medium = WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Medium)
+        val tallerMedium = WidgetSizes.NEXT_UP.last { it.layout == NextUpLayout.Medium }
         val largest = WidgetSizes.NEXT_UP.maxBy { it.min.width * it.min.height }
+        /** The other zone's time as shown: on its own line, or joined to the until line; null when it had to go. */
         fun shown(place: TestPlace, bucket: Bucket<NextUpLayout>): String? {
             val texts = cases(is24 = false, place = place).first { it.name == "See bright light" }.texts
             // The texts keep the full name; WidgetTextsTest checks that screen readers get it.
             texts.secondary shouldBe str(R.string.widget_secondary_time, "11:30 PM", place.city)
             val now = nextUp(texts, bucket).now!!
             now.fits shouldBe true
-            return now.secondary?.text
+            // Whatever happens to the other zone's time, the local until line stays.
+            now.details.first().text shouldStartWith texts.subtitleLines.first()
+            return now.secondary?.text ?: now.details.firstOrNull { it.text == texts.untilCompact }?.text
         }
 
         RuntimeEnvironment.setFontScale(1f)
         shown(cpc, largest) shouldBe str(R.string.widget_secondary_time, "11:30 PM", cpc.city)
         shown(cpc, medium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "Chapelco")
         RuntimeEnvironment.setFontScale(1.3f)
-        shown(cpc, medium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "CPC")
-        shown(TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ"), medium) shouldBe
-            str(R.string.widget_secondary_time, "11:30 PM", "YSQ")
+        shown(cpc, tallerMedium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "CPC")
+        shown(ysq, tallerMedium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "YSQ")
+        // The tightest minimum at 1.3×: "See bright light / until 11:30 PM", the other zone's time gone.
+        shown(cpc, medium) shouldBe null
     }
 
     private companion object {
