@@ -249,7 +249,7 @@ object TwoSkies {
             val say = TextSpec(10f * sayK, weight = 650)
             val label = labels.advice(shown.type)
             val text = when {
-                current != null && current.sweepMinutes > 0f -> labels.until(label, labels.fullTime(current.endMinute))
+                current != null && current.sweepMinutes > 0f -> labels.until(label, labels.fullTime(current.narratedEndMinute))
                 else -> labels.at(label, labels.fullTime(shown.startMinute))
             }
             val from = start - 3f

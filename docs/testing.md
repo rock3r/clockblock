@@ -26,7 +26,7 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:app` | 89 | 12 |
 | `:core:circadian` | 76 | 0 |
 | `:core:data` | 158 | 0 |
-| `:core:designsystem` | 162 | 64 |
+| `:core:designsystem` | 163 | 64 |
 | `:core:model` | 9 | 0 |
 | `:core:notifications` | 146 | 0 |
 | `:feature:onboarding` | 83 | 35 |
@@ -34,7 +34,7 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:settings` | 71 | 30 |
 | `:feature:trips` | 97 | 25 |
 | `:widget` | 110 | 14 |
-| **Total** | **1132** | **208** |
+| **Total** | **1133** | **208** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 

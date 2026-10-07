@@ -48,9 +48,11 @@ data class DialArc(
     val adviceId: String,
     val type: AdviceType,
     val startMinute: Float,
-    /** Clock-face (wall-clock) minutes, so DST changes stay right; 0 for instantaneous advice (melatonin). */
+    /** 0 for instantaneous advice (melatonin): drawn as a dot. */
     val sweepMinutes: Float,
     val isNow: Boolean = false,
+    /** Where the advice really ends (display-zone minute), even when the arc is clipped to the dial's window. */
+    val narratedEndMinute: Float = (startMinute + sweepMinutes).mod(DialGeometry.MinutesPerDay),
 ) {
     val endMinute: Float get() = (startMinute + sweepMinutes).mod(DialGeometry.MinutesPerDay)
 }

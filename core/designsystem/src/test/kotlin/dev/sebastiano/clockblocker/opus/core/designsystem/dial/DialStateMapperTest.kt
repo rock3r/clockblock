@@ -139,18 +139,15 @@ class DialStateMapperTest {
     }
 
     @Test
-    fun `arcs span the wall clock across a DST change`() {
-        // New York springs forward at 02:00 on 8 March 2026: sleep 01:00 EST to 04:00 EDT is 2 h long but covers
-        // 3 h of the clock face, and the dial is a clock face.
-        val newYork = ZoneId.of("America/New_York")
+    fun `a clipped arc keeps its real end for narration`() {
+        // A flight block from 1 h ago to 18 h from now: the arc stops at the window's end (+16 h), the words don't.
         val base = plan(60)
-        val sleep = advice("s", AdviceType.Sleep, "2026-03-08T06:00:00Z", "2026-03-08T08:00:00Z")
-        val dst = base.copy(days = listOf(base.days.single().copy(date = LocalDate.of(2026, 3, 8), zoneId = newYork.id, advice = listOf(sleep))))
-        val state = dst.toDialState(Instant.parse("2026-03-08T07:30:00Z"), newYork)
+        val flight = advice("f", AdviceType.AvoidLight, "2026-10-10T04:00:00Z", "2026-10-10T23:00:00Z")
+        val long = base.copy(days = listOf(base.days.single().copy(advice = listOf(flight))))
+        val arc = long.toDialState(t0, tokyo).arcs.single()
 
-        val arc = state.arcs.single()
-        arc.startMinute shouldBe (60f plusOrMinus 0.01f)
-        arc.sweepMinutes shouldBe (180f plusOrMinus 0.01f)
-        arc.endMinute shouldBe (240f plusOrMinus 0.01f)
+        arc.sweepMinutes shouldBe (17 * 60f plusOrMinus 0.01f)
+        arc.endMinute shouldBe (6 * 60f plusOrMinus 0.01f) // 06:00 Tokyo, the window's end
+        arc.narratedEndMinute shouldBe (8 * 60f plusOrMinus 0.01f) // 08:00 Tokyo, when it really ends
     }
 }

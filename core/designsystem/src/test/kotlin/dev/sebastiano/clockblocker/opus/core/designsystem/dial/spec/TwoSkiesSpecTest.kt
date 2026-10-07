@@ -179,6 +179,12 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a block running past the window is narrated with its real end`() {
+        val long = tokyo.copy(arcs = persistentListOf(DialArc("f", AdviceType.AvoidLight, 14 * 60f, 16 * 60f + 40f, narratedEndMinute = 9 * 60f)))
+        spec(long).ops.filterIsInstance<DialOp.CurvedText>().map { it.text } shouldContain "Avoid light until 09:00"
+    }
+
+    @Test
     fun `a moment is in focus when it is due`() {
         val focus = tokyo.focusAt(16 * 60f + 30f)
         focus.current?.adviceId shouldBe "mel"
