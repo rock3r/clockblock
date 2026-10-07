@@ -228,7 +228,8 @@ once you're adapted the two rings are identical.
   from the model (habitual sleep moved by the offset); there is no setting for it yet (#52).
 - **Three encodings only:** the day/night colour of the two rings, **one needle** across both, and **one advice arc**
   outside the rings: the block under the needle (or the next one when nothing is on) with its glyph at the start,
-  narrated along the rim ("See bright light until 15:00", then "then see some light" in a muted tone). Avoid
+  narrated along the rim ("See bright light until 15:00", then "then see some light" in a muted tone; advice that
+  starts before the block ends, like sleep during a long flight, reads "Sleep at 16:00" instead of "then"). Avoid
   light keeps its **diagonal hatch** (the colour-blind carrier). The part of the block already behind the needle is
   washed back towards the face. Every mark carries its own label; no legend.
 - **Centre readouts:** the place, local time upright and big, body time beneath **slanted** (`slnt −10`,
