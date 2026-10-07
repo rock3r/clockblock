@@ -43,6 +43,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -250,6 +251,22 @@ class WidgetUpdaterTest {
     }
 
     @Test
+    fun `a widget update after an unseen configuration change re-renders every widget`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val clocks = place(WidgetKind.TwoClocks, 31)
+        val next = place(WidgetKind.NextUp, 32)
+        updater.updateAll()
+        rendered.clear()
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        rendered.keys shouldBe setOf(next)
+        // The font scale changed while no process was running to hear it: the next update re-fits both kinds.
+        RuntimeEnvironment.setFontScale(1.3f)
+        rendered.clear()
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        rendered.keys shouldBe setOf(clocks, next)
+    }
+
+    @Test
     fun `Done shows on Next up and turns into a chip once logged`() = runBlocking<Unit> {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         plans.current.value = plan
@@ -314,7 +331,8 @@ class WidgetUpdaterTest {
             override val settings: Flow<AppSettings> = flow { awaitCancellation() }
             override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
         }
-        val updater = updater(stuck).apply { readTimeoutMs = 50 }
+        // The timeout bounds every read, the plan's too: long enough for a loaded CI runner to read the plan.
+        val updater = updater(stuck).apply { readTimeoutMs = 1_000 }
         val lock = place(WidgetKind.NextUp, 25, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
         val home = place(WidgetKind.NextUp, 26)
         updater.update(WidgetKind.NextUp, intArrayOf(lock, home))

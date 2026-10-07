@@ -99,23 +99,38 @@ class WidgetUpdater(
 
     /** The parts of the configuration a captured widget depends on. */
     private data class RenderConfig(val night: Boolean, val fontScale: Float, val densityDpi: Int) {
+        val key: String get() = "${if (night) "night" else "day"}-$fontScale-$densityDpi"
+
         companion object {
             fun of(configuration: Configuration) =
                 RenderConfig(configuration.isNight(), configuration.fontScale, configuration.densityDpi)
         }
     }
 
+    private val prefs get() = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * Whether the widgets were last rendered at another configuration (or never): the callback above only hears
+     * changes while the process runs, and no widget broadcast reports a font scale or density change.
+     */
+    private fun renderedConfigStale(): Boolean =
+        prefs.getString(KEY_RENDERED_CONFIG, null) != RenderConfig.of(application.resources.configuration).key
+
     /** Re-render all widgets of both kinds. */
     suspend fun updateAll() {
+        val config = RenderConfig.of(application.resources.configuration)
         WidgetKind.entries.forEach { kind -> render(kind, ids(kind)) }
+        prefs.edit().putString(KEY_RENDERED_CONFIG, config.key).apply()
         publishPreviewsIfNeeded()
     }
 
     /**
      * Re-render the given widget ids of one kind. Also re-publishes the picker previews when their key is stale, so
-     * a light/dark switch while the app was not running still reaches the picker on the next widget update.
+     * a light/dark switch while the app was not running still reaches the picker on the next widget update. For the
+     * same reason, when the configuration changed since the last full render, every widget is rendered again.
      */
     suspend fun update(kind: WidgetKind, appWidgetIds: IntArray) {
+        if (renderedConfigStale()) return updateAll()
         render(kind, appWidgetIds)
         publishPreviewsIfNeeded()
     }
@@ -169,7 +184,6 @@ class WidgetUpdater(
      * its labels are fitted again when the fit would change.
      */
     suspend fun publishPreviewsIfNeeded(force: Boolean = false) {
-        val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val version = application.packageManager.getPackageInfo(application.packageName, 0).longVersionCode
         val configuration = application.resources.configuration
         val night = configuration.isNight()
@@ -211,6 +225,7 @@ class WidgetUpdater(
         private const val TAG = "ClockblockWidget"
         private const val PREFS = "opus_widgets"
         private const val KEY_PREVIEW = "generated_previews_key"
+        private const val KEY_RENDERED_CONFIG = "rendered_config_key"
         private const val READ_TIMEOUT_MS = 3_000L
 
         fun componentName(context: Context, kind: WidgetKind): ComponentName = when (kind) {

@@ -309,7 +309,8 @@ time what each layout shows, measuring the text the way the player draws it
 layout at the smallest size the launcher can give it: its minimum less 1 dp, because the launcher rounds the
 widget's size up before it compares. The launcher only ever stretches a layout, so text that fits there fits at
 every larger size. The fit depends on the font scale and the display density, so `WidgetUpdater` captures the
-widgets again when either changes, as it does for a light/dark switch.
+widgets again when either changes, as it does for a light/dark switch. Android sends no broadcast for these changes,
+so if the app isn't running at the time, the next widget update or advice boundary re-renders every widget.
 
 - Text shrinks down to a floor: 13 sp for the label, 11 sp for the "until" line, 10 sp for the other zone's time
   and for Done.
