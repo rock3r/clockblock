@@ -163,6 +163,26 @@ class WidgetLabelFitTest {
     }
 
     @Test
+    fun `up next rows give way before the now block's until line`() {
+        val failures = sortedSetOf<String>()
+        everyDisplay { display ->
+            for (place in places) for (case in cases(is24 = false, place)) {
+                val until = case.texts.subtitleLines.firstOrNull() ?: continue
+                fun verify(fit: WidgetFit, where: String) {
+                    val now = fit.now ?: return
+                    val keptUntil = now.details.any { it.text.contains(until) }
+                    if (!keptUntil && fit.upNext.rows.isNotEmpty()) {
+                        failures += "${case.name} $display $place $where: ${fit.upNext.rows.size} up next rows, no \"$until\""
+                    }
+                }
+                WidgetSizes.NEXT_UP.forEach { verify(nextUp(case.texts, it), "Next up ${it.layout} ${it.min}") }
+                WidgetSizes.TWO_CLOCKS.forEach { verify(twoClocks(case.texts, it), "Two Clocks ${it.layout} ${it.min}") }
+            }
+        }
+        withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
+    }
+
+    @Test
     fun `every Done label fits every bucket at its minimum size`() {
         val failures = mutableListOf<String>()
         val texts = cases(is24 = false, place = SAN_FRANCISCO).first { it.name == "See bright light" }.texts
@@ -352,7 +372,7 @@ class WidgetLabelFitTest {
         shown(cpc, medium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "Chapelco")
         RuntimeEnvironment.setFontScale(1.3f)
         shown(cpc, medium) shouldBe str(R.string.widget_secondary_time, "11:30 PM", "CPC")
-        shown(TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ"), largest) shouldBe
+        shown(TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ"), medium) shouldBe
             str(R.string.widget_secondary_time, "11:30 PM", "YSQ")
     }
 

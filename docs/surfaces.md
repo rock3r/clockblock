@@ -321,8 +321,8 @@ so if the app isn't running at the time, the next widget update or advice bounda
   The label and the other zone's time always stay.
 - A long place name gets shorter before the label shrinks: first the name up to the first "/", " - " or "(",
   then the airport code ("11:30 PM in YSQ"). Screen readers still read the full name.
-- "Up next" rows drop last first, so the current block keeps its room. The 4×2 Next up shows only the capsules
-  whose label fits whole: two at most font sizes.
+- "Up next" rows drop last first, so the current block keeps its room: every row goes before the now block's
+  "until" line. The 4×2 Next up shows only the capsules whose label fits whole: two at most font sizes.
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
   screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
 

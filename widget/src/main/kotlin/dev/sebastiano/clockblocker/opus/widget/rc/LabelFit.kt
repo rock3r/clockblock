@@ -485,13 +485,13 @@ internal object LabelFit {
         val done = stackDone(context, texts, width)
         // Up next already says what comes next: the stack drops its "then …" line for the room.
         val withThen = texts.upcoming.isEmpty()
-        // The glyph and countdown go only once every Up next row has.
+        // Rows go first, then the glyph and countdown, and only then the now block's "until" line.
         for (glyphOptional in listOf(false, true)) {
             for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
                 val upNext = upNextRows(context, texts, width, rows, barWithRows = false, withRoute = true) ?: continue
                 val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_STACK_DP else 0f
                 val now = nowStack(context, texts, cell, total - upNextHeight, withThen, glyphOptional)
-                if (now.fits) return WidgetFit(now = now, upNext = upNext, done = done)
+                if (now.fits && now.details.isNotEmpty()) return WidgetFit(now = now, upNext = upNext, done = done)
             }
         }
         return WidgetFit(now = nowStack(context, texts, cell, total, withThen), done = done)
@@ -514,11 +514,14 @@ internal object LabelFit {
         val total = cell.height - 2 * SURFACE_PAD_DP - strip
         val cardWidth = cardWidthDp(TwoClocksLayout.Large, texts, cell)
         val done = clocksDone(context, texts, cell, total)
+        // Rows go before the now card's "until" line.
         for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
             val upNext = upNextRows(context, texts, inner - 2 * UP_NEXT_SIDE_LARGE_DP, rows, barWithRows = true, withRoute = false) ?: continue
             val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
             val now = nowCard(context, texts, cardWidth, total - upNextHeight - 2 * CARD_V_PAD_DP, withHeader = false)
-            if (now.fits) return WidgetFit(now = now, upNext = upNext, done = done, headerStrip = header, headerRoute = headerRoute)
+            if (now.fits && now.details.isNotEmpty()) {
+                return WidgetFit(now = now, upNext = upNext, done = done, headerStrip = header, headerRoute = headerRoute)
+            }
         }
         val now = nowCard(context, texts, cardWidth, total - 2 * CARD_V_PAD_DP, withHeader = false)
         return WidgetFit(now = now, done = done, headerStrip = header, headerRoute = headerRoute)
