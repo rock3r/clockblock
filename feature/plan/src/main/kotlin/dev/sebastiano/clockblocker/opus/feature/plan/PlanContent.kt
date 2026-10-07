@@ -167,6 +167,9 @@ internal class PlanScreenState(
 
     /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
     var dayPicksFollowed: Int = 0
+
+    /** The trip the screen last showed (null before the first plan), to spot the current plan moving to another trip. */
+    var shownTrip: String? = null
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
@@ -381,13 +384,15 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             screen.dayPicks++
         }
     }
-    // A pick made on another trip is hidden here (the current plan moved to this trip). Forget it too, or an
-    // A → B → A switch (B deleted or edited away) would bring A's old pick back instead of live time. Like going
-    // live above, this counts as a pick, so the two-pane rail follows back to the Now row.
-    if (screen.hasPickOnOtherTrip(plan.tripId)) {
+    // The current plan moved to another trip (A → B, or back to A once B is deleted or edited away). A pick made on
+    // the other trip is hidden here; forget it too, or an A → B → A switch would bring A's old pick back instead of
+    // live time. The rail's scroll position on the other trip's rows means nothing here either, so a switch counts
+    // as a pick, like going live above, and the two-pane rail follows this trip's Now row.
+    if (screen.shownTrip != plan.tripId || screen.hasPickOnOtherTrip(plan.tripId)) {
         SideEffect {
-            screen.pickDay(plan.tripId, null)
-            screen.dayPicks++
+            if (screen.hasPickOnOtherTrip(plan.tripId)) screen.pickDay(plan.tripId, null)
+            if (screen.shownTrip != null && screen.shownTrip != plan.tripId) screen.dayPicks++
+            screen.shownTrip = plan.tripId
         }
     }
     val anchor = dayBase ?: state.now

@@ -438,6 +438,29 @@ class PlanContentTest {
 
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - switching trips brings the rail to the shown trip's Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // No pick: the rail is just scrolled well away from Now. Its position on one trip's rows means nothing on
+        // another's, so each switch (A → B, then back to A) brings the rail to the shown trip's Now row.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsNotDisplayed()
+
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `two panes with motion - picking today again brings the Now row back`() {
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
