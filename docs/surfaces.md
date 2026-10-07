@@ -289,6 +289,11 @@ against the smallest cell of each layout, the size in the screenshots.
 checks every label in every layout at 1× and 1.3×, with 12 h times and a long place name. The
 `remote_labels_*` goldens show every real label.
 
+> [!WARNING]
+> The guarantee holds at the reference cells, not yet at every size a layout can get. The launcher picks a layout
+> from the lower thresholds in `WidgetRenderer` (a 2×1 from 110×40 dp), and in landscape a cell can be much shorter
+> (a Pixel 4 2×1 is 269×51 dp). Fitting against those thresholds is tracked in [#64](https://github.com/rock3r/clockblock/issues/64).
+
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
 designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
