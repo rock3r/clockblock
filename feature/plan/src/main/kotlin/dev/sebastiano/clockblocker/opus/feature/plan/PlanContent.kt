@@ -149,6 +149,9 @@ internal class PlanScreenState(
     /** Whether the day picked on [tripId] was still to come when picked (such a pick expires once its day starts). */
     fun pickedFuture(tripId: String): Boolean = selection?.takeIf { it.tripId == tripId }?.future == true
 
+    /** Whether the stored pick was made on a trip other than [tripId] (the current plan has moved to another trip). */
+    fun hasPickOnOtherTrip(tripId: String): Boolean = selection?.let { it.tripId != tripId } == true
+
     /** Picks [index] on [tripId] ([future]: that day hasn't started yet), or goes back to live when [index] is null. */
     fun pickDay(tripId: String, index: Int?, future: Boolean = false) {
         selection = index?.let { DayPick(tripId, it, future) }
@@ -377,6 +380,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             screen.pickDay(plan.tripId, null)
             screen.dayPicks++
         }
+    }
+    // A pick made on another trip is hidden here (the current plan moved to this trip). Forget it too, or an
+    // A → B → A switch (B deleted or edited away) would bring A's old pick back instead of live time.
+    if (screen.hasPickOnOtherTrip(plan.tripId)) {
+        SideEffect { screen.pickDay(plan.tripId, null) }
     }
     val anchor = dayBase ?: state.now
     val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone

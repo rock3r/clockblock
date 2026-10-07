@@ -347,6 +347,27 @@ class PlanContentTest {
     }
 
     @Test
+    fun `a pick doesn't come back when the current plan switches to another trip and back`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The current plan moves to an overlapping trip B (the pick belongs to A, so B is live)…
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        // …then B is deleted and trip A is current again: A's old pick stays forgotten, and the screen stays live.
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
     fun `a nested melatonin chip keeps its dose`() {
         // A melatonin moment inside today's bright-light block (09:00–12:30 UTC) rides as a chip, not a row.
         val dose = Advice("melatonin-test", AdviceType.Melatonin, Instant.parse("2026-06-17T11:00:00Z"), Instant.parse("2026-06-17T11:00:00Z"), AdviceReason.MelatoninDelays, "0.5 mg")
