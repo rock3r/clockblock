@@ -319,13 +319,16 @@ so if the app isn't running at the time, the next widget update or advice bounda
 - When text still doesn't fit, parts go in this order: "then …", the countdown, the glyph or the now card's
   header, then the "until" line. As a last resort the other zone's time drops to 9 sp and the label to 11 sp.
   The label and the other zone's time always stay.
+- A long place name gets shorter before the label shrinks: first the name up to the first "/", " - " or "(",
+  then the airport code ("11:30 PM in YSQ"). Screen readers still read the full name.
 - "Up next" rows drop last first, so the current block keeps its room. The 4×2 Next up shows only the capsules
   whose label fits whole: two at most font sizes.
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
   screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
-checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times and a long place name. It
+checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times and the four longest
+city names in the bundled places list. It
 runs at five densities, from mdpi to xxxhdpi, because text rounds to whole pixels differently on each. It also
 checks that each docs cell gets a layout no larger than itself. The `remote_labels_*` goldens show every real label,
 and the `remote_minimums_*` goldens show each layout at its minimum size with the longest texts.

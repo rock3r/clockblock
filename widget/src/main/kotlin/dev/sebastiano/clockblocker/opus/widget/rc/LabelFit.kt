@@ -164,12 +164,15 @@ internal data class WidgetFit(
  *
  * The label and the other zone's time always stay. When space runs out, parts give way in this order:
  * 1. the "then …" tail;
- * 2. the label shrinks, down to [TITLE_MIN_SP] (it may take two lines where the height allows);
- * 3. the countdown, then the glyph (the label still names the block), or the card's "Tokyo · Day 2" header;
- * 4. the "until" line (a short row keeps the label and the other zone's time only);
- * 5. as a last resort the other zone's time goes down to [SECONDARY_LAST_RESORT_SP] and the label to
+ * 2. the other zone's place shortens: cut at its first "/", " - " or "(", then its airport code
+ *    ([WidgetTexts.secondaryOptions]; screen readers keep the full name);
+ * 3. the label shrinks, down to [TITLE_MIN_SP] (it may take two lines where the height allows);
+ * 4. the countdown, then the glyph (the label still names the block), or the card's "Tokyo · Day 2" header;
+ * 5. the "until" line (a short row keeps the label and the other zone's time only);
+ * 6. as a last resort the other zone's time goes down to [SECONDARY_LAST_RESORT_SP] and the label to
  *    [TITLE_LAST_RESORT_SP];
- * 6. "Up next" entries, the last one first (they are never cut off mid-label).
+ * 7. "Up next" entries, the last one first (they are never cut off mid-label; their place shortens like the now
+ *    block's first).
  *
  * The building blocks ([fitNow] with its [NowSlot]s, [fitDone], [fitHeader]) are what any new layout should use:
  * describe where the now block can go, smallest-first, and draw what comes back (`FittedLabel`).
@@ -328,22 +331,30 @@ internal object LabelFit {
         )
         for ((options, passSlots, titleMinSp) in passes) {
             for (slot in passSlots) {
-                val secondary = texts.secondary?.let {
-                    TextFit.fit(context, it, slot.widthDp, SECONDARY_SP, slot.secondaryMinSp, maxLines = 2, fewerLinesFirst = true) ?: continue
+                // The other zone's time, then its shorter forms (a long place cut, or its airport code).
+                val secondaries: List<Fitted?> = if (texts.secondaryOptions.isEmpty()) {
+                    listOf(null)
+                } else {
+                    texts.secondaryOptions.mapNotNull {
+                        TextFit.fit(context, it, slot.widthDp, SECONDARY_SP, slot.secondaryMinSp, maxLines = 2, fewerLinesFirst = true)
+                    }.ifEmpty { continue }
                 }
                 for (sp in TITLE_SP downTo titleMinSp) {
                     val title = TextFit.measure(context, texts.title, slot.widthDp, sp, maxLines = 2, semibold = true)
                     if (!title.fits) continue
-                    for (option in options) {
-                        val details = option.map { line ->
-                            // "until 18:00" (or the adapted line) may wrap; a joined or "then …" line never does.
-                            TextFit.fit(context, line, slot.widthDp, DETAIL_SP, DETAIL_MIN_SP, maxLines = if (line == until) 2 else 1, fewerLinesFirst = true)
-                        }
-                        if (details.any { it == null }) continue
-                        val items = listOf(title) + details.filterNotNull() + listOfNotNull(secondary)
-                        val height = slot.fixedDp + items.sumOf { it.heightDp.toDouble() }.toFloat() + LINE_GAP_DP * (items.size - 1)
-                        if (height <= slot.heightDp) {
-                            return NowFit(slot.glyph, slot.countdown, slot.header, title, details.filterNotNull(), secondary, height, fits = true)
+                    // "then …" goes before the place name shortens; the place shortens before the label shrinks.
+                    for (secondary in secondaries) {
+                        for (option in options) {
+                            val details = option.map { line ->
+                                // "until 18:00" (or the adapted line) may wrap; a joined or "then …" line never does.
+                                TextFit.fit(context, line, slot.widthDp, DETAIL_SP, DETAIL_MIN_SP, maxLines = if (line == until) 2 else 1, fewerLinesFirst = true)
+                            }
+                            if (details.any { it == null }) continue
+                            val items = listOf(title) + details.filterNotNull() + listOfNotNull(secondary)
+                            val height = slot.fixedDp + items.sumOf { it.heightDp.toDouble() }.toFloat() + LINE_GAP_DP * (items.size - 1)
+                            if (height <= slot.heightDp) {
+                                return NowFit(slot.glyph, slot.countdown, slot.header, title, details.filterNotNull(), secondary, height, fits = true)
+                            }
                         }
                     }
                 }
@@ -353,7 +364,7 @@ internal object LabelFit {
         // arrangement, ellipsized.
         val slot = slots.last()
         val title = TextFit.measure(context, texts.title, slot.widthDp, TITLE_LAST_RESORT_SP, maxLines = 2, semibold = true)
-        val secondary = texts.secondary?.let { TextFit.measure(context, it, slot.widthDp, slot.secondaryMinSp) }
+        val secondary = texts.secondaryOptions.lastOrNull()?.let { TextFit.measure(context, it, slot.widthDp, slot.secondaryMinSp) }
         val items = listOf(title) + listOfNotNull(secondary)
         val height = slot.fixedDp + items.sumOf { it.heightDp.toDouble() }.toFloat() + LINE_GAP_DP * (items.size - 1)
         return NowFit(slot.glyph, slot.countdown, slot.header, title, emptyList(), secondary, height, fits = false)
@@ -400,6 +411,13 @@ internal object LabelFit {
         val label = TextFit.measure(context, texts.title, width, minSp, maxLines = 2, semibold = true)
         return SmallFit(glyph = false, countdownSp = null, label = label, fits = false)
     }
+
+    /**
+     * The first of [options] (a full text, then its shorter forms) that fits [widthDp] in up to [maxLines] lines,
+     * fewest lines first, as [TextFit.fit] fits it.
+     */
+    private fun fitFirst(context: Context, options: List<String>, widthDp: Float, maxSp: Int, minSp: Int, maxLines: Int = 1): Fitted? =
+        options.firstNotNullOfOrNull { TextFit.fit(context, it, widthDp, maxSp, minSp, maxLines = maxLines, fewerLinesFirst = true) }
 
     /** The smallest sp the 1×1 label may use: drawn at least [SMALL_LABEL_MIN_DP] tall at the current font scale. */
     fun smallLabelMinSp(context: Context): Int {
@@ -529,7 +547,7 @@ internal object LabelFit {
             val line = TextFit.fit(context, "${item.time}  ${item.label}", textWidth, UP_NEXT_SP, UP_NEXT_MIN_SP, maxLines = 2, fewerLinesFirst = true)
                 ?: return null
             val secondary = item.secondary?.let {
-                TextFit.fit(context, it, textWidth, UP_NEXT_SECONDARY_SP, UP_NEXT_SECONDARY_MIN_SP, maxLines = 2, fewerLinesFirst = true) ?: return null
+                fitFirst(context, item.secondaryOptions, textWidth, UP_NEXT_SECONDARY_SP, UP_NEXT_SECONDARY_MIN_SP, maxLines = 2) ?: return null
             }
             UpNextRowFit(item, line, secondary)
         }
@@ -568,7 +586,7 @@ internal object LabelFit {
             val fitted = texts.upcoming.take(count).map { item ->
                 val line = TextFit.fit(context, "${item.time} ${item.label}", textWidth, CAPSULE_SP, CAPSULE_MIN_SP) ?: return@map null
                 val secondary = item.secondary?.let {
-                    TextFit.fit(context, it, textWidth, CAPSULE_SECONDARY_SP, CAPSULE_SECONDARY_MIN_SP) ?: return@map null
+                    fitFirst(context, item.secondaryOptions, textWidth, CAPSULE_SECONDARY_SP, CAPSULE_SECONDARY_MIN_SP) ?: return@map null
                 }
                 UpNextRowFit(item, line, secondary).takeIf { line.heightDp + (secondary?.heightDp ?: 0f) <= CAPSULE_HEIGHT_DP }
             }
