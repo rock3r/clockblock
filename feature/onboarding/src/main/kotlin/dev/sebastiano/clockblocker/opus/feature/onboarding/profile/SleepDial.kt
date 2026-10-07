@@ -1,7 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 
 import android.content.res.Resources
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -288,9 +287,7 @@ fun SleepDial(
                                 track(change.uptimeMillis)
                                 if (drag.eggTriggered && !eggFired && currentEggEnabled) {
                                     eggFired = true
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                                    }
+                                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                     egg = if (currentReduce) EggState.Note else EggState.Peek
                                     eggToken++
                                 }

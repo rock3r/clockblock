@@ -51,7 +51,7 @@ private val Now = Instant.parse("2026-10-12T05:20:00Z") // 14:20 Tokyo, 06:20 Li
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h900dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h900dp-xhdpi")
 class ComponentScreenshotTest : ScreenshotTest() {
 
     @Test fun skies() = snap("component_body_clock_sky") { Skies() }
@@ -66,7 +66,7 @@ class ComponentScreenshotTest : ScreenshotTest() {
 /** The design system applied to a representative screen, in every theme variant and at font scale 1.5. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h1100dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h1100dp-xhdpi")
 class ThemeScreenshotTest : ScreenshotTest() {
     @Test fun light() = snap("theme_light") { SampleScreen() }
     @Test fun dark() = snap("theme_dark", darkTheme = true) { SampleScreen() }

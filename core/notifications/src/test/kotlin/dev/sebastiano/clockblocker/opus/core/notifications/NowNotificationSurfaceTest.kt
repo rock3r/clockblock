@@ -46,7 +46,7 @@ import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class NowNotificationSurfaceTest {
 
     private val context: Application = ApplicationProvider.getApplicationContext()
@@ -151,7 +151,7 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
-    fun `on API 31+ the Now notification is a decorated custom view with chip, until, progress and next`() = runTest {
+    fun `the Now notification is a decorated custom view with chip, until, progress and next`() = runTest {
         surface.render() shouldBe NowRendering.Ongoing
 
         val n = posted.shouldNotBeNull()
@@ -238,21 +238,6 @@ class NowNotificationSurfaceTest {
         clock.instant = utc("2026-10-10T14:30")
         surface.render() shouldBe NowRendering.LiveUpdate
 
-        alarms.scheduledAlarms.shouldBeEmpty()
-    }
-
-    @Test
-    @Config(sdk = [30])
-    fun `below API 31 the Now notification falls back to the standard big-text template`() = runTest {
-        val alarms = shadowOf(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
-
-        surface.render() shouldBe NowRendering.Ongoing
-
-        val n = posted.shouldNotBeNull()
-        n.extras.getString(Notification.EXTRA_TEMPLATE) shouldBe Notification.BigTextStyle::class.java.name
-        n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString() shouldContain "Next: Sleep at 18:00"
-        n.getLargeIcon().shouldNotBeNull()
-        // No bar to move, so no progress tick either.
         alarms.scheduledAlarms.shouldBeEmpty()
     }
 

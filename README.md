@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/rock3r/clockblock/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/rock3r/clockblock/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="LICENSE"><img alt="Licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-4F46E5" /></a>
-  <img alt="minSdk 29" src="https://img.shields.io/badge/minSdk-29-4F46E5" />
+  <img alt="minSdk 37" src="https://img.shields.io/badge/minSdk-37-4F46E5" />
   <img alt="targetSdk 37" src="https://img.shields.io/badge/targetSdk-37-4F46E5" />
   <img alt="Network: none" src="https://img.shields.io/badge/network-none-FFB000" />
 </p>
@@ -49,9 +49,8 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
 - Short trips can stay on home time instead of adapting. An "I'm delayed" button moves a late flight and rebuilds
   the plan.
 - Reminders arrive just before each change, never while you should be asleep except to wake you. One quiet
-  ongoing notification shows the current advice, and becomes a Live Update on travel days (Android 16+).
-- Two home-screen widgets, *Two Clocks* and *Next up*, built with Remote Compose, with a RemoteViews fallback for
-  older launchers.
+  ongoing notification shows the current advice, and becomes a Live Update on travel days.
+- Two home-screen widgets, *Two Clocks* and *Next up*, built with Remote Compose.
 - Night-safe mode, so checking your plan doesn't work against it: the plan screen turns dark and dim when the
   plan says avoid light or sleep, or during your body's night when no light is planned. The widgets switch to
   dark while the plan says avoid light or sleep.
@@ -113,11 +112,10 @@ You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties
 ./gradlew :app:connectedDebugAndroidTest     # end-to-end tests on a device or emulator
 ```
 
-The debug build needs no API keys, no backend and no signing setup. The app runs on Android 10 (API 29) and later.
+The debug build needs no API keys, no backend and no signing setup. The app runs on Android 17 (API 37) and later.
 
-The project is built test-first: about 1,100 JVM tests, 199 screenshot goldens and 22 end-to-end tests at the time
-of writing. CI runs them on every pull request; one widget e2e test is skipped on the CI emulator's API level
-([#2](https://github.com/rock3r/clockblock/issues/2)). See [docs/testing.md](docs/testing.md).
+The project is built test-first: about 1,100 JVM tests, 193 screenshot goldens and 22 end-to-end tests at the time
+of writing. CI runs them all on every pull request. See [docs/testing.md](docs/testing.md).
 
 ## Architecture
 
@@ -133,7 +131,7 @@ everything else is Android.
 | `:core:notifications` | Android | Alarm scheduler, reminders, the Now notification and Live Update |
 | `:core:testing` | Android | Test rules, fakes, screenshot helpers |
 | `:feature:onboarding`, `:feature:trips`, `:feature:plan`, `:feature:settings` | Android + Compose | The screens |
-| `:widget` | Android + Compose | Remote Compose widgets with a RemoteViews fallback |
+| `:widget` | Android + Compose | Remote Compose widgets |
 | `:app` | Application | Navigation 3 shell, adaptive layouts, Metro DI graph |
 
 The stack: AGP 9 with built-in Kotlin, Kotlin 2.4, JDK 21, Jetpack Compose (alpha BOM) with Material 3

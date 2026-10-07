@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.util.TypedValue
@@ -19,11 +18,11 @@ import android.widget.TextView
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.widget.WidgetKind
 import dev.sebastiano.clockblocker.opus.widget.WidgetRenderer
-import dev.sebastiano.clockblocker.opus.widget.WidgetSizeDp
 import dev.sebastiano.clockblocker.opus.widget.WidgetUpdater
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeSupport
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
 import kotlinx.coroutines.MainScope
@@ -34,14 +33,13 @@ import java.time.Instant
 /**
  * DEBUG ONLY. Hosts the Clockblock widgets in-process so they can be checked on an emulator without a launcher:
  *
- * - demo frames: [WidgetRenderer] output (Remote Compose on API 36+, else classic) applied to plain
+ * - demo frames: [WidgetRenderer] output (Remote Compose, or the placeholder) applied to plain
  *   [AppWidgetHostView]s at a typical cell size per responsive bucket, in every [WidgetTheme], fed with [DemoPlans];
  * - live: real provider instances bound through [AppWidgetHost] (needs
  *   `adb shell appwidget grantbind --package <applicationId>`), updated by the real provider/updater path.
  *
  * Extras: `scenario` (a [DemoPlans.Scenario], NoTrip, or any [AdviceType] name: the demo's current block becomes
- * that type), `label` (replaces the advice label, to try long ones), `legacy` (bool),
- * `page` (twoclocks|nextup|live|all).
+ * that type), `label` (replaces the advice label, to try long ones), `page` (twoclocks|nextup|live|all).
  *
  * `adb shell am start -n <applicationId>/dev.sebastiano.clockblocker.opus.widget.debug.WidgetGalleryActivity --es page nextup`
  */
@@ -54,7 +52,6 @@ class WidgetGalleryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val scenario = intent.getStringExtra("scenario") ?: "AvoidLight"
-        val legacy = intent.getBooleanExtra("legacy", false)
         val page = intent.getStringExtra("page") ?: "all"
         val labelOverride = intent.getStringExtra("label")
 
@@ -73,14 +70,13 @@ class WidgetGalleryActivity : Activity() {
 
         val renderer = WidgetRenderer(
             this,
-            forceLegacy = legacy,
             textsTransform = { texts ->
                 if (labelOverride == null || texts.glyph !is GlyphKind.Advice) texts
                 else texts.copy(title = labelOverride, dialTitle = labelOverride)
             },
         )
         val scale = resources.configuration.fontScale
-        column.addView(label("$scenario${labelOverride?.let { " \"$it\"" }.orEmpty()} · ${renderer.backend} · API ${Build.VERSION.SDK_INT} · font ×$scale"))
+        column.addView(label("$scenario${labelOverride?.let { " \"$it\"" }.orEmpty()} · player v${runCatching { RemoteComposeSupport.supportedVersion() }.getOrNull()} · font ×$scale"))
 
         val now = Instant.now()
         val state = when (scenario) {
@@ -141,10 +137,8 @@ class WidgetGalleryActivity : Activity() {
     ): View {
         val view = AppWidgetHostView(this)
         view.layoutParams = LinearLayout.LayoutParams(px(widthDp), px(heightDp)).apply { setMargins(px(6), px(6), px(6), px(6)) }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            view.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp.toFloat(), heightDp.toFloat())))
-        }
-        val views = renderer.render(kind, state, theme, WidgetSizeDp(widthDp.toFloat(), heightDp.toFloat()))
+        view.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp.toFloat(), heightDp.toFloat())))
+        val views = renderer.render(kind, state, theme)
         view.updateAppWidget(views)
         return view
     }

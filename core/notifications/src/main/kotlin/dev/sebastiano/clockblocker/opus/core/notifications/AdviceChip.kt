@@ -12,7 +12,7 @@ import kotlin.math.roundToInt
 
 /**
  * The advice glyph on its colour chip as a bitmap, for the large icon of standard-template notifications (reminders,
- * the travel-day Live Update, the lock-screen version of Now, and Now below API 31), so they carry the same visual
+ * the travel-day Live Update, and the lock-screen version of Now), so they carry the same visual
  * cue as the custom Now view. A bitmap can't follow the shade's theme by itself, so it takes the app's current
  * light/dark state at build time; every notification is rebuilt at the next plan boundary anyway.
  */

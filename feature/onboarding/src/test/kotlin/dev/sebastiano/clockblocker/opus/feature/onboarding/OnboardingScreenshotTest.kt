@@ -43,7 +43,7 @@ internal fun onboardingState(
 /** Every onboarding step on a compact phone, plus dark and large-font variants. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingScreenshotTest : ClockblockScreenshotTest() {
     private fun step(name: String, state: OnboardingUiState, dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
@@ -124,7 +124,7 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 /** Expanded window: two panes, art and words on the left, controls on the right. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w1280dp-h800dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w1280dp-h800dp-xhdpi")
 class OnboardingExpandedScreenshotTest : ClockblockScreenshotTest() {
     private fun step(name: String, state: OnboardingUiState, dark: Boolean = false) =
         snap(name, darkTheme = dark) { OnboardingContent(state, OnboardingActions.None, Modifier.fillMaxSize()) }
@@ -145,7 +145,7 @@ class OnboardingExpandedScreenshotTest : ClockblockScreenshotTest() {
 /** Phone in landscape: also two panes, so the dial is never squeezed under the headline. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w860dp-h400dp-land-xxhdpi")
+@Config(sdk = [37], qualifiers = "w860dp-h400dp-land-xxhdpi")
 class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
     @Test fun sleep() = snap("onboarding_landscape_3_sleep") {
         OnboardingContent(onboardingState(OnboardingStep.Sleep), OnboardingActions.None, Modifier.fillMaxSize())

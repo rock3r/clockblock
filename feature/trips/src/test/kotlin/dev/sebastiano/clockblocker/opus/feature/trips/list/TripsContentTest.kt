@@ -24,7 +24,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Taps through the stateless trips list and checks every affordance reaches the right callback. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h891dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h891dp-xhdpi")
 class TripsContentTest : TripsScreenshotTest() {
 
     private val calls = mutableListOf<String>()

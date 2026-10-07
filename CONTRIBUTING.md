@@ -22,7 +22,7 @@ all welcome. For anything bigger than a small fix, please open an issue first so
    ./gradlew test
    ```
 
-5. For the end-to-end suite, start an emulator (API 37 image) and run
+5. For the end-to-end suite, start an emulator with an Android 17 (API 37) image and run
    `./gradlew :app:connectedDebugAndroidTest`.
 
 There's no backend, no API key and no signing config to set up: the debug build is all you need.
@@ -52,8 +52,8 @@ Every change comes with tests, written before the code.
 |---|---|
 | Pure logic (planner, models, repositories) | JUnit 6 Jupiter (`org.junit.jupiter.api.Test`) + Kotest assertions; `kotest-property` property tests where an invariant exists |
 | ViewModels | `MainDispatcherRule` from `:core:testing`, Turbine, and the fakes in `:core:testing` |
-| Compose UI | JUnit 4 + Robolectric (`@RunWith(RobolectricTestRunner::class)`, `@GraphicsMode(NATIVE)`, `@Config(sdk = [36])`) |
-| How it looks | Roborazzi `captureRoboImage()`: light, dark, font scale 1.5, compact and expanded widths |
+| Compose UI | JUnit 4 + Robolectric (`@RunWith(RobolectricTestRunner::class)`, `@GraphicsMode(NATIVE)`, `@Config(sdk = [37])`) |
+| How it looks | Roborazzi via `compose.captureRoboImageInvalidated()`: light, dark, font scale 1.5, compact and expanded widths |
 | Whole flows | `app/src/androidTest` (Compose test + UiAutomator) on an emulator |
 
 ### Screenshot goldens

@@ -20,7 +20,7 @@ sealed interface WidgetState {
 
     data class Active(
         val tripId: String,
-        /** Instant the state was computed for; host-evaluated time takes over from here on API 36+. */
+        /** Instant the state was computed for; host-evaluated time takes over from here. */
         val capturedAt: Instant,
         /** Zone the dial and times are shown in: where the plan expects the user to be today. */
         val displayZoneId: String,

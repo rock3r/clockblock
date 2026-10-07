@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_next_up_description"
-    android:initialKeyguardLayout="@layout/widget_next_up_legacy"
-    android:initialLayout="@layout/widget_next_up_legacy"
+    android:initialKeyguardLayout="@layout/widget_placeholder"
+    android:initialLayout="@layout/widget_placeholder"
     android:minWidth="110dp"
     android:minHeight="40dp"
     android:minResizeWidth="40dp"

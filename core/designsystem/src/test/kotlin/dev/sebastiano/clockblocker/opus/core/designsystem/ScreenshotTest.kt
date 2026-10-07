@@ -15,12 +15,11 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
-import com.github.takahirom.roborazzi.captureRoboImage
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import org.junit.Rule
 
 /**
@@ -46,7 +45,7 @@ abstract class ScreenshotTest {
         compose.setContent {
             Themed(darkTheme, nightSafe, opusMode, fontScale, background, reduceMotion = true, content)
         }
-        compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/$name.png")
     }
 
     /**
@@ -74,7 +73,7 @@ abstract class ScreenshotTest {
             Snapshot.sendApplyNotifications()
         }
         compose.mainClock.advanceTimeBy(advanceMillis)
-        compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/$name.png")
     }
 
     private fun setClockFormat(use24Hour: Boolean) {

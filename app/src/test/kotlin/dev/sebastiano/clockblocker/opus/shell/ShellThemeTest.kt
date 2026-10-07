@@ -6,13 +6,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onRoot
-import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.TestApplication
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
@@ -31,7 +30,7 @@ import java.time.ZoneId
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class, qualifiers = "w411dp-h891dp")
+@Config(sdk = [37], application = TestApplication::class, qualifiers = "w411dp-h891dp")
 class ShellThemeTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
@@ -104,7 +103,7 @@ class ShellThemeTest {
         // Let the palette cross-fade settle before capturing.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        compose.onRoot().captureRoboImage("src/test/screenshots/shell_compact_trips_opus.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/shell_compact_trips_opus.png")
     }
 
     @Test

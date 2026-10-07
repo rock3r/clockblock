@@ -19,7 +19,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h880dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h880dp-xhdpi")
 class AdaptationCardTest {
     @get:Rule
     val compose = createComposeRule()
