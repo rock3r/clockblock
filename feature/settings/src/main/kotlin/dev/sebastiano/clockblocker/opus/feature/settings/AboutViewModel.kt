@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -31,12 +32,13 @@ sealed interface AboutEvent {
 /**
  * About screen logic: the developer-options-style easter egg. Tapping the version [TapsToUnlock] times unlocks
  * Opus mode ("Opus No. 1 in Jet-Lag Minor"), switches it on and raises the title card. The last
- * [CountdownFrom] taps before that count down.
+ * [CountdownFrom] taps before that count down. Like every egg, taps do nothing while [EasterEggGate] says no
+ * (Reduce motion on, or the current plan says sleep).
  */
 @Inject
 @ViewModelKey(AboutViewModel::class)
 @ContributesIntoMap(AppScope::class)
-class AboutViewModel(private val settings: SettingsRepository) : ViewModel() {
+class AboutViewModel(private val settings: SettingsRepository, private val eggs: EasterEggGate) : ViewModel() {
     private var taps = 0
     private val _events = Channel<AboutEvent>(Channel.BUFFERED)
     private val _showTitleCard = MutableStateFlow(false)
@@ -53,6 +55,7 @@ class AboutViewModel(private val settings: SettingsRepository) : ViewModel() {
                 _events.send(AboutEvent.AlreadyUnlocked)
                 return@launch
             }
+            if (!eggs.allowed.first()) return@launch
             taps++
             val remaining = TapsToUnlock - taps
             when {

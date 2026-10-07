@@ -1,20 +1,25 @@
 package dev.sebastiano.clockblocker.opus.feature.settings
 
 import app.cash.turbine.test
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupCodec
 import dev.sebastiano.clockblocker.opus.core.data.backup.BackupManager
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.testing.FakeAdviceLogRepository
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
 import dev.sebastiano.clockblocker.opus.core.testing.FakePlaceSearch
+import dev.sebastiano.clockblocker.opus.core.testing.FakePlanRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeProfileRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeSettingsRepository
 import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
 import dev.sebastiano.clockblocker.opus.core.testing.MainDispatcherRule
+import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -45,7 +50,28 @@ class SettingsViewModelTest {
     private val backup = BackupManager(profiles, settings, trips, logs, codec, clock)
     private val pinning = FakeWidgetPinning()
 
-    private fun viewModel() = SettingsViewModel(settings, profiles, permissions, FakePlaceSearch(), backup, codec, clock, pinning)
+    private val plans = FakePlanRepository()
+    private val ticker = MutableClock()
+
+    private fun viewModel() = SettingsViewModel(
+        settings, profiles, permissions, FakePlaceSearch(), backup, codec, clock, pinning, EasterEggGate(settings, plans, ticker),
+    )
+
+    @Test
+    fun `the sleep editor egg follows reduce motion and the plan's sleep`() = runTest {
+        val plan = FakeJetLagPlanner().plan(DemoData.sfoToLhr(), DemoData.profile, ticker.instant())
+        val sleep = plan.allAdvice.first { it.type == AdviceType.Sleep }
+        viewModel().state.test {
+            expectMostRecentItem().easterEggs.shouldBeTrue()
+            settings.set(AppSettings(reduceMotion = true))
+            expectMostRecentItem().easterEggs.shouldBeFalse()
+            settings.set(AppSettings())
+            expectMostRecentItem().easterEggs.shouldBeTrue()
+            plans.setCurrentPlan(plan)
+            ticker.set(sleep.start)
+            expectMostRecentItem().easterEggs.shouldBeFalse()
+        }
+    }
 
     @Test
     fun `state mirrors settings, profile and permissions`() = runTest {

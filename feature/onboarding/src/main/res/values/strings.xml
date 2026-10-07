@@ -106,7 +106,7 @@
     <string name="effort_max">Max</string>
     <string name="effort_gentle_description">Smaller daily shifts and fewer early starts. Takes a little longer.</string>
     <string name="effort_balanced_description">The research-backed pace. A good default for most trips.</string>
-    <string name="effort_max_description">Every useful light window, so you adapt as fast as the science allows.</string>
+    <string name="effort_max_description">The Balanced pace. For eastward shifts of 8 to 12 hours, it tries both directions on the model and picks the faster one.</string>
 
     <!-- 6. Reminders. -->
     <string name="reminders_headline">Reminders that actually arrive</string>
