@@ -265,12 +265,34 @@ widgets.
 | 2×1 | — | Glyph, label, "until" line and the other zone's time |
 | 4×1 | — | Row with the countdown, the other zone's time and Done |
 | 2×2 | Dial and a two-line caption | Countdown, label, "until / then", the other zone and Done |
-| 4×2 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 4×1 row plus three "Up next" capsules |
+| 4×2 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 4×1 row plus up to three "Up next" capsules |
 | 2×3 | Dial, now card and Done | The 2×2 stack plus two "Up next" rows, with the route |
 | 4×3 | A header strip with the route, the 4×2 layout, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
 
-At 2×1 the other zone's time gets its own line. Above 1.15× font scale the label and the "until" line fold
-into one line to fit the cell, and the other zone's time goes into that line, where a narrow cell may cut it off.
+### Labels never clip
+
+No label is cut off or ends in "…", at any size and at font scales up to 1.3×. The launcher can't measure text, so
+[`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) decides at capture
+time what each layout shows, measuring the text the way the player draws it
+([`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt)). It measures
+against the smallest cell of each layout, the size in the screenshots.
+
+- Text shrinks down to a floor: 13 sp for the label, 11 sp for the "until" line, 10 sp for the other zone's time.
+- The label and the "until" line take two lines where the height allows; the other zone's time stays on one.
+- When text still doesn't fit, parts go in this order: "then …", the countdown, the glyph, the now card's
+  header. The other zone's time then drops to 9 sp as a last resort. The label and the other zone's time always
+  stay.
+- "Up next" rows drop last first, so the current block keeps its room. The 4×2 Next up shows only the capsules
+  whose label fits whole: two at most font sizes.
+
+[`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
+checks every label in every layout at 1× and 1.3×, with 12 h times and a long place name. The
+`remote_labels_*` goldens show every real label.
+
+> [!WARNING]
+> The guarantee holds at the reference cells, not yet at every size a layout can get. The launcher picks a layout
+> from the lower thresholds in `WidgetRenderer` (a 2×1 from 110×40 dp), and in landscape a cell can be much shorter
+> (a Pixel 4 2×1 is 269×51 dp). Fitting against those thresholds is tracked in [#64](https://github.com/rock3r/clockblock/issues/64).
 
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
