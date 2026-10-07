@@ -289,7 +289,12 @@ object TwoSkies {
             nextDiscR?.let { glyph(next, laneR, glyphDeg, it) }
             if (rimR == null) return
             val thenSpec = TextSpec(10f * sayK, weight = 550, tabular = false)
-            val thenText = labels.then(labels.advice(next.type))
+            // "then …" only when it really follows: advice that starts before the block in focus ends (sleep inside
+            // a long flight) is narrated with its start instead, so the rim never puts them in the wrong order.
+            val currentRuns = (current.narratedEndMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
+            val nextIn = (next.startMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
+            val nextLabel = labels.advice(next.type)
+            val thenText = if (nextIn < currentRuns) labels.at(nextLabel, labels.fullTime(next.startMinute)) else labels.then(nextLabel)
             val thenDeg = degreesFor(thenText, thenSpec, rimR)
             val thenCentre = if (inward) {
                 // Reading right to left round the dial: "then …" continues on the far side of the glyph.

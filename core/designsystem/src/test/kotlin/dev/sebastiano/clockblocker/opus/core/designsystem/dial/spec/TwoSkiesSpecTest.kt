@@ -185,6 +185,21 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `advice that starts before the block in focus ends is narrated with its start, not as then`() {
+        // Noon on a flight that lands at 08:10 tomorrow; sleep at 16:00 comes first, so "then sleep" would be wrong.
+        val flight = tokyo.copy(
+            localMinute = 12 * 60f,
+            arcs = persistentListOf(
+                DialArc("flight", AdviceType.Flight, 10 * 60f, 22 * 60f + 10f),
+                DialArc("sleep", AdviceType.Sleep, 16 * 60f, 480f),
+            ),
+        )
+        val texts = spec(flight).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
+        texts.filter { it.startsWith("then") }.shouldBeEmpty()
+        texts shouldContain "Sleep at 16:00"
+    }
+
+    @Test
     fun `a moment is in focus when it is due`() {
         val focus = tokyo.focusAt(16 * 60f + 30f)
         focus.current?.adviceId shouldBe "mel"
