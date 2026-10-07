@@ -299,8 +299,9 @@ launcher can't measure text, so
 [`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) decides at capture
 time what each layout shows, measuring the text the way the player draws it
 ([`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt)). It fits each
-layout at its minimum size, the smallest size the launcher can give it. The launcher only ever stretches a layout,
-so text that fits the minimum fits at every larger size.
+layout at the smallest size the launcher can give it: its minimum less 1 dp, because the launcher rounds the
+widget's size up before it compares. The launcher only ever stretches a layout, so text that fits there fits at
+every larger size.
 
 - Text shrinks down to a floor: 13 sp for the label, 11 sp for the "until" line, 10 sp for the other zone's time
   and for Done.
@@ -315,7 +316,7 @@ so text that fits the minimum fits at every larger size.
   screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
-checks every label in every layout at its minimum size, at 1× and 1.3×, with 12 h times and a long place name. It
+checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times and a long place name. It
 runs at five densities, from mdpi to xxxhdpi, because text rounds to whole pixels differently on each. It also
 checks that each docs cell gets a layout no larger than itself. The `remote_labels_*` goldens show every real label,
 and the `remote_minimums_*` goldens show each layout at its minimum size with the longest texts.
