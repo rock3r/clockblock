@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Expanded Now notification (DecoratedCustomViewStyle; header with the body clock and the actions come from the
+  system). Top to bottom, the order you read it in: what to do now (glyph + label), until when (local time, then the
+  other zone as a short tail), the block's progress, anything else running alongside, what starts next, and a tip.
+  Every glyph sits next to its text label; glyphs are hidden from TalkBack, which reads the labels.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:importantForAccessibility="noHideDescendants">
+
+            <ImageView
+                android:id="@+id/now_chip"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/notif_chip" />
+
+            <ImageView
+                android:id="@+id/now_glyph"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/now_title"
+                style="@style/TextAppearance.Compat.Notification.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2" />
+
+            <TextView
+                android:id="@+id/now_line"
+                style="@style/TextAppearance.Compat.Notification"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/now_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="12dp"
+        android:importantForAccessibility="no"
+        android:max="1000"
+        android:maxHeight="6dp"
+        android:minHeight="6dp"
+        android:progressDrawable="@drawable/notif_progress" />
+
+    <LinearLayout
+        android:id="@+id/now_also_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:importantForAccessibility="noHideDescendants">
+
+            <ImageView
+                android:id="@+id/now_also_chip"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/notif_chip" />
+
+            <ImageView
+                android:id="@+id/now_also_glyph"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/now_also"
+            style="@style/TextAppearance.Compat.Notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/now_next_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:importantForAccessibility="noHideDescendants">
+
+            <ImageView
+                android:id="@+id/now_next_chip"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/notif_chip" />
+
+            <ImageView
+                android:id="@+id/now_next_glyph"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/now_next"
+            style="@style/TextAppearance.Compat.Notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/now_tip"
+        style="@style/TextAppearance.Compat.Notification.Info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textStyle="italic"
+        android:visibility="gone" />
+</LinearLayout>

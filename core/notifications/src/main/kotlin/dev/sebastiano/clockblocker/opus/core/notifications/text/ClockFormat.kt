@@ -27,6 +27,9 @@ class ClockFormat(
         return if (local.toLocalDate() == reference.atZone(zone).toLocalDate()) plain else "${weekday(instant)} $plain"
     }
 
+    /** "18:00", never with a weekday: for a tail next to a primary time that already carries the day. */
+    fun plainTime(instant: Instant): String = timeFormatter.format(instant.atZone(zone))
+
     /**
      * "18:00–02:00". The start gets a weekday when it isn't on [reference]'s date; the end only when the range
      * spans a day or more (an overnight window is obvious from the times).
