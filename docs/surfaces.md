@@ -102,7 +102,7 @@ pings.
 
 ![The Now notification, expanded, in the shade: header "Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
-On Android 12 (API 31) and later, the notification is a `DecoratedCustomViewStyle` with our own content
+The notification is a `DecoratedCustomViewStyle` with our own content
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
 layouts `notif_now_collapsed` / `notif_now_expanded`). The system still draws the icon, the header with the
 body clock, the expand button and the actions. Our part reads top to bottom:
@@ -139,8 +139,8 @@ Now notification is hidden, its channel is blocked in system settings, or it bec
 shade would show the device's zone, not the plan's, and a ticking chronometer is noise on a surface you see all
 day.
 
-Below Android 12 the notification falls back to the standard big-text template with the same text (headline,
-"until" line, "Also now", "Next", tip) and the advice chip as its large icon. It has no bar, so no progress tick.
+The redacted lock-screen version uses the standard big-text template with the same text (headline, "until"
+line, "Also now", "Next", tip) and the advice chip as its large icon.
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)

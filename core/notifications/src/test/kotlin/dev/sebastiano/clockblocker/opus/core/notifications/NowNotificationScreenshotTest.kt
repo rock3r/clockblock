@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h900dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h900dp-xxhdpi")
 class NowNotificationScreenshotTest {
 
     // Saturday 2026-10-10, London on BST (UTC+1); Tokyo is the other zone.
