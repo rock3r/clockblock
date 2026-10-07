@@ -121,7 +121,7 @@
         <item quantity="other">Added %1$d check-ins from the backup.</item>
     </plurals>
     <string name="settings_event_merged_profile">Added your profile from the backup.</string>
-    <string name="settings_event_merged_nothing">Nothing new to add. Everything in that backup is already here.</string>
+    <string name="settings_event_merged_nothing">Nothing added. Everything already on this phone was kept as it was.</string>
     <string name="settings_event_not_backup">That file isn\'t a Clockblock backup.</string>
     <string name="settings_event_newer">That backup is from a newer version. Update the app, then try again.</string>
     <string name="settings_event_unreadable">Couldn\'t read that file.</string>
