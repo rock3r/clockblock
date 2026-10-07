@@ -126,6 +126,21 @@ class FakeAdviceLogRepository(initial: Map<String, List<AdviceLog>> = emptyMap()
             all + (tripId to entries.filterNot { it.adviceId == adviceId })
         }
     }
+
+    override suspend fun logIfAbsent(tripId: String, adviceId: String, outcome: AdviceOutcome): Boolean {
+        var logged = false
+        state.update { all ->
+            val entries = all[tripId].orEmpty()
+            logged = entries.none { it.adviceId == adviceId }
+            if (logged) all + (tripId to entries + AdviceLog(adviceId, outcome)) else all
+        }
+        return logged
+    }
+
+    override suspend fun replaceAll(tripId: String, entries: List<AdviceLog>) {
+        val unique = entries.asReversed().distinctBy { it.adviceId }.asReversed()
+        state.update { all -> if (unique.isEmpty()) all - tripId else all + (tripId to unique) }
+    }
 }
 
 /**
