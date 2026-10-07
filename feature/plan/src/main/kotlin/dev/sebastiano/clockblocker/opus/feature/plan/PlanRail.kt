@@ -1,7 +1,11 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +51,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -193,7 +200,10 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
 internal fun List<RailRow>.nowRowIndex(): Int =
     indexOfFirst { it is RailRow.NowMarker || (it is RailRow.Block && it.nowFraction != null) }
 
-/** Everything a rail row needs besides its own data. */
+/**
+ * Everything a rail row needs besides its own data. [onCheckOff]: a row's check-off circle was ticked (`true`: log
+ * it as done) or unticked (`false`: forget the log).
+ */
 @Immutable
 internal class RailRenderer(
     val highlighted: Set<String>,
@@ -201,6 +211,7 @@ internal class RailRenderer(
     val bodyHour: (Instant) -> Float,
     val onBlockClick: (adviceId: String) -> Unit,
     val onToggleEarlier: () -> Unit,
+    val onCheckOff: (adviceId: String, done: Boolean) -> Unit = { _, _ -> },
 )
 
 /** Emits the rail: sticky day headers, blocks and the now marker. */
@@ -459,7 +470,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     val bodyTop = remember(advice.start, sky) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
     val bodyBottom = remember(row.bandEnd, sky) { sky.gradientAt(renderer.bodyHour(row.bandEnd)).mid }
     val rowShape = RoundedCornerShape(24.dp)
-    Row(
+    RailRowLayout(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
@@ -467,14 +478,12 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             .then(if (emphasised) Modifier.background(scheme.surfaceContainerHigh, rowShape) else Modifier)
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.plan_open_why)) { renderer.onBlockClick(advice.id) }
             .padding(horizontal = 8.dp)
-            .height(IntrinsicSize.Min)
             .testTag(PlanTags.block(advice.id))
             // The row speaks as one button; the blocks riding inside it (children) stay their own buttons.
             .semantics {
                 contentDescription = listOfNotNull(description, inFlightText.takeIf { row.item.inFlight }, detail, secondaryRange).joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
-        verticalAlignment = Alignment.Top,
     ) {
         // Time column: start time, upright = local (dial type rule). Blank when the row above starts at the same
         // time, so the column only ever moves forward.
@@ -544,43 +553,59 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                 }
             }
         }
-        Spacer(Modifier.width(12.dp))
-        // Text column.
+        // Text column (its height sets the row's; the rail column stretches to match).
         Column(
             Modifier
-                .weight(1f)
                 .heightIn(min = height + RowGap * 2)
                 .padding(top = RowGap + 6.dp, bottom = RowGap + 6.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Column(
-                Modifier.alpha(if (past && !emphasised) 0.7f else 1f).clearAndSetSemantics {},
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                FlowRow(
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+            // The text lines share their width with the check-off slot; the chips below keep the column's full width.
+            Row(verticalAlignment = Alignment.Top) {
+                Column(
+                    Modifier.weight(1f).alpha(if (past && !emphasised) 0.7f else 1f).clearAndSetSemantics {},
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Text(
-                        label,
-                        style = if (emphasised) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (isNow) {
-                        Surface(shape = CircleShape, color = scheme.primary, contentColor = scheme.onPrimary) {
-                            Text(nowText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                    FlowRow(
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            label,
+                            style = if (emphasised) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (isNow) {
+                            Surface(shape = CircleShape, color = scheme.primary, contentColor = scheme.onPrimary) {
+                                Text(nowText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            }
+                        }
+                        if (row.item.inFlight) InFlightBadge(inFlightText)
+                        row.item.outcome?.let { OutcomeBadge(it) }
+                    }
+                    Text(range, style = ClockblockTheme.textStyles.timeLabel, color = scheme.onSurface)
+                    if (!detail.isNullOrBlank()) {
+                        Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(secondaryRange, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
+                }
+                // Check-off slot: on every row but flights (which just happen), so titles wrap at the same width down
+                // the rail; the circle itself only shows once the block has started (you can't log the future). It
+                // sits level with the title, its 48 dp target reaching up into the row's top padding.
+                if (advice.type != AdviceType.Flight) {
+                    Box(Modifier.offset(y = -CheckOffLift).size(CheckOffTarget), contentAlignment = Alignment.Center) {
+                        if (row.item.status != RailStatus.Future) {
+                            CheckOffCircle(
+                                done = row.item.outcome == AdviceOutcome.Done,
+                                label = label,
+                                onChange = { renderer.onCheckOff(advice.id, it) },
+                                modifier = Modifier.testTag(PlanTags.checkOff(advice.id)),
+                            )
                         }
                     }
-                    if (row.item.inFlight) InFlightBadge(inFlightText)
-                    row.item.outcome?.let { OutcomeBadge(it) }
                 }
-                Text(range, style = ClockblockTheme.textStyles.timeLabel, color = scheme.onSurface)
-                if (!detail.isNullOrBlank()) {
-                    Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                Text(secondaryRange, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
             }
             if (row.children.isNotEmpty()) {
                 FlowRow(
@@ -593,6 +618,70 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                     }
                 }
             }
+        }
+    }
+}
+
+private val RailTextGap = 12.dp
+
+/**
+ * A rail row's three columns, in order: time, rail (sky band and capsule) and text. The text column's own height sets
+ * the row's, then the rail column is stretched to it. (A Row with `height(IntrinsicSize.Min)` did this before, but a
+ * FlowRow's intrinsic height comes up a line short when a badge or chip only just doesn't fit, and the row then
+ * dropped the chips that wrapped.)
+ */
+@Composable
+private fun RailRowLayout(modifier: Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val (time, rail, text) = measurables
+        val railWidth = RailColumnWidth.roundToPx()
+        val gap = RailTextGap.roundToPx()
+        val timePlaceable = time.measure(Constraints(maxWidth = constraints.maxWidth))
+        val textWidth = (constraints.maxWidth - timePlaceable.width - railWidth - gap).coerceAtLeast(0)
+        val textPlaceable = text.measure(Constraints(minWidth = textWidth, maxWidth = textWidth))
+        val height = maxOf(timePlaceable.height, textPlaceable.height, constraints.minHeight)
+        val railPlaceable = rail.measure(Constraints.fixed(railWidth, height))
+        layout(constraints.maxWidth, height) {
+            timePlaceable.placeRelative(0, 0)
+            railPlaceable.placeRelative(timePlaceable.width, 0)
+            textPlaceable.placeRelative(timePlaceable.width + railWidth + gap, 0)
+        }
+    }
+}
+
+private val CheckOffTarget = 48.dp
+
+/** How far the check-off target reaches above the title line, so the circle sits level with the title. */
+private val CheckOffLift = 12.dp
+
+/**
+ * A row's quick check-off: an outlined circle that fills with a check once the block is logged as done. Ticking it
+ * gives the same `CONFIRM` click as the Now card's Done (the caller offers Undo); unticking forgets the log. The rail
+ * is a 100+/day surface, so the circle simply swaps state: the state layer is its only motion.
+ */
+@Composable
+private fun CheckOffCircle(done: Boolean, label: String, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val view = LocalView.current
+    val scheme = MaterialTheme.colorScheme
+    val description = stringResource(R.string.plan_check_off, label)
+    Box(
+        modifier
+            .size(CheckOffTarget)
+            .clip(CircleShape)
+            .toggleable(value = done, role = Role.Checkbox) { checked ->
+                if (checked) view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                onChange(checked)
+            }
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(24.dp)
+                .then(if (done) Modifier.background(scheme.primary, CircleShape) else Modifier.border(2.dp, scheme.outline, CircleShape)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (done) Icon(PlanIcons.Check, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(16.dp))
         }
     }
 }
