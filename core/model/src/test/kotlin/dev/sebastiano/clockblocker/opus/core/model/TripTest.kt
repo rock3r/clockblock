@@ -35,6 +35,34 @@ class TripTest {
     }
 
     @Test
+    fun `the place in a zone is where the traveller is then`() {
+        // Oslo -> Tromsø -> Oslo: one zone, two very different suns.
+        val osl = Place("OSL", "Oslo Gardermoen", "Oslo", "NO", "Europe/Oslo", 60.194, 11.100)
+        val tos = Place("TOS", "Tromsø", "Tromsø", "NO", "Europe/Oslo", 69.683, 18.919)
+        val out = FlightLeg("1", osl, tos, LocalDateTime.of(2026, 6, 15, 9, 0), LocalDateTime.of(2026, 6, 15, 10, 50))
+        val back = FlightLeg("2", tos, osl, LocalDateTime.of(2026, 6, 20, 18, 0), LocalDateTime.of(2026, 6, 20, 19, 50))
+        val trip = Trip("t", "Tromsø", listOf(out, back), Instant.parse("2026-06-01T00:00:00Z"))
+        val oslo = java.time.ZoneId.of("Europe/Oslo")
+
+        trip.placeIn(oslo, at = out.departure.minusSeconds(86_400)) shouldBe osl
+        trip.placeIn(oslo, at = out.departure.plusSeconds(600)) shouldBe osl // still in the air
+        trip.placeIn(oslo, at = out.arrival.plusSeconds(86_400)) shouldBe tos
+        trip.placeIn(oslo, at = back.arrival.plusSeconds(3_600)) shouldBe osl
+    }
+
+    @Test
+    fun `away from the zone the place in it is the trip's last stop there`() {
+        val nrt = Place("NRT", "Narita", "Tokyo", "JP", "Asia/Tokyo", 35.76, 140.39)
+        val second = FlightLeg("2", lhr, nrt, LocalDateTime.of(2026, 6, 16, 13, 0), LocalDateTime.of(2026, 6, 17, 9, 0))
+        val trip = Trip("t", "Tokyo", listOf(leg, second), Instant.parse("2026-06-01T00:00:00Z"))
+        val before = leg.departure.minusSeconds(3_600)
+        trip.placeIn(java.time.ZoneId.of("America/Los_Angeles"), at = before) shouldBe sfo
+        trip.placeIn(java.time.ZoneId.of("Europe/London"), at = before) shouldBe lhr
+        trip.placeIn(java.time.ZoneId.of("Asia/Tokyo"), at = before) shouldBe nrt
+        trip.placeIn(java.time.ZoneId.of("Europe/Paris"), at = before) shouldBe null
+    }
+
+    @Test
     fun `trip round-trips through JSON`() {
         val trip = Trip("t", "London", listOf(leg), Instant.parse("2026-06-01T00:00:00Z"))
         val json = Json.encodeToString(Trip.serializer(), trip)
