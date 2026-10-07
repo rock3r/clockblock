@@ -382,9 +382,13 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         }
     }
     // A pick made on another trip is hidden here (the current plan moved to this trip). Forget it too, or an
-    // A → B → A switch (B deleted or edited away) would bring A's old pick back instead of live time.
+    // A → B → A switch (B deleted or edited away) would bring A's old pick back instead of live time. Like going
+    // live above, this counts as a pick, so the two-pane rail follows back to the Now row.
     if (screen.hasPickOnOtherTrip(plan.tripId)) {
-        SideEffect { screen.pickDay(plan.tripId, null) }
+        SideEffect {
+            screen.pickDay(plan.tripId, null)
+            screen.dayPicks++
+        }
     }
     val anchor = dayBase ?: state.now
     val anchorZone = railDays.firstOrNull { dayBase != null && it.day.index == selectedDay }?.zone ?: state.moment.zone

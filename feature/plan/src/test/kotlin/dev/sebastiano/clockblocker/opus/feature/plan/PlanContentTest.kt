@@ -421,6 +421,23 @@ class PlanContentTest {
 
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - a pick forgotten on a trip switch brings the rail back to the Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+
+        // A → B → A: A's pick is forgotten, and the rail follows the screen back to the Now row.
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun `two panes with motion - picking today again brings the Now row back`() {
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
         compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
