@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -23,6 +24,9 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.performTouchInput
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
 import io.kotest.matchers.shouldBe
@@ -33,6 +37,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.LocalTime
 import kotlin.math.absoluteValue
+import kotlin.math.cos
+import kotlin.math.sin
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -132,5 +138,35 @@ class SleepDialTest : ClockblockScreenshotTest() {
     fun dial_12_hour_large_font() = snap("sleep_dial_12h_fontscale_1_5", fontScale = 1.5f, is24Hour = false) {
         // The widest times ("10:55 PM") at a large font: the AM/PM pills must fit without clipping.
         SleepDial(SleepWindow(LocalTime.of(22, 55), LocalTime.of(10, 55)), {}, Modifier.padding(16.dp))
+    }
+
+    @Test
+    fun the_egg_hides_as_soon_as_the_gate_closes() {
+        var enabled by mutableStateOf(true)
+        setContent { SleepDial(SleepWindow.Default, {}, easterEggEnabled = enabled) }
+        val line = hasText("24.2 hours", substring = true)
+        compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput {
+            val c = center
+            val r = 126f * minOf(width, height) / 320f
+            fun at(minute: Float): Offset {
+                val a = Math.toRadians(DialGeometry.angleForMinute(minute).toDouble())
+                return Offset(c.x + r * cos(a).toFloat(), c.y + r * sin(a).toFloat())
+            }
+            // Push the wake handle (07:00) round past the longest window until the egg fires.
+            down(at(7 * 60f))
+            var minute = 7 * 60f
+            while (minute < 7 * 60f + 18 * 60f) {
+                minute += 20f
+                moveTo(at(minute))
+            }
+        }
+        compose.onNode(line).assertExists()
+        compose.mainClock.autoAdvance = false
+        enabled = false
+        Snapshot.sendApplyNotifications()
+        // Far less than the egg's 4.5 s hold: the gate closing hides it straight away.
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNode(line).assertDoesNotExist()
+        compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput { up() }
     }
 }

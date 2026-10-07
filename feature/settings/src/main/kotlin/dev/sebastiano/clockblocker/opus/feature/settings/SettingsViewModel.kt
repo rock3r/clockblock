@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.PlaceSearch
 import dev.sebastiano.clockblocker.opus.core.data.ProfileRepository
@@ -56,6 +57,7 @@ val ReminderLeadOptions: List<Int> = listOf(0, 5, 10, 15, 30)
  * @property homeQuery the text in the home time zone search.
  * @property homeResults places matching [homeQuery].
  * @property widgetPinningSupported the launcher accepts "add widget" requests (the Widgets card is hidden otherwise).
+ * @property easterEggs the sleep editor's 24.2 egg may run ([EasterEggGate]: Reduce motion off, plan not saying sleep).
  */
 data class SettingsUiState(
     val settings: AppSettings = AppSettings(),
@@ -67,6 +69,7 @@ data class SettingsUiState(
     val homeQuery: String = "",
     val homeResults: ImmutableList<Place> = persistentListOf(),
     val widgetPinningSupported: Boolean = false,
+    val easterEggs: Boolean = false,
 )
 
 /** A backup that decoded fine and is waiting for the user to pick [ImportMode.Replace] or [ImportMode.Merge]. */
@@ -115,6 +118,7 @@ class SettingsViewModel(
     private val codec: BackupCodec,
     private val clock: Clock,
     private val widgetPinning: WidgetPinning,
+    eggs: EasterEggGate,
 ) : ViewModel() {
     private val permissions = MutableStateFlow(notificationPermissions.state())
 
@@ -134,8 +138,8 @@ class SettingsViewModel(
         profiles.profile,
         permissions,
         acknowledged,
-        transient,
-    ) { settings, profile, permissions, acknowledged, transient ->
+        combine(transient, eggs.allowed, ::Pair),
+    ) { settings, profile, permissions, acknowledged, (transient, easterEggs) ->
         SettingsUiState(
             settings = settings,
             profile = profile,
@@ -146,6 +150,7 @@ class SettingsViewModel(
             homeQuery = transient.homeQuery,
             homeResults = transient.homeResults,
             widgetPinningSupported = transient.widgetPinningSupported,
+            easterEggs = easterEggs,
         )
     }.stateIn(
         viewModelScope,
