@@ -195,6 +195,20 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a block about to start stays next until it starts`() {
+        // 16:29:45: the 16:30 melatonin moment is due, but a block starting at 16:30 must not vanish meanwhile.
+        val state = tokyo.copy(arcs = persistentListOf(DialArc("light", AdviceType.SeeBrightLight, 16 * 60f + 30f, 60f)))
+        state.focusAt(16 * 60f + 29.75f).next?.adviceId shouldBe "light"
+    }
+
+    @Test
+    fun `sky rings are sampled once, not on every frame`() {
+        val a = spec(scrub = 10f).ops.filterIsInstance<DialOp.SweepRing>()
+        val b = spec(scrub = 200f, ahead = -300f).ops.filterIsInstance<DialOp.SweepRing>()
+        a.zip(b).forEach { (x, y) -> (x.colors === y.colors) shouldBe true }
+    }
+
+    @Test
     fun `scrubbing to the end of the window never brings past advice back as next`() {
         // 05:20 tomorrow, 14 h ahead of now: the 13:30 avoid light block was 16 h earlier, not 8 h later.
         val focus = tokyo.focusAt(5 * 60f + 20f)

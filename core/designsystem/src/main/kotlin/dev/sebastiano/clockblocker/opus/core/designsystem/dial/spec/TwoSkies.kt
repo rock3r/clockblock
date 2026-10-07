@@ -72,6 +72,25 @@ object TwoSkies {
         DetailLevel.Glance -> (32f - 3.25f) * sideDp / 88f
     }
 
+    /** The last few sampled skies, keyed by palette identity (palettes are remembered) and sunrise/sunset. */
+    private object SkyCache {
+        private const val MaxEntries = 8
+        private class Key(val palette: DialPalette, val sunrise: Float, val sunset: Float) {
+            override fun equals(other: Any?) =
+                other is Key && other.palette === palette && other.sunrise == sunrise && other.sunset == sunset
+            override fun hashCode() = (System.identityHashCode(palette) * 31 + sunrise.hashCode()) * 31 + sunset.hashCode()
+        }
+        private val entries = LinkedHashMap<Key, List<Argb>>()
+
+        fun get(palette: DialPalette, sunrise: Float, sunset: Float, sample: () -> List<Argb>): List<Argb> = synchronized(entries) {
+            val key = Key(palette, sunrise, sunset)
+            entries[key] ?: sample().also {
+                if (entries.size >= MaxEntries) entries.remove(entries.keys.first())
+                entries[key] = it
+            }
+        }
+    }
+
     private class Builder(
         val state: DialState,
         val p: DialPalette,
@@ -204,9 +223,12 @@ object TwoSkies {
             }
         }
 
-        /** Stop 0 at 3 o'clock (18:00 on the dial's frame), then clockwise. */
-        fun skyColors(sunrise: Float, sunset: Float): List<Argb> = List(SamplesPerRing) { i ->
-            p.sky(DialGeometry.minuteForAngle(i * 360f / SamplesPerRing), sunrise, sunset)
+        /**
+         * Stop 0 at 3 o'clock (18:00 on the dial's frame), then clockwise. Cached: the spec is rebuilt on every scrub
+         * and ring-turn frame, but the skies only change with the palette and the sun.
+         */
+        fun skyColors(sunrise: Float, sunset: Float): List<Argb> = SkyCache.get(p, sunrise, sunset) {
+            List(SamplesPerRing) { i -> p.sky(DialGeometry.minuteForAngle(i * 360f / SamplesPerRing), sunrise, sunset) }
         }
 
         /**

@@ -90,7 +90,8 @@ fun DialState.focusAt(minute: Float): DialFocus {
     val next = arcs
         .filter { it.adviceId != current?.adviceId }
         .map { it to ahead(it) }
-        .filter { (_, ahead) -> ahead > MomentLeadMinutes }
+        // A moment within its lead is already due (current); a block is next until the minute it starts.
+        .filter { (arc, ahead) -> ahead > if (arc.sweepMinutes == 0f) MomentLeadMinutes else 0f }
         .minWithOrNull(compareBy<Pair<DialArc, Float>> { it.second }.thenBy { it.first.type.ordinal })
         ?.first
     return DialFocus(current, next)
