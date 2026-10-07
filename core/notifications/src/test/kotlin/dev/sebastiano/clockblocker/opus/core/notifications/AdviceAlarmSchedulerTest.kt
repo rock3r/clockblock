@@ -321,7 +321,7 @@ class AdviceAlarmSchedulerTest {
 
         val n = reminder.shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light at 15:00"
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "15:00–18:00"
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "15:00–18:00 · 23:00–02:00 Tokyo"
         n.channelId shouldBe ClockblockChannel.Light.id
         n.actions.map { it.title.toString() } shouldContainExactly listOf("Can't do this", "Snooze 15 min")
         n.timeoutAfter shouldBe Duration.ofMinutes(45).toMillis() // until 30 min after the window starts
@@ -453,7 +453,7 @@ class AdviceAlarmSchedulerTest {
         val intent = shadowOf(alarm.operation).savedIntent
         intent.action shouldBe NotificationIntents.testAction(context)
 
-        AdviceAlarmReceiver(scheduler, reminders, NotificationWorkScope(this)).onReceive(context, intent)
+        AdviceAlarmReceiver(scheduler, reminders, nowSurface, NotificationWorkScope(this)).onReceive(context, intent)
         testScheduler.advanceUntilIdle()
 
         shadowOf(notificationManager).getNotification(NotificationIds.TEST)!!
@@ -466,7 +466,7 @@ class AdviceAlarmSchedulerTest {
         clock.instant = utc("2026-10-10T13:45")
         val intent = NotificationIntents.alarmIntent(context, utc("2026-10-10T13:45"))
 
-        AdviceAlarmReceiver(scheduler, reminders, NotificationWorkScope(this)).onReceive(context, intent)
+        AdviceAlarmReceiver(scheduler, reminders, nowSurface, NotificationWorkScope(this)).onReceive(context, intent)
         testScheduler.advanceUntilIdle()
 
         reminder.shouldNotBeNull()
@@ -474,8 +474,19 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `the progress tick re-renders the Now notification`() = runTest {
+        clock.instant = utc("2026-10-10T15:00")
+
+        AdviceAlarmReceiver(scheduler(), reminders, nowSurface, NotificationWorkScope(this))
+            .onReceive(context, Intent(NotificationIntents.progressTickAction(context)))
+        testScheduler.advanceUntilIdle()
+
+        now!!.extras.getString(Notification.EXTRA_TITLE) shouldBe "Avoid light"
+    }
+
+    @Test
     fun `alarm receiver ignores foreign actions`() = runTest {
-        AdviceAlarmReceiver(scheduler(), reminders, NotificationWorkScope(this))
+        AdviceAlarmReceiver(scheduler(), reminders, nowSurface, NotificationWorkScope(this))
             .onReceive(context, Intent("com.example.SPOOF"))
         testScheduler.advanceUntilIdle()
 

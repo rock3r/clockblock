@@ -29,12 +29,17 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Body 2½ h ahead. It reads Avoid light until 20:00, then Sleep 20:00 to 04:00, with the same times in Tokyo below, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
-While a plan is in progress, one quiet notification stays in your notification shade. It says what to do now,
-until when, and what comes next, for example "See some light until 20:00 · then Avoid caffeine". It updates by
-itself and never makes a sound. Tap it to open the plan. Its header shows how far your body clock is from local
-time, for example "Body 3½ h behind", or "Body clock in sync" once you've adjusted.
+While a plan is in progress, one quiet notification stays in your notification shade. It shows what to do now,
+with its symbol and colour, until when, and a bar that fills up as the block goes by, for example "See some
+light … until 19:00". Expand it to see the times in your other time zone too, anything else that's going on at
+the same time ("Also now: Avoid caffeine until 02:00"), what comes next ("Next: Avoid light at 23:30") and a short
+tip. "Until" is always when that block ends, the same time the app and the widgets show. When nothing is going
+on, it says "Nothing right now" and what's next.
+
+It updates by itself and never makes a sound. Tap it to open the plan. Its header shows how far your body clock
+is from local time, for example "Body 3½ h behind", or "Body clock in sync" once you've adjusted.
 
 Local time means the same thing in the app, the widgets and the notifications: the time zone your plan says
 you're in that day. That's where you set off until you land, then your destination. Your phone's time zone

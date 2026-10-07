@@ -43,13 +43,16 @@
     <string name="advice_tip_peak_fatigue">Your body clock is at its low. Take care, especially driving.</string>
     <string name="advice_tip_flight">Settle in. The plan knows you\'re in the air.</string>
 
-    <!-- Now notification -->
+    <!-- Now notification (wording shared with the plan screen's Now card) -->
     <string name="now_until">until %1$s</string>
-    <string name="now_then">then %1$s %2$s</string>
-    <string name="now_next">Next: %1$s %2$s</string>
+    <string name="now_next">Next: %1$s at %2$s</string>
+    <string name="now_also">Also now: %1$s</string>
+    <!-- An item of "Also now": "Avoid caffeine until 20:00" -->
+    <string name="now_label_until">%1$s until %2$s</string>
     <string name="now_nothing">Nothing right now</string>
     <string name="now_join">%1$s · %2$s</string>
-    <string name="now_in_zone">%1$s: %2$s</string>
+    <!-- A time in the trip's other zone: "04:00 Tokyo" -->
+    <string name="now_zone_tail">%1$s %2$s</string>
     <string name="now_prefix">Now: %1$s</string>
     <string name="outcome_done">Done</string>
     <string name="outcome_skipped">Skipped</string>

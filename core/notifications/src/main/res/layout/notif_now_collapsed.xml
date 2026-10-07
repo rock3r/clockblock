@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Collapsed Now notification (DecoratedCustomViewStyle; the system adds the icon, header and expand button).
+  The platform caps this area at 48dp, so it holds one line plus a thin bar: the label, "until 20:00" at the end,
+  and the block's progress. In a gap the bar gives way to the "Next" line. No glyph chip here: at large font sizes
+  the label needs the room (the expanded view and the status-bar icon carry the glyph).
+  Colours come from the shade's notification text appearances; only the bar is tinted, in the advice's colours.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="true"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/now_title"
+            style="@style/TextAppearance.Compat.Notification.Title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true" />
+
+        <TextView
+            android:id="@+id/now_until"
+            style="@style/TextAppearance.Compat.Notification"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/now_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="5dp"
+        android:layout_marginTop="6dp"
+        android:importantForAccessibility="no"
+        android:max="1000"
+        android:maxHeight="5dp"
+        android:minHeight="5dp"
+        android:progressDrawable="@drawable/notif_progress" />
+
+    <TextView
+        android:id="@+id/now_text"
+        style="@style/TextAppearance.Compat.Notification"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:visibility="gone" />
+</LinearLayout>
