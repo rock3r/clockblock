@@ -15,8 +15,8 @@
     <string name="widget_advice_optional_nap">Optional nap</string>
     <string name="widget_advice_melatonin">Melatonin</string>
     <string name="widget_advice_caffeine">Caffeine OK</string>
-    <string name="widget_advice_avoid_caffeine">No caffeine</string>
-    <string name="widget_advice_peak_fatigue">Take it easy</string>
+    <string name="widget_advice_avoid_caffeine">Avoid caffeine</string>
+    <string name="widget_advice_peak_fatigue">Peak fatigue</string>
     <string name="widget_advice_flight">Flight</string>
 
     <!-- States -->
