@@ -207,10 +207,15 @@ class WidgetUpdaterTest {
     }
 
     @Test
-    fun `preview key changes with the app version and with night mode`() {
-        WidgetUpdater.previewKey(12, night = false) shouldBe WidgetUpdater.previewKey(12, night = false)
-        WidgetUpdater.previewKey(12, night = false) shouldNotBe WidgetUpdater.previewKey(12, night = true)
-        WidgetUpdater.previewKey(12, night = true) shouldNotBe WidgetUpdater.previewKey(13, night = true)
+    fun `preview key changes with the app version, night mode, font scale and density`() {
+        fun key(version: Long = 12, night: Boolean = false, fontScale: Float = 1f, densityDpi: Int = 420) =
+            WidgetUpdater.previewKey(version, night, fontScale, densityDpi)
+        key() shouldBe key()
+        key() shouldNotBe key(night = true)
+        key(night = true) shouldNotBe key(version = 13, night = true)
+        // The previews are fitted at capture time like placed widgets: re-publish when the fit would change.
+        key() shouldNotBe key(fontScale = 1.3f)
+        key() shouldNotBe key(densityDpi = 480)
     }
 
     @Test

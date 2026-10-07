@@ -164,14 +164,16 @@ class WidgetUpdater(
     }
 
     /**
-     * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on
-     * the app version *and* the system night mode, so the picker follows a light/dark switch.
+     * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on the app
+     * version, the system night mode, the font scale and the density, so the picker follows a light/dark switch and
+     * its labels are fitted again when the fit would change.
      */
     suspend fun publishPreviewsIfNeeded(force: Boolean = false) {
         val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val version = application.packageManager.getPackageInfo(application.packageName, 0).longVersionCode
-        val night = application.isNight()
-        val key = previewKey(version, night)
+        val configuration = application.resources.configuration
+        val night = configuration.isNight()
+        val key = previewKey(version, night, configuration.fontScale, configuration.densityDpi)
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
         val state = WidgetStateMapper.map(
@@ -216,8 +218,12 @@ class WidgetUpdater(
             WidgetKind.NextUp -> ComponentName(context, NextUpWidgetProvider::class.java)
         }
 
-        /** Cache key of the generated picker previews: re-publish after an update or a light/dark switch. */
-        fun previewKey(versionCode: Long, night: Boolean): String = "$versionCode-${if (night) "night" else "day"}"
+        /**
+         * Cache key of the generated picker previews: re-publish after an update, a light/dark switch, or a font
+         * scale or density change (the previews' labels are fitted for both at capture time, like placed widgets).
+         */
+        fun previewKey(versionCode: Long, night: Boolean, fontScale: Float, densityDpi: Int): String =
+            "$versionCode-${if (night) "night" else "day"}-$fontScale-$densityDpi"
 
         /**
          * Theme for a render: the app's theme setting (System follows the device), switched to the night-safe palette
@@ -236,8 +242,6 @@ class WidgetUpdater(
             }
             return if (dark) WidgetTheme.Dark else WidgetTheme.Light
         }
-
-        private fun Context.isNight() = resources.configuration.isNight()
 
         private fun Configuration.isNight() = uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     }

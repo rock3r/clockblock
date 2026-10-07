@@ -420,8 +420,8 @@ Other widget behaviour:
 - Tapping a widget opens the plan through a deep link. In the empty state, it opens the trip editor.
 - The widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
-  They are published again when the app version or the system night mode changes, so the picker matches the
-  current theme.
+  They are published again when the app version, the system night mode, the font scale or the display density
+  changes, so the picker matches the current theme and its labels are fitted for the current text size.
 
 Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
 (`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with
