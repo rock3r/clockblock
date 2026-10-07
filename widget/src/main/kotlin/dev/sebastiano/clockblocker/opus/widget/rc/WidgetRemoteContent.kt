@@ -91,7 +91,7 @@ private const val NEXT_UP_TINT = 0.35f
 fun TwoClocksRemote(
     model: WidgetModel,
     layout: TwoClocksLayout = TwoClocksLayout.Square,
-    cell: CellDp = WidgetSizes.smallest(WidgetSizes.TWO_CLOCKS, layout).min,
+    cell: CellDp = WidgetSizes.smallest(WidgetSizes.TWO_CLOCKS, layout).fitAt,
 ) {
     val p = model.palette
     val texts = model.texts
@@ -355,7 +355,7 @@ private fun DialWithReadouts(model: WidgetModel, size: DialSize) {
 fun NextUpRemote(
     model: WidgetModel,
     layout: NextUpLayout = NextUpLayout.Medium,
-    cell: CellDp = WidgetSizes.smallest(WidgetSizes.NEXT_UP, layout).min,
+    cell: CellDp = WidgetSizes.smallest(WidgetSizes.NEXT_UP, layout).fitAt,
 ) {
     val p = model.palette
     val texts = model.texts

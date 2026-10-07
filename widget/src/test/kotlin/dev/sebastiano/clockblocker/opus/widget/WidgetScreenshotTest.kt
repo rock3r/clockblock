@@ -354,21 +354,21 @@ class WidgetScreenshotTest {
     private fun remoteClocks(model: WidgetModel, layout: TwoClocksLayout, w: Int, h: Int): Cell {
         val bucket = WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, CellDp(w.toFloat(), h.toFloat()))
         check(bucket.layout == layout) { "The host plays ${bucket.layout} at $w×$h, not $layout" }
-        return remote(model, w, h) { TwoClocksRemote(model, layout, bucket.min) }
+        return remote(model, w, h) { TwoClocksRemote(model, layout, bucket.fitAt) }
     }
 
     private fun remoteNextUp(model: WidgetModel, layout: NextUpLayout, w: Int, h: Int): Cell {
         val bucket = WidgetSizes.pick(WidgetSizes.NEXT_UP, CellDp(w.toFloat(), h.toFloat()))
         check(bucket.layout == layout) { "The host plays ${bucket.layout} at $w×$h, not $layout" }
-        return remote(model, w, h) { NextUpRemote(model, layout, bucket.min) }
+        return remote(model, w, h) { NextUpRemote(model, layout, bucket.fitAt) }
     }
 
-    /** [bucket] at its minimum size. */
+    /** [bucket] at the smallest size the host plays it at ([Bucket.fitAt]). */
     private fun remoteClocks(model: WidgetModel, bucket: Bucket<TwoClocksLayout>): Cell =
-        remote(model, bucket.min.width.toInt(), bucket.min.height.toInt()) { TwoClocksRemote(model, bucket.layout, bucket.min) }
+        remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { TwoClocksRemote(model, bucket.layout, bucket.fitAt) }
 
     private fun remoteNextUp(model: WidgetModel, bucket: Bucket<NextUpLayout>): Cell =
-        remote(model, bucket.min.width.toInt(), bucket.min.height.toInt()) { NextUpRemote(model, bucket.layout, bucket.min) }
+        remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { NextUpRemote(model, bucket.layout, bucket.fitAt) }
 
     private fun remote(model: WidgetModel, w: Int, h: Int, content: @Composable () -> Unit): Cell {
         val d = document(w, h, content)

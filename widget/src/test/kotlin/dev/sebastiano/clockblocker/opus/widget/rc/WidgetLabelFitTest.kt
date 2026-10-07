@@ -90,16 +90,17 @@ class WidgetLabelFitTest {
         )
     }
 
-    private val scales = listOf(1f, 1.3f)
+    /** Android's smallest text setting, the default, and the largest scale the widgets promise to fit. */
+    private val scales = listOf(0.85f, 1f, 1.3f)
 
     /** The widest text the 1×1 countdown shows: what [NextUpRemote] sizes it for. */
     private val smallCountdown = HostText.countdownWidest(23 * 60 + 59, compact = true)
 
     private fun nextUp(texts: WidgetTexts, bucket: Bucket<NextUpLayout>) =
-        LabelFit.nextUp(context, texts, bucket.layout, bucket.min, smallCountdown.takeIf { texts.countdownEnd != null })
+        LabelFit.nextUp(context, texts, bucket.layout, bucket.fitAt, smallCountdown.takeIf { texts.countdownEnd != null })
 
     private fun twoClocks(texts: WidgetTexts, bucket: Bucket<TwoClocksLayout>) =
-        LabelFit.twoClocks(context, texts, bucket.layout, bucket.min)
+        LabelFit.twoClocks(context, texts, bucket.layout, bucket.fitAt)
 
     /** Densities to measure at: text snaps to whole pixels, so a label that just fits at one may not at another. */
     private val densities = listOf("mdpi", "xhdpi", "420dpi", "xxhdpi", "xxxhdpi")
@@ -116,7 +117,7 @@ class WidgetLabelFitTest {
     }
 
     @Test
-    fun `every label fits every bucket at its minimum size, at font scale 1 and 1_3`() {
+    fun `every label fits every bucket at its minimum size, at every font scale up to 1_3`() {
         val failures = mutableListOf<String>()
         everyDisplay { display ->
             for (is24 in listOf(true, false)) {
@@ -154,11 +155,12 @@ class WidgetLabelFitTest {
 
     @Test
     fun `every launcher cell gets a bucket no larger than itself`() {
+        fun CellDp.within(cell: CellDp) = width <= cell.width && height <= cell.height
         val failures = WidgetSizes.docsCells().flatMap { (name, cell) ->
             buildList {
-                if (!WidgetSizes.FLOOR.fitsIn(cell)) add("$name ($cell) is below the floor ${WidgetSizes.FLOOR}")
-                WidgetSizes.pick(WidgetSizes.NEXT_UP, cell).let { if (!it.min.fitsIn(cell)) add("$name ($cell): Next up ${it.layout} needs ${it.min}") }
-                WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, cell).let { if (!it.min.fitsIn(cell)) add("$name ($cell): Two Clocks ${it.layout} needs ${it.min}") }
+                if (!WidgetSizes.FLOOR.within(cell)) add("$name ($cell) is below the floor ${WidgetSizes.FLOOR}")
+                WidgetSizes.pick(WidgetSizes.NEXT_UP, cell).let { if (!it.min.within(cell)) add("$name ($cell): Next up ${it.layout} needs ${it.min}") }
+                WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, cell).let { if (!it.min.within(cell)) add("$name ($cell): Two Clocks ${it.layout} needs ${it.min}") }
             }
         }
         withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
@@ -202,6 +204,10 @@ class WidgetLabelFitTest {
         WidgetSizes.pick(buckets, CellDp(60f, 200f)).layout shouldBe "a"
         WidgetSizes.pick(buckets, CellDp(100f, 100f)).layout shouldBe "c"
         WidgetSizes.pick(buckets, CellDp(30f, 30f)).layout shouldBe "a"
+        // The host's rounding slack: a layout fits a widget up to just under 1 dp smaller than it.
+        WidgetSizes.pick(buckets, CellDp(99.5f, 99.5f)).layout shouldBe "c"
+        WidgetSizes.pick(buckets, CellDp(99f, 99f)).layout shouldBe "a"
+        Bucket("c", CellDp(100f, 100f)).fitAt shouldBe CellDp(99f, 99f)
     }
 
     /** The bucket a launcher cell from [WidgetSizes.docsCells] gets, e.g. "2×3 portrait". */

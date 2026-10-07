@@ -76,14 +76,14 @@ class WidgetRenderer(
                 TWO_CLOCKS_SIZES,
                 click,
                 done,
-            ) { bucket -> TwoClocksRemote(model, bucket.layout, bucket.min) }
+            ) { bucket -> TwoClocksRemote(model, bucket.layout, bucket.fitAt) }
             WidgetKind.NextUp -> RemoteComposeRenderer.responsive(
                 context,
                 profile,
                 NEXT_UP_SIZES,
                 click,
                 done,
-            ) { bucket -> NextUpRemote(model, bucket.layout, bucket.min) }
+            ) { bucket -> NextUpRemote(model, bucket.layout, bucket.fitAt) }
         }
     }
 

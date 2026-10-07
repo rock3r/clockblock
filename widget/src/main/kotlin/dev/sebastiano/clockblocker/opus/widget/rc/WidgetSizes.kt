@@ -1,30 +1,41 @@
 package dev.sebastiano.clockblocker.opus.widget.rc
 
 import kotlin.math.abs
+import kotlin.math.ceil
 
 /** A size in dp: a responsive bucket's minimum, or a launcher cell. */
 data class CellDp(val width: Float, val height: Float) {
-    /** Whether this size fits inside [other] (RemoteViews' own rule, with its rounding slack). */
-    fun fitsIn(other: CellDp): Boolean = width - other.width < FIT_SLACK && height - other.height < FIT_SLACK
+    /**
+     * Whether a layout of this size fits a widget of size [widget], by the host's own rule (`RemoteViews.fitsIn`):
+     * `ceil(widget) + 1 > layout` in each dimension. So a layout fits a widget up to just under 1 dp smaller than it.
+     */
+    fun fitsIn(widget: CellDp): Boolean =
+        ceil(widget.width) + HOST_SLACK_DP > width && ceil(widget.height) + HOST_SLACK_DP > height
 
     override fun toString(): String = "${width.toInt()}×${height.toInt()} dp"
 
-    private companion object {
-        const val FIT_SLACK = 0.01f
+    internal companion object {
+        /** The rounding slack in the host's fit rule: see [fitsIn]. */
+        const val HOST_SLACK_DP = 1f
     }
 }
 
 /**
- * One responsive entry of a widget: the host plays [layout] fitted for [min] whenever [min] is the closest size that
- * fits the widget (see [WidgetSizes.pick]). So [min] is the smallest size this layout can ever be drawn at, and the
- * size [LabelFit] fits its text for: what fits there fits at every larger size the host may stretch it to. One
- * layout can have several buckets (a short and a taller row), each captured and fitted separately.
+ * One responsive entry of a widget: the host plays [layout] whenever [min] is the closest size that fits the widget
+ * (see [WidgetSizes.pick]). One layout can have several buckets (a short and a taller row), each captured and
+ * fitted separately.
  */
-data class Bucket<L>(val layout: L, val min: CellDp)
+data class Bucket<L>(val layout: L, val min: CellDp) {
+    /**
+     * The size [LabelFit] fits this bucket's text for: the smallest widget the host can play it at. That is [min]
+     * less the host's rounding slack ([CellDp.fitsIn]), so what fits here fits at every size the host may draw it.
+     */
+    val fitAt: CellDp get() = CellDp(min.width - CellDp.HOST_SLACK_DP, min.height - CellDp.HOST_SLACK_DP)
+}
 
 /**
  * The responsive buckets of both widgets, the single source of truth for `WidgetRenderer` (which hands them to the
- * host), [LabelFit] (which fits each bucket's text for its [Bucket.min]) and the tests.
+ * host), [LabelFit] (which fits each bucket's text for its [Bucket.fitAt]) and the tests.
  *
  * The minimums follow real launcher cells, from the Android docs' example device ([docsCells]): portrait cells are
  * narrow and tall, landscape cells wide and short. A size below every bucket gets the smallest one, the 1×1

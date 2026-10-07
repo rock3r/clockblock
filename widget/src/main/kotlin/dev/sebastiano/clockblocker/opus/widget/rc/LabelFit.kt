@@ -159,7 +159,7 @@ internal data class WidgetFit(
  *
  * Remote Compose text cannot shrink itself on the host, so the sizes, line counts and which optional parts show are
  * decided here, measured with [TextFit] (the player's own `StaticLayout` setup) at the device's font scale. Each
- * layout is fitted for the **smallest size the host can give it**: its bucket's [Bucket.min] (see [WidgetSizes]).
+ * layout is fitted for the **smallest size the host can give it**: its bucket's [Bucket.fitAt] (see [WidgetSizes]).
  * The document is drawn stretched to the real widget, and text that fits the minimum fits every larger size.
  *
  * The label and the other zone's time always stay. When space runs out, parts give way in this order:
@@ -404,7 +404,7 @@ internal object LabelFit {
     /** The smallest sp the 1×1 label may use: drawn at least [SMALL_LABEL_MIN_DP] tall at the current font scale. */
     fun smallLabelMinSp(context: Context): Int {
         val floorPx = SMALL_LABEL_MIN_DP * context.resources.displayMetrics.density
-        return (1..SMALL_LABEL_MIN_DP).first { TextFit.pxForSp(context, it) >= floorPx - 0.01f }
+        return (1..SMALL_LABEL_SP).firstOrNull { TextFit.pxForSp(context, it) >= floorPx - 0.01f } ?: SMALL_LABEL_SP
     }
 
     private fun nowRow(context: Context, texts: WidgetTexts, layout: NextUpLayout, cell: CellDp, capsules: Boolean): NowFit {
