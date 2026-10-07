@@ -76,7 +76,8 @@ class WidgetUpdater(
 
     init {
         // No widget broadcast reports these changes: a light/dark switch (the System theme and the picker previews),
-        // or a font scale or density change (the labels are fitted for both at capture time, see LabelFit).
+        // or a font scale, Bold text or density change (the labels are fitted for all three at capture time, see
+        // LabelFit, and the captured text bakes in the Bold text weight).
         application.registerComponentCallbacks(
             object : ComponentCallbacks {
                 override fun onConfigurationChanged(newConfig: Configuration) {
@@ -89,7 +90,7 @@ class WidgetUpdater(
         )
     }
 
-    /** True once per change of what the rendered widgets depend on: night mode, font scale or density. */
+    /** True once per change of what the rendered widgets depend on: night mode, font scale, Bold text or density. */
     internal fun renderConfigChanged(configuration: Configuration): Boolean {
         val config = RenderConfig.of(configuration)
         if (config == lastRenderConfig) return false
@@ -98,12 +99,21 @@ class WidgetUpdater(
     }
 
     /** The parts of the configuration a captured widget depends on. */
-    private data class RenderConfig(val night: Boolean, val fontScale: Float, val densityDpi: Int) {
-        val key: String get() = "${if (night) "night" else "day"}-$fontScale-$densityDpi"
+    private data class RenderConfig(
+        val night: Boolean,
+        val fontScale: Float,
+        val densityDpi: Int,
+        val fontWeightAdjustment: Int,
+    ) {
+        val key: String get() = "${if (night) "night" else "day"}-$fontScale-$densityDpi-w$fontWeightAdjustment"
 
         companion object {
-            fun of(configuration: Configuration) =
-                RenderConfig(configuration.isNight(), configuration.fontScale, configuration.densityDpi)
+            fun of(configuration: Configuration) = RenderConfig(
+                configuration.isNight(),
+                configuration.fontScale,
+                configuration.densityDpi,
+                configuration.weightAdjustment(),
+            )
         }
     }
 
@@ -111,7 +121,7 @@ class WidgetUpdater(
 
     /**
      * Whether the widgets were last rendered at another configuration (or never): the callback above only hears
-     * changes while the process runs, and no widget broadcast reports a font scale or density change.
+     * changes while the process runs, and no widget broadcast reports a font scale, Bold text or density change.
      */
     private fun renderedConfigStale(): Boolean =
         prefs.getString(KEY_RENDERED_CONFIG, null) != RenderConfig.of(application.resources.configuration).key
@@ -181,14 +191,20 @@ class WidgetUpdater(
 
     /**
      * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on the app
-     * version, the system night mode, the font scale and the density, so the picker follows a light/dark switch and
-     * its labels are fitted again when the fit would change.
+     * version, the system night mode, the font scale, Bold text and the density, so the picker follows a light/dark
+     * switch and its labels are fitted again when the fit would change.
      */
     suspend fun publishPreviewsIfNeeded(force: Boolean = false) {
         val version = application.packageManager.getPackageInfo(application.packageName, 0).longVersionCode
         val configuration = application.resources.configuration
         val night = configuration.isNight()
-        val key = previewKey(version, night, configuration.fontScale, configuration.densityDpi)
+        val key = previewKey(
+            version,
+            night,
+            configuration.fontScale,
+            configuration.densityDpi,
+            configuration.weightAdjustment(),
+        )
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
         val state = WidgetStateMapper.map(
@@ -237,10 +253,16 @@ class WidgetUpdater(
 
         /**
          * Cache key of the generated picker previews: re-publish after an update, a light/dark switch, or a font
-         * scale or density change (the previews' labels are fitted for both at capture time, like placed widgets).
+         * scale, Bold text or density change (the previews' labels are fitted for these at capture time, like placed
+         * widgets).
          */
-        fun previewKey(versionCode: Long, night: Boolean, fontScale: Float, densityDpi: Int): String =
-            "$versionCode-${if (night) "night" else "day"}-$fontScale-$densityDpi"
+        fun previewKey(
+            versionCode: Long,
+            night: Boolean,
+            fontScale: Float,
+            densityDpi: Int,
+            fontWeightAdjustment: Int,
+        ): String = "$versionCode-${if (night) "night" else "day"}-$fontScale-$densityDpi-w$fontWeightAdjustment"
 
         /**
          * Theme for a render: the app's theme setting (System follows the device), switched to the night-safe palette
@@ -261,6 +283,10 @@ class WidgetUpdater(
         }
 
         private fun Configuration.isNight() = uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
+        /** Bold text's weight boost, 0 when off or undefined (as in `TextFit.weightAdjustment`). */
+        private fun Configuration.weightAdjustment() =
+            if (fontWeightAdjustment == Configuration.FONT_WEIGHT_ADJUSTMENT_UNDEFINED) 0 else fontWeightAdjustment
     }
 }
 

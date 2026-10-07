@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.widget.text
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Typeface
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -25,11 +26,24 @@ object TextFit {
      */
     const val SAFETY_DP = 1f
 
-    private fun semiboldPaint() =
-        TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, 600, false) }
+    /**
+     * The Bold text accessibility setting's weight boost (0 when off). `RemoteText` adds it to every captured weight,
+     * clamped to 1–1000, so the host draws, and [measure] measures, 400 + 300 rather than 400.
+     */
+    fun weightAdjustment(context: Context): Int {
+        val adjustment = context.resources.configuration.fontWeightAdjustment
+        return if (adjustment == Configuration.FONT_WEIGHT_ADJUSTMENT_UNDEFINED) 0 else adjustment
+    }
 
-    private fun regularPaint() =
-        TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, 400, false) }
+    private fun paint(context: Context, weight: Int) = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
+        val adjusted = (weight + weightAdjustment(context)).coerceIn(FONT_WEIGHT_MIN, FONT_WEIGHT_MAX)
+        typeface = Typeface.create(Typeface.DEFAULT, adjusted, false)
+    }
+
+    private const val REGULAR = 400
+    private const val SEMIBOLD = 600
+    private const val FONT_WEIGHT_MIN = 1
+    private const val FONT_WEIGHT_MAX = 1000
 
     /**
      * [sp] in px the way captured `sp` text gets its size: through the platform's non-linear font scale curve (at
@@ -56,7 +70,7 @@ object TextFit {
      */
     fun measure(context: Context, text: String, widthDp: Float, sp: Int, maxLines: Int = 1, semibold: Boolean = false): Fitted {
         val density = context.resources.displayMetrics.density
-        val paint = if (semibold) semiboldPaint() else regularPaint()
+        val paint = paint(context, if (semibold) SEMIBOLD else REGULAR)
         paint.textSize = pxForSp(context, sp)
         val widthPx = ((widthDp - SAFETY_DP) * density).toInt().coerceAtLeast(1)
         val layout = StaticLayout.Builder.obtain(text, 0, text.length, paint, widthPx)

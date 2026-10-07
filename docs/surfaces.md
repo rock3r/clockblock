@@ -308,8 +308,9 @@ time what each layout shows, measuring the text the way the player draws it
 ([`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt)). It fits each
 layout at the smallest size the launcher can give it: its minimum less 1 dp, because the launcher rounds the
 widget's size up before it compares. The launcher only ever stretches a layout, so text that fits there fits at
-every larger size. The fit depends on the font scale and the display density, so `WidgetUpdater` captures the
-widgets again when either changes, as it does for a light/dark switch. Android sends no broadcast for these changes,
+every larger size. The fit depends on the font scale, the display density and Bold text (which makes every glyph
+wider, and which the captured text bakes in), so `WidgetUpdater` captures the widgets again when any of them
+changes, as it does for a light/dark switch. Android sends no broadcast for these changes,
 so if the app isn't running at the time, the next widget update or advice boundary re-renders every widget.
 
 - Text shrinks down to a floor: 13 sp for the label, 11 sp for the "until" line, 10 sp for the other zone's time
@@ -434,8 +435,8 @@ Other widget behaviour:
 - Tapping a widget opens the plan through a deep link. In the empty state, it opens the trip editor.
 - The widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
-  They are published again when the app version, the system night mode, the font scale or the display density
-  changes, so the picker matches the current theme and its labels are fitted for the current text size.
+  They are published again when the app version, the system night mode, the font scale, Bold text or the display
+  density changes, so the picker matches the current theme and its labels are fitted for the current text size.
 
 Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
 (`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with

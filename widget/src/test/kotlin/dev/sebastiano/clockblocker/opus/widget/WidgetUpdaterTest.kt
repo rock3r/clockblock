@@ -208,31 +208,40 @@ class WidgetUpdaterTest {
     }
 
     @Test
-    fun `preview key changes with the app version, night mode, font scale and density`() {
-        fun key(version: Long = 12, night: Boolean = false, fontScale: Float = 1f, densityDpi: Int = 420) =
-            WidgetUpdater.previewKey(version, night, fontScale, densityDpi)
+    fun `preview key changes with the app version, night mode, font scale, bold text and density`() {
+        fun key(
+            version: Long = 12,
+            night: Boolean = false,
+            fontScale: Float = 1f,
+            densityDpi: Int = 420,
+            fontWeightAdjustment: Int = 0,
+        ) = WidgetUpdater.previewKey(version, night, fontScale, densityDpi, fontWeightAdjustment)
         key() shouldBe key()
         key() shouldNotBe key(night = true)
         key(night = true) shouldNotBe key(version = 13, night = true)
         // The previews are fitted at capture time like placed widgets: re-publish when the fit would change.
         key() shouldNotBe key(fontScale = 1.3f)
         key() shouldNotBe key(densityDpi = 480)
+        // Bold text: the captured text bakes in the adjusted weight, and wider glyphs change the fit.
+        key() shouldNotBe key(fontWeightAdjustment = 300)
     }
 
     @Test
-    fun `a light-dark, font scale or density change triggers one refresh, other configuration changes none`() {
+    fun `a light-dark, font scale, bold text or density change triggers one refresh, other changes none`() {
         val start = Configuration(app.resources.configuration)
         fun config(
             night: Boolean = false,
             fontScale: Float = start.fontScale,
             densityDpi: Int = start.densityDpi,
             orientation: Int = start.orientation,
+            fontWeightAdjustment: Int = start.fontWeightAdjustment,
         ) = Configuration(start).apply {
             val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
             this.fontScale = fontScale
             this.densityDpi = densityDpi
             this.orientation = orientation
+            this.fontWeightAdjustment = fontWeightAdjustment
         }
         val turned = if (start.orientation == Configuration.ORIENTATION_PORTRAIT) {
             Configuration.ORIENTATION_LANDSCAPE
@@ -248,6 +257,12 @@ class WidgetUpdaterTest {
         updater.renderConfigChanged(config(fontScale = 1.3f)).shouldBeFalse()
         updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeTrue()
         updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeFalse()
+        // Bold text: the host draws the adjusted weight baked into the capture, and the fit measures it.
+        val dense = start.densityDpi * 2
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = dense, fontWeightAdjustment = 300))
+            .shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = dense, fontWeightAdjustment = 300))
+            .shouldBeFalse()
     }
 
     @Test

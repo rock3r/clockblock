@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.widget.text
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.widget.rc.HostText
 import io.kotest.matchers.doubles.plusOrMinus
@@ -83,5 +84,19 @@ class TextFitTest {
         val atOneAndAHalf = TextFit.measure(context, "Avoid light", widthDp = 1000f, sp = 13, semibold = true).widthDp
         // The platform's 1.5× curve takes 13 sp to 20 dp, not 19.5: a linear guess let a fitted label ellipsize.
         (atOneAndAHalf / atOne).toDouble() shouldBe (20.0 / 13.0 plusOrMinus 0.01)
+    }
+
+    @Test
+    fun `text is measured at the bold text weight the player draws`() {
+        val regular = TextFit.measure(context, "See bright light", widthDp = 1000f, sp = 13).widthDp
+        val semibold = TextFit.measure(context, "See bright light", widthDp = 1000f, sp = 13, semibold = true).widthDp
+        // Bold text adds 300 to every captured weight (RemoteText bakes it in): measure the same, wider glyphs.
+        val bold = Configuration(context.resources.configuration).apply { fontWeightAdjustment = 300 }
+        val boldContext = context.createConfigurationContext(bold)
+        TextFit.weightAdjustment(boldContext) shouldBe 300
+        TextFit.measure(boldContext, "See bright light", widthDp = 1000f, sp = 13).widthDp shouldBeGreaterThan regular
+        TextFit.measure(boldContext, "See bright light", widthDp = 1000f, sp = 13, semibold = true).widthDp shouldBeGreaterThan
+            semibold
+        TextFit.weightAdjustment(context) shouldBe 0
     }
 }
