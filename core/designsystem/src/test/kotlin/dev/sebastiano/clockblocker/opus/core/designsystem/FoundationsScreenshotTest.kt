@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,9 +24,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingText
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBanner
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
-import dev.sebastiano.clockblocker.opus.core.designsystem.preview.SamplePlan
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import org.junit.Test
@@ -79,13 +76,6 @@ class FoundationsScreenshotTest : ScreenshotTest() {
             originCaption = "San Francisco",
             destinationCaption = if (changed) "Amsterdam" else null,
         )
-    }
-
-    /** The dial's jet-lag pill rolling to the next day's offset while the inner ring turns. */
-    @Test fun dialWedgeRollingMid() = snapMidChange("dial_wedge_rolling_mid", advanceMillis = 144) { changed ->
-        val today = SamplePlan.midAdaptationDial
-        val state = if (changed) today else today.copy(bodyAheadMinutes = today.bodyAheadMinutes - 150f)
-        TwoClocksDial(state, Modifier.size(328.dp))
     }
 }
 

@@ -11,7 +11,7 @@
 - Intent tokens live in `ClockblockMotion` (`theme/Motion.kt`), read as `ClockblockTheme.motion`. No literal
   `tween()`/`spring()` anywhere else (exception list below).
 - Values read as data (dial rings, timeline positions, numbers) bind to the Standard scheme via
-  `dataSpatial()` / `dialDayRotation()`; Expressive bounce never wobbles a value. The inner ring never
+  `dataSpatial()` / `dialDayRotation()`; Expressive bounce never wobbles a value. The body sky never
   overshoots (design.md agrees: the ring is data).
 
 ## Fallback
@@ -27,7 +27,7 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Card → Now card, containers around data | `containerSpatial()` = scheme defaultSpatial | OBSERVED |
 | Small in-place swaps | `fade()` = scheme fastEffects | OBSERVED |
 | Dial scrub settle / "back to now" | `dataSpatial()` (Standard); every frame reported so cards follow the hand | OBSERVED |
-| Dial inner (body) ring on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot | OBSERVED |
+| Dial body sky (inner ring) on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot; its ring labels turn with it | OBSERVED |
 | Rewind easter egg springing home | `rewindReturn()`: raw −1440 → 0 with the release velocity; Expressive slowSpatial by day, Calm slowSpatial (no bounce) under Calm | OBSERVED |
 | Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`) | OBSERVED |
 | Illustration entrance / `progress` | `artEntrance()` = scheme slowSpatial, once per instance (saveable); bouncy arts use `glyphMorph()` | OBSERVED |
@@ -49,7 +49,7 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | List-detail pane enter/exit, pane bounds | `navigationFadeIn()` / `navigationFadeOut()`; bounds `navigationSpatial()` | OBSERVED |
 | Dot-matrix airport code picked (`IataCode`, `· · ·` → `SFO`) | dots turn to the new characters left to right, cell by cell and column by column, on `colour()` (~180 ms); first composition sits at rest | OBSERVED |
 | Rolling readouts (`RollingText` / `RollingTimeText` / `RollingMetricText`) | only the changed run of characters rolls vertically, on `dataSpatial()` (no bounce: the readout is data), with a cross-fade from the same progress; up when the value grows, down when it shrinks; units and unchanged digits stay still; not used for per-frame values (scrubbing) | OBSERVED |
-| Dial jet-lag pill on a day change | rolls once from the old offset to the new one, driven by the inner ring's own `dialDayRotation()` progress (one event), instead of counting through every half hour | OBSERVED |
+| Dial offset pill ("7 h behind") and body time on a day change | read the body sky's own animated offset in the draw phase, so the words step through the half hours exactly as the ring turns (one event, never two that disagree) | OBSERVED |
 | Sleep dial readouts (bedtime / wake pills, centre duration) | follow a drag live with no roll (per-frame values); roll on discrete changes (TalkBack or keyboard nudge, a picked time, the 24.2 rubber band) as rolling readouts; text sized for the widest value so it never resizes | OBSERVED |
 | Tool row switched on (onboarding / settings tools) | leading advice glyph Circle → advice shape on `glyphMorph()` (rare: a setup choice), back on `dataSpatial()` (the melatonin glyph twinkles once, as on the plan); row container and text tint to the advice container on `colour()`, read in draw; the switch and label carry the state without them | OBSERVED |
 | Route arc banner: destination picked | flat dotted horizon springs up into the dashed arc on `containerSpatial()` (the dots stretch into dashes as it lifts); the plane glides to its position on `dataSpatial()`; destination code reveals as above | OBSERVED |
@@ -93,7 +93,7 @@ on-screen time, not opens, is what gates its motion.
 - Loading indicator becomes a still Sunny with the same "Working out your plan" semantics.
 - Confetti is skipped; `onFinished` fires immediately. The celebration goes straight to its overlay.
 - Easter eggs are off (`easterEggs` is false under reduce motion and inside sleep windows).
-- Dot-matrix codes, rolling readouts, the dial's jet-lag pill and the route arc (apex and plane) snap to their
+- Dot-matrix codes, rolling readouts, the dial's body sky and offset pill and the route arc (apex and plane) snap to their
   end state; the still picture carries the whole meaning.
 - Screenshot goldens render with reduce motion on, proving each static carrier. `_mid` goldens
   (`snapMidChange`) freeze one frame mid-transition with motion on.

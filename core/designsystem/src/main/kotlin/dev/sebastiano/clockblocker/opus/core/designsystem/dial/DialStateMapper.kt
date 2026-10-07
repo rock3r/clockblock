@@ -9,7 +9,7 @@ import java.time.ZoneOffset
 
 
 /**
- * Projects a plan onto the Two Clocks dial at [instant], with the outer ring in [displayZone] local time.
+ * Projects a plan onto the Two skies dial at [instant], with the outer ring in [displayZone] local time.
  *
  * - Advice inside the 24 h window [instant − 8 h, instant + 16 h) becomes [DialArc]s, clipped to the window so
  *   arcs never overlap where the window wraps.

@@ -66,10 +66,10 @@ data class DialAdvice(
 )
 
 /**
- * UI model of the Two Clocks dial at one instant. Build it with `JetLagPlan.toDialState(instant, zone)`.
+ * UI model of the Two skies dial at one instant. Build it with `JetLagPlan.toDialState(instant, zone)`.
  *
- * The outer ring is drawn in display-zone local minutes. The inner body ring is drawn in *body* minutes and
- * rotated by [bodyAheadMinutes], so the body ring visibly turns towards alignment day by day.
+ * The outer (local) sky is drawn in display-zone local minutes. The inner body sky is drawn in *body* minutes and
+ * turned by [bodyAheadMinutes], so it visibly turns towards alignment day by day.
  */
 @Immutable
 data class DialState(
@@ -103,7 +103,7 @@ data class DialState(
     /** Body clock relative to local time, in hours: −3.5 = body 3½ h behind. The convention every label uses. */
     val bodyOffsetHours: Float get() = bodyAheadMinutes / 60f
 
-    /** Rings line up: no wedge, the rings "click". */
+    /** The two skies line up: the dial says "in sync" and the rings "click". */
     val isAligned: Boolean get() = abs(bodyAheadMinutes) < AlignedThresholdMinutes
 
     /** Display-zone minute at which the body clock reads [bodyMinute]. */
@@ -126,7 +126,7 @@ data class DialState(
 /**
  * "+5 h", "+4½ h", "−2 h", "0 h": rounded to the nearest half hour.
  *
- * App-wide convention when this labels the body clock (dial wedge, plan header): pass the body clock relative
+ * App-wide convention when this labels the body clock (plan header, trip cards): pass the body clock relative
  * to local time ([DialState.bodyOffsetHours]), so "−3½ h" means the body is 3½ h *behind* local time. Words
  * ("3½ h behind") use [formatHoursMagnitude] with a behind/ahead string. Trip shifts ("+8 h east") are a
  * different quantity and keep their own sign.
@@ -156,7 +156,7 @@ enum class BodyOffsetDirection { InSync, Behind, Ahead }
 
 /**
  * [BodyOffsetDirection] of a body offset in hours (body − local). In sync below the dial's alignment threshold
- * ([DialState.AlignedThresholdMinutes]), exactly when the dial hides its wedge, so header and dial agree.
+ * ([DialState.AlignedThresholdMinutes]), exactly when the dial says "in sync", so header and dial agree.
  */
 fun bodyOffsetDirection(bodyOffsetHours: Float): BodyOffsetDirection = when {
     abs(bodyOffsetHours) * 60f < DialState.AlignedThresholdMinutes -> BodyOffsetDirection.InSync

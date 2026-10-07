@@ -40,15 +40,25 @@ in the toolbar, to go back. On a tablet, the timeline also scrolls to the day yo
 
 ### The dial
 
-<img src="images/two-clocks-dial.png" alt="The Two Clocks dial: 14:20 local time in the middle, 09:56 body underneath, and a +4½ h badge. Coloured arcs around the edge show the blocks of the plan." width="300" />
+<img src="images/two-skies-dial.png" alt="The dial at 14:20 in Tokyo. The outer ring is the Tokyo sky, labelled Tokyo day and Tokyo night. The inner ring is labelled Your body's day and Your body's night, and its night is turned round from Tokyo's. In the middle: Tokyo, 14:20, 09:56 body and 4½ h behind. A needle crosses both rings, and outside them an arc says See bright light until 15:00, then see some light." width="300" />
+
+The dial shows two skies. The outer ring is the sky where you are: light for day, dark for night, with dawn and
+dusk in between. The inner ring is the sky your body thinks it is under. The gap between the two nights is your
+jet lag. As you adapt, the inner ring turns a little each day, and once you've adapted the two rings match.
 
 The big number in the middle is the local time. The smaller italic time under it ("09:56 body") is the time your
-body clock thinks it is. The badge shows the gap between them: "−8 h" means your body is 8 hours behind local
-time, "+4½ h" means it is 4½ hours ahead. The arcs around the edge show the blocks of your plan.
+body clock thinks it is. The pill under that says how far apart they are, for example "4½ h behind", "2 h ahead"
+or "in sync".
 
-To look ahead, drag the clock hand around the dial. The Now card changes to show what you'd be doing "At 18:30",
-for example. Let go and the hand returns to now (or to the day you picked in the day strip). You can also tap the centre to return. With TalkBack, the dial
-offers the actions **Next block**, **Previous block** and **Back to now**.
+The needle points at the time shown. Outside the rings, an arc shows the block under the needle, with its name and
+when it ends ("See bright light until 15:00") and what comes next. When nothing is on, it shows the next block and
+when it starts. On a small phone, the dial is simpler: the rings say only the city and "Body", and the Now card
+below gives the details.
+
+To look ahead, drag the needle around the dial. The Now card changes to show what you'd be doing "At 18:30",
+for example. Let go and the needle returns to now (or to the day you picked in the day strip). You can also tap the
+centre to return. With TalkBack, the dial offers the actions **Next block**, **Previous block** and **Back to
+now**.
 
 ### The Now card
 

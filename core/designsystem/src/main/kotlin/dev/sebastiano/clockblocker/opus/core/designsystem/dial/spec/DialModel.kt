@@ -1,0 +1,90 @@
+package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
+
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialArc
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
+
+/** How much the dial shows, picked from its actual size in dp (not the widget bucket it sits in). */
+enum class DetailLevel {
+    /** Under 110 dp (a 1×1 widget): the two skies, the needle and the two times. */
+    Glance,
+
+    /** 110–250 dp (a 2×2 widget, a compact hero): adds ring labels and the advice arc with its glyph. */
+    Simple,
+
+    /** 250 dp and up (large widgets, the in-app hero): adds day/night labels, numerals and the narration rim. */
+    Full,
+    ;
+
+    companion object {
+        const val SimpleMinDp = 110f
+        const val FullMinDp = 250f
+
+        fun forSize(minSideDp: Float): DetailLevel = when {
+            minSideDp < SimpleMinDp -> Glance
+            minSideDp < FullMinDp -> Simple
+            else -> Full
+        }
+    }
+}
+
+/** What the inner (body) ring shows. */
+enum class BodyRingMode {
+    /** The local sky turned by the jet lag: the sky your body thinks it is under. The default everywhere. */
+    Simple,
+
+    /** The planner's biological night (≈ melatonin onset → habitual wake) as the body's night. */
+    Precise,
+}
+
+/** A night on the dial in local minutes of the day, running clockwise from [start] to [end]. */
+data class NightSpan(val start: Float, val end: Float) {
+    val lengthMinutes: Float get() = (end - start).mod(DialGeometry.MinutesPerDay)
+    val centre: Float get() = (start + lengthMinutes / 2f).mod(DialGeometry.MinutesPerDay)
+    val dayCentre: Float get() = (end + (DialGeometry.MinutesPerDay - lengthMinutes) / 2f).mod(DialGeometry.MinutesPerDay)
+}
+
+/** Where the body ring's night falls. */
+object BodySky {
+    /**
+     * The body ring's sunset → sunrise in **body** minutes: the local sun's times for [BodyRingMode.Simple], the
+     * biological night for [BodyRingMode.Precise]. The ring is painted in body minutes and turned by the jet lag.
+     */
+    fun nightInBody(state: DialState, mode: BodyRingMode): NightSpan = when (mode) {
+        BodyRingMode.Simple -> NightSpan(state.sunsetMinute, state.sunriseMinute)
+        BodyRingMode.Precise -> NightSpan(state.biologicalNightStartBodyMinute, state.biologicalNightEndBodyMinute)
+    }
+
+    /** [nightInBody] placed on the local dial for a body clock [bodyAheadMinutes] ahead of local time. */
+    fun nightInLocal(state: DialState, mode: BodyRingMode, bodyAheadMinutes: Float = state.bodyAheadMinutes): NightSpan {
+        val body = nightInBody(state, mode)
+        return NightSpan(
+            (body.start - bodyAheadMinutes).mod(DialGeometry.MinutesPerDay),
+            (body.end - bodyAheadMinutes).mod(DialGeometry.MinutesPerDay),
+        )
+    }
+
+    /** The local sky's night. */
+    fun localNight(state: DialState): NightSpan = NightSpan(state.sunsetMinute, state.sunriseMinute)
+}
+
+/** The advice the dial shows at one minute: the block under the hand, and the next one to start after it. */
+data class DialFocus(val current: DialArc?, val next: DialArc?)
+
+/**
+ * [DialFocus] at local [minute]: the window under it (the highest-priority type when windows overlap, the same
+ * choice as the narration), and the earliest advice starting after it within the dial's future window.
+ */
+fun DialState.focusAt(minute: Float): DialFocus {
+    val current = arcs
+        .filter { it.sweepMinutes > 0f && (minute - it.startMinute).mod(DialGeometry.MinutesPerDay) < it.sweepMinutes }
+        .minByOrNull { it.type.ordinal }
+    val future = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
+    val next = arcs
+        .filter { it.adviceId != current?.adviceId }
+        .map { it to (it.startMinute - minute).mod(DialGeometry.MinutesPerDay) }
+        .filter { (_, ahead) -> ahead > 0.5f && ahead < future }
+        .minWithOrNull(compareBy<Pair<DialArc, Float>> { it.second }.thenBy { it.first.type.ordinal })
+        ?.first
+    return DialFocus(current, next)
+}
