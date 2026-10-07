@@ -236,10 +236,10 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 
 Import has two modes, implemented in `BackupManager.restore`:
 
-- **Replace** deletes trips that aren't in the backup. It then writes the backup's profile (if the file has one),
-  its settings, its trips and its advice-log entries. Advice-log entries are written on top of the existing
-  logs, so entries already on the device for a trip that is kept are not removed. An entry for the same advice
-  id is replaced by the backup's.
+- **Replace** deletes trips that aren't in the backup. It then writes the backup's profile (if the file has one;
+  otherwise the device keeps its profile, because without one the app would restart onboarding), its settings
+  and its trips, and sets each trip's advice log to exactly the backup's entries
+  (`AdviceLogRepository.replaceAll`), so entries made on the device that aren't in the backup are removed.
 - **Merge** only adds. It keeps the device's settings, and its profile when it has one (the backup's profile is
   written only if the device has none). It adds the backup's trips whose id isn't on the device, and the
   advice-log entries whose trip and advice id aren't logged on the device (`AdviceLogRepository.logIfAbsent`,

@@ -105,7 +105,10 @@ class BackupCodec {
 
 /** How an import treats data already on the device. */
 enum class ImportMode {
-    /** The device ends up with exactly the backup's trips (others are deleted), profile and settings. */
+    /**
+     * The device ends up with exactly the backup's trips (others are deleted), check-ins, settings and profile
+     * (the device's profile stays if the backup has none).
+     */
     Replace,
 
     /**
@@ -159,22 +162,22 @@ class BackupManager(
         ImportMode.Merge -> merge(backup)
     }
 
+    /**
+     * The device ends up with the backup's trips, settings and check-ins, exactly. The backup's profile replaces
+     * the device's; a backup without one (not something the app exports after onboarding) keeps the device's,
+     * since a missing profile would send the user back to onboarding.
+     */
     private suspend fun replace(backup: Backup): ImportResult {
         val keep = backup.trips.mapTo(HashSet()) { it.id }
-        val onDevice = trips.trips.first().mapTo(HashSet()) { it.id }
         var deleted = 0
-        onDevice.filterNot { it in keep }.forEach { trips.delete(it); deleted++ }
+        trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
         backup.profile?.let { profiles.save(it) }
         settings.update { backup.settings }
         var logs = 0
         backup.trips.forEach { trip ->
+            // Exactly the backup's check-ins: drops ones made here (kept trip) or left by a deleted trip.
             val entries = backup.adviceLogs[trip.id].orEmpty()
-            if (trip.id in onDevice) {
-                entries.forEach { adviceLogs.log(trip.id, it.adviceId, it.outcome) }
-            } else {
-                // Check-ins a deleted trip with this id left behind belong to that trip, not this one.
-                adviceLogs.replaceAll(trip.id, entries)
-            }
+            adviceLogs.replaceAll(trip.id, entries)
             logs += entries.size
             trips.upsert(trip)
         }
