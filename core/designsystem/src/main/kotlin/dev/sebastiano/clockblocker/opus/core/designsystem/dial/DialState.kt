@@ -102,6 +102,11 @@ data class DialState(
     val sunriseMinute: Float = 390f,
     val sunsetMinute: Float = 1140f,
     val daylight: Daylight = Daylight.RisesAndSets,
+    /**
+     * The trip's stop in [displayZoneId] (e.g. "Tromsø", which keeps Oslo's zone id), named on the dial; null, or too
+     * long to fit, falls back to the zone's city.
+     */
+    val placeName: String? = null,
 ) {
     val bodyMinute: Float get() = (localMinute + bodyAheadMinutes).mod(DialGeometry.MinutesPerDay)
     val localTime: LocalTime get() = DialGeometry.timeOf(localMinute)

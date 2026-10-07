@@ -18,7 +18,7 @@ import java.time.ZoneOffset
  *   arcs never overlap where the window wraps.
  * - The body clock comes from [JetLagPlan.bodyOffsetAt]; CBTmin from the nearest [dev.sebastiano.clockblocker.opus.core.model.PhasePoint].
  * - The sky rings get the real sunrise and sunset at [place] (the trip's stop in [displayZone]) on the local date
- *   at [instant]; without a place they keep [DialState]'s default sun.
+ *   at [instant], and the dial names it; without a place they keep [DialState]'s default sun and the zone's city.
  */
 fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? = null): DialState {
     val localOffset: ZoneOffset = displayZone.rules.getOffset(instant)
@@ -85,6 +85,7 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
         next = nextAfter(instant)?.let(::narrate),
         dayKind = day?.kind,
         dayIndex = day?.index,
+        placeName = place?.city?.takeIf { it.isNotBlank() },
     ).withSun(sun, ::minuteOf)
 }
 
