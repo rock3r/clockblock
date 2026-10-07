@@ -44,6 +44,9 @@ object PlanTags {
     /** One advice block on the rail. */
     fun block(adviceId: String) = "plan_block_$adviceId"
 
+    /** The quick check-off circle on a rail row. */
+    fun checkOff(adviceId: String) = "plan_check_off_$adviceId"
+
     /** A day header on the rail ([index] = `PlanDay.index`, e.g. -1, 0, 2). */
     fun day(index: Int) = "plan_day_$index"
 

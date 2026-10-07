@@ -84,6 +84,8 @@ on-screen time, not opens, is what gates its motion.
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
 - Moon egg taps 1–6 → `CLOCK_TICK`.
 - Trip editor Save succeeds → `CONFIRM` (once, on the `Saved` event; validation failures stay silent).
+- Rail row check-off circle ticked → `CONFIRM` (like the Now card's Done; unticking is silent). The circle just swaps
+  between outlined and filled with a check: the rail is a 100+/day surface, so the state layer is its only motion.
 
 ## Reduced motion
 - Trigger: system "Remove animations" (`ANIMATOR_DURATION_SCALE == 0`) or the in-app toggle → `LocalReduceMotion`.
