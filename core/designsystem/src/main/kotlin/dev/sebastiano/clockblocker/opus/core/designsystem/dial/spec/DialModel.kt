@@ -72,19 +72,30 @@ object BodySky {
 data class DialFocus(val current: DialArc?, val next: DialArc?)
 
 /**
- * [DialFocus] at local [minute]: the window under it (the highest-priority type when windows overlap, the same
- * choice as the narration), and the earliest advice starting after it within the dial's future window.
+ * [DialFocus] at local [minute]: a moment due at that minute, else the window under it (the highest-priority type
+ * when windows overlap, the same choice as the narration); and the earliest advice starting after it.
+ *
+ * "After" is measured inside the dial's window ([DialGeometry.relativeMinute] from now), not round the clock face:
+ * scrubbed towards the end of the window, advice from earlier today is in the past, not 24 h minus a bit ahead.
  */
 fun DialState.focusAt(minute: Float): DialFocus {
-    val current = arcs
+    val at = DialGeometry.relativeMinute(localMinute, minute)
+    fun ahead(arc: DialArc) = DialGeometry.relativeMinute(localMinute, arc.startMinute) - at
+    val due = arcs
+        .filter { it.sweepMinutes == 0f && ahead(it) > -MomentDueMinutes && ahead(it) <= MomentLeadMinutes }
+        .minByOrNull { it.type.ordinal }
+    val current = due ?: arcs
         .filter { it.sweepMinutes > 0f && (minute - it.startMinute).mod(DialGeometry.MinutesPerDay) < it.sweepMinutes }
         .minByOrNull { it.type.ordinal }
-    val future = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
     val next = arcs
         .filter { it.adviceId != current?.adviceId }
-        .map { it to (it.startMinute - minute).mod(DialGeometry.MinutesPerDay) }
-        .filter { (_, ahead) -> ahead > 0.5f && ahead < future }
+        .map { it to ahead(it) }
+        .filter { (_, ahead) -> ahead > MomentLeadMinutes }
         .minWithOrNull(compareBy<Pair<DialArc, Float>> { it.second }.thenBy { it.first.type.ordinal })
         ?.first
     return DialFocus(current, next)
 }
+
+/** A moment (melatonin, a nap cue) is due from half a minute before it until a minute after. */
+private const val MomentLeadMinutes = 0.5f
+private const val MomentDueMinutes = 1f

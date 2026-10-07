@@ -179,6 +179,24 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a moment is in focus when it is due`() {
+        val focus = tokyo.focusAt(16 * 60f + 30f)
+        focus.current?.adviceId shouldBe "mel"
+        focus.next?.adviceId shouldBe "sleep"
+        val texts = spec(scrub = 16 * 60f + 30f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
+        texts shouldContain "Take melatonin at 16:30"
+        texts shouldContain "then sleep"
+    }
+
+    @Test
+    fun `scrubbing to the end of the window never brings past advice back as next`() {
+        // 05:20 tomorrow, 14 h ahead of now: the 13:30 avoid light block was 16 h earlier, not 8 h later.
+        val focus = tokyo.focusAt(5 * 60f + 20f)
+        focus.current?.adviceId shouldBe "sleep"
+        focus.next.shouldBeNull()
+    }
+
+    @Test
     fun `ring labels step aside from the needle`() {
         // 11:30 is the middle of Tokyo's day: the needle would run straight through "TOKYO DAY".
         val noon = tokyo.copy(localMinute = 690f)
