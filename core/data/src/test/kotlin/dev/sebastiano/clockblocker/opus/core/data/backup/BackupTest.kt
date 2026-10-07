@@ -146,6 +146,71 @@ class BackupManagerTest {
     }
 
     @Test
+    fun `merge keeps the device profile when there is one`() = runTest {
+        val backup = Device(profiles = FakeProfileRepository(DemoData.profile.copy(intensity = Intensity.Max))).manager.export()
+        val device = Device(profiles = FakeProfileRepository(DemoData.profile))
+
+        device.manager.import(backup, ImportMode.Merge)
+
+        device.profiles.current shouldBe DemoData.profile
+    }
+
+    @Test
+    fun `merge takes the backup profile when the device has none`() = runTest {
+        val profile = DemoData.profile.copy(intensity = Intensity.Max)
+        val backup = Device(profiles = FakeProfileRepository(profile)).manager.export()
+        val device = Device()
+
+        device.manager.import(backup, ImportMode.Merge)
+
+        device.profiles.current shouldBe profile
+    }
+
+    @Test
+    fun `merge keeps the device version of a trip in both places and only adds new ones`() = runTest {
+        val backupTrip = DemoData.sfoToLhr().copy(title = "From the backup")
+        val backup = Device(trips = FakeTripRepository(listOf(backupTrip, DemoData.lhrToSydneyViaSingapore()))).manager.export()
+        val deviceTrip = DemoData.sfoToLhr().copy(title = "On this phone")
+        val device = Device(trips = FakeTripRepository(listOf(deviceTrip)))
+
+        val result = device.manager.import(backup, ImportMode.Merge)
+
+        result.tripsImported shouldBe 1
+        device.trips.current shouldContainExactly listOf(deviceTrip, DemoData.lhrToSydneyViaSingapore())
+    }
+
+    @Test
+    fun `merge keeps check-ins already on the device and adds the missing ones`() = runTest {
+        val source = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        source.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.CantDo)
+        source.logs.log(DemoData.SfoLhrId, "a2", AdviceOutcome.Done)
+        val device = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        device.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.Done)
+
+        val result = device.manager.import(source.manager.export(), ImportMode.Merge)
+
+        result.logsImported shouldBe 1
+        device.logs.outcomeOf(DemoData.SfoLhrId, "a1") shouldBe AdviceOutcome.Done
+        device.logs.outcomeOf(DemoData.SfoLhrId, "a2") shouldBe AdviceOutcome.Done
+    }
+
+    @Test
+    fun `replace still takes the backup's profile, trips and check-ins`() = runTest {
+        val backupProfile = DemoData.profile.copy(intensity = Intensity.Max)
+        val backupTrip = DemoData.sfoToLhr().copy(title = "From the backup")
+        val source = Device(profiles = FakeProfileRepository(backupProfile), trips = FakeTripRepository(listOf(backupTrip)))
+        source.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.CantDo)
+        val device = Device(profiles = FakeProfileRepository(DemoData.profile), trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        device.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.Done)
+
+        device.manager.import(source.manager.export(), ImportMode.Replace)
+
+        device.profiles.current shouldBe backupProfile
+        device.trips.current shouldContainExactly listOf(backupTrip)
+        device.logs.outcomeOf(DemoData.SfoLhrId, "a1") shouldBe AdviceOutcome.CantDo
+    }
+
+    @Test
     fun `a bad file changes nothing`() = runTest {
         val device = Device(trips = FakeTripRepository(DemoData.trips()))
         shouldThrow<BackupException> { device.manager.import("{ nope") }

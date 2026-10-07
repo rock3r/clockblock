@@ -108,7 +108,10 @@ enum class ImportMode {
     /** The device ends up with exactly the backup's trips (others are deleted), profile and settings. */
     Replace,
 
-    /** Backup trips are added or overwrite same-id trips; nothing is deleted. */
+    /**
+     * Only adds: backup trips and advice logs that aren't on the device, and the backup's profile when the
+     * device has none. Nothing on the device is changed or deleted.
+     */
     Merge,
 }
 
@@ -142,14 +145,17 @@ class BackupManager(
     @Throws(BackupException::class)
     suspend fun import(text: String, mode: ImportMode = ImportMode.Replace): ImportResult = restore(codec.decode(text), mode)
 
-    suspend fun restore(backup: Backup, mode: ImportMode = ImportMode.Replace): ImportResult {
+    suspend fun restore(backup: Backup, mode: ImportMode = ImportMode.Replace): ImportResult = when (mode) {
+        ImportMode.Replace -> replace(backup)
+        ImportMode.Merge -> merge(backup)
+    }
+
+    private suspend fun replace(backup: Backup): ImportResult {
+        val keep = backup.trips.mapTo(HashSet()) { it.id }
         var deleted = 0
-        if (mode == ImportMode.Replace) {
-            val keep = backup.trips.mapTo(HashSet()) { it.id }
-            trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
-        }
+        trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
         backup.profile?.let { profiles.save(it) }
-        if (mode == ImportMode.Replace) settings.update { backup.settings }
+        settings.update { backup.settings }
         backup.trips.forEach { trips.upsert(it) }
         var logs = 0
         backup.adviceLogs.forEach { (tripId, entries) ->
@@ -157,4 +163,19 @@ class BackupManager(
         }
         return ImportResult(tripsImported = backup.trips.size, tripsDeleted = deleted, logsImported = logs)
     }
+
+    /** Only adds: the device's profile, trips and check-ins win over the backup's. */
+    private suspend fun merge(backup: Backup): ImportResult {
+        if (backup.profile != null && profiles.profile.first() == null) profiles.save(backup.profile)
+        val onDevice = trips.trips.first().mapTo(HashSet()) { it.id }
+        val added = backup.trips.filterNot { it.id in onDevice }
+        added.forEach { trips.upsert(it) }
+        var logs = 0
+        backup.adviceLogs.forEach { (tripId, entries) ->
+            val logged = adviceLogs.logs(tripId).first().mapTo(HashSet()) { it.adviceId }
+            entries.filterNot { it.adviceId in logged }.forEach { adviceLogs.log(tripId, it.adviceId, it.outcome); logs++ }
+        }
+        return ImportResult(tripsImported = added.size, tripsDeleted = 0, logsImported = logs)
+    }
 }
+
