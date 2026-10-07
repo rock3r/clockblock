@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 
 import app.cash.turbine.test
 import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
+import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
@@ -13,6 +14,8 @@ import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -103,6 +106,33 @@ class AboutViewModelTest {
             expectNoEvents()
         }
         settings.current.opusModeUnlocked.shouldBeFalse()
+        vm.showTitleCard.value.shouldBeFalse()
+    }
+
+    @Test
+    fun `once unlocked, gated taps don't answer either`() = runTest {
+        settings.set(AppSettings(opusModeUnlocked = true, reduceMotion = true))
+        val vm = viewModel()
+        vm.events.test {
+            vm.onVersionTapped()
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `a gate that closes during the unlock write keeps the title card down`() = runTest {
+        // Reduce motion switches on while the unlock is being saved (and the save suspends, as DataStore does).
+        val store = settings
+        val racing = object : SettingsRepository by store {
+            override suspend fun update(transform: (AppSettings) -> AppSettings) {
+                store.update { transform(it).copy(reduceMotion = true) }
+                delay(10)
+            }
+        }
+        val vm = AboutViewModel(racing, EasterEggGate(racing, plans, clock))
+        repeat(AboutViewModel.TapsToUnlock) { vm.onVersionTapped() }
+        advanceUntilIdle()
+        settings.current.opusModeUnlocked.shouldBeTrue()
         vm.showTitleCard.value.shouldBeFalse()
     }
 }

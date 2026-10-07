@@ -56,18 +56,19 @@ class AboutViewModel(private val settings: SettingsRepository, private val eggs:
 
     fun onVersionTapped() {
         viewModelScope.launch {
+            if (!eggs.allowed.first()) return@launch
             if (settings.settings.first().opusModeUnlocked) {
                 _events.send(AboutEvent.AlreadyUnlocked)
                 return@launch
             }
-            if (!eggs.allowed.first()) return@launch
             taps++
             val remaining = TapsToUnlock - taps
             when {
                 remaining <= 0 -> {
                     taps = 0
                     settings.update { it.copy(opusModeUnlocked = true, opusModeEnabled = true) }
-                    _showTitleCard.value = true
+                    // The gate may have closed during the write; the collector above already saw that.
+                    if (eggs.allowed.first()) _showTitleCard.value = true
                     _events.send(AboutEvent.Unlocked)
                 }
                 remaining <= CountdownFrom -> _events.send(AboutEvent.TapsAway(remaining))
