@@ -56,9 +56,8 @@ asks how to import it:
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
 
 - **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
-  trips and check-ins. Check-ins already on this phone stay, unless the backup has a check-in for the same block.
-  A trip Replace adds that isn't on this phone gets only the backup's check-ins, even if you once had (and
-  deleted) a trip with the same id here.
+  trips and check-ins. Each trip ends up with exactly the backup's check-ins: ones you made on this phone that
+  aren't in the backup are removed. If the backup has no profile, this phone keeps its own.
 - **Merge** only adds. It adds the backup's trips that aren't on this phone, and the backup's check-ins for
   blocks you haven't checked in here. It deletes and changes nothing: this phone keeps its settings, its
   profile, its trips (a trip in both places keeps this phone's version) and its check-ins. The backup's profile
