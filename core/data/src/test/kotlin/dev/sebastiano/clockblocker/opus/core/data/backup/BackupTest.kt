@@ -150,7 +150,7 @@ class BackupManagerTest {
         val backup = Device(profiles = FakeProfileRepository(DemoData.profile.copy(intensity = Intensity.Max))).manager.export()
         val device = Device(profiles = FakeProfileRepository(DemoData.profile))
 
-        device.manager.import(backup, ImportMode.Merge)
+        device.manager.import(backup, ImportMode.Merge).profileImported shouldBe false
 
         device.profiles.current shouldBe DemoData.profile
     }
@@ -161,7 +161,7 @@ class BackupManagerTest {
         val backup = Device(profiles = FakeProfileRepository(profile)).manager.export()
         val device = Device()
 
-        device.manager.import(backup, ImportMode.Merge)
+        device.manager.import(backup, ImportMode.Merge).profileImported shouldBe true
 
         device.profiles.current shouldBe profile
     }
@@ -189,7 +189,7 @@ class BackupManagerTest {
 
         val result = device.manager.import(source.manager.export(), ImportMode.Merge)
 
-        result.logsImported shouldBe 1
+        result shouldBe ImportResult(tripsImported = 0, tripsDeleted = 0, logsImported = 1, merged = true)
         device.logs.outcomeOf(DemoData.SfoLhrId, "a1") shouldBe AdviceOutcome.Done
         device.logs.outcomeOf(DemoData.SfoLhrId, "a2") shouldBe AdviceOutcome.Done
     }
@@ -218,7 +218,7 @@ class BackupManagerTest {
 
         val result = device.manager.import(source.manager.export(), ImportMode.Merge)
 
-        result shouldBe ImportResult(tripsImported = 1, tripsDeleted = 0, logsImported = 0)
+        result shouldBe ImportResult(tripsImported = 1, tripsDeleted = 0, logsImported = 0, merged = true)
         device.logs.current(DemoData.SfoLhrId) shouldBe emptyList()
         device.logs.current(DemoData.LhrSydId) shouldBe emptyList()
     }

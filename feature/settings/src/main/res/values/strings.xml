@@ -117,6 +117,12 @@
         <item quantity="one">Imported %1$d trip.</item>
         <item quantity="other">Imported %1$d trips.</item>
     </plurals>
+    <plurals name="settings_event_merged_check_ins">
+        <item quantity="one">Added %1$d check-in from the backup.</item>
+        <item quantity="other">Added %1$d check-ins from the backup.</item>
+    </plurals>
+    <string name="settings_event_merged_profile">Added your profile from the backup.</string>
+    <string name="settings_event_merged_nothing">Nothing new to add. Everything in that backup is already here.</string>
     <string name="settings_event_not_backup">That file isn\'t a Clockblock backup.</string>
     <string name="settings_event_newer">That backup is from a newer version. Update the app, then try again.</string>
     <string name="settings_event_unreadable">Couldn\'t read that file.</string>

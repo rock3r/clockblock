@@ -115,8 +115,17 @@ enum class ImportMode {
     Merge,
 }
 
-/** Summary of an import, for a confirmation snackbar. */
-data class ImportResult(val tripsImported: Int, val tripsDeleted: Int, val logsImported: Int)
+/**
+ * Summary of an import, for a confirmation snackbar. On a [merged] import every count is what was added;
+ * [profileImported] is true when the device had no profile and took the backup's.
+ */
+data class ImportResult(
+    val tripsImported: Int,
+    val tripsDeleted: Int,
+    val logsImported: Int,
+    val profileImported: Boolean = false,
+    val merged: Boolean = false,
+)
 
 /** Exports/imports everything through the repositories, so all observers update immediately. */
 @Inject
@@ -173,7 +182,8 @@ class BackupManager(
      */
     private suspend fun merge(backup: Backup): ImportResult {
         val deviceProfile = profiles.profile.first()
-        if (backup.profile != null && deviceProfile == null) profiles.save(backup.profile)
+        val adoptedProfile = backup.profile?.takeIf { deviceProfile == null }
+        adoptedProfile?.let { profiles.save(it) }
         val sameProfile = (deviceProfile ?: backup.profile) == backup.profile
         val onDevice = trips.trips.first().associateBy { it.id }
         val added = backup.trips.filterNot { it.id in onDevice }
@@ -188,7 +198,13 @@ class BackupManager(
                 }
             }
         }
-        return ImportResult(tripsImported = added.size, tripsDeleted = 0, logsImported = logs)
+        return ImportResult(
+            tripsImported = added.size,
+            tripsDeleted = 0,
+            logsImported = logs,
+            profileImported = adoptedProfile != null,
+            merged = true,
+        )
     }
 }
 
