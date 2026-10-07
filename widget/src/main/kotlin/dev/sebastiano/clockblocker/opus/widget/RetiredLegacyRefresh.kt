@@ -12,7 +12,8 @@ import android.content.Intent
  * `PendingIntent` still exists. Safe to delete once no install can still carry that alarm.
  */
 internal object RetiredLegacyRefresh {
-    const val ACTION = "dev.sebastiano.clockblocker.opus.widget.action.REFRESH_LEGACY"
+    /** The fallback's action string (`<application id>.widget.action.REFRESH_LEGACY`). */
+    fun action(context: Context): String = "${context.packageName}.widget.action.REFRESH_LEGACY"
 
     fun cancel(context: Context) {
         val existing = pendingIntent(context, PendingIntent.FLAG_NO_CREATE) ?: return
@@ -24,7 +25,7 @@ internal object RetiredLegacyRefresh {
     internal fun pendingIntent(context: Context, flags: Int): PendingIntent? = PendingIntent.getBroadcast(
         context,
         0,
-        Intent(context, TwoClocksWidgetProvider::class.java).setAction(ACTION),
+        Intent(context, TwoClocksWidgetProvider::class.java).setAction(action(context)),
         flags or PendingIntent.FLAG_IMMUTABLE,
     )
 }

@@ -164,7 +164,7 @@ class WidgetUpdaterTest {
         val alarms = scheduleRetiredLegacyRefresh()
         TwoClocksWidgetProvider(updater).onReceive(
             app,
-            Intent(app, TwoClocksWidgetProvider::class.java).setAction(RetiredLegacyRefresh.ACTION),
+            Intent(app, TwoClocksWidgetProvider::class.java).setAction(RetiredLegacyRefresh.action(app)),
         )
         alarms.scheduledAlarms.shouldBeEmpty()
         RetiredLegacyRefresh.pendingIntent(app, PendingIntent.FLAG_NO_CREATE).shouldBeNull()
