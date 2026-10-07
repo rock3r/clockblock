@@ -269,6 +269,7 @@ class TwoSkiesSpecTest {
             val texts = s.ops.filterIsInstance<DialOp.Text>().filter { it.part == DialPart.Readout }.map { it.text }
             texts shouldContain "3:20"
             texts shouldContain "PM"
+            texts shouldContain "8:20 AM" // the body clock too: no pill or numerals to tell morning from evening
         }
     }
 
