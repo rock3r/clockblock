@@ -45,7 +45,7 @@ internal fun settingsState(
 /** The whole Settings list on a tall phone (so one golden shows every section), plus dark and large-font variants. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h3300dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h3300dp-xxhdpi")
 class SettingsScreenshotTest : ClockblockScreenshotTest() {
     private fun settings(name: String, state: SettingsUiState = settingsState(), dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
@@ -80,7 +80,7 @@ class SettingsScreenshotTest : ClockblockScreenshotTest() {
 /** Both Settings columns in full on a tall expanded window (sections split into two balanced columns). */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w1280dp-h1650dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w1280dp-h1650dp-xhdpi")
 class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun full() = snap("settings_two_pane_full") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = {}, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
@@ -90,7 +90,7 @@ class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
 /** Settings at phone height (top of the list) and the focused editors. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun top() = snap("settings_phone") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
@@ -176,7 +176,7 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
 /** Settings, About and Licences on a large landscape screen: the content column stays readable. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w1280dp-h800dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w1280dp-h800dp-xhdpi")
 class SettingsExpandedScreenshotTest : ClockblockScreenshotTest() {
     @Test fun settings() = snap("settings_expanded") {
         SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), dynamicColorSupported = true, now = DemoData.Now)
@@ -194,7 +194,7 @@ class SettingsExpandedScreenshotTest : ClockblockScreenshotTest() {
 /** About (whole page on a tall phone), the Opus title card and Licences. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h2300dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h2300dp-xxhdpi")
 class AboutScreenshotTest : ClockblockScreenshotTest() {
     private fun about(name: String, dark: Boolean = false, fontScale: Float? = null) = snap(name, darkTheme = dark, fontScale = fontScale) {
         AboutContent("1.0.0", onVersionTap = {}, onOpenSource = {}, onOpenLicenses = {}, onBack = {}, modifier = Modifier.fillMaxSize())
@@ -216,7 +216,7 @@ class AboutScreenshotTest : ClockblockScreenshotTest() {
 /** The Opus mode title card at phone size. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OpusTitleCardScreenshotTest : ClockblockScreenshotTest() {
     @Test fun titleCard() = snap("opus_title_card") { TitleCardOverScrim() }
 

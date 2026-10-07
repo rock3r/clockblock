@@ -34,7 +34,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Drives the real editor (route + ViewModel + fakes) through the flows a traveller actually uses. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h2400dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h2400dp-xhdpi")
 class TripEditorFlowTest : TripsScreenshotTest() {
 
     @get:Rule

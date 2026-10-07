@@ -56,7 +56,7 @@ interface DataTestGraph {
 }
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class DataBindingsTest {
     @Test
     fun everyBindingResolvesAndWorksEndToEnd(): Unit = runBlocking {

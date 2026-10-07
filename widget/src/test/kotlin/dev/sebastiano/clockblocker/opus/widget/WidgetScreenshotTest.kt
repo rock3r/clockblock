@@ -66,7 +66,7 @@ private const val DIR = "src/test/screenshots"
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w800dp-h1800dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w800dp-h1800dp-xhdpi")
 class WidgetScreenshotTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val zone = ZoneId.of("Asia/Tokyo")

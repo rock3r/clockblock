@@ -19,7 +19,7 @@ import org.robolectric.annotation.GraphicsMode
 /** List-detail vs single pane across window sizes, and back stack restoration. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class)
+@Config(sdk = [37], application = TestApplication::class)
 class AdaptiveShellTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()

@@ -31,7 +31,7 @@ import java.time.ZoneId
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class, qualifiers = "w411dp-h891dp")
+@Config(sdk = [37], application = TestApplication::class, qualifiers = "w411dp-h891dp")
 class ShellThemeTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()

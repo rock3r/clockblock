@@ -35,7 +35,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class, qualifiers = "w640dp-h400dp")
+@Config(sdk = [37], application = TestApplication::class, qualifiers = "w640dp-h400dp")
 class LauncherIconScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

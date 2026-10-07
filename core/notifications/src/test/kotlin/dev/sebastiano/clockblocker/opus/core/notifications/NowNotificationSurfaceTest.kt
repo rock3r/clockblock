@@ -43,7 +43,7 @@ import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class NowNotificationSurfaceTest {
 
     private val context: Application = ApplicationProvider.getApplicationContext()

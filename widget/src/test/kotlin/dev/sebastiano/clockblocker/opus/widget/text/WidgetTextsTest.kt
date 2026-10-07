@@ -25,7 +25,7 @@ import java.time.Instant
 import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class WidgetTextsTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val now = Instant.parse("2026-10-06T09:00:00Z")

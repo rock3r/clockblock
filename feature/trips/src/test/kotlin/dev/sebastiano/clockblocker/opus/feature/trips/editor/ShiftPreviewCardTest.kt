@@ -17,7 +17,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Which copy the preview card picks for the planner's result. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w411dp-h891dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w411dp-h891dp-xhdpi")
 class ShiftPreviewCardTest : TripsScreenshotTest() {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()

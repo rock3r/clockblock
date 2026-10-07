@@ -28,7 +28,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Shell behaviour on a compact phone window: gating, navigation suite, deep links and back. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class, qualifiers = "w411dp-h891dp")
+@Config(sdk = [37], application = TestApplication::class, qualifiers = "w411dp-h891dp")
 class ShellTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()

@@ -73,7 +73,7 @@ private class RecordingSettingsActions : SettingsActions {
 /** The stateless Settings UI forwards each interaction to [SettingsActions]. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class SettingsContentTest {
     @get:Rule
     val compose = createComposeRule()
@@ -247,7 +247,7 @@ class SettingsContentTest {
 /** Version taps reach the callback; the About screen links forward. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h860dp-xxhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class AboutContentTest {
     @get:Rule
     val compose = createComposeRule()

@@ -12,7 +12,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class WidgetDoneIntentTest {
     private val context: Application = ApplicationProvider.getApplicationContext()
 

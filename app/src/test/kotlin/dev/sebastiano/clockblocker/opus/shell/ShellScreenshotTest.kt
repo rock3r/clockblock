@@ -21,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], application = TestApplication::class)
+@Config(sdk = [37], application = TestApplication::class)
 class ShellScreenshotTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()

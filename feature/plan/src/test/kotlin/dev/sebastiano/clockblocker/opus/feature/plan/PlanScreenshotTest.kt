@@ -49,7 +49,7 @@ import java.time.ZoneId
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w400dp-h880dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w400dp-h880dp-xhdpi")
 class PlanScreenshotTest {
     @get:Rule
     val compose = createComposeRule()

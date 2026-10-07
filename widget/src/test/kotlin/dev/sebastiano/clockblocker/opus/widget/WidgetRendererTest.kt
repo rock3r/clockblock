@@ -24,7 +24,7 @@ import java.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36])
+@Config(sdk = [37])
 class WidgetRendererTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val now = Instant.parse("2026-10-06T09:00:00Z")

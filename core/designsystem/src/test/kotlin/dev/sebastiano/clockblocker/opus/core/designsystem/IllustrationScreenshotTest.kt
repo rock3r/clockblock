@@ -48,7 +48,7 @@ private val Arts: List<Pair<String, @Composable (Modifier) -> Unit>> = listOf(
 /** One golden per illustration (light, at 2× board size) plus contact sheets per theme variant. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [36], qualifiers = "w420dp-h900dp-xhdpi")
+@Config(sdk = [37], qualifiers = "w420dp-h900dp-xhdpi")
 class IllustrationScreenshotTest : ScreenshotTest() {
 
     private fun art(name: String) = snap("art_$name") { Arts.first { it.first == name }.second(Modifier.size(240.dp)) }
