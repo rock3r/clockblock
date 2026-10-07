@@ -18,6 +18,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -347,6 +348,27 @@ class PlanContentTest {
     }
 
     @Test
+    fun `a pick doesn't come back when the current plan switches to another trip and back`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        val inNowCard = hasAnyAncestor(hasTestTag(PlanTags.NowCard))
+        val nowHeading = hasText(context.getString(R.string.plan_now).uppercase()) and inNowCard
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertDoesNotExist()
+
+        // The current plan moves to an overlapping trip B (the pick belongs to A, so B is live)…
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        // …then B is deleted and trip A is current again: A's old pick stays forgotten, and the screen stays live.
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNode(nowHeading).assertExists()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assertIsNotSelected()
+    }
+
+    @Test
     fun `a nested melatonin chip keeps its dose`() {
         // A melatonin moment inside today's bright-light block (09:00–12:30 UTC) rides as a chip, not a row.
         val dose = Advice("melatonin-test", AdviceType.Melatonin, Instant.parse("2026-06-17T11:00:00Z"), Instant.parse("2026-06-17T11:00:00Z"), AdviceReason.MelatoninDelays, "0.5 mg")
@@ -396,6 +418,83 @@ class PlanContentTest {
         state = later
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.block(later.moment.active!!.id)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - a pick forgotten on a trip switch brings the rail back to the Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
+
+        // A → B → A: A's pick is forgotten, and the rail follows the screen back to the Now row.
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - switching trips brings the rail to the shown trip's Now row`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // No pick: the rail is just scrolled well away from Now. Its position on one trip's rows means nothing on
+        // another's, so each switch (A → B, then back to A) brings the rail to the shown trip's Now row.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsNotDisplayed()
+
+        state = ready(PlanFixtures.MidAdaptation, plan = realPlan.copy(tripId = "overlapping-trip"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        state = midAdaptation
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - switching to a trip that hasn't started yet starts its rail at the top`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+
+        // The current plan moves to a trip whose plan starts in ten days: it has no Now row, so its rail starts
+        // fresh at the top (its first day), not at the scroll position left over from the other trip.
+        val future = realPlan.copy(tripId = "future-trip")
+        state = ready(PlanFixtures.PreTrip.minus(Duration.ofDays(10)), plan = future)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(future.days.first().index)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - the shown trip's own rail position survives recreation`() {
+        val restoration = StateRestorationTester(compose)
+        val future = realPlan.copy(tripId = "future-trip")
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        restoration.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Switch to a trip that hasn't started (no Now row to jump to on restore) and scroll its rail down.
+        state = ready(PlanFixtures.PreTrip.minus(Duration.ofDays(10)), plan = future)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(future.days.first().index)).assertIsNotDisplayed()
+
+        // Activity recreation restores this trip's rail where it was, not the first trip's saved position.
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.day(4)).assertIsDisplayed()
     }
 
     @Test

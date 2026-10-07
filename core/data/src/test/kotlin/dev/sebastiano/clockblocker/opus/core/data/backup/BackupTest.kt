@@ -306,6 +306,29 @@ class BackupManagerTest {
     }
 
     @Test
+    fun `replace leaves a kept trip with exactly the backup's check-ins`() = runTest {
+        val source = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        source.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.CantDo)
+        val device = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        device.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.Done)
+        device.logs.log(DemoData.SfoLhrId, "only-here", AdviceOutcome.Done)
+
+        device.manager.import(source.manager.export(), ImportMode.Replace).logsImported shouldBe 1
+
+        device.logs.current(DemoData.SfoLhrId) shouldBe listOf(AdviceLog("a1", AdviceOutcome.CantDo))
+    }
+
+    @Test
+    fun `replace with a backup that has no profile keeps the device profile`() = runTest {
+        val backup = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr()))).manager.export()
+        val device = Device(profiles = FakeProfileRepository(DemoData.profile))
+
+        device.manager.import(backup, ImportMode.Replace)
+
+        device.profiles.current shouldBe DemoData.profile
+    }
+
+    @Test
     fun `a bad file changes nothing`() = runTest {
         val device = Device(trips = FakeTripRepository(DemoData.trips()))
         shouldThrow<BackupException> { device.manager.import("{ nope") }

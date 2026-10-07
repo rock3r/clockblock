@@ -9,6 +9,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import java.time.Instant
@@ -24,6 +25,10 @@ import java.time.ZoneId
 object SamplePlan {
     val Lisbon: ZoneId = ZoneId.of("Europe/Lisbon")
     val Tokyo: ZoneId = ZoneId.of("Asia/Tokyo")
+
+    /** The airports, as in `places.tsv`: their coordinates give the dial its real sunrise and sunset. */
+    val LisbonAirport = Place("LIS", "Lisbon Humberto Delgado Airport", "Lisbon", "PT", Lisbon.id, 38.781, -9.136)
+    val TokyoAirport = Place("HND", "Tokyo Haneda International Airport", "Tokyo", "JP", Tokyo.id, 35.550, 139.787)
     private val departure: LocalDate = LocalDate.of(2026, 10, 12)
 
     private fun at(zone: ZoneId, dayOffset: Int, time: String): Instant =
@@ -114,14 +119,14 @@ object SamplePlan {
     }
 
     /** The day before departure, 07:40 in Lisbon: body ≈ local, bright light now. */
-    val preTripDial: DialState by lazy { plan.toDialState(at(Lisbon, -1, "07:40"), Lisbon) }
+    val preTripDial: DialState by lazy { plan.toDialState(at(Lisbon, -1, "07:40"), Lisbon, LisbonAirport) }
 
     /** Arrival day 2, 14:20 in Tokyo: body ~4 h behind ("4 h behind"), bright light now. */
-    val midAdaptationDial: DialState by lazy { plan.toDialState(at(Tokyo, 2, "14:20"), Tokyo) }
+    val midAdaptationDial: DialState by lazy { plan.toDialState(at(Tokyo, 2, "14:20"), Tokyo, TokyoAirport) }
 
     /** Day 5, 09:10 in Tokyo: rings aligned. */
-    val adaptedDial: DialState by lazy { plan.toDialState(at(Tokyo, 5, "09:10"), Tokyo) }
+    val adaptedDial: DialState by lazy { plan.toDialState(at(Tokyo, 5, "09:10"), Tokyo, TokyoAirport) }
 
     /** Mid-adaptation at night (avoid-light / sleep): for night-safe previews. */
-    val nightDial: DialState by lazy { plan.toDialState(at(Tokyo, 2, "23:40"), Tokyo) }
+    val nightDial: DialState by lazy { plan.toDialState(at(Tokyo, 2, "23:40"), Tokyo, TokyoAirport) }
 }

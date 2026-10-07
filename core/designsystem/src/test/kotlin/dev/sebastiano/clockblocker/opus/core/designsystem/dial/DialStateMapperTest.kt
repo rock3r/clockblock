@@ -7,13 +7,17 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
+import dev.sebastiano.clockblocker.opus.core.model.Sun
+import dev.sebastiano.clockblocker.opus.core.model.SunDay
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.time.LocalDate
@@ -149,5 +153,42 @@ class DialStateMapperTest {
         arc.sweepMinutes shouldBe (17 * 60f plusOrMinus 0.01f)
         arc.endMinute shouldBe (6 * 60f plusOrMinus 0.01f) // 06:00 Tokyo, the window's end
         arc.narratedEndMinute shouldBe (8 * 60f plusOrMinus 0.01f) // 08:00 Tokyo, when it really ends
+    }
+
+    @Test
+    fun `the sky rings follow the real sun at the place`() {
+        val haneda = Place("HND", "Haneda", "Tokyo", "JP", "Asia/Tokyo", 35.550, 139.787)
+        val state = plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo, haneda)
+
+        val sun = Sun.on(LocalDate.of(2026, 10, 10), tokyo, 35.550, 139.787).shouldBeInstanceOf<SunDay.RisesAndSets>()
+        state.daylight shouldBe Daylight.RisesAndSets
+        state.sunriseMinute shouldBe (DialGeometry.minuteOfDay(sun.sunrise.atZone(tokyo).toLocalTime()) plusOrMinus 0.01f)
+        state.sunsetMinute shouldBe (DialGeometry.minuteOfDay(sun.sunset.atZone(tokyo).toLocalTime()) plusOrMinus 0.01f)
+        // USNO: 05:43 and 17:13 that day.
+        state.sunriseMinute shouldBe (5 * 60f + 43f plusOrMinus 1f)
+        state.sunsetMinute shouldBe (17 * 60f + 13f plusOrMinus 1f)
+    }
+
+    @Test
+    fun `without a place the sky keeps its default sun`() {
+        val state = plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo)
+        state.daylight shouldBe Daylight.RisesAndSets
+        state.sunriseMinute shouldBe 390f
+        state.sunsetMinute shouldBe 1140f
+    }
+
+    @Test
+    fun `a polar day keeps the sun's noon so the sky can centre on it`() {
+        val oslo = ZoneId.of("Europe/Oslo")
+        val tromso = Place("TOS", "Tromsø", "Tromsø", "NO", "Europe/Oslo", 69.683, 18.919)
+        val december = Instant.parse("2026-12-21T12:00:00Z")
+        val night = plan(bodyOffsetMinutes = 60).toDialState(december, oslo, tromso)
+        night.daylight shouldBe Daylight.AlwaysDown
+        // Solar noon in Tromsø that day is 11:42–11:43 local.
+        night.sunriseMinute shouldBe (11 * 60f + 42.5f plusOrMinus 2f)
+        night.sunsetMinute shouldBe night.sunriseMinute
+
+        val june = plan(bodyOffsetMinutes = 60).toDialState(Instant.parse("2026-06-21T12:00:00Z"), oslo, tromso)
+        june.daylight shouldBe Daylight.AlwaysUp
     }
 }
