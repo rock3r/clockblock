@@ -103,9 +103,9 @@ fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
     // Home zone.
     awaitTag(OnboardingTags.step(OnboardingStep.HomeZone))
     awaitTag(HomeZoneTags.Search).performTextInput("lis")
-    // With the keyboard up the results start below the fold (see docs/qa/device-qa-1.md): scroll before tapping.
-    awaitTag("home_zone_result_LIS").scrollToIfScrollable().performClick()
-    await(hasTestTag(HomeZoneTags.Current) and hasAnyDescendant(hasText("Lisbon", substring = true)))
+    // With the keyboard up the results start below the fold (see docs/qa/device-qa-1.md), and they move while the
+    // keyboard animates in: pickSearchResult waits for both to settle, scrolls, taps and retries once (issue #54).
+    pickSearchResult("home_zone_result_LIS", hasTestTag(HomeZoneTags.Current) and hasAnyDescendant(hasText("Lisbon", substring = true)))
     awaitTag(OnboardingTags.Next).performClick()
 
     // Sleep: bedtime via the "Later" custom action, wake via SetProgress (the slider-style semantics).
