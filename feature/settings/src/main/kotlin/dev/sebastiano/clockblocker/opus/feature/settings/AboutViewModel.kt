@@ -49,6 +49,11 @@ class AboutViewModel(private val settings: SettingsRepository, private val eggs:
     /** The concert title card is up. */
     val showTitleCard: StateFlow<Boolean> = _showTitleCard.asStateFlow()
 
+    init {
+        // The card is part of the egg: it goes away if the gate closes while it's up (a planned sleep block starts).
+        viewModelScope.launch { eggs.allowed.collect { allowed -> if (!allowed) _showTitleCard.value = false } }
+    }
+
     fun onVersionTapped() {
         viewModelScope.launch {
             if (settings.settings.first().opusModeUnlocked) {

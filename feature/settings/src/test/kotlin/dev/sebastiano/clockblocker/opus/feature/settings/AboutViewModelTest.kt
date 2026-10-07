@@ -70,6 +70,18 @@ class AboutViewModelTest {
     }
 
     @Test
+    fun `the title card goes away when the gate closes`() = runTest {
+        val vm = viewModel()
+        vm.showTitleCard.test {
+            awaitItem().shouldBeFalse()
+            repeat(AboutViewModel.TapsToUnlock) { vm.onVersionTapped() }
+            awaitItem().shouldBeTrue()
+            settings.update { it.copy(reduceMotion = true) }
+            awaitItem().shouldBeFalse()
+        }
+    }
+
+    @Test
     fun `with reduce motion on, taps do nothing`() = runTest {
         settings.set(AppSettings(reduceMotion = true))
         val vm = viewModel()
