@@ -149,6 +149,9 @@ internal class PlanScreenState(
     /** Whether the day picked on [tripId] was still to come when picked (such a pick expires once its day starts). */
     fun pickedFuture(tripId: String): Boolean = selection?.takeIf { it.tripId == tripId }?.future == true
 
+    /** Whether the stored pick was made on a trip other than [tripId] (the current plan has moved to another trip). */
+    fun hasPickOnOtherTrip(tripId: String): Boolean = selection?.let { it.tripId != tripId } == true
+
     /** Picks [index] on [tripId] ([future]: that day hasn't started yet), or goes back to live when [index] is null. */
     fun pickDay(tripId: String, index: Int?, future: Boolean = false) {
         selection = index?.let { DayPick(tripId, it, future) }
@@ -164,6 +167,9 @@ internal class PlanScreenState(
 
     /** The last pick the rail followed. A plain field: consuming the event mustn't restart (and cancel) its scroll. */
     var dayPicksFollowed: Int = 0
+
+    /** The trip the screen last showed (null before the first plan), to spot the current plan moving to another trip. */
+    var shownTrip: String? = null
     var whyAdviceId: String? by mutableStateOf(null)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
@@ -376,6 +382,17 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         SideEffect {
             screen.pickDay(plan.tripId, null)
             screen.dayPicks++
+        }
+    }
+    // The current plan moved to another trip (A → B, or back to A once B is deleted or edited away). A pick made on
+    // the other trip is hidden here; forget it too, or an A → B → A switch would bring A's old pick back instead of
+    // live time. The rail's scroll position on the other trip's rows means nothing here either, so a switch counts
+    // as a pick, like going live above, and the two-pane rail follows this trip's Now row.
+    if (screen.shownTrip != plan.tripId || screen.hasPickOnOtherTrip(plan.tripId)) {
+        SideEffect {
+            if (screen.hasPickOnOtherTrip(plan.tripId)) screen.pickDay(plan.tripId, null)
+            if (screen.shownTrip != null && screen.shownTrip != plan.tripId) screen.dayPicks++
+            screen.shownTrip = plan.tripId
         }
     }
     val anchor = dayBase ?: state.now
