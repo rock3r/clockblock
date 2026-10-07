@@ -18,6 +18,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -438,6 +439,61 @@ class PlanContentTest {
         state = midAdaptation
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.block(activeId)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - scrubbing the dial brings the row under its hand into view on the rail`() {
+        show(midAdaptation)
+        val next = midAdaptation.moment.upNext.first().id
+        // The rail is scrolled well away from today.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(next)).assertIsNotDisplayed()
+
+        // TalkBack steps the dial to the next block: its row (highlighted) comes up on the rail.
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(next)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes with motion - scrubbing the dial glides the row under its hand into view`() {
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        val next = midAdaptation.moment.upNext.first().id
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(next)).assertIsNotDisplayed()
+
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(next)).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - scrubbing to a row already in view leaves the rail still`() {
+        show(midAdaptation)
+        val next = midAdaptation.moment.upNext.first().id
+        // At rest the rail shows the Now row, and the next block just under it.
+        compose.onNodeWithTag(PlanTags.block(next)).assertIsDisplayed()
+        val before = compose.onNodeWithTag(PlanTags.block(activeId)).getUnclippedBoundsInRoot()
+
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.block(activeId)).getUnclippedBoundsInRoot() shouldBe before
+    }
+
+    @Test
+    fun `one pane - scrubbing the dial leaves the list where it is`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.dial_action_next_block))
+        compose.waitForIdle()
+        // The dial is still on screen: one pane's rail sits below the hero, and scrubbing never scrolls the dial away.
+        compose.onNodeWithTag(PlanTags.Dial).assertIsDisplayed()
     }
 
     @Test
