@@ -541,6 +541,48 @@ class PlanContentTest {
     }
 
     @Test
+    fun `with motion on, rapid picks keep the opaque sky at the bottom of the fade`() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }
+        compose.mainClock.advanceTimeBy(5_000)
+
+        listOf(3, 4, 3, 4).forEach { day ->
+            compose.onNodeWithTag(PlanTags.dayPill(day)).performClick()
+            Snapshot.sendApplyNotifications()
+            compose.mainClock.advanceTimeByFrame()
+            compose.mainClock.advanceTimeByFrame()
+        }
+        // Day 2's opaque sky, the three half-faded picks frozen over it, and the live Day 4: nothing dropped, so the
+        // header never jumps to a translucent stack.
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(5)
+
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+    }
+
+    @Test
+    fun `with motion on, a pick that expires on its own cross-fades the header sky back to live`() {
+        compose.mainClock.autoAdvance = false
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(state, actions) } }
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+
+        // The app wakes on Day 4: the future pick is spent. The very first live frame already fades over the picked
+        // day's sky, rather than jumping to the live sky first (and then fading live over live).
+        state = ready(PlanFixtures.MidAdaptation.plus(Duration.ofDays(2)))
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(2)
+
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
+    }
+
+    @Test
     fun `with motion on, scrubbing the dial repaints the header sky in place`() {
         compose.mainClock.autoAdvance = false
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = false) { PlanContent(midAdaptation, actions) } }

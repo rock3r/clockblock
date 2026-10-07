@@ -197,8 +197,14 @@ private data class SkyFrame(val key: Int?, val bodyTime: LocalTime)
 /** One frozen sky under a fade: the body time it paints, at [alpha]. */
 private data class SkyLayer(val bodyTime: LocalTime, val alpha: Float)
 
-/** At most this many frozen skies under a fade (rapid picks); the bottom one is dropped and the next made opaque. */
-private const val MaxSkyLayers = 3
+/**
+ * At most this many frozen skies under a fade. Skies hidden under an opaque one are dropped first, so this only bites
+ * on a burst of picks a frame or two apart; then the bottom one is dropped and the next made opaque.
+ */
+private const val MaxSkyLayers = 6
+
+/** A frozen sky at least this opaque hides everything under it. */
+private const val OpaqueAlpha = 0.999f
 
 /**
  * The body time the header's foreground follows (ink of the title, icons and status bar, and the sun / moon) while
@@ -232,7 +238,10 @@ private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTim
         if (!fading) {
             listOf(SkyLayer(live, 1f))
         } else {
-            (layers + SkyLayer(live, progress.value)).takeLast(MaxSkyLayers).mapIndexed { i, layer -> if (i == 0) layer.copy(alpha = 1f) else layer }
+            val stack = layers + SkyLayer(live, progress.value)
+            // Anything under an (all but) opaque layer can't be seen: only that much of the stack is kept.
+            val base = stack.indexOfLast { it.alpha >= OpaqueAlpha }.coerceAtLeast(0)
+            stack.drop(base).takeLast(MaxSkyLayers).mapIndexed { i, layer -> if (i == 0) layer.copy(alpha = 1f) else layer }
         }
     }
 
