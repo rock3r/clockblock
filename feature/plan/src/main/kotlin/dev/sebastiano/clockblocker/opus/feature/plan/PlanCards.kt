@@ -241,11 +241,13 @@ private fun HeroComparison(plan: JetLagPlan) {
 private fun EstimateShort(days: Double, style: TextStyle, color: Color) {
     val resources = LocalContext.current.resources
     val format = if (days >= EstimateHorizonDays) R.string.plan_days_short_horizon else R.string.plan_days_short
+    // The raw estimate is the value, so the roll direction follows it even when two estimates round alike
+    // ("21+ d" → "21 d" is a drop); only the text is rounded.
     RollingMetricText(
-        value = roundDays(days).toFloat(),
+        value = days.toFloat(),
         style = style,
         color = color,
-        format = { resources.getString(format, it.roundToInt()) },
+        format = { resources.getString(format, roundDays(it.toDouble())) },
     )
 }
 
