@@ -137,4 +137,17 @@ class DialStateMapperTest {
         state.arcs shouldHaveSize 0
         state.now.shouldBeNull()
     }
+
+    @Test
+    fun `a clipped arc keeps its real end for narration`() {
+        // A flight block from 1 h ago to 18 h from now: the arc stops at the window's end (+16 h), the words don't.
+        val base = plan(60)
+        val flight = advice("f", AdviceType.AvoidLight, "2026-10-10T04:00:00Z", "2026-10-10T23:00:00Z")
+        val long = base.copy(days = listOf(base.days.single().copy(advice = listOf(flight))))
+        val arc = long.toDialState(t0, tokyo).arcs.single()
+
+        arc.sweepMinutes shouldBe (17 * 60f plusOrMinus 0.01f)
+        arc.endMinute shouldBe (6 * 60f plusOrMinus 0.01f) // 06:00 Tokyo, the window's end
+        arc.narratedEndMinute shouldBe (8 * 60f plusOrMinus 0.01f) // 08:00 Tokyo, when it really ends
+    }
 }

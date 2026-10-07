@@ -88,10 +88,12 @@ class DialGeometryTest {
     }
 
     @Test
-    fun `the wedge shows the body clock relative to local time`() {
-        // Flew east: body 3½ h behind local → "−3½ h", the same quantity the header says in words.
-        wedgeLabelText(-210f) shouldBe "\u22123\u00BD h"
-        wedgeLabelText(120f) shouldBe "+2 h"
+    fun `the dial says the body clock relative to local time`() {
+        // Flew east: body 3½ h behind local → "3½ h behind", the same quantity the header says.
+        val labels = dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DefaultDialLabels()
+        labels.offset(-210f) shouldBe "3\u00BD h behind"
+        labels.offset(120f) shouldBe "2 h ahead"
+        labels.offset(-29f) shouldBe "in sync"
         DialState(java.time.Instant.EPOCH, "UTC", 0f, bodyAheadMinutes = -210f).bodyOffsetHours shouldBe (-3.5f plusOrMinus 0.001f)
     }
 

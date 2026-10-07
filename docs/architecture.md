@@ -56,7 +56,7 @@ features.
 | `:core:model` | JVM | Domain types: `Trip`, `UserProfile`, `JetLagPlan`, `Advice`, plus [`DeepLinks`](../core/model/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/model/DeepLinks.kt) and [`ZoneLabels`](../core/model/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/model/ZoneLabels.kt) |
 | `:core:circadian` | JVM | The [`JetLagPlanner`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/JetLagPlanner.kt) interface, its default implementation and the Forger99 and Hannay19 model ports |
 | `:core:data` | Android | Repositories backed by DataStore, offline airport search, the plan cache, backup, calendar export, the `PlanSurface` contract |
-| `:core:designsystem` | Android + Compose | Theme, colour, type, shapes, motion tokens, illustrations and the Two Clocks dial |
+| `:core:designsystem` | Android + Compose | Theme, colour, type, shapes, motion tokens, illustrations and the Two skies dial (a pure layout spec in `dial/spec` and its Compose renderer) |
 | `:core:notifications` | Android | The alarm scheduler, broadcast receivers and the Now notification (a Live Update on travel days) |
 | `:core:testing` | Android | Test rules, fakes and screenshot helpers |
 | `:feature:onboarding` | Android + Compose | The six setup steps |
@@ -242,10 +242,16 @@ Import has two modes, implemented in `BackupManager.restore`:
   id is replaced by the backup's.
 - **Merge** only adds. It keeps the device's settings, and its profile when it has one (the backup's profile is
   written only if the device has none). It adds the backup's trips whose id isn't on the device, and the
-  advice-log entries whose trip and advice id aren't logged on the device. Trips and entries already on the
+  advice-log entries whose trip and advice id aren't logged on the device (`AdviceLogRepository.logIfAbsent`,
+  one atomic write, so a check-in made meanwhile from a notification wins). Trips and entries already on the
   device are not changed. Advice ids are positional (see [planning-engine.md](planning-engine.md)), so log
   entries are added only for trips that end up identical to the backup's, and only when the device ends up
   with the backup's profile. Otherwise the same id could point at a different block.
+
+Deleting a trip keeps its advice log, so Undo can restore both. When either mode adds a trip whose id isn't on
+the device, it first sets that trip's log to exactly the backup's entries (`AdviceLogRepository.replaceAll`;
+Merge with a different profile sets it to none), so entries left by a deleted trip never attach to the imported
+one.
 
 The whole file is decoded before anything is written, so a bad file changes nothing. Files from a newer app
 version are refused. Files from before the app was renamed (`"format": "opus-clockblock"`) still import.

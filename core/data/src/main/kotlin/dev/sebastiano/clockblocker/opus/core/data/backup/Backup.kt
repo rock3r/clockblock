@@ -161,14 +161,22 @@ class BackupManager(
 
     private suspend fun replace(backup: Backup): ImportResult {
         val keep = backup.trips.mapTo(HashSet()) { it.id }
+        val onDevice = trips.trips.first().mapTo(HashSet()) { it.id }
         var deleted = 0
-        trips.trips.first().filterNot { it.id in keep }.forEach { trips.delete(it.id); deleted++ }
+        onDevice.filterNot { it in keep }.forEach { trips.delete(it); deleted++ }
         backup.profile?.let { profiles.save(it) }
         settings.update { backup.settings }
-        backup.trips.forEach { trips.upsert(it) }
         var logs = 0
-        backup.adviceLogs.forEach { (tripId, entries) ->
-            entries.forEach { adviceLogs.log(tripId, it.adviceId, it.outcome); logs++ }
+        backup.trips.forEach { trip ->
+            val entries = backup.adviceLogs[trip.id].orEmpty()
+            if (trip.id in onDevice) {
+                entries.forEach { adviceLogs.log(trip.id, it.adviceId, it.outcome) }
+            } else {
+                // Check-ins a deleted trip with this id left behind belong to that trip, not this one.
+                adviceLogs.replaceAll(trip.id, entries)
+            }
+            logs += entries.size
+            trips.upsert(trip)
         }
         return ImportResult(tripsImported = backup.trips.size, tripsDeleted = deleted, logsImported = logs)
     }
@@ -178,7 +186,8 @@ class BackupManager(
      *
      * Advice ids are positional (trip, type, day, ordinal), so a check-in only means the same block on a plan
      * built from the same trip and profile. Check-ins are therefore added only for trips that end up identical
-     * to the backup's, and only when the device ends up with the backup's profile.
+     * to the backup's, and only when the device ends up with the backup's profile. A trip the merge adds starts
+     * from the backup's check-ins (or none): anything a deleted trip with the same id left behind is dropped.
      */
     private suspend fun merge(backup: Backup): ImportResult {
         val deviceProfile = profiles.profile.first()
@@ -187,14 +196,17 @@ class BackupManager(
         val sameProfile = (deviceProfile ?: backup.profile) == backup.profile
         val onDevice = trips.trips.first().associateBy { it.id }
         val added = backup.trips.filterNot { it.id in onDevice }
-        added.forEach { trips.upsert(it) }
         var logs = 0
+        added.forEach { trip ->
+            val entries = if (sameProfile) backup.adviceLogs[trip.id].orEmpty() else emptyList()
+            adviceLogs.replaceAll(trip.id, entries)
+            logs += entries.size
+            trips.upsert(trip)
+        }
         if (sameProfile) {
-            backup.trips.filter { trip -> onDevice[trip.id].let { it == null || it == trip } }.forEach { trip ->
-                val logged = adviceLogs.logs(trip.id).first().mapTo(HashSet()) { it.adviceId }
-                backup.adviceLogs[trip.id].orEmpty().filterNot { it.adviceId in logged }.forEach {
-                    adviceLogs.log(trip.id, it.adviceId, it.outcome)
-                    logs++
+            backup.trips.filter { onDevice[it.id] == it }.forEach { trip ->
+                backup.adviceLogs[trip.id].orEmpty().forEach {
+                    if (adviceLogs.logIfAbsent(trip.id, it.adviceId, it.outcome)) logs++
                 }
             }
         }

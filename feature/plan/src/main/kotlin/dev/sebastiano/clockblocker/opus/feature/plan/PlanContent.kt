@@ -87,7 +87,7 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.circadian.secondaryZoneFor
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoClocksDial
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoSkiesDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.EightBitMode
@@ -759,7 +759,7 @@ private class PlanSections(
             // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick is a
             // new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.
             key(screen.selectedDay(plan.tripId)) {
-                TwoClocksDial(
+                TwoSkiesDial(
                     state = dialState,
                     modifier = Modifier.widthIn(max = dialSize).fillMaxWidth().testTag(PlanTags.Dial),
                     onScrub = { instant ->

@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.data.backup
 
+import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
@@ -232,6 +233,60 @@ class BackupManagerTest {
         device.manager.import(source.manager.export(), ImportMode.Merge).logsImported shouldBe 1
 
         device.logs.outcomeOf(DemoData.LhrSydId, "b1") shouldBe AdviceOutcome.Done
+    }
+
+    @Test
+    fun `merge drops check-ins a deleted trip left behind when it adds that trip back`() = runTest {
+        val source = Device(profiles = FakeProfileRepository(DemoData.profile), trips = FakeTripRepository(listOf(DemoData.lhrToSydneyViaSingapore())))
+        source.logs.log(DemoData.LhrSydId, "b1", AdviceOutcome.Done)
+        // The trip was deleted here, but its check-ins stay stored (for Undo).
+        val device = Device(profiles = FakeProfileRepository(DemoData.profile))
+        device.logs.log(DemoData.LhrSydId, "b1", AdviceOutcome.CantDo)
+        device.logs.log(DemoData.LhrSydId, "stale", AdviceOutcome.Done)
+
+        device.manager.import(source.manager.export(), ImportMode.Merge).logsImported shouldBe 1
+
+        device.logs.current(DemoData.LhrSydId) shouldBe listOf(AdviceLog("b1", AdviceOutcome.Done))
+    }
+
+    @Test
+    fun `merge drops left-behind check-ins even when it can't add the backup's`() = runTest {
+        val source = Device(
+            profiles = FakeProfileRepository(DemoData.profile.copy(intensity = Intensity.Max)),
+            trips = FakeTripRepository(listOf(DemoData.lhrToSydneyViaSingapore())),
+        )
+        val device = Device(profiles = FakeProfileRepository(DemoData.profile))
+        device.logs.log(DemoData.LhrSydId, "stale", AdviceOutcome.Done)
+
+        device.manager.import(source.manager.export(), ImportMode.Merge)
+
+        device.logs.current(DemoData.LhrSydId) shouldBe emptyList()
+    }
+
+    @Test
+    fun `replace drops check-ins a deleted trip left behind when it adds that trip back`() = runTest {
+        val source = Device(trips = FakeTripRepository(listOf(DemoData.lhrToSydneyViaSingapore())))
+        source.logs.log(DemoData.LhrSydId, "b1", AdviceOutcome.Done)
+        val device = Device()
+        device.logs.log(DemoData.LhrSydId, "stale", AdviceOutcome.Done)
+
+        device.manager.import(source.manager.export(), ImportMode.Replace)
+
+        device.logs.current(DemoData.LhrSydId) shouldBe listOf(AdviceLog("b1", AdviceOutcome.Done))
+    }
+
+    @Test
+    fun `merge never overwrites a check-in made on the device`() = runTest {
+        val source = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        source.logs.log(DemoData.SfoLhrId, "a1", AdviceOutcome.CantDo)
+        val logs = object : AdviceLogRepository by FakeAdviceLogRepository() {
+            // A notification action logs the same block between the merge's read and its write.
+            override suspend fun logIfAbsent(tripId: String, adviceId: String, outcome: AdviceOutcome) = false
+        }
+        val device = Device(trips = FakeTripRepository(listOf(DemoData.sfoToLhr())))
+        val manager = BackupManager(device.profiles, device.settings, device.trips, logs, BackupCodec(), MutableClock())
+
+        manager.import(source.manager.export(), ImportMode.Merge).logsImported shouldBe 0
     }
 
     @Test

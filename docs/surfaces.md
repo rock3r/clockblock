@@ -248,6 +248,13 @@ The *Two Clocks* widget shows local time and the body clock on one dial ("body 0
 follows the sky over the local day. Inside it, two lanes show light advice and rest advice. The body ring marks
 biological night and the body-temperature minimum. With no trip, the dial says "No trip" and "Plan one".
 
+The app now draws the *Two skies* dial (see [design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)).
+The widget keeps this layout until it moves to the same spec (phase 2 of #46). The spec is pure Kotlin and returns
+draw ops in dp, so a widget can paint the same dial. The widget only has the system font. This sheet shows the app
+font next to the system font at full, simple and glance sizes:
+
+![The Two skies dial at 280, 160 and 96 dp, drawn with the app font in one row and the system font in the other](screenshots/dial-widget-fonts.png)
+
 ![Next up widgets: 4×1 rows with a countdown and Done, 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
 The *Next up* widget shows the current advice with a countdown. The 1×1 tile shows only the countdown and a

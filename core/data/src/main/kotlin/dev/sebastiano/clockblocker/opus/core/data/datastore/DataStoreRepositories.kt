@@ -160,4 +160,20 @@ class DataStoreAdviceLogRepository internal constructor(
             doc.copy(logs = doc.logs + (tripId to entries.filterNot { it.adviceId == adviceId }))
         }
     }
+
+    override suspend fun logIfAbsent(tripId: String, adviceId: String, outcome: AdviceOutcome): Boolean {
+        var logged = false
+        store.updateData { doc ->
+            val entries = doc.logs[tripId].orEmpty()
+            logged = entries.none { it.adviceId == adviceId }
+            if (logged) doc.copy(logs = doc.logs + (tripId to entries + AdviceLog(adviceId, outcome))) else doc
+        }
+        return logged
+    }
+
+    override suspend fun replaceAll(tripId: String, entries: List<AdviceLog>) {
+        // One entry per advice id, the latest winning (as with log()).
+        val unique = entries.asReversed().distinctBy { it.adviceId }.asReversed()
+        store.updateData { doc -> doc.copy(logs = if (unique.isEmpty()) doc.logs - tripId else doc.logs + (tripId to unique)) }
+    }
 }
