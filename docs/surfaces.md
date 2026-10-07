@@ -5,8 +5,7 @@ starts, and two home-screen widgets (*Two Clocks* and *Next up*). One scheduler 
 at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface from the
 same plan at the same moment, so right after each refresh they all agree. Between
 refreshes they can drift: a delayed scheduler wake-up (see [The scheduler](#the-scheduler)) leaves them behind
-the app, and the fallback widget's own redraw (see [How widgets render](#how-widgets-render)) updates only the
-*Two Clocks* widget.
+the app.
 
 The code is in `:core:notifications` and `:widget`. The shared contract,
 [`PlanSurface`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/PlanSurface.kt), is in
@@ -168,7 +167,7 @@ Lock-screen widgets honour the same setting (see [Lock-screen widgets](#lock-scr
 
 ### Live Update on travel days
 
-On Android 16 (API 36) and later, the Now notification becomes a Live Update during the travel day. It uses
+The Now notification becomes a Live Update during the travel day. It uses
 `Notification.ProgressStyle`, with coloured segments for advice blocks and points for take-off and landing.
 [`TravelPlanner.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/TravelPlanner.kt)
 defines the travel window as 3 hours before the first departure to 2 hours after the last arrival.
@@ -217,10 +216,9 @@ short label. When the plan has no advice left, it shows "Clockblocked".
 
 ### Sizes
 
-Each widget picks a layout for the space it gets. On API 31+ the launcher picks from the size map and swaps
-layouts while the user resizes. On older launchers the app picks the largest layout that fits the reported size.
-Both backends have the same layouts. Every "Up next" entry shows its start time in the other zone too, like every
-other time on the widgets.
+Each widget picks a layout for the space it gets: the launcher picks from the size map and swaps layouts while the
+user resizes. Every "Up next" entry shows its start time in the other zone too, like every other time on the
+widgets.
 
 | Cells | Two Clocks | Next up |
 |---|---|---|
@@ -251,9 +249,8 @@ What a screen reader hears matches what the widget shows:
 
 - The current block includes its end time in the other zone: "Avoid light. until 16:30 (08:30 in Lisbon) · then
   Melatonin". Two Clocks says this after both clocks and the jet lag phrase.
-- On Remote Compose, Next up adds the live countdown in words, worked out by the launcher like the visible one:
-  "1 hour 10 minutes left". The classic `Chronometer` ticks on its own and a description can't follow it, so the
-  classic layouts speak only the end times.
+- Next up adds the live countdown in words, worked out by the launcher like the visible one:
+  "1 hour 10 minutes left".
 - Two Clocks layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3 header strip is
   its own tap target, so its place, day and route ("L I S to H N D") reach the screen reader.
   [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
@@ -288,9 +285,8 @@ the button turns into a chip in the same spot: "✓ Done", or "Skipped" for skip
 opens the plan, like the rest of the widget, so that spot never ignores a tap. Free time, flights and the empty state
 have no Done button.
 
-The button and the rest of the widget are separate tap targets that don't overlap, so each tap has one target. On
-Remote Compose the button is a second host action; on classic `RemoteViews` it is its own
-`setOnClickPendingIntent`.
+The button and the rest of the widget are separate tap targets that don't overlap, so each tap has one target. The
+button is a second host action in the Remote Compose document.
 
 ### Themes
 
@@ -304,9 +300,8 @@ tinted cards, and dimmed advice colours and sky.
 flowchart LR
     plan["currentPlan + settings"] --> mapper["WidgetStateMapper<br/>(pure)"]
     mapper --> renderer{"WidgetRenderer"}
-    renderer -->|"API 36+ host that supports<br/>Remote Compose documents"| rc["Remote Compose document<br/>(the host moves the dial hand)"]
-    renderer -->|"older host, capture failure,<br/>or forced legacy"| legacy["Classic RemoteViews<br/>(bitmap dial)"]
-    legacy --> refresh["LegacyRefresh:<br/>inexact redraw every ~15 min"]
+    renderer -->|"the host plays a supported<br/>Remote Compose version"| rc["Remote Compose document<br/>(the host moves the dial hand)"]
+    renderer -->|"unknown version<br/>or capture failure"| placeholder["'Open Clockblock'<br/>placeholder"]
 ```
 
 In words: [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt)
@@ -314,23 +309,20 @@ reads the plan and settings.
 [`WidgetStateMapper`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/state/WidgetStateMapper.kt)
 turns them into plain widget state, with no Android code, so it is easy to test.
 [`WidgetRenderer`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetRenderer.kt) then
-picks a backend. On API 36+ hosts that support Remote Compose, it sends a Remote Compose document, and the host
-animates the dial hand itself. Otherwise it falls back to classic `RemoteViews` with a bitmap dial.
-[`LegacyRefresh`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/legacy/LegacyRefresh.kt)
-redraws that bitmap about every 15 minutes with an inexact alarm that doesn't wake the device.
+captures a Remote Compose document for each size and wraps it in `RemoteViews.DrawInstructions`. The launcher
+plays the document and animates the dial hand and the countdown itself, without waking the app. Remote Compose is
+the only renderer: every Android version the app supports (Android 17 and later) has the platform player.
 
-![The RemoteViews fallback: the 2×2 Two Clocks widget in light, dark and night-safe, a 4×1 Next up row, 1×1 tiles and the empty state](screenshots/widgets/legacy_widgets.png)
-
-The fallback looks almost the same. The countdown is a system `Chronometer` instead of a drawn number, and the
-clocks are system `TextClock`s. The goldens `legacy_two_clocks_buckets.png` and `legacy_next_up_buckets.png` cover
-every size.
+If the launcher reports a document version the app can't write, or a capture fails, the widget shows a single
+"Open Clockblock" tile that opens the app. This placeholder is also the providers' initial layout, which the
+launcher shows until the first update arrives.
 
 Other widget behaviour:
 
 - Widgets refresh when the scheduler refreshes `PlanSurface`s, and also on their own system broadcasts (update,
   resize, time set, zone change, locale change). `updatePeriodMillis` is 0: there is no polling.
 - Tapping a widget opens the plan through a deep link. In the empty state, it opens the trip editor.
-- On API 35 and later, the widget picker shows generated previews built from a demo plan
+- The widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
   They are published again when the app version or the system night mode changes, so the picker matches the
   current theme.
@@ -348,8 +340,7 @@ are copies of them.
 Onboarding asks for notifications and exact timing ("Reminders that actually arrive"). Settings shows the current
 state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
 fix it. The summary starts (and re-opens) expanded whenever `NotificationPermissionState.isReliable` is false;
-Live Updates and battery optimisation are optional extras and never force it open; below API 36
-(`liveUpdatesSupported` false) the Live Updates row is left out, since there is nothing to fix. Everything still works
+Live Updates and battery optimisation are optional extras and never force it open. Everything still works
 without them, with fewer or less punctual reminders.
 
 | Permission | Why | Who controls it | Without it |

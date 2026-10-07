@@ -1,8 +1,8 @@
 # Testing and CI
 
-The project is built test-first. There are about 1,100 JVM tests (plain JUnit and Robolectric), 199 committed
+The project is built test-first. There are about 1,100 JVM tests (plain JUnit and Robolectric), 193 committed
 screenshot goldens and 22 end-to-end tests that run on an emulator. Every pull request runs them in GitHub
-Actions, except one e2e test that the API 36 emulator skips (see [CI](#ci)), and Codex reviews the change.
+Actions, and Codex reviews the change.
 
 This page explains what each kind of test covers, how to run it, and how a pull request gets from "opened" to
 "ready to merge".
@@ -46,7 +46,7 @@ These rules come from [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIB
 - Pure logic uses JUnit Jupiter (`org.junit.jupiter.api.Test`) with Kotest matchers (`io.kotest.matchers.*`).
   Where an invariant exists, add a property test with `kotest-property`.
 - Android and Compose tests use JUnit 4 with `@RunWith(RobolectricTestRunner::class)`,
-  `@GraphicsMode(GraphicsMode.Mode.NATIVE)` and `@Config(sdk = [36])`.
+  `@GraphicsMode(GraphicsMode.Mode.NATIVE)` and `@Config(sdk = [37])`, the app's minSdk.
 - ViewModel tests use
   [`MainDispatcherRule`](../core/testing/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/testing/MainDispatcherRule.kt)
   from `:core:testing` and Turbine for flows. `:core:testing` also has fakes such as
@@ -57,7 +57,9 @@ These rules come from [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIB
 
 ## Screenshot tests
 
-Screenshot tests call `captureRoboImage()` and write to `<module>/src/test/screenshots/`. The goldens are committed,
+Screenshot tests call `compose.captureRoboImageInvalidated(...)` from `:core:testing` and write to
+`<module>/src/test/screenshots/`. The helper redraws every view before it captures: Robolectric 4.17 at SDK 37 often
+skips drawing a fresh Compose view, which records a blank golden. The goldens are committed,
 so a pull request shows every pixel it changes. The base class in `:core:designsystem`,
 [`ScreenshotTest`](../core/designsystem/src/test/kotlin/dev/sebastiano/clockblocker/opus/core/designsystem/ScreenshotTest.kt),
 can render a component in light or dark, in Night-safe or Opus mode, at a custom font scale, and on the 12-hour
@@ -132,7 +134,7 @@ All six jobs run in parallel. Each one reports its own check on the pull request
 | Screenshots | CI | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
 | Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
-| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 36 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
+| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
@@ -141,10 +143,6 @@ with the runner's own `sdkmanager`.
 The Screenshots job runs on macOS, unlike the others, which run on Linux. The goldens are recorded on macOS. On
 Linux, the hatched arcs on the plan dial anti-alias slightly differently, which is enough to fail a pixel-exact
 comparison. A shared runner OS keeps the comparison exact, so a one-glyph regression still fails.
-
-On the API 36 emulator, the e2e test that taps the Two Clocks widget is skipped. Tapping that widget does nothing on
-the API 36 Remote Compose player
-([#2](https://github.com/rock3r/clockblock/issues/2)). It works on API 37.
 
 ## Pull requests and review
 

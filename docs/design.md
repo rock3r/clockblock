@@ -5,7 +5,7 @@
 
 > [!NOTE]
 > This document was written before the app was built. The visual identity in it is current, but some technical
-> plans changed during implementation: widgets use Remote Compose (with a RemoteViews fallback) instead of Glance,
+> plans changed during implementation: widgets use Remote Compose instead of Glance,
 > data lives in DataStore instead of Room, and `AdviceAlarmScheduler` plays the role described here as
 > `PlanTicker`. For how the app works today, read [architecture.md](architecture.md) and [surfaces.md](surfaces.md).
 

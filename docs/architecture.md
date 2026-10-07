@@ -266,7 +266,7 @@ searches it in memory.
   `clockblock.android.feature`. Android namespaces come from the module path, for example
   `dev.sebastiano.clockblocker.opus.feature.plan`.
 - AGP 9 with built-in Kotlin (the `org.jetbrains.kotlin.android` plugin is not applied), Kotlin 2.4, JDK 21.
-- compileSdk 37.1, targetSdk 37, minSdk 29.
+- compileSdk 37.1, targetSdk 37, minSdk 37 (Android 17).
 - Compose uses an alpha BOM to get the public Material 3 Expressive APIs.
 - Project accessors are type-safe (`projects.core.data`).
 

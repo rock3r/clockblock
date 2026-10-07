@@ -45,7 +45,7 @@ there's room, they also show the time at the other end of the trip.
 
 ### On the travel day
 
-On Android 16 and later, the notification becomes a **Live Update** on your travel day: a progress bar from
+The notification becomes a **Live Update** on your travel day: a progress bar from
 about 3 hours before your first flight until about 2 hours after you land, with your plan's blocks and the
 take-off and landing times on it. It also appears as a small chip in the status bar, if Android allows it. It
 only shows while a light, sleep or other plan block (not just the flight) is active; otherwise you see the normal
@@ -102,12 +102,14 @@ list what's up next, next to your route ("LIS → HND"). It says "Free time" whe
   then turns into "✓ Done" (or "Skipped" if you skipped it elsewhere). Tapping it after that opens the plan.
 - The widgets name places after your trip, the same as the route: a trip from SFO says "San Francisco", not the
   name of its time zone.
-- With a screen reader, the widgets read out the times in both zones. On Android 16 and newer, *Next up* also says
-  how long the current block has left.
+- With a screen reader, the widgets read out the times in both zones. *Next up* also says how long the current
+  block has left.
 - The widgets follow the app's theme. When "Night-safe automatically" is on and your plan says to avoid light or
   sleep, they switch to a black and amber look that won't light up a dark room.
 - The widgets update when your plan changes and at each block boundary. They don't drain your battery by checking
   all the time.
+- If a widget only says **Open Clockblock**, your launcher couldn't draw it. Tap it to open the app; the widget
+  tries again at the next update.
 
 ## If reminders don't arrive
 
