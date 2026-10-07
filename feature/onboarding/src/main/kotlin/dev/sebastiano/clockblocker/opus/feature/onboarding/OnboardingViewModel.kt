@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.PlaceSearch
 import dev.sebastiano.clockblocker.opus.core.data.ProfileRepository
 import dev.sebastiano.clockblocker.opus.core.data.time.DeviceZone
@@ -56,6 +57,7 @@ enum class OnboardingStep {
  * @property usingDeviceZone the draft zone is the phone's own.
  * @property melatoninAcknowledged the user has read and accepted the melatonin safety note.
  * @property isFinished the profile has been saved; the route calls `onFinished()`.
+ * @property easterEggs the sleep dial's 24.2 egg may run ([EasterEggGate]: Reduce motion off, plan not saying sleep).
  */
 data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.Welcome,
@@ -70,6 +72,7 @@ data class OnboardingUiState(
     val now: Instant = Instant.EPOCH,
     val isSaving: Boolean = false,
     val isFinished: Boolean = false,
+    val easterEggs: Boolean = false,
 ) {
     val usingDeviceZone: Boolean get() = profile.homeZoneId == deviceZoneId && homePlace == null
 }
@@ -87,6 +90,7 @@ class OnboardingViewModel(
     private val notificationPermissions: NotificationPermissions,
     clock: Clock,
     private val deviceZones: DeviceZone,
+    eggs: EasterEggGate,
 ) : ViewModel() {
     // Not clock.zone: the app Clock is UTC by contract, which made a fresh install's home zone "Z".
     private val deviceZone get() = deviceZones.current().id
@@ -111,6 +115,9 @@ class OnboardingViewModel(
             if (!touched) {
                 _state.update { it.copy(profile = saved, melatoninAcknowledged = saved.useMelatonin) }
             }
+        }
+        viewModelScope.launch {
+            eggs.allowed.collect { allowed -> _state.update { it.copy(easterEggs = allowed) } }
         }
     }
 

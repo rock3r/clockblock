@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -31,12 +32,13 @@ sealed interface AboutEvent {
 /**
  * About screen logic: the developer-options-style easter egg. Tapping the version [TapsToUnlock] times unlocks
  * Opus mode ("Opus No. 1 in Jet-Lag Minor"), switches it on and raises the title card. The last
- * [CountdownFrom] taps before that count down.
+ * [CountdownFrom] taps before that count down. Like every egg, taps do nothing while [EasterEggGate] says no
+ * (Reduce motion on, or the current plan says sleep).
  */
 @Inject
 @ViewModelKey(AboutViewModel::class)
 @ContributesIntoMap(AppScope::class)
-class AboutViewModel(private val settings: SettingsRepository) : ViewModel() {
+class AboutViewModel(private val settings: SettingsRepository, private val eggs: EasterEggGate) : ViewModel() {
     private var taps = 0
     private val _events = Channel<AboutEvent>(Channel.BUFFERED)
     private val _showTitleCard = MutableStateFlow(false)
@@ -47,8 +49,14 @@ class AboutViewModel(private val settings: SettingsRepository) : ViewModel() {
     /** The concert title card is up. */
     val showTitleCard: StateFlow<Boolean> = _showTitleCard.asStateFlow()
 
+    init {
+        // The card is part of the egg: it goes away if the gate closes while it's up (a planned sleep block starts).
+        viewModelScope.launch { eggs.allowed.collect { allowed -> if (!allowed) _showTitleCard.value = false } }
+    }
+
     fun onVersionTapped() {
         viewModelScope.launch {
+            if (!eggs.allowed.first()) return@launch
             if (settings.settings.first().opusModeUnlocked) {
                 _events.send(AboutEvent.AlreadyUnlocked)
                 return@launch
@@ -59,7 +67,8 @@ class AboutViewModel(private val settings: SettingsRepository) : ViewModel() {
                 remaining <= 0 -> {
                     taps = 0
                     settings.update { it.copy(opusModeUnlocked = true, opusModeEnabled = true) }
-                    _showTitleCard.value = true
+                    // The gate may have closed during the write; the collector above already saw that.
+                    if (eggs.allowed.first()) _showTitleCard.value = true
                     _events.send(AboutEvent.Unlocked)
                 }
                 remaining <= CountdownFrom -> _events.send(AboutEvent.TapsAway(remaining))

@@ -147,11 +147,11 @@
     <string name="about_how_light_title">Light does the heavy lifting</string>
     <string name="about_how_light_body">Light in the hours after that low point moves your clock earlier; light in the hours before it moves it later. That\'s why the plan sometimes asks for sunglasses at noon.</string>
     <string name="about_how_pace_title">A realistic pace</string>
-    <string name="about_how_pace_body">Clocks shift about an hour a day earlier and up to two hours a day later, so the plan never asks for more. Going east, it may choose the long way round if that\'s kinder.</string>
+    <string name="about_how_pace_body">On Balanced and Max, the plan moves your clock up to 1 hour a day earlier before you fly and 1.5 hours a day after you land. Moving later is easier: up to 1.5 hours a day before and 2 after. Gentle goes slower. Going east, it may choose the long way round if that\'s kinder.</string>
     <string name="about_how_extras_title">Sleep, caffeine and melatonin</string>
     <string name="about_how_extras_body">Sleep moves with your clock. Caffeine keeps you sharp in the body\'s night, with a cut-off well before bed. Melatonin, if you switch it on, is a small 0.5 mg dose, and only for shifting earlier.</string>
-    <string name="about_how_check_title">Checked against models</string>
-    <string name="about_how_check_body">Every plan is tested against two published mathematical models of the human body clock, to make sure it shifts you the right way, faster than doing nothing.</string>
+    <string name="about_how_check_title">Checked against a model</string>
+    <string name="about_how_check_body">Plans that shift your clock are run through a published mathematical model of the human body clock (Hannay, Booth &amp; Forger, 2019). It estimates how many days you\'ll take to adapt, with the plan and without it.</string>
     <string name="about_refs_title">Built on</string>
     <string name="about_ref_1">Eastman &amp; Burgess (2009). How to travel the world without jet lag.</string>
     <string name="about_ref_2">Khalsa et al. (2003); St Hilaire et al. (2012). Human phase response curves to light.</string>

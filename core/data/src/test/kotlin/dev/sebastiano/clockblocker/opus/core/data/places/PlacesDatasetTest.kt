@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.data.places
 
+import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldBeSortedDescendingBy
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.collections.shouldContainExactly
@@ -104,14 +105,17 @@ class PlacesDatasetTest {
 
     @Test
     fun `parsing and indexing the full dataset is fast`() {
+        // Shared CI runners have noisy CPU/GC scheduling, so allow wider ceilings there (issues #34, #60).
+        val ci = System.getenv("CI") != null
         val text = file.readText()
         val cold = measure { PlaceIndex(PlaceTsv.parse(text)) }
+        repeat(2) { PlaceIndex(PlaceTsv.parse(text)) } // JIT warm-up before the steady-state runs.
         val warm = (1..5).minOf { measure { PlaceIndex(PlaceTsv.parse(text)) } }
-        println("places.tsv: ${records.size} rows, ${file.length() / 1024} KB, cold ${cold} ms, warm ${warm} ms")
-        cold shouldBeLessThan 1_500
-        warm shouldBeLessThan 150
         val query = (1..20).minOf { measure { index.search("lon") } }
-        query shouldBeLessThan 20
+        println("places.tsv: ${records.size} rows, ${file.length() / 1024} KB, cold $cold ms, warm $warm ms, query $query ms")
+        withClue("cold parse+index") { cold shouldBeLessThan if (ci) 4_000L else 1_500L }
+        withClue("warm parse+index") { warm shouldBeLessThan if (ci) 500L else 150L }
+        withClue("search") { query shouldBeLessThan if (ci) 60L else 20L }
     }
 
     private inline fun measure(block: () -> Unit): Long {

@@ -119,6 +119,7 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
                 state.profile.sleep,
                 actions::sleepChange,
                 Modifier.fillMaxWidth().padding(top = 8.dp),
+                easterEggEnabled = state.easterEggs,
                 maxHeight = (availableHeight - 8.dp).coerceAtLeast(if (wide) 0.dp else CompactMinSleepControls),
             )
         }
