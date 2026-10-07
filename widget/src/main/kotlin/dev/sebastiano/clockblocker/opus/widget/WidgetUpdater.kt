@@ -72,14 +72,15 @@ class WidgetUpdater(
     private val mutex = Mutex()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var lastNight = application.isNight()
+    private var lastRenderConfig = RenderConfig.of(application.resources.configuration)
 
     init {
-        // A light/dark switch changes the System theme and the picker previews, but no widget broadcast reports it.
+        // No widget broadcast reports these changes: a light/dark switch (the System theme and the picker previews),
+        // or a font scale or density change (the labels are fitted for both at capture time, see LabelFit).
         application.registerComponentCallbacks(
             object : ComponentCallbacks {
                 override fun onConfigurationChanged(newConfig: Configuration) {
-                    if (nightModeChanged(newConfig)) scope.launch { runCatching { updateAll() } }
+                    if (renderConfigChanged(newConfig)) scope.launch { runCatching { updateAll() } }
                 }
 
                 @Deprecated("Deprecated in Java")
@@ -88,12 +89,20 @@ class WidgetUpdater(
         )
     }
 
-    /** True once per light/dark switch (other configuration changes are ignored). */
-    internal fun nightModeChanged(configuration: Configuration): Boolean {
-        val night = configuration.isNight()
-        if (night == lastNight) return false
-        lastNight = night
+    /** True once per change of what the rendered widgets depend on: night mode, font scale or density. */
+    internal fun renderConfigChanged(configuration: Configuration): Boolean {
+        val config = RenderConfig.of(configuration)
+        if (config == lastRenderConfig) return false
+        lastRenderConfig = config
         return true
+    }
+
+    /** The parts of the configuration a captured widget depends on. */
+    private data class RenderConfig(val night: Boolean, val fontScale: Float, val densityDpi: Int) {
+        companion object {
+            fun of(configuration: Configuration) =
+                RenderConfig(configuration.isNight(), configuration.fontScale, configuration.densityDpi)
+        }
     }
 
     /** Re-render all widgets of both kinds. */

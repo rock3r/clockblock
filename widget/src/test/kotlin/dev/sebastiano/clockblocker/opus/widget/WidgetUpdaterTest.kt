@@ -214,16 +214,34 @@ class WidgetUpdaterTest {
     }
 
     @Test
-    fun `a light-dark switch triggers one refresh, other configuration changes none`() {
-        fun config(night: Boolean, fontScale: Float = 1f) = Configuration(app.resources.configuration).apply {
+    fun `a light-dark, font scale or density change triggers one refresh, other configuration changes none`() {
+        val start = Configuration(app.resources.configuration)
+        fun config(
+            night: Boolean = false,
+            fontScale: Float = start.fontScale,
+            densityDpi: Int = start.densityDpi,
+            orientation: Int = start.orientation,
+        ) = Configuration(start).apply {
             val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
             this.fontScale = fontScale
+            this.densityDpi = densityDpi
+            this.orientation = orientation
         }
-        updater.nightModeChanged(config(night = false, fontScale = 1.3f)).shouldBeFalse()
-        updater.nightModeChanged(config(night = true)).shouldBeTrue()
-        updater.nightModeChanged(config(night = true)).shouldBeFalse()
-        updater.nightModeChanged(config(night = false)).shouldBeTrue()
+        val turned = if (start.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            Configuration.ORIENTATION_LANDSCAPE
+        } else {
+            Configuration.ORIENTATION_PORTRAIT
+        }
+        updater.renderConfigChanged(config(orientation = turned)).shouldBeFalse()
+        updater.renderConfigChanged(config(night = true)).shouldBeTrue()
+        updater.renderConfigChanged(config(night = true)).shouldBeFalse()
+        updater.renderConfigChanged(config(night = false)).shouldBeTrue()
+        // Labels are fitted for the font scale and the density (text snaps to whole pixels): re-fit on either.
+        updater.renderConfigChanged(config(fontScale = 1.3f)).shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f)).shouldBeFalse()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeFalse()
     }
 
     @Test
