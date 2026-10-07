@@ -67,8 +67,11 @@ data class DialAdvice(
     val endInstant: Instant,
 )
 
+/** Whether the sun rises and sets on the dial's day, or stays up (midnight sun) or down (polar night) all day. */
+enum class Daylight { RisesAndSets, AlwaysUp, AlwaysDown }
+
 /**
- * UI model of the Two skies dial at one instant. Build it with `JetLagPlan.toDialState(instant, zone)`.
+ * UI model of the Two skies dial at one instant. Build it with `JetLagPlan.toDialState(instant, zone, place)`.
  *
  * The outer (local) sky is drawn in display-zone local minutes. The inner body sky is drawn in *body* minutes and
  * turned by [bodyAheadMinutes], so it visibly turns towards alignment day by day.
@@ -91,9 +94,14 @@ data class DialState(
     val next: DialAdvice? = null,
     val dayKind: DayKind? = null,
     val dayIndex: Int? = null,
-    /** Local sunrise/sunset (minutes) for the outer sky ring; defaults when the location is unknown. */
+    /**
+     * Local sunrise/sunset (display-zone minutes) for the sky rings, from the sun at the place
+     * ([dev.sebastiano.clockblocker.opus.core.model.Sun]); 06:30/19:00 when the location is unknown. On a polar
+     * day or night ([daylight]) both hold solar noon, which the sky centres on.
+     */
     val sunriseMinute: Float = 390f,
     val sunsetMinute: Float = 1140f,
+    val daylight: Daylight = Daylight.RisesAndSets,
 ) {
     val bodyMinute: Float get() = (localMinute + bodyAheadMinutes).mod(DialGeometry.MinutesPerDay)
     val localTime: LocalTime get() = DialGeometry.timeOf(localMinute)

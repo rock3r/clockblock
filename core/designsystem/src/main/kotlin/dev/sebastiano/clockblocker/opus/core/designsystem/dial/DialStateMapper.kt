@@ -1,6 +1,9 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial
 
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
+import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Sun
+import dev.sebastiano.clockblocker.opus.core.model.SunDay
 import kotlinx.collections.immutable.toImmutableList
 import java.time.Duration
 import java.time.Instant
@@ -14,8 +17,10 @@ import java.time.ZoneOffset
  * - Advice inside the 24 h window [instant − 8 h, instant + 16 h) becomes [DialArc]s, clipped to the window so
  *   arcs never overlap where the window wraps.
  * - The body clock comes from [JetLagPlan.bodyOffsetAt]; CBTmin from the nearest [dev.sebastiano.clockblocker.opus.core.model.PhasePoint].
+ * - The sky rings get the real sunrise and sunset at [place] (the trip's stop in [displayZone]) on the local date
+ *   at [instant]; without a place they keep [DialState]'s default sun.
  */
-fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId): DialState {
+fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? = null): DialState {
     val localOffset: ZoneOffset = displayZone.rules.getOffset(instant)
     val local = instant.atOffset(localOffset).toLocalTime()
     val bodyOffset = bodyOffsetAt(instant)
@@ -67,6 +72,8 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId): DialState {
         instant.atZone(ZoneId.of(d.zoneId)).toLocalDate() == d.date
     }
 
+    val sun = place?.let { Sun.on(instant.atZone(displayZone).toLocalDate(), displayZone, it.latitude, it.longitude) }
+
     return DialState(
         instant = instant,
         displayZoneId = displayZone.id,
@@ -78,7 +85,14 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId): DialState {
         next = nextAfter(instant)?.let(::narrate),
         dayKind = day?.kind,
         dayIndex = day?.index,
-    )
+    ).withSun(sun, ::minuteOf)
+}
+
+private fun DialState.withSun(sun: SunDay?, minuteOf: (Instant) -> Float): DialState = when (sun) {
+    null -> this
+    is SunDay.RisesAndSets -> copy(sunriseMinute = minuteOf(sun.sunrise), sunsetMinute = minuteOf(sun.sunset))
+    is SunDay.AlwaysUp -> minuteOf(sun.solarNoon).let { copy(sunriseMinute = it, sunsetMinute = it, daylight = Daylight.AlwaysUp) }
+    is SunDay.AlwaysDown -> minuteOf(sun.solarNoon).let { copy(sunriseMinute = it, sunsetMinute = it, daylight = Daylight.AlwaysDown) }
 }
 
 /** Typical CBTmin for an intermediate chronotype sleeping 23:00–07:00: about 04:30 on the body clock. */

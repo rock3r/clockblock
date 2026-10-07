@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.Daylight
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialArc
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
@@ -37,11 +38,21 @@ enum class BodyRingMode {
     Precise,
 }
 
-/** A night on the dial in local minutes of the day, running clockwise from [start] to [end]. */
-data class NightSpan(val start: Float, val end: Float) {
-    val lengthMinutes: Float get() = (end - start).mod(DialGeometry.MinutesPerDay)
+/**
+ * A night on the dial in local minutes of the day, running clockwise from [start] to [end]. On a polar day or night
+ * ([daylight]) both hold solar noon: the night fills the dial centred on solar midnight, or the day centred on noon.
+ */
+data class NightSpan(val start: Float, val end: Float, val daylight: Daylight = Daylight.RisesAndSets) {
+    val lengthMinutes: Float get() = when (daylight) {
+        Daylight.RisesAndSets -> (end - start).mod(DialGeometry.MinutesPerDay)
+        Daylight.AlwaysUp -> 0f
+        Daylight.AlwaysDown -> DialGeometry.MinutesPerDay
+    }
     val centre: Float get() = (start + lengthMinutes / 2f).mod(DialGeometry.MinutesPerDay)
-    val dayCentre: Float get() = (end + (DialGeometry.MinutesPerDay - lengthMinutes) / 2f).mod(DialGeometry.MinutesPerDay)
+    val dayCentre: Float get() = when (daylight) {
+        Daylight.AlwaysUp -> end
+        else -> (end + (DialGeometry.MinutesPerDay - lengthMinutes) / 2f).mod(DialGeometry.MinutesPerDay)
+    }
 }
 
 /** Where the body ring's night falls. */
@@ -51,7 +62,7 @@ object BodySky {
      * biological night for [BodyRingMode.Precise]. The ring is painted in body minutes and turned by the jet lag.
      */
     fun nightInBody(state: DialState, mode: BodyRingMode): NightSpan = when (mode) {
-        BodyRingMode.Simple -> NightSpan(state.sunsetMinute, state.sunriseMinute)
+        BodyRingMode.Simple -> NightSpan(state.sunsetMinute, state.sunriseMinute, state.daylight)
         BodyRingMode.Precise -> NightSpan(state.biologicalNightStartBodyMinute, state.biologicalNightEndBodyMinute)
     }
 
@@ -61,11 +72,12 @@ object BodySky {
         return NightSpan(
             (body.start - bodyAheadMinutes).mod(DialGeometry.MinutesPerDay),
             (body.end - bodyAheadMinutes).mod(DialGeometry.MinutesPerDay),
+            body.daylight,
         )
     }
 
     /** The local sky's night. */
-    fun localNight(state: DialState): NightSpan = NightSpan(state.sunsetMinute, state.sunriseMinute)
+    fun localNight(state: DialState): NightSpan = NightSpan(state.sunsetMinute, state.sunriseMinute, state.daylight)
 }
 
 /** The advice the dial shows at one minute: the block under the hand, and the next one to start after it. */

@@ -35,6 +35,17 @@ class TripTest {
     }
 
     @Test
+    fun `the place in a zone is the trip's last stop there`() {
+        val nrt = Place("NRT", "Narita", "Tokyo", "JP", "Asia/Tokyo", 35.76, 140.39)
+        val second = FlightLeg("2", lhr, nrt, LocalDateTime.of(2026, 6, 16, 13, 0), LocalDateTime.of(2026, 6, 17, 9, 0))
+        val trip = Trip("t", "Tokyo", listOf(leg, second), Instant.parse("2026-06-01T00:00:00Z"))
+        trip.placeIn(java.time.ZoneId.of("America/Los_Angeles")) shouldBe sfo
+        trip.placeIn(java.time.ZoneId.of("Europe/London")) shouldBe lhr
+        trip.placeIn(java.time.ZoneId.of("Asia/Tokyo")) shouldBe nrt
+        trip.placeIn(java.time.ZoneId.of("Europe/Paris")) shouldBe null
+    }
+
+    @Test
     fun `trip round-trips through JSON`() {
         val trip = Trip("t", "London", listOf(leg), Instant.parse("2026-06-01T00:00:00Z"))
         val json = Json.encodeToString(Trip.serializer(), trip)

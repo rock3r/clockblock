@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.Daylight
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialArc
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
@@ -72,18 +73,19 @@ object TwoSkies {
         DetailLevel.Glance -> (32f - 3.25f) * sideDp / 88f
     }
 
-    /** The last few sampled skies, keyed by palette identity (palettes are remembered) and sunrise/sunset. */
+    /** The last few sampled skies, keyed by palette identity (palettes are remembered) and the sun. */
     private object SkyCache {
         private const val MaxEntries = 8
-        private class Key(val palette: DialPalette, val sunrise: Float, val sunset: Float) {
-            override fun equals(other: Any?) =
-                other is Key && other.palette === palette && other.sunrise == sunrise && other.sunset == sunset
-            override fun hashCode() = (System.identityHashCode(palette) * 31 + sunrise.hashCode()) * 31 + sunset.hashCode()
+        private class Key(val palette: DialPalette, val sunrise: Float, val sunset: Float, val daylight: Daylight) {
+            override fun equals(other: Any?) = other is Key && other.palette === palette &&
+                other.sunrise == sunrise && other.sunset == sunset && other.daylight == daylight
+            override fun hashCode() =
+                ((System.identityHashCode(palette) * 31 + sunrise.hashCode()) * 31 + sunset.hashCode()) * 31 + daylight.hashCode()
         }
         private val entries = LinkedHashMap<Key, List<Argb>>()
 
-        fun get(palette: DialPalette, sunrise: Float, sunset: Float, sample: () -> List<Argb>): List<Argb> = synchronized(entries) {
-            val key = Key(palette, sunrise, sunset)
+        fun get(palette: DialPalette, night: NightSpan, sample: () -> List<Argb>): List<Argb> = synchronized(entries) {
+            val key = Key(palette, night.end, night.start, night.daylight)
             entries[key] ?: sample().also {
                 if (entries.size >= MaxEntries) entries.remove(entries.keys.first())
                 entries[key] = it
@@ -212,9 +214,9 @@ object TwoSkies {
 
         /** The two skies. The body ring is painted in body minutes and turned by the jet lag. */
         fun rings(outerR: Float, innerR: Float, ringW: Float) {
-            ops += DialOp.SweepRing(cx, cy, outerR, ringW, skyColors(state.sunriseMinute, state.sunsetMinute), part = DialPart.LocalSky)
+            ops += DialOp.SweepRing(cx, cy, outerR, ringW, skyColors(localNight), part = DialPart.LocalSky)
             val body = BodySky.nightInBody(state, mode)
-            ops += DialOp.SweepRing(cx, cy, innerR, ringW, skyColors(body.end, body.start), rotationDeg = -ahead / 4f, part = DialPart.BodySky)
+            ops += DialOp.SweepRing(cx, cy, innerR, ringW, skyColors(body), rotationDeg = -ahead / 4f, part = DialPart.BodySky)
             if (p.dark) {
                 listOf(outerR to DialPart.LocalSky, innerR to DialPart.BodySky).forEach { (r, part) ->
                     ops += DialOp.Circle(cx, cy, r + ringW / 2f, p.hairline.withAlpha(0.6f), stroke = 0.75f, part = part)
@@ -227,8 +229,10 @@ object TwoSkies {
          * Stop 0 at 3 o'clock (18:00 on the dial's frame), then clockwise. Cached: the spec is rebuilt on every scrub
          * and ring-turn frame, but the skies only change with the palette and the sun.
          */
-        fun skyColors(sunrise: Float, sunset: Float): List<Argb> = SkyCache.get(p, sunrise, sunset) {
-            List(SamplesPerRing) { i -> p.sky(DialGeometry.minuteForAngle(i * 360f / SamplesPerRing), sunrise, sunset) }
+        fun skyColors(night: NightSpan): List<Argb> = SkyCache.get(p, night) {
+            List(SamplesPerRing) { i ->
+                p.sky(DialGeometry.minuteForAngle(i * 360f / SamplesPerRing), sunrise = night.end, sunset = night.start, night.daylight)
+            }
         }
 
         /**
