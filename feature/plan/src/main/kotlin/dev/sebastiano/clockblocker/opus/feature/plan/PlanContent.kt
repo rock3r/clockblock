@@ -524,6 +524,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     scrollBehavior = scrollBehavior,
                     shortWindow = shortWindow,
                     firstLight = state.trip?.let { isFreshTrip(it.createdAt, state.now) } == true,
+                    // What the screen shows, not the raw pick: a spent pick is live in this very frame (selectedDay
+                    // is only cleared after it), so the fade starts here rather than over an already-live sky.
+                    skyKey = selectedDay.takeIf { dayBase != null },
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },

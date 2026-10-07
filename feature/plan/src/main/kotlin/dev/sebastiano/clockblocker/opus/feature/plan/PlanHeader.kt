@@ -2,6 +2,11 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.clickable
 import kotlin.math.sin
@@ -94,6 +99,9 @@ internal fun planTitle(plan: JetLagPlan, trip: Trip?): String =
  * The header (design.md §2.4 C): a large flexible top app bar laid transparently over the body-clock sky, so the
  * header literally shows what time it is inside you. Title = the trip, subtitle = "Day 2 · Adapting · body 8 h behind".
  * The sky follows [moment] (so it moves while the dial is scrubbed).
+ *
+ * [skyKey] is the day picked in the day strip (`null` = live). Picking another day jumps the body clock by hours,
+ * so the sky cross-fades to it; anything else (scrubbing, the minute tick) repaints the same sky in place.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -110,8 +118,12 @@ internal fun PlanHeader(
     modifier: Modifier = Modifier,
     shortWindow: Boolean = false,
     firstLight: Boolean = false,
+    skyKey: Int? = null,
 ) {
-    val gradient = ClockblockTheme.sky.gradientAt(moment.bodyTime)
+    val fade = rememberSkyFade(skyKey, moment.bodyTime)
+    // Ink and the sun / moon follow the sky that is mostly showing (the old day's until a day-pick fade is halfway).
+    val foreground = fade.foregroundTime(moment.bodyTime)
+    val gradient = ClockblockTheme.sky.gradientAt(foreground)
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
@@ -122,7 +134,7 @@ internal fun PlanHeader(
     ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
-        BodyClockSky(bodyTime = moment.bodyTime, modifier = Modifier.matchParentSize(), showCelestial = false)
+        HeaderSky(fade, moment.bodyTime, Modifier.matchParentSize())
         val subtitle: @Composable () -> Unit = {
             PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
         }
@@ -168,13 +180,123 @@ internal fun PlanHeader(
         }
         // Above the app bar: its Surface would swallow the moon's taps otherwise.
         HeaderCelestial(
-            bodyTime = moment.bodyTime,
+            bodyTime = foreground,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 184.dp else 72.dp,
             collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
             onTip = onMoonTip,
             firstLight = firstLight,
             modifier = Modifier.matchParentSize(),
+        )
+    }
+}
+
+/** What the header sky showed: [bodyTime] for the day keyed by [key] (the picked day, `null` = live). */
+private data class SkyFrame(val key: Int?, val bodyTime: LocalTime)
+
+/** One frozen sky under a fade: the body time it paints, at [alpha]. */
+private data class SkyLayer(val bodyTime: LocalTime, val alpha: Float)
+
+/**
+ * At most this many frozen skies under a fade. Skies hidden under an opaque one are dropped first, so this only bites
+ * on a burst of picks a frame or two apart; then the bottom one is dropped and the next made opaque.
+ */
+private const val MaxSkyLayers = 6
+
+/** A frozen sky at least this opaque hides everything under it. */
+private const val OpaqueAlpha = 0.999f
+
+/**
+ * The body time the header's foreground follows (ink of the title, icons and status bar, and the sun / moon) while
+ * the sky cross-fades from [from] to [to]: the old sky's until the new one is half faded in ([progress] 0 → 1), so
+ * everything on top matches the sky that is mostly showing. With no fade ([from] `null`) it is simply [to].
+ */
+internal fun headerInkTime(from: LocalTime?, to: LocalTime, progress: Float): LocalTime =
+    if (from == null || progress >= 0.5f) to else from
+
+/**
+ * A day-pick cross-fade of the header sky: [layers] (frozen, bottom first, the bottom one opaque) under the live sky,
+ * which fades in as [progress] → 1. [fromTime] is what the foreground followed when the fade started.
+ */
+@Stable
+private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTime?) {
+    val progress = Animatable(if (layers.isEmpty()) 1f else 0f)
+
+    /** The frozen skies are still (partly) visible. Flips once per fade, so it is safe to read in composition. */
+    val fading by derivedStateOf { layers.isNotEmpty() && progress.value < 1f }
+
+    /** The new sky is the one mostly showing (see [headerInkTime]). Flips once per fade. */
+    private val pastMidpoint by derivedStateOf { progress.value >= 0.5f }
+
+    fun foregroundTime(live: LocalTime): LocalTime = headerInkTime(fromTime, live, if (pastMidpoint) 1f else 0f)
+
+    /**
+     * What this fade shows right now, with the live sky at [live], as frozen layers for the next fade to start over:
+     * an interrupted fade keeps its blend instead of jumping to its target. Reads without observing (a one-off).
+     */
+    fun freeze(live: LocalTime): List<SkyLayer> = Snapshot.withoutReadObservation {
+        if (!fading) {
+            listOf(SkyLayer(live, 1f))
+        } else {
+            val stack = layers + SkyLayer(live, progress.value)
+            // Anything under an (all but) opaque layer can't be seen: only that much of the stack is kept.
+            val base = stack.indexOfLast { it.alpha >= OpaqueAlpha }.coerceAtLeast(0)
+            stack.drop(base).takeLast(MaxSkyLayers).mapIndexed { i, layer -> if (i == 0) layer.copy(alpha = 1f) else layer }
+        }
+    }
+
+    fun frozenForeground(live: LocalTime): LocalTime = Snapshot.withoutReadObservation { foregroundTime(live) }
+}
+
+/**
+ * A new [key] (a day picked in the strip) starts a fade, on `colour()`, from whatever the header showed until then
+ * (the previous day, or a fade still running). The same key with a new [bodyTime] (scrubbing, the minute tick) is no
+ * fade at all: the live sky repaints in place.
+ */
+@Composable
+private fun rememberSkyFade(key: Int?, bodyTime: LocalTime): SkyFade {
+    val motion = ClockblockTheme.motion
+    // The frame and fade the last composition drew. Plain (not state): they are only read when the key changes.
+    val last = remember { arrayOfNulls<SkyFrame>(1) }
+    val previous = remember { arrayOfNulls<SkyFade>(1) }
+    val fade = remember(key) {
+        val before = last[0]?.takeIf { it.key != key }
+        val prev = previous[0]
+        when {
+            before == null -> SkyFade(emptyList(), fromTime = null)
+            prev == null -> SkyFade(listOf(SkyLayer(before.bodyTime, 1f)), fromTime = before.bodyTime)
+            else -> SkyFade(prev.freeze(before.bodyTime), fromTime = prev.frozenForeground(before.bodyTime))
+        }
+    }
+    LaunchedEffect(fade) { if (fade.layers.isNotEmpty()) fade.progress.animateTo(1f, motion.colour()) }
+    SideEffect {
+        last[0] = SkyFrame(key, bodyTime)
+        previous[0] = fade
+    }
+    return fade
+}
+
+/**
+ * The body-clock sky behind the header. During a [fade] the frozen skies stay put underneath while the live one fades
+ * in over them (alphas read in the layer, so the fade never recomposes); the bottom one is opaque, so the header never
+ * shows through.
+ */
+@Composable
+private fun HeaderSky(fade: SkyFade, bodyTime: LocalTime, modifier: Modifier = Modifier) {
+    Box(modifier) {
+        if (fade.fading) {
+            fade.layers.forEach { layer ->
+                BodyClockSky(
+                    bodyTime = layer.bodyTime,
+                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = layer.alpha }.testTag(PlanTags.HeaderSky),
+                    showCelestial = false,
+                )
+            }
+        }
+        BodyClockSky(
+            bodyTime = bodyTime,
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = fade.progress.value }.testTag(PlanTags.HeaderSky),
+            showCelestial = false,
         )
     }
 }
