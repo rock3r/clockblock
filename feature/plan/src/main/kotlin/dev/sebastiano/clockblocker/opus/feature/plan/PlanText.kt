@@ -111,7 +111,7 @@ internal fun stageLabel(moment: PlanMoment, firstDayDate: LocalDate?): String = 
 
 /**
  * Header subtitle part 2: "body 8 h behind", "body 2 h ahead" or "body in sync": the body clock relative to
- * local time, in words. Same quantity, rounding and threshold as the dial's wedge chip ("−8 h").
+ * local time, in words. Same quantity, rounding and threshold as the dial's offset pill ("8 h behind").
  */
 internal fun Resources.bodyShiftLabel(bodyAheadHours: Float): String = when (bodyOffsetDirection(bodyAheadHours)) {
     BodyOffsetDirection.InSync -> getString(R.string.plan_body_in_sync)

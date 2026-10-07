@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
  * [tripId] null = the current plan (`PlanRepository.currentPlan`, deep link `plan/current`).
  * [onBack] null = no up affordance (e.g. shown as a detail pane next to the list, or as a top-level tab).
  *
- * Hero: the Two Clocks dial (scrub to preview any time of the day), the Now card with Done / Skipped / Can't do
+ * Hero: the Two skies dial (scrub to preview any time of the day), the Now card with Done / Skipped / Can't do
  * this, the adaptation wave and the day-by-day rail. The calendar export (.ics through the Storage Access
  * Framework) and the share summary are handled here; everything else is [PlanViewModel].
  */
