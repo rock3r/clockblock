@@ -56,6 +56,7 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Day strip following the two-pane rail (scrolled by hand) | the pill of the day the rail shows gets a short bar at its foot, swapped with no animation (rail scrolling is a 100+/day gesture; the day is read through a derived state, so the strip only recomposes at day boundaries); the strip scrolls only when that pill is out of sight, on `animateScrollToItem` (a jump under reduce motion). The bar and TalkBack's "In view on your plan" carry it; it never picks the day | OBSERVED |
 | Header body sky on a day pick (a day strip pill, or a pick going live; the toolbar's day picker only scrolls the rail) | the new day's sky fades in over the old one on `colour()`, keyed by the picked day; the old sky stays put underneath, so the header never shows through, and the fade's alpha is read in the layer. Scrubbing and the minute tick repaint in place with no transition. Header text, icons, status-bar ink and the sun / moon follow the sky that is mostly showing: they switch once, at the fade's midpoint. A pick during a fade freezes the blend on screen and fades the new day in over it (no jump to the interrupted target) | OBSERVED |
 | Two-pane rail following a dial scrub | the rail row under the dial's hand is highlighted (as before) and, when it is fully or partly off screen, the rail scrolls it into view on `dataSpatial()` (it is a time position: no bounce); a jump under reduce motion. Keyed by the row, so it moves once per block crossed, never per frame of the scrub; a row already in view (below the pinned day header) never moves the rail; a scrub into a day folded behind "earlier days" unfolds it first; never starts over a drag or fling of the user's own, and a grab mid-scroll takes the rail over. One pane: no scroll (the dial would scroll away) | OBSERVED |
+| Light response curve sun (Why sheet of light advice, About) | follows a drag live (position read in draw; no recomposition per frame); a tap, TalkBack's Earlier / Later hour and Reset settle on `dataSpatial()` (where the sun sits is data); while held the sun grows 1.2× on `containerSpatial()` (a rare surface, so the Expressive container spring is allowed). The curve, lobes and band never move. Reduce motion: everything snaps; the readout text and the still sun carry the meaning | OBSERVED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
@@ -78,6 +79,7 @@ on-screen time, not opens, is what gates its motion.
 | Body-clock sky | continuous | Repaint only; no animation of its own (the header sky cross-fades once on a day pick, a state change the user asked for) |
 | Header sun path + ghost ring (issue #21) | continuous | Static: repaints with the minute tick and a scrub, drawn in the draw phase, fades with the collapsing header; nothing animates, so Remove animations changes nothing |
 | Illustrations (Why? sheet, onboarding, empty state) | rare | Ambient loops + entrances |
+| Light response curve (Why sheet, About) | rare | Handle grows on `containerSpatial`; position on `dataSpatial`; hour haptics |
 | Adaptation celebration (rings → Bloom + confetti) | once per trip | Full delight, one mover at a time |
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
 
@@ -87,6 +89,8 @@ on-screen time, not opens, is what gates its motion.
 - Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
 - Moon egg taps 1–6 → `CLOCK_TICK`.
+- Light response curve drag → `CLOCK_TICK` per hour crossed, `SEGMENT_TICK` at the body's coldest point. Custom a11y
+  actions: Earlier hour / Later hour / Reset ("Reset to this block" in the Why sheet).
 - Trip editor Save succeeds → `CONFIRM` (once, on the `Saved` event; validation failures stay silent).
 - Rail row check-off circle ticked → `CONFIRM` (like the Now card's Done; unticking is silent). The circle just swaps
   between outlined and filled with a check: the rail is a 100+/day surface, so the state layer is its only motion.

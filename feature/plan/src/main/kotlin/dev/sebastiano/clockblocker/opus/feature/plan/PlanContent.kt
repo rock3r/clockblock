@@ -764,7 +764,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 val (day, advice) = target
                 val zone = ZoneId.of(day.zoneId)
                 val secondary = plan.secondaryZoneFor(zone)
-                WhySheet(advice, zone, secondary, routes[id], onDismiss = { screen.whyAdviceId = null })
+                val curveWindow = remember(plan, advice) { lightCurveWindow(plan, advice) }
+                WhySheet(advice, zone, secondary, routes[id], onDismiss = { screen.whyAdviceId = null }, curveWindow = curveWindow)
             }
         }
 

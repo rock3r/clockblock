@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -259,9 +260,34 @@ class PlanScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w400dp-h1100dp-xhdpi")
+    @Config(qualifiers = "w400dp-h1600dp-xhdpi")
     fun whySheet() = snap("why_sheet") {
         val advice = realPlan.days.first { it.index == 2 }.advice.first { it.type == AdviceType.SeeBrightLight }
-        WhySheetContent(advice, ZoneId.of("Europe/London"), ZoneId.of("America/Los_Angeles"), flightRoute = null)
+        // The sheet's container (and so its content colour), as in WhySheet.
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            WhySheetContent(
+                advice,
+                ZoneId.of("Europe/London"),
+                ZoneId.of("America/Los_Angeles"),
+                flightRoute = null,
+                curveWindow = lightCurveWindow(realPlan, advice),
+            )
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h1600dp-xhdpi")
+    fun whySheetAvoidLightDark() = snap("why_sheet_avoid_light_dark", darkTheme = true) {
+        val advice = realPlan.allAdvice.first { it.type == AdviceType.AvoidLight }
+        // The sheet's container (and so its content colour), as in WhySheet.
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            WhySheetContent(
+                advice,
+                ZoneId.of("Europe/London"),
+                ZoneId.of("America/Los_Angeles"),
+                flightRoute = null,
+                curveWindow = lightCurveWindow(realPlan, advice),
+            )
+        }
     }
 }

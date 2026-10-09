@@ -68,4 +68,34 @@
     <string name="route_description_origin_only">From %1$s. Destination not set</string>
     <string name="route_description_destination_only">To %1$s. Origin not set</string>
     <string name="route_description_empty">Route not set</string>
+
+    <!-- Light response curve card (Why sheet, About). Qualitative on purpose: no hour predictions. -->
+    <string name="light_curve_title">Light response curve</string>
+    <string name="light_curve_hint">Drag the sun to try other hours.</string>
+    <string name="light_curve_later">moves your clock later</string>
+    <string name="light_curve_earlier">moves your clock earlier</string>
+    <string name="light_curve_coldest">your body\'s coldest point</string>
+    <string name="light_curve_axis_before">12 h before</string>
+    <string name="light_curve_axis_after">12 h after</string>
+    <string name="light_curve_axis_before_short">−12 h</string>
+    <string name="light_curve_axis_after_short">+12 h</string>
+    <string name="light_curve_this_block">this block</string>
+    <string name="light_curve_at_coldest">At your body\'s coldest point</string>
+    <string name="light_curve_before">%1$s before your body\'s coldest point</string>
+    <string name="light_curve_after">%1$s after your body\'s coldest point</string>
+    <string name="light_curve_in_block">%1$s, in this block</string>
+    <string name="light_curve_hours">%1$d h</string>
+    <string name="light_curve_minutes">%1$d min</string>
+    <string name="light_curve_hours_minutes">%1$d h %2$d min</string>
+    <string name="light_curve_effect_later_strongly">Light here moves your clock later, strongly.</string>
+    <string name="light_curve_effect_later_little">Light here moves your clock a little later.</string>
+    <string name="light_curve_effect_barely">Light here barely moves your clock.</string>
+    <string name="light_curve_effect_earlier_little">Light here moves your clock a little earlier.</string>
+    <string name="light_curve_effect_earlier_strongly">Light here moves your clock earlier, strongly.</string>
+    <string name="light_curve_source">A schematic curve after Khalsa et al. (2003) and St Hilaire et al. (2012). Real responses vary from person to person.</string>
+    <string name="light_curve_description">Light response curve. Light before your body\'s coldest point moves your clock later; light after it moves your clock earlier.</string>
+    <string name="light_curve_action_earlier">Earlier hour</string>
+    <string name="light_curve_action_later">Later hour</string>
+    <string name="light_curve_action_reset">Reset</string>
+    <string name="light_curve_action_reset_block">Reset to this block</string>
 </resources>
