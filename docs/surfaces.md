@@ -45,8 +45,11 @@ current plan again, decides whether a reminder is still correct, redraws everyth
 A few details matter:
 
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
-  15-minute progress tick while a Live Update is showing, and (with reminders on) the next change of the Now
-  notification's body-clock header.
+  15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
+  notification's body-clock header, and the next time a block comes into the widget dial's view
+  (`TransitionPlanner.nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an hour for a
+  clock change). Widgets capture the dial's blocks and only move the hand, so without it a block more than 16 hours
+  away would stay off the dial until it starts.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
   next maintenance window, well past 10 minutes.

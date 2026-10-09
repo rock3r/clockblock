@@ -213,8 +213,17 @@ object TwoSkies {
             face(80f * k)
             rings(outerR, innerR, ringW)
             val ringText = TextSpec(maxOf(7.6f * k, minText, labelText), weight = 700, caps = true, tracking = 0.1f, tabular = false)
-            if (namePlace) shortRingLabel(place, outerR, ringW, localNight, ringText)
-            shortRingLabel(labels.body(), innerR, ringW, bodyNight, ringText.copy(slanted = true))
+            val placeLabel = if (namePlace) shortRingLabel(place, outerR, ringW, localNight, ringText) else null
+            placeLabel?.let { ops += it }
+            // Side by side on the two rings (the skies match once adapted), "TOKYO" over "BODY" reads as one phrase:
+            // the body's label moves to its other half, or goes.
+            val bodyText = ringText.copy(slanted = true)
+            val bodyLabel = shortRingLabel(labels.body(), innerR, ringW, bodyNight, bodyText)
+                ?.takeUnless { placeLabel != null && it.clashes(placeLabel) }
+                ?: placeLabel?.let { other ->
+                    otherHalfRingLabel(labels.body(), innerR, ringW, bodyNight, bodyText)?.takeUnless { it.clashes(other) }
+                }
+            bodyLabel?.let { ops += it }
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
@@ -303,24 +312,42 @@ object TwoSkies {
         }
 
         /** A Simple-level ring label: on the night, or on the day under the midnight sun, when there is no night. */
-        fun shortRingLabel(text: String, r: Float, ringW: Float, night: NightSpan, spec: TextSpec) =
+        fun shortRingLabel(text: String, r: Float, ringW: Float, night: NightSpan, spec: TextSpec): DialOp.CurvedText? =
             if (night.daylight == Daylight.AlwaysUp) {
-                ringLabel(text, r, ringW, night.dayCentre, DialGeometry.MinutesPerDay, spec, p.sky.onDay)
+                ringLabelOp(text, r, ringW, night.dayCentre, DialGeometry.MinutesPerDay, spec, p.sky.onDay)
             } else {
-                ringLabel(text, r, ringW, night.centre, night.lengthMinutes, spec, p.sky.onNight)
+                ringLabelOp(text, r, ringW, night.centre, night.lengthMinutes, spec, p.sky.onNight)
             }
 
+        /** [shortRingLabel] on the day instead of the night; none under the midnight sun, where it is already there. */
+        fun otherHalfRingLabel(text: String, r: Float, ringW: Float, night: NightSpan, spec: TextSpec): DialOp.CurvedText? =
+            if (night.daylight == Daylight.AlwaysUp) {
+                null
+            } else {
+                ringLabelOp(text, r, ringW, night.dayCentre, DialGeometry.MinutesPerDay - night.lengthMinutes, spec, p.sky.onDay)
+            }
+
+        /** Whether two ring labels (on any rings) sit within [LabelGapDeg] of each other around the dial. */
+        fun DialOp.CurvedText.clashes(other: DialOp.CurvedText): Boolean {
+            val reach = (degreesFor(text, spec, r) + degreesFor(other.text, other.spec, other.r)) / 2f + LabelGapDeg
+            return kotlin.math.abs(DialGeometry.angleDelta(centerDeg, other.centerDeg)) < reach
+        }
+
+        fun ringLabel(text: String, r: Float, ringW: Float, centreMinute: Float, spanMinutes: Float, spec: TextSpec, color: Argb) {
+            ringLabelOp(text, r, ringW, centreMinute, spanMinutes, spec, color)?.let { ops += it }
+        }
+
         /**
-         * A ring label centred on [centreMinute], dropped when it doesn't fit inside its half of the sky, or across
+         * A ring label centred on [centreMinute], or null when it doesn't fit inside its half of the sky, or across
          * its ring ([ringW] wide). When the needle would cross it, it steps aside along its half (the side it was
          * already on, else the other one).
          */
-        fun ringLabel(text: String, r: Float, ringW: Float, centreMinute: Float, spanMinutes: Float, spec: TextSpec, color: Argb) {
-            if (!fitsAcross(spec, ringW)) return
+        fun ringLabelOp(text: String, r: Float, ringW: Float, centreMinute: Float, spanMinutes: Float, spec: TextSpec, color: Argb): DialOp.CurvedText? {
+            if (!fitsAcross(spec, ringW)) return null
             val shown = if (spec.caps) text.uppercase() else text
             val needs = degreesFor(shown, spec, r)
             val span = spanMinutes / 4f
-            if (needs > span - 14f) return
+            if (needs > span - 14f) return null
             val centre = DialGeometry.angleForMinute(centreMinute)
             val needle = DialGeometry.angleForMinute(display)
             val clear = needs / 2f + 4f
@@ -335,7 +362,7 @@ object TwoSkies {
                     .firstOrNull { kotlin.math.abs(DialGeometry.angleDelta(centre, it)) <= slack }
                     ?: centre
             }
-            ops += DialOp.CurvedText(shown, cx, cy, r, at.mod(360f), spec, color, part = DialPart.RingLabel)
+            return DialOp.CurvedText(shown, cx, cy, r, at.mod(360f), spec, color, part = DialPart.RingLabel)
         }
 
         /**
@@ -519,6 +546,9 @@ internal const val MaxFill = 0.85f
 
 /** The local time's digits stay at least this many times the size of its AM/PM marker, or the marker goes. */
 private const val MinDigitsToMarker = 1.15f
+
+/** The least angle between the ends of the Simple dial's two ring labels, so they never read as one phrase. */
+private const val LabelGapDeg = 12f
 
 /** "08:20 body" as a [LiveTime]: the body clock's digits inside [DialLabels.bodyTime]'s words. */
 internal fun liveBodyTime(labels: DialLabels): LiveTime {

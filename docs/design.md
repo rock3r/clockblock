@@ -242,8 +242,10 @@ once you're adapted the two rings are identical.
   so Tromsø reads "TROMSØ" though it keeps Oslo's zone id. With no stop there, or a name too wide for the hub ("Qian
   Gorlos Mongol Autonomous County"), the dial uses the zone's city at every detail level.
 - **Detail levels** by the dial's smaller side: **Full** ≥ 250 dp (everything above), **Simple** 110–250 dp (ring
-  labels shortened to the city and "BODY", no narration, no numerals), **Glance** < 110 dp (the two skies, the needle
-  and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card carries the words.
+  labels shortened to the city and "BODY", no narration, no numerals; when the two would sit side by side, as once
+  adapted, "BODY" moves to the body's day, or goes, so they never read as one phrase), **Glance** < 110 dp (the two
+  skies, the needle and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card
+  carries the words.
 - **Day change:** the body ring **turns** into place (`ClockblockMotion` slow spatial, no overshoot: the ring is
   data). Rings aligned → `HapticFeedbackConstants.CONFIRM`.
 - **Scrub:** drag the needle to preview any time; the cards below sync. `CLOCK_TICK` haptic each hour, `SEGMENT_TICK` at

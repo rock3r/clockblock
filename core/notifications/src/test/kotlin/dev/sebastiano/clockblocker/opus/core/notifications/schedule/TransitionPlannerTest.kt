@@ -8,6 +8,8 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Melatonin
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Nap
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.SeeBrightLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Sleep
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.notifications.advice
 import dev.sebastiano.clockblocker.opus.core.notifications.planOf
@@ -286,6 +288,27 @@ class TransitionPlannerTest {
                 val ringsWhileAsleep = sleepers.any { s2 -> s2.id != t.advice.id && t.at.isAfter(s2.start) && t.at.isBefore(s2.end) }
                 ringsWhileAsleep shouldBe false
             }
+        }
+    }
+
+    @Nested
+    inner class DialLookahead {
+        @Test
+        fun `the next refresh for the widget dial is when the next block comes into its view`() {
+            val plan = planOf(
+                advice(AvoidLight, "2026-10-10T18:00", "2026-10-10T20:00"),
+                advice(Sleep, "2026-10-11T23:00", "2026-10-12T07:00"),
+            )
+
+            // The avoid block is already in view (it starts in 6 h); the sleep enters 15 h before it starts.
+            TransitionPlanner.nextDialEntry(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-11T08:00")
+            TransitionPlanner.nextDialEntry(plan, utc("2026-10-11T08:00")) shouldBe null
+        }
+
+        @Test
+        fun `the lookahead is the dial's future, less an hour for a clock change on the way`() {
+            val future = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
+            TransitionPlanner.DIAL_ENTRY_LEAD.plusHours(1).toMinutes() shouldBe future.toLong()
         }
     }
 }

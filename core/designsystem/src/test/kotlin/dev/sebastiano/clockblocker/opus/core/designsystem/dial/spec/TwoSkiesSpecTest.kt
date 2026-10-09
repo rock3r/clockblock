@@ -252,6 +252,31 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `the simple dial's two ring labels never share a sector, so they can't read as one phrase`() = runTest {
+        checkAll(
+            Arb.numericFloat(0f, 1439f),
+            Arb.element(0f, 0f, -60f, 45f, -420f, 300f),
+            Arb.element(110f, 140f, 160f, 200f, 249f),
+            Arb.element(0f, 10f, 13f),
+        ) { now, ahead, side, floor ->
+            val shown = TwoSkies.spec(tokyo.copy(localMinute = now, bodyAheadMinutes = ahead), palette, labels, side, side, labelText = floor)
+                .ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }
+            val spans = shown.map { label ->
+                val half = Math.toDegrees((ApproxTextMeasurer.width(label.text, label.spec) / label.r).toDouble()).toFloat() / 2f
+                label.centerDeg to half
+            }
+            spans.forEachIndexed { i, (a, ha) ->
+                spans.drop(i + 1).forEach { (b, hb) -> (kotlin.math.abs(DialGeometry.angleDelta(a, b)) >= ha + hb) shouldBe true }
+            }
+        }
+        // Adapted: the skies match, so the body's label would sit right under the place's. It goes to the other half.
+        val adapted = TwoSkies.spec(tokyo.copy(bodyAheadMinutes = 0f), palette, labels, 160f, 160f, labelText = 10f)
+            .ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }
+        val place = adapted.single { it.text == "TOKYO" }
+        adapted.forEach { if (it !== place) (kotlin.math.abs(DialGeometry.angleDelta(place.centerDeg, it.centerDeg)) > 90f) shouldBe true }
+    }
+
+    @Test
     fun `upcoming advice is narrated with its start when nothing is on`() {
         val texts = spec(scrub = 18 * 60f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
         texts shouldContain "Sleep at 23:00"
