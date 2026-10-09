@@ -249,13 +249,45 @@ class WidgetStateMapperTest {
         // A connection in the origin's zone doesn't rename it; a place without a city is skipped.
         val viaLax = Trip("t", "SFO → LAX → XXX", listOf(leg("1", sfo, lax), leg("2", lax, blank)), Instant.EPOCH)
         WidgetStateMapper.placeNames(viaLax) shouldBe mapOf("America/Los_Angeles" to "San Francisco")
+        // Each named place's IATA code, for the short form of a long name.
+        WidgetStateMapper.placeCodes(trip) shouldBe mapOf("America/Los_Angeles" to "SFO", tokyo to "HND")
+        WidgetStateMapper.placeCodes(viaLax) shouldBe mapOf("America/Los_Angeles" to "SFO")
+    }
+
+    @Test
+    fun `long place names get shorter forms, the full name first`() {
+        PlaceNames.options("Tokyo", "HND") shouldBe listOf("Tokyo", "HND")
+        PlaceNames.options("Fayetteville/Springdale/Rogers", "XNA") shouldBe listOf("Fayetteville/Springdale/Rogers", "Fayetteville", "XNA")
+        PlaceNames.options("Tanjung Redeb - Borneo Island", "BEJ") shouldBe listOf("Tanjung Redeb - Borneo Island", "Tanjung Redeb", "BEJ")
+        PlaceNames.options("Santa Cruz (Bolivia)", null) shouldBe listOf("Santa Cruz (Bolivia)", "Santa Cruz")
+        PlaceNames.options("Qian Gorlos Mongol Autonomous County", "YSQ") shouldBe listOf("Qian Gorlos Mongol Autonomous County", "YSQ")
+        PlaceNames.options("Lisbon", "") shouldBe listOf("Lisbon")
+
+        val now = at(tokyo, "2026-10-06T16:30")
+        val state = active(
+            WidgetStateMapper.map(
+                tokyoDay,
+                now,
+                placeNames = mapOf(lisbon to "La Seu d'Urgell Pyrenees and Andorra"),
+                placeCodes = mapOf(lisbon to "LEU"),
+            ),
+        )
+        state.placeNameOptions(lisbon) shouldBe listOf("La Seu d'Urgell Pyrenees and Andorra", "LEU")
+        // A zone the trip doesn't name: its city, with no code.
+        state.placeNameOptions(tokyo) shouldBe listOf("Tokyo")
     }
 
     @Test
     fun `redacting for the lock screen drops places, the route and the melatonin dot`() {
         val now = at(tokyo, "2026-10-06T16:30")
         val full = active(
-            WidgetStateMapper.map(tokyoDay, now, route = WidgetRoute("LIS", "HND"), placeNames = mapOf(tokyo to "Tokyo")),
+            WidgetStateMapper.map(
+                tokyoDay,
+                now,
+                route = WidgetRoute("LIS", "HND"),
+                placeNames = mapOf(tokyo to "Tokyo"),
+                placeCodes = mapOf(tokyo to "HND"),
+            ),
         )
         val redacted = active(WidgetStateMapper.redact(full))
 
@@ -263,6 +295,7 @@ class WidgetStateMapperTest {
         redacted.secondaryZoneId.shouldBeNull()
         redacted.route.shouldBeNull()
         redacted.placeNames shouldBe emptyMap()
+        redacted.placeCodes shouldBe emptyMap()
         redacted.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
         // Times, block kinds and the dial stay.
         redacted.current shouldBe full.current

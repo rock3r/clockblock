@@ -35,6 +35,9 @@ object DemoPlans {
     /** The demo trip's cities per zone (see [WidgetStateMapper.placeNames]). */
     val PLACE_NAMES: Map<String, String> by lazy { WidgetStateMapper.placeNames(trip()) }
 
+    /** The demo trip's airport code per zone (see [WidgetStateMapper.placeCodes]). */
+    val PLACE_CODES: Map<String, String> by lazy { WidgetStateMapper.placeCodes(trip()) }
+
     /** The demo trip itself (Lisbon → Tokyo Haneda), for tests and the gallery. */
     fun trip(): Trip {
         val lis = Place("LIS", "Humberto Delgado", "Lisbon", "PT", ORIGIN, 38.77, -9.13)

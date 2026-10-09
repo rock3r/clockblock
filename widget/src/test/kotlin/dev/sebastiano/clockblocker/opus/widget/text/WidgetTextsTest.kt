@@ -88,6 +88,24 @@ class WidgetTextsTest {
     }
 
     @Test
+    fun `a long place name offers shorter forms, and screen readers get the full name`() {
+        val state = WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight), now) as WidgetState.Active
+        val zone = state.secondaryZoneId.shouldNotBeNull()
+        val long = "Chapelco/San Martin de los Andes"
+        val t = WidgetTexts.from(
+            context,
+            state.copy(placeNames = state.placeNames + (zone to long), placeCodes = state.placeCodes + (zone to "CPC")),
+            true,
+        )
+        t.secondary.shouldNotBeNull() shouldContain long
+        t.secondaryShort.map { it.substringAfter(" in ") } shouldBe listOf("Chapelco", "CPC")
+        t.contentDescription shouldContain long
+        t.upcoming.first().secondaryShort.map { it.substringAfter(" in ") } shouldBe listOf("Chapelco", "CPC")
+        // The smallest cells join the other zone's time to the until line, place at its shortest.
+        t.untilCompact shouldBe "${t.subtitleLines.first()} · ${t.secondary!!.substringBefore(" in ")} CPC"
+    }
+
+    @Test
     fun `countdown targets the end of the current block within 24 h`() {
         val end = texts(DemoPlans.Scenario.AvoidLight).countdownEnd.shouldNotBeNull()
         (Duration.between(now, end) in Duration.ZERO..Duration.ofHours(24)) shouldBe true
