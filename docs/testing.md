@@ -23,18 +23,18 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 
 | Module | JVM tests | Screenshot goldens |
 |---|---|---|
-| `:app` | 89 | 12 |
+| `:app` | 90 | 12 |
 | `:core:circadian` | 76 | 0 |
 | `:core:data` | 184 | 0 |
-| `:core:designsystem` | 215 | 76 |
+| `:core:designsystem` | 229 | 76 |
 | `:core:model` | 28 | 0 |
-| `:core:notifications` | 146 | 0 |
-| `:feature:onboarding` | 83 | 35 |
-| `:feature:plan` | 172 | 30 |
+| `:core:notifications` | 192 | 9 |
+| `:feature:onboarding` | 87 | 35 |
+| `:feature:plan` | 184 | 31 |
 | `:feature:settings` | 81 | 30 |
 | `:feature:trips` | 97 | 25 |
-| `:widget` | 126 | 15 |
-| **Total** | **1297** | **223** |
+| `:widget` | 126 | 16 |
+| **Total** | **1374** | **234** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 

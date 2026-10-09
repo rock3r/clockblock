@@ -18,7 +18,9 @@ On a tablet or a wide screen, the trips list and the plan appear side by side, w
 From top to bottom:
 
 1. **The header** shows the trip, the day of the plan and how far off your body clock is, for example "Day 2 ·
-   Adapting · body 3½ h behind" or "Pre-trip day −1 · body 2½ h ahead".
+   Adapting · body 3½ h behind" or "Pre-trip day −1 · body 2½ h ahead". Its sky and its sun or moon show your body's
+   time of day. A faint ring on the sun's dotted path marks where the sun is by the clock, and a line joins the two
+   when your body is half an hour or more off.
 2. **The day strip** has one pill per day of the plan (see below).
 3. **The dial** compares two clocks (see below).
 4. **The Now card** says what to do right now.
