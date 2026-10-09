@@ -200,6 +200,54 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `advice inside a block of 24 h or more is narrated with its start, not as then`() {
+        // Noon, an hour into a 24 h 30 min flight (11:00 today to 11:30 tomorrow); sleep starts at 18:00 on board.
+        // On the face the flight "runs" 30 min (it wraps), so only real time can tell sleep comes first.
+        val takeOff = Instant.parse("2026-03-11T02:00:00Z") // 11:00 Tokyo
+        val long = tokyo.copy(
+            localMinute = 12 * 60f,
+            arcs = persistentListOf(
+                DialArc(
+                    "flight", AdviceType.Flight, 11 * 60f, 1440f, narratedEndMinute = 11 * 60f + 30f,
+                    startInstant = takeOff, endInstant = takeOff.plusSeconds((24 * 60 + 30) * 60L),
+                ),
+                DialArc(
+                    "sleep", AdviceType.Sleep, 18 * 60f, 480f,
+                    startInstant = takeOff.plusSeconds(7 * 3600L), endInstant = takeOff.plusSeconds(15 * 3600L),
+                ),
+            ),
+        )
+        val texts = spec(long).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
+        texts.filter { it.startsWith("then") }.shouldBeEmpty()
+        texts shouldContain "Sleep at 18:00"
+    }
+
+    @Test
+    fun `advice before the block's end across a fall-back change is narrated with its start, not as then`() {
+        // New York, 1 Nov 2026: clocks fall back at 02:00 EDT to 01:00 EST. A block from 00:30 EDT to 01:30 EST runs
+        // 2 h; sleep at 01:45 EDT starts inside it, though 01:45 on the face is after the block's 01:30 end.
+        val start = Instant.parse("2026-11-01T04:30:00Z") // 00:30 EDT
+        val state = tokyo.copy(
+            instant = start.plusSeconds(15 * 60L),
+            displayZoneId = "America/New_York",
+            localMinute = 45f,
+            arcs = persistentListOf(
+                DialArc(
+                    "avoid", AdviceType.AvoidLight, 30f, 120f, narratedEndMinute = 90f,
+                    startInstant = start, endInstant = Instant.parse("2026-11-01T06:30:00Z"), // 01:30 EST
+                ),
+                DialArc(
+                    "sleep", AdviceType.Sleep, 105f, 480f,
+                    startInstant = Instant.parse("2026-11-01T05:45:00Z"), endInstant = Instant.parse("2026-11-01T13:45:00Z"), // 01:45 EDT
+                ),
+            ),
+        )
+        val texts = spec(state).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
+        texts.filter { it.startsWith("then") }.shouldBeEmpty()
+        texts shouldContain "Sleep at 01:45"
+    }
+
+    @Test
     fun `a moment is in focus when it is due`() {
         val focus = tokyo.focusAt(16 * 60f + 30f)
         focus.current?.adviceId shouldBe "mel"
