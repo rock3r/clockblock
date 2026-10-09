@@ -98,6 +98,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
@@ -1163,27 +1164,9 @@ internal fun HomeZoneEditor(
         Column(verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
             results.forEachIndexed { index, place ->
                 val shape = segmentedShape(index, results.size)
-                val description = stringResource(R.string.settings_home_result_description, place.city, place.name, place.zoneId)
+                // The shared airport row (same as the trip editor and onboarding).
                 Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier
-                            .clip(shape)
-                            .clickable { onSelect(place) }
-                            .semantics(mergeDescendants = true) { contentDescription = description }
-                            .heightIn(min = 56.dp)
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                            .testTag(SettingsTags.homeResult(place)),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(place.displayCode, style = ClockblockTheme.textStyles.timeLabel, color = colors.primary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 44.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(place.city, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1)
-                            Text(place.name, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(gmtOffsetLabel(place.zone, now), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                    }
+                    PlaceResultRow(place, now, onClick = { onSelect(place) }, modifier = Modifier.clip(shape).testTag(SettingsTags.homeResult(place)))
                 }
             }
         }

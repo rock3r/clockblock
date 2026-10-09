@@ -1,4 +1,4 @@
-package dev.sebastiano.clockblocker.opus.feature.trips.editor
+package dev.sebastiano.clockblocker.opus.core.designsystem.component
 
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test

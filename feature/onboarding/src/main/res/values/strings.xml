@@ -30,7 +30,6 @@
     <string name="home_search_label">Search a city or airport</string>
     <string name="home_search_clear">Clear search</string>
     <string name="home_no_results">Nothing matches \u201c%1$s\u201d. Try a city or a three-letter airport code.</string>
-    <string name="home_result_description">%1$s, %2$s, time zone %3$s</string>
     <string name="home_local_time">%1$s now · %2$s</string>
 
     <!-- 3. Sleep. -->

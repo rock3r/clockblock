@@ -16,7 +16,6 @@
     <string name="settings_home_dialog_body">Your plans start from this clock. Search for a city or airport.</string>
     <string name="settings_home_search">Search a city or airport</string>
     <string name="settings_home_no_results">Nothing matches “%1$s”.</string>
-    <string name="settings_home_result_description">%1$s, %2$s, time zone %3$s</string>
     <string name="settings_sleep">Usual sleep</string>
     <string name="settings_sleep_value">%1$s–%2$s · %3$s</string>
     <string name="settings_sleep_dialog_title">When do you usually sleep?</string>
