@@ -226,6 +226,20 @@ class DialDstTest {
     }
 
     @Test
+    fun `seen from the second run of the repeated hour, a boundary in the first run is not ahead`() {
+        // From 01:30 EST, a block that ended at 01:45 EDT shows its end 15 minutes of the face ahead, but that 01:45
+        // is 45 real minutes past: Next lands on the face's 01:45 (EST), never backwards in real time.
+        val now = Instant.parse("2026-11-01T06:30:00Z")
+        val state = plan(
+            LocalDate.of(2026, 11, 1),
+            advice("first", AdviceType.Sleep, "2026-11-01T05:00:00Z", "2026-11-01T05:45:00Z"),
+        ).toDialState(now, newYork)
+        blockBoundaries(state).contains(15f) shouldBe true
+
+        blockBoundaryInstant(state, 15f) shouldBe Instant.parse("2026-11-01T06:45:00Z")
+    }
+
+    @Test
     fun `scrubbed to the second run of the repeated hour, the readouts follow the real instant`() {
         // The hand at +60 on the face (01:30) but the second 01:30 (EST): two real hours on, so the body clock,
         // which runs on real time, reads an hour later than at the first 01:30.

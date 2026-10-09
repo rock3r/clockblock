@@ -137,9 +137,11 @@ fun TwoSkiesDial(
         currentOnScrub?.invoke(landing?.atFor(currentState) ?: currentState.instantAt(offset))
     }
 
-    // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand.
+    // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand: off now, or at now
+    // on the face but in the other run of a repeated hour (a landing at offset 0).
     LaunchedEffect(Unit) {
-        if (scrub.value != 0f) landing.let { report(scrub.value, it?.at, it?.anchor ?: currentState.instant) }
+        val restored = landing
+        if (scrub.value != 0f || restored != null) report(scrub.value, restored?.at, restored?.anchor ?: currentState.instant)
     }
 
     /**
@@ -389,8 +391,19 @@ internal fun blockBoundaryInstant(state: DialState, offset: Float): Instant {
     val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull() ?: return state.instantAt(offset)
     fun at(minutes: Float) = abs(minutes - offset) < BoundaryToleranceMinutes
     // Only an instant whose wall-clock time is the boundary's: not a start the window clips, nor the real end of a
-    // block drawn forward past it (one that ends earlier on the face than it starts).
-    fun Instant.isHere() = at(faceMinutesFrom(state.instant, this, zone))
+    // block drawn forward past it (one that ends earlier on the face than it starts). And only one on the same side
+    // of now in real time as on the face: from the second run of the repeated hour, a first-run 01:45 sits ahead on
+    // the face but is already past. At the hand's own face time (offset 0) either run will do: the other one is an
+    // hour away in real time, but at now on the face.
+    fun Instant.isHere(): Boolean {
+        val real = Duration.between(state.instant, this)
+        val sameSide = when {
+            offset > 0f -> real > Duration.ZERO
+            offset < 0f -> real < Duration.ZERO
+            else -> true
+        }
+        return sameSide && at(faceMinutesFrom(state.instant, this, zone))
+    }
     for (arc in state.arcs) {
         val start = DialGeometry.relativeMinute(state.localMinute, arc.startMinute)
         val end = start + arc.sweepMinutes

@@ -91,6 +91,37 @@ class TwoSkiesDialActionsTest {
     }
 
     @Test
+    fun `a configuration change re-reports a landing in the repeated hour with the hand at now`() {
+        // At the first 01:30 (EDT), a block that started at 01:00 EDT ends at the second 01:30 (EST): on the face, now.
+        val firstRun = Instant.parse("2026-11-01T05:30:00Z")
+        val state = fallBack.copy(
+            instant = firstRun,
+            localMinute = 90f,
+            arcs = persistentListOf(
+                DialArc("sleep", AdviceType.Sleep, startMinute = 60f, sweepMinutes = 30f, startInstant = Instant.parse("2026-11-01T05:00:00Z"), endInstant = end),
+            ),
+        )
+        val reported = mutableListOf<Instant>()
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_previous_block))
+        compose.waitForIdle()
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
+        compose.waitForIdle()
+        reported.last() shouldBe end
+
+        // The host's preview isn't saved: the restored dial tells it again where the hand is.
+        reported.clear()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+
+        reported.shouldNotBeEmpty()
+        reported.last() shouldBe end
+    }
+
+    @Test
     fun `when now moves on, the landing moves with the hand`() {
         var state by mutableStateOf(fallBack)
         compose.setContent {
