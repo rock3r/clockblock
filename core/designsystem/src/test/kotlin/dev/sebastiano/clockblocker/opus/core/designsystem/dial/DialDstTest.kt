@@ -187,5 +187,34 @@ class DialDstTest {
         state.instantAt(10f) shouldBe Instant.parse("2026-11-01T06:40:00Z")
     }
 
+    private fun repeatedHour() = plan(
+        LocalDate.of(2026, 11, 1),
+        // 14:00 → 17:00 EDT the day before: starts before the window (16:30 EDT), so its drawn start is clipped.
+        advice("early", AdviceType.SeeBrightLight, "2026-10-31T18:00:00Z", "2026-10-31T21:00:00Z"),
+        // 00:30 EDT → 01:30 EST: ends in the second 01:30.
+        advice("late", AdviceType.Sleep, "2026-11-01T04:30:00Z", "2026-11-01T06:30:00Z"),
+        // 01:45 EST → 02:30 EST: starts in the second 01:45.
+        advice("second", AdviceType.AvoidLight, "2026-11-01T06:45:00Z", "2026-11-01T07:30:00Z"),
+    ).toDialState(fallNow, newYork)
+
+    @Test
+    fun `a boundary in the second run of the repeated hour reports the block's real instant (#94)`() {
+        val state = repeatedHour()
+        blockBoundaries(state) shouldBe listOf(-480f, -450f, 0f, 60f, 75f, 120f)
+        // The face alone can't tell the two 01:30s apart: the hand's own instant is the first one (EDT).
+        state.instantAt(60f) shouldBe Instant.parse("2026-11-01T05:30:00Z")
+
+        blockBoundaryInstant(state, 60f) shouldBe Instant.parse("2026-11-01T06:30:00Z") // late ends, 01:30 EST
+        blockBoundaryInstant(state, 75f) shouldBe Instant.parse("2026-11-01T06:45:00Z") // second starts, 01:45 EST
+        blockBoundaryInstant(state, 0f) shouldBe fallNow
+    }
+
+    @Test
+    fun `a boundary where the window clips a block is the window's edge, not the block's real start`() {
+        val state = repeatedHour()
+        blockBoundaryInstant(state, -480f) shouldBe state.instantAt(-480f) // 16:30 EDT, not 14:00
+        blockBoundaryInstant(state, -450f) shouldBe Instant.parse("2026-10-31T21:00:00Z")
+    }
+
     // endregion
 }
