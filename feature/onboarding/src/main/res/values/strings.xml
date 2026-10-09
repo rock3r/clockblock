@@ -63,7 +63,7 @@
     <string name="chronotype_headline">Lark, owl, or in between?</string>
     <string name="chronotype_body">On a free day with nothing planned, when would you naturally get going?</string>
     <string name="chronotype_definite_morning">Early bird</string>
-    <string name="chronotype_definite_morning_description">Up with the sun, fading by 10 pm.</string>
+    <string name="chronotype_definite_morning_description">Up with the sun, fading by 10\u00A0pm.</string>
     <string name="chronotype_moderate_morning">Morning person</string>
     <string name="chronotype_moderate_morning_description">Mornings are your best hours.</string>
     <string name="chronotype_intermediate">Somewhere in between</string>
@@ -114,10 +114,10 @@
     <string name="reminders_notifications">Notifications</string>
     <string name="reminders_notifications_description">So the plan can tell you when to see light, avoid it or sleep.</string>
     <string name="reminders_exact">Exact timing</string>
-    <string name="reminders_exact_description">Without it, Android may deliver reminders up to 10 minutes late.</string>
+    <string name="reminders_exact_description">Without it, Android may deliver reminders up to 10\u00A0minutes late.</string>
     <string name="reminders_allow">Allow</string>
     <string name="reminders_open_settings">Open settings</string>
-    <string name="reminders_granted">On</string>
+    <string name="reminders_granted">Allowed</string>
     <string name="reminders_allow_finish">Allow and finish</string>
     <string name="reminders_maybe_later">Maybe later</string>
     <string name="reminders_later_note">You can turn reminders on any time in Settings.</string>

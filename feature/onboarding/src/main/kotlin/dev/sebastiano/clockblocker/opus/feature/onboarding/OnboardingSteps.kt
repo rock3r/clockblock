@@ -536,6 +536,10 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
     )
 }
 
+/**
+ * Mirrors the Settings permission row: "Allowed" with a check beside the text when granted, otherwise a tonal
+ * button under the text, so long descriptions and large fonts never squeeze the words into a narrow column.
+ */
 @Composable
 private fun PermissionRow(
     title: String,
@@ -548,19 +552,23 @@ private fun PermissionRow(
 ) {
     val colors = MaterialTheme.colorScheme
     Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-            }
-            Spacer(Modifier.width(16.dp))
-            if (granted) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Icon(painterResource(R.drawable.onboarding_ic_check), contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.reminders_granted), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                    Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
-            } else {
+                if (granted) {
+                    Spacer(Modifier.width(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Icon(painterResource(R.drawable.onboarding_ic_check), contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.reminders_granted), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                    }
+                }
+            }
+            if (!granted) {
+                Spacer(Modifier.size(8.dp))
                 FilledTonalButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp).testTag(tag)) { Text(actionLabel) }
             }
         }
