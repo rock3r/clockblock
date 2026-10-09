@@ -81,14 +81,22 @@ you want onto the screen. You can resize both widgets.
 
 ### Two Clocks
 
-<img src="images/widget-two-clocks.png" alt="Two Clocks widgets. Top row: the small dial in light, dark and night-safe (black and amber), showing 15:20 local time, body 08:20, −7 h, and Avoid light until 16:30, then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with a card saying Tokyo · Day 2, Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, and a Done button." width="480" />
+<img src="images/widget-two-clocks.png" alt="Two Clocks widgets. Top row: the round dial in light, dark and night-safe (black and amber). Two rings of sky, a needle, 15:20 local time and 08:20 body time in the middle, and Avoid light until 16:30 underneath. Then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with two bars of sky crossed by a line at now, 15:20 above and 08:20 below, a card saying Tokyo · Day 2, Avoid light until 16:30, 08:30 in Lisbon, and a Done button." width="480" />
 
-The *Two Clocks* widget is a small version of the dial in the app. It shows the local time, the time your body
-clock thinks it is ("body 08:20"), the gap between them ("−7 h": your body is 7 hours behind), and the current
-block with its end time. The outer ring follows the sky through the day. The bigger sizes add a card with the
-place and plan day ("Tokyo · Day 2"), what comes next, the time in your other time zone, and a **Done** button.
-The biggest size also shows your route ("LIS → HND"), lists the next blocks (with their time in your other zone)
-and shows how far you've adapted.
+The *Two Clocks* widget draws the same two skies as the dial in the app (see
+[Following your plan](following-your-plan.md)). The outer ring is the sky where you are, and the inner ring is the
+sky your body thinks it is under. The needle points at the local time. In the middle are the local time and, in
+italics, the time your body clock thinks it is ("08:20").
+
+Where a round dial would be too small, the widget shows the two skies as two bars instead: the top bar is the sky
+where you are, the bottom bar is your body's sky, and a line crosses both at now. That's the smallest size, the
+one-row sizes, and wide sizes that are only two rows tall.
+
+Most sizes also show the current block with its end time ("Avoid light until 16:30"). The wide rows name the
+nights ("Tokyo night") and say how far behind or ahead your body is ("7 h behind"). Bigger sizes add a card with
+the place and plan day ("Tokyo · Day 2"), the time in your other time zone, and a **Done** button. The biggest size
+also shows your route ("LIS → HND"), lists the next blocks (with their time in your other zone) and shows how far
+you've adapted.
 
 ### Next up
 

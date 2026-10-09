@@ -366,6 +366,15 @@ drops only at 1.3×, that "Up next" never keeps a row the now block needs, and t
 larger than itself. The `remote_labels_*` goldens show every real label, and the `remote_minimums_*` goldens show
 each layout at its minimum size with the longest texts.
 
+Text on the dial follows the same rule.
+[`WidgetDialFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialFitTest.kt)
+lays out the dial of every Two Clocks layout at its minimum and checks that each piece of text stays inside its
+region, overlaps no other text and is at least 7 dp tall. It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
+12 h and 24 h, at several hours of the day, for each demo plan, on the home screen and redacted. It also checks the
+level each layout gets, that the needle and both clocks are always there, and that a redacted dial names no place.
+[`WidgetDialContrastTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialContrastTest.kt)
+checks the dial's ink against its face and skies in every widget palette.
+
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
 designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
@@ -389,7 +398,7 @@ What a screen reader hears matches what the widget shows:
   [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
   plays the documents in the View player and reads back its accessibility nodes.
 
-![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
+![Two Clocks in every layout: the Two strips at 1×1, in the 1×1 landscape, 2×1 and 4×1 rows (the wide ones with sky labels and "7 h behind") and beside the now card at 2×2 landscape; the Two skies dial at 2×3 and 4×3; including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
 
