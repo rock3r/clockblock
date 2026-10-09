@@ -143,7 +143,7 @@ class SettingsContentTest {
     @Test
     fun `permission details open by themselves when something needs attention`() {
         show(settingsState(exactAlarmsAllowed = false))
-        compose.onNodeWithText("1 needs your attention").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("1 permission needs attention").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("${SettingsTags.PermExact}_fix").performScrollTo().assertIsDisplayed()
     }
 
