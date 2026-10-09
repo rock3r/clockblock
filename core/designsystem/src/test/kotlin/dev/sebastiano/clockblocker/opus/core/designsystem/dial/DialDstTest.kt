@@ -1,5 +1,8 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DefaultDialLabels
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialOp
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TwoSkies
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.focusAt
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.Advice
@@ -10,6 +13,7 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.PhasePoint
 import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
@@ -101,6 +105,29 @@ class DialDstTest {
         val sleep = state.arcs.single()
         sleep.startMinute shouldBe (22 * 60f plusOrMinus 0.01f)
         sleep.sweepMinutes shouldBe (270f plusOrMinus 0.01f) // to 02:30, never into the past sector
+    }
+
+    @Test
+    fun `an arc clipped where the window starts inside the skipped hour starts at the window's face start`() {
+        // From 10:30 EDT after the change, the window starts 8 h of the face earlier, at 02:30: a time that never happens.
+        val state = plan(
+            LocalDate.of(2026, 3, 8),
+            advice("sleep", AdviceType.Sleep, "2026-03-08T06:00:00Z", "2026-03-08T08:00:00Z"), // 01:00 EST → 04:00 EDT
+        ).toDialState(Instant.parse("2026-03-08T14:30:00Z"), newYork)
+
+        val sleep = state.arcs.single()
+        sleep.startMinute shouldBe (150f plusOrMinus 0.01f) // 02:30
+        sleep.sweepMinutes shouldBe (90f plusOrMinus 0.01f) // to 04:00
+    }
+
+    @Test
+    fun `the body clock follows real time when the hand crosses the change`() {
+        // The body runs on UTC−4: 01:30 at 00:30 EST, and 04:00 at 04:00 EDT, 2½ h of real time later.
+        spring.bodyTime shouldBe LocalTime.of(1, 30)
+        spring.scrubbedTo(210f).bodyTime shouldBe LocalTime.of(4, 0)
+        val texts = TwoSkies.spec(spring, DialPalettes.Light, DefaultDialLabels(is24Hour = true), 328f, 328f, scrubMinutes = 210f)
+            .ops.filterIsInstance<DialOp.Text>().map { it.text }
+        texts shouldContain "04:00 body"
     }
 
     // endregion

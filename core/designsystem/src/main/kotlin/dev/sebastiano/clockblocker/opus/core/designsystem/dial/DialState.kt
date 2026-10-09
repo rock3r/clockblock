@@ -59,16 +59,12 @@ internal fun faceInstant(from: Instant, zone: ZoneId, minutes: Float): Instant {
 }
 
 /**
- * How many minutes of the wall-clock face [start] → [end] covers in [zone], at most a whole face: real time plus the
- * DST change in between (01:00 EST → 04:00 EDT is 2 h of real time and 3 h of the face). A block that would end
- * earlier on the face than it starts (inside a repeated hour) keeps its real length.
+ * Signed minutes of the wall-clock face from [from] to [to] in [zone]: the difference between their local times,
+ * which across a DST change differs from real time (01:00 EST → 04:00 EDT is 2 h of real time and 3 h of the face).
+ * The inverse of [faceInstant].
  */
-internal fun faceMinutesBetween(start: Instant, end: Instant, zone: ZoneId): Float {
-    val elapsed = Duration.between(start, end).seconds / 60f
-    val shift = (zone.rules.getOffset(end).totalSeconds - zone.rules.getOffset(start).totalSeconds) / 60f
-    val face = elapsed + shift
-    return if (face > 0f) face.coerceAtMost(DialGeometry.MinutesPerDay) else elapsed
-}
+internal fun faceMinutesFrom(from: Instant, to: Instant, zone: ZoneId): Float =
+    Duration.between(from.atZone(zone).toLocalDateTime(), to.atZone(zone).toLocalDateTime()).seconds / 60f
 
 /**
  * One advice window projected onto the dial, in display-zone minutes of the day. [startInstant] / [endInstant] are
@@ -82,7 +78,7 @@ data class DialArc(
     val startMinute: Float,
     /**
      * Minutes of the wall-clock face the arc covers, which across a DST change differ from real time (see
-     * [faceMinutesBetween]). Scrub offsets, block boundaries and focus are all in face minutes too; only
+     * [faceMinutesFrom]). Scrub offsets, block boundaries and focus are all in face minutes too; only
      * [DialState.instantAt] turns them back into real instants. 0 for instantaneous advice (melatonin): drawn as a dot.
      */
     val sweepMinutes: Float,
@@ -167,14 +163,27 @@ data class DialState(
      * face, so across a DST change face minutes and real minutes differ (see [faceInstant]).
      */
     fun instantAt(minutesFromNow: Float): Instant =
-        runCatching { ZoneId.of(displayZoneId) }.getOrNull()?.let { faceInstant(instant, it, minutesFromNow) }
-            ?: instant.plusSeconds((minutesFromNow * 60f).toLong())
+        zoneOrNull()?.let { faceInstant(instant, it, minutesFromNow) } ?: instant.plusSeconds((minutesFromNow * 60f).toLong())
+
+    /**
+     * How far the display zone's clocks move between now and [minutesFromNow] on the face, in minutes: +60 across a
+     * spring-forward change, −60 across a fall-back one, else 0. The body clock doesn't move with them, so its lead on
+     * local time ([bodyAheadMinutes]) changes by minus this much.
+     */
+    fun clockChangeAt(minutesFromNow: Float): Float {
+        if (minutesFromNow == 0f) return 0f
+        val zone = zoneOrNull() ?: return 0f
+        return (zone.rules.getOffset(instantAt(minutesFromNow)).totalSeconds - zone.rules.getOffset(instant).totalSeconds) / 60f
+    }
 
     /** Shift the readouts to another instant inside the dial's window (scrubbing), [minutesFromNow] on the face. */
     fun scrubbedTo(minutesFromNow: Float): DialState = copy(
         instant = instantAt(minutesFromNow),
         localMinute = (localMinute + minutesFromNow).mod(DialGeometry.MinutesPerDay),
+        bodyAheadMinutes = DialGeometry.minuteDelta(0f, bodyAheadMinutes - clockChangeAt(minutesFromNow)),
     )
+
+    private fun zoneOrNull(): ZoneId? = runCatching { ZoneId.of(displayZoneId) }.getOrNull()
 
     companion object {
         const val AlignedThresholdMinutes = 30f

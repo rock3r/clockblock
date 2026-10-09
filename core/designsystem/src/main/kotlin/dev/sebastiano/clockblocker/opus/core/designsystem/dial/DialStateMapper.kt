@@ -28,37 +28,40 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
     val bodyAhead = DialGeometry.minuteDelta(0f, (bodyOffset.totalSeconds - localOffset.totalSeconds) / 60f)
 
     // The window is 24 h of the wall-clock face (23 or 25 h of real time on a DST change day), so it never overlaps
-    // itself where it wraps.
-    val windowStart = faceInstant(instant, displayZone, -DialState.PastWindowMinutes)
-    val windowEnd = faceInstant(instant, displayZone, DialGeometry.MinutesPerDay - DialState.PastWindowMinutes)
+    // itself where it wraps. Advice is placed and clipped by its offset from now on the face, which keeps the
+    // window's edges where they belong even when they fall in an hour the clocks skip.
+    val nowMinute = DialGeometry.minuteOfDay(local)
+    val windowStart = -DialState.PastWindowMinutes
+    val windowEnd = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
 
     fun minuteOf(at: Instant): Float =
         DialGeometry.minuteOfDay(at.atZone(displayZone).toLocalTime())
+
+    fun face(at: Instant): Float = faceMinutesFrom(instant, at, displayZone)
 
     val arcs = allAdvice
         .sortedBy { it.start }
         .mapNotNull { advice ->
             if (advice.type.isMoment || advice.start == advice.end) {
-                if (advice.start.isBefore(windowStart) || !advice.start.isBefore(windowEnd)) return@mapNotNull null
+                val at = face(advice.start)
+                if (at < windowStart || at >= windowEnd) return@mapNotNull null
                 DialArc(
                     advice.id, advice.type, minuteOf(advice.start), 0f, isNow = advice.start == instant,
                     startInstant = advice.start, endInstant = advice.end,
                 )
             } else {
-                val s = maxOf(advice.start, windowStart)
-                val e = minOf(advice.end, windowEnd)
-                if (!s.isBefore(e)) return@mapNotNull null
-                val startMinute = minuteOf(s)
-                // Never past the window's end on the face: when that end falls in a skipped hour, its instant (the
-                // change itself) reads later on the face than the cutoff, and the arc would run into the past sector.
-                val toWindowEnd = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes -
-                    DialGeometry.relativeMinute(DialGeometry.minuteOfDay(local), startMinute)
-                val sweep = faceMinutesBetween(s, e, displayZone).let { if (toWindowEnd > 0f) it.coerceAtMost(toWindowEnd) else it }
+                val from = face(advice.start)
+                // Inside a repeated hour (fall back) a block can end earlier on the face than it starts
+                // (01:50 EDT → 01:10 EST): it keeps its real length instead.
+                val to = face(advice.end).let { if (it > from) it else from + Duration.between(advice.start, advice.end).seconds / 60f }
+                val s = maxOf(from, windowStart)
+                val e = minOf(to, windowEnd)
+                if (s >= e) return@mapNotNull null
                 DialArc(
                     adviceId = advice.id,
                     type = advice.type,
-                    startMinute = startMinute,
-                    sweepMinutes = sweep,
+                    startMinute = if (s == from) minuteOf(advice.start) else (nowMinute + s).mod(DialGeometry.MinutesPerDay),
+                    sweepMinutes = e - s,
                     isNow = instant in advice,
                     narratedEndMinute = minuteOf(advice.end),
                     startInstant = advice.start,
