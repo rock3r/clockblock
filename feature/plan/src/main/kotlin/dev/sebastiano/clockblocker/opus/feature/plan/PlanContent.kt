@@ -519,6 +519,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
         )
+        // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date.
+        val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
+        val daylight = remember(state.trip, shown.zone, shownDate) { headerDaylight(state.trip, shown) }
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -537,6 +540,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     // What the screen shows, not the raw pick: a spent pick is live in this very frame (selectedDay
                     // is only cleared after it), so the fade starts here rather than over an already-live sky.
                     skyKey = selectedDay.takeIf { dayBase != null },
+                    daylight = daylight,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },

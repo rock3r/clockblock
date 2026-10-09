@@ -76,6 +76,7 @@ on-screen time, not opens, is what gates its motion.
 | Advice glyph morph | a few/day (advice boundaries) | `glyphMorph` (Expressive) + one ambient cycle |
 | Dial scrub / back to now | daily | `dataSpatial`, hour haptics |
 | Body-clock sky | continuous | Repaint only; no animation of its own (the header sky cross-fades once on a day pick, a state change the user asked for) |
+| Header sun path + ghost ring (issue #21) | continuous | Static: repaints with the minute tick and a scrub, drawn in the draw phase, fades with the collapsing header; nothing animates, so Remove animations changes nothing |
 | Illustrations (Why? sheet, onboarding, empty state) | rare | Ambient loops + entrances |
 | Adaptation celebration (rings → Bloom + confetti) | once per trip | Full delight, one mover at a time |
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
