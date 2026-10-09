@@ -177,12 +177,19 @@ data class DialState(
         return minutesFromNow - Duration.between(instant, instantAt(minutesFromNow)).seconds / 60f
     }
 
-    /** Shift the readouts to another instant inside the dial's window (scrubbing), [minutesFromNow] on the face. */
-    fun scrubbedTo(minutesFromNow: Float): DialState = copy(
-        instant = instantAt(minutesFromNow),
-        localMinute = (localMinute + minutesFromNow).mod(DialGeometry.MinutesPerDay),
-        bodyAheadMinutes = DialGeometry.minuteDelta(0f, bodyAheadMinutes - clockChangeAt(minutesFromNow)),
-    )
+    /**
+     * Shift the readouts to another instant inside the dial's window (scrubbing), [minutesFromNow] on the face. [at]
+     * is the real instant there when the caller knows it better than [instantAt]: the second run of a fall-back
+     * night's repeated hour (a block boundary, see `blockBoundaryInstant`).
+     */
+    fun scrubbedTo(minutesFromNow: Float, at: Instant? = null): DialState {
+        val clockChange = if (at == null) clockChangeAt(minutesFromNow) else minutesFromNow - Duration.between(instant, at).seconds / 60f
+        return copy(
+            instant = at ?: instantAt(minutesFromNow),
+            localMinute = (localMinute + minutesFromNow).mod(DialGeometry.MinutesPerDay),
+            bodyAheadMinutes = DialGeometry.minuteDelta(0f, bodyAheadMinutes - clockChange),
+        )
+    }
 
     private fun zoneOrNull(): ZoneId? = runCatching { ZoneId.of(displayZoneId) }.getOrNull()
 
