@@ -263,6 +263,8 @@ Vertical rail (Structured-style). Each advice block is a capsule whose **height 
 ### C. Body-clock sky header
 A `LargeFlexibleTopAppBar` over a full-bleed sky painted by **body-clock time**, not local time, with a sun/moon at the body's solar position. Title "Lisbon → Tokyo", subtitle "Day 2 · body +5 h". It collapses to a thin gradient strip. This is the "aha": *outside it's noon, inside you it's 4 am.*
 
+The sun or moon rides a faint dashed half-sine path across the navigation row (issue #21): the sun from sunrise to sunset, the moon from sunset to sunrise. A **ghost ring** marks where it would be by the wall clock. When the body is ½ h or more off on the same half of the day, a faint arc joins the two along the path. In step, the ring circles the sun. When the wall clock is on the other half (before sunrise, after sunset), the ring waits at the nearer end. The sky, the path and both markers use the real sunrise and sunset where the traveller is that day (NOAA `Sun`, as in the dial), so the same hour lands on the same spot. Decoration only, no semantics: the subtitle says how far off the body is, in words. It fades with the collapsing header and never moves on its own.
+
 ### D. Wavy adaptation indicator ("wavy = jet-lagged")
 A `LinearWavyProgressIndicator` with `progress = adaptation %` and `amplitude = { misalignmentHours / initialMisalignment }`. The wave literally **calms down** as you adapt; it is flat on arrival-adapted. Reused in the trip list rows and the widget (as a static bitmap).
 
