@@ -1,12 +1,14 @@
 package dev.sebastiano.clockblocker.opus.widget.text
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.widget.rc.HostText
+import dev.sebastiano.clockblocker.opus.widget.rc.LabelFit
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.floats.shouldBeGreaterThan
+import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.ints.shouldBeLessThan
-import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -22,37 +24,6 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [37], qualifiers = "xxhdpi")
 class TextFitTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
-
-    @Test
-    fun `short labels keep the default 1x1 size`() {
-        TextFit.smallLabelSp(context, "Sleep") shouldBe 11
-        TextFit.smallLabelSp(context, "Nap if you're tired") shouldBe 11
-    }
-
-    @Test
-    fun `a single long word shrinks instead of breaking mid-word`() {
-        TextFit.smallLabelSp(context, "Desynchronisation") shouldBeLessThan 11
-    }
-
-    @Test
-    fun `never below the minimum size`() {
-        TextFit.smallLabelSp(context, "Supercalifragilisticexpialidocious") shouldBe 8
-    }
-
-    @Test
-    fun `short countdowns keep the default size, long ones never grow`() {
-        TextFit.smallCountdownSp(context, HostText.countdownWidest(42, compact = true)) shouldBe 12
-        TextFit.smallCountdownSp(context, HostText.countdownWidest(23 * 60 + 5, compact = true)) shouldBeLessThanOrEqual
-            TextFit.smallCountdownSp(context, HostText.countdownWidest(65, compact = true))
-    }
-
-    @Test
-    fun `a larger font scale never picks a larger size`() {
-        val atDefault = TextFit.smallLabelSp(context, "Clockblocked")
-        RuntimeEnvironment.setFontScale(1.3f)
-        TextFit.smallLabelSp(context, "Clockblocked") shouldBeLessThanOrEqual atDefault
-        TextFit.smallLabelSp(context, "Supercalifragilistic") shouldBe 8
-    }
 
     @Test
     fun `dial readouts follow font scale only up to the cap`() {
@@ -115,5 +86,31 @@ class TextFitTest {
         val atOneAndAHalf = TextFit.measure(context, "Avoid light", widthDp = 1000f, sp = 13, semibold = true).widthDp
         // The platform's 1.5× curve takes 13 sp to 20 dp, not 19.5: a linear guess let a fitted label ellipsize.
         (atOneAndAHalf / atOne).toDouble() shouldBe (20.0 / 13.0 plusOrMinus 0.01)
+    }
+
+    @Test
+    fun `text is measured at the bold text weight the player draws`() {
+        val regular = TextFit.measure(context, "See bright light", widthDp = 1000f, sp = 13).widthDp
+        val semibold = TextFit.measure(context, "See bright light", widthDp = 1000f, sp = 13, semibold = true).widthDp
+        // Bold text adds 300 to every captured weight (RemoteText bakes it in): measure the same, wider glyphs.
+        val bold = Configuration(context.resources.configuration).apply { fontWeightAdjustment = 300 }
+        val boldContext = context.createConfigurationContext(bold)
+        TextFit.weightAdjustment(boldContext) shouldBe 300
+        TextFit.measure(boldContext, "See bright light", widthDp = 1000f, sp = 13).widthDp shouldBeGreaterThan regular
+        TextFit.measure(boldContext, "See bright light", widthDp = 1000f, sp = 13, semibold = true).widthDp shouldBeGreaterThan
+            semibold
+        TextFit.weightAdjustment(context) shouldBe 0
+    }
+
+    @Test
+    fun `the countdown slot covers the widest countdown at the weight the player draws`() {
+        val widest = HostText.countdownWidest(23 * 60 + 59)
+        fun drawn(ctx: Context) = TextFit.widthDp(ctx, widest, LabelFit.COUNTDOWN_SP, TextFit.MEDIUM)
+        LabelFit.countdownWidthDp(context).toFloat() shouldBeGreaterThanOrEqual drawn(context)
+        val bold = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { fontWeightAdjustment = 300 },
+        )
+        // Bold text draws the Medium countdown at 800: the slot must cover that too, or it overlaps the label.
+        LabelFit.countdownWidthDp(bold).toFloat() shouldBeGreaterThanOrEqual drawn(bold)
     }
 }

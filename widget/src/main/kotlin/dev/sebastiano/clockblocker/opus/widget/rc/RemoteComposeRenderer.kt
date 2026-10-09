@@ -59,8 +59,8 @@ object RemoteComposeRenderer {
     }
 
     /**
-     * One document per responsive size; the host picks the largest that fits. Sizes that map
-     * to the same layout share one capture.
+     * One document per responsive size; the host plays the closest size that fits the widget, else the smallest
+     * (see [WidgetSizes.pick]). Sizes that map to the same key share one capture.
      */
     suspend fun <L> responsive(
         context: Context,

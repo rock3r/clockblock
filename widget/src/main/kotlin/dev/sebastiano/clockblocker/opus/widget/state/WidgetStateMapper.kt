@@ -29,6 +29,7 @@ object WidgetStateMapper {
      *   not be read, so the outcome is unknown.
      * @param route the trip's airport codes, if the trip could be read.
      * @param placeNames the trip's city per zone ([placeNames] of the trip), if the trip could be read.
+     * @param placeCodes the IATA code of each of those places ([placeCodes] of the trip).
      */
     fun map(
         plan: JetLagPlan?,
@@ -36,6 +37,7 @@ object WidgetStateMapper {
         logs: List<AdviceLog>? = emptyList(),
         route: WidgetRoute? = null,
         placeNames: Map<String, String> = emptyMap(),
+        placeCodes: Map<String, String> = emptyMap(),
     ): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
@@ -96,6 +98,7 @@ object WidgetStateMapper {
             adaptation = plan.adaptationProgressAt(now),
             route = route,
             placeNames = placeNames,
+            placeCodes = placeCodes,
         )
     }
 
@@ -104,9 +107,16 @@ object WidgetStateMapper {
      * (America/Los_Angeles) would say Los Angeles. The trip's origin and destination win over connections in the same
      * zone; places without a city are left to the zone's name.
      */
-    fun placeNames(trip: Trip): Map<String, String> = buildMap {
+    fun placeNames(trip: Trip): Map<String, String> = namedPlaces(trip).mapValues { it.value.city }
+
+    /** The IATA code of each place in [placeNames], where it has one: the short form of a long city name. */
+    fun placeCodes(trip: Trip): Map<String, String> =
+        namedPlaces(trip).mapValues { it.value.code }.filterValues { it.isNotBlank() }
+
+    /** The place that names each zone of [trip], with [placeNames]' precedence. */
+    private fun namedPlaces(trip: Trip): Map<String, Place> = buildMap {
         fun add(place: Place) {
-            if (place.city.isNotBlank()) put(place.zoneId, place.city)
+            if (place.city.isNotBlank()) put(place.zoneId, place)
         }
         trip.legs.forEach { add(it.origin); add(it.destination) }
         add(trip.origin)
@@ -124,6 +134,7 @@ object WidgetStateMapper {
             secondaryZoneId = null,
             route = null,
             placeNames = emptyMap(),
+            placeCodes = emptyMap(),
             arcs = state.arcs.filterNot { it.type?.isPrivate == true },
             redacted = true,
         )

@@ -32,15 +32,19 @@ import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.Bucket
+import dev.sebastiano.clockblocker.opus.widget.rc.CellDp
 import dev.sebastiano.clockblocker.opus.widget.rc.Glyph
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetSizes
 import dev.sebastiano.clockblocker.opus.widget.rc.widgetProfileFor
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
+import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import com.github.takahirom.roborazzi.captureRoboImage
 import kotlinx.coroutines.runBlocking
@@ -182,11 +186,11 @@ class WidgetScreenshotTest {
                         remoteNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76),
                         remoteNextUp(model(WidgetTheme.Dark), NextUpLayout.Wide, 360, 76),
                     ),
-                    themed { remoteNextUp(model(it, DemoPlans.Scenario.FreeTime), NextUpLayout.Medium, 176, 76) },
+                    themed { remoteNextUp(model(it, DemoPlans.Scenario.FreeTime), NextUpLayout.Medium, 176, 84) },
                     listOf(DemoPlans.Scenario.Sleep, DemoPlans.Scenario.AvoidLight, DemoPlans.Scenario.Adapted).map {
                         remoteNextUp(model(WidgetTheme.Light, it), NextUpLayout.Small, 76, 76)
                     } + remoteNextUp(model(WidgetTheme.NightSafe, DemoPlans.Scenario.Sleep), NextUpLayout.Small, 76, 76) +
-                        remoteNextUp(model(WidgetTheme.Light, scenario = null), NextUpLayout.Medium, 176, 76),
+                        remoteNextUp(model(WidgetTheme.Light, scenario = null), NextUpLayout.Medium, 176, 84),
                 ),
             )
         }
@@ -272,12 +276,51 @@ class WidgetScreenshotTest {
     private fun LabelGrid(models: List<WidgetModel>, small: Boolean) {
         val cells = models.map { m ->
             if (small) {
-                listOf(remoteNextUp(m, NextUpLayout.Small, 76, 76), remoteNextUp(m, NextUpLayout.Medium, 176, 76))
+                listOf(remoteNextUp(m, NextUpLayout.Small, 76, 76), remoteNextUp(m, NextUpLayout.Medium, 176, 84))
             } else {
                 listOf(remoteNextUp(m, NextUpLayout.Square, 176, 176), remoteClocks(m, TwoClocksLayout.Square, 176, 176))
             }
         }
         Grid(cells.chunked(2).map { it.flatten() }, gap = SQUARES_GAP)
+    }
+
+    /**
+     * Every Next up bucket at its minimum size (what the host may shrink it to), with the worst-case labels: "See
+     * bright light" with a 12-hour time, a long place name and the "Skipped" chip, and "Clockblocked".
+     */
+    @Test
+    fun remoteMinimumsNextUp() {
+        captureRoboImage("$DIR/remote_minimums_next_up.png") { Flow(minimumCells(WidgetSizes.NEXT_UP) { m, b -> remoteNextUp(m, b) }) }
+    }
+
+    /** [remoteMinimumsNextUp] at 130 % font size. */
+    @Test
+    fun remoteMinimumsNextUpLargeText() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        captureRoboImage("$DIR/remote_minimums_next_up_130.png") { Flow(minimumCells(WidgetSizes.NEXT_UP) { m, b -> remoteNextUp(m, b) }) }
+    }
+
+    /** Every Two Clocks bucket at its minimum size, with the worst-case labels. */
+    @Test
+    fun remoteMinimumsTwoClocks() {
+        captureRoboImage("$DIR/remote_minimums_two_clocks.png") { Flow(minimumCells(WidgetSizes.TWO_CLOCKS) { m, b -> remoteClocks(m, b) }) }
+    }
+
+    /** [remoteMinimumsTwoClocks] at 130 % font size. */
+    @Test
+    fun remoteMinimumsTwoClocksLargeText() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        captureRoboImage("$DIR/remote_minimums_two_clocks_130.png") { Flow(minimumCells(WidgetSizes.TWO_CLOCKS) { m, b -> remoteClocks(m, b) }) }
+    }
+
+    /** The worst-case models (see [remoteMinimumsNextUp]) in every bucket of [buckets], at the bucket's minimum. */
+    private fun <L> minimumCells(buckets: List<Bucket<L>>, cell: (WidgetModel, Bucket<L>) -> Cell): List<Cell> {
+        val models = labelModels(is24 = false, place = "San Francisco")
+        val skipped = models.first { it.texts.title == context.getString(R.string.widget_advice_see_bright_light) }.let { m ->
+            m.copy(texts = m.texts.copy(done = m.texts.done?.copy(logged = AdviceOutcome.Skipped, label = context.getString(R.string.widget_skipped))))
+        }
+        val adapted = models.first { it.texts.glyph == GlyphKind.Adapted }
+        return buckets.flatMap { bucket -> listOf(skipped, adapted.copy(palette = WidgetPalette.of(WidgetTheme.Dark))).map { cell(it, bucket) } }
     }
 
     /** Text-heavy buckets at 150 % font size. */
@@ -290,7 +333,7 @@ class WidgetScreenshotTest {
                     listOf(
                         remoteClocks(model(WidgetTheme.Light), TwoClocksLayout.Square, 176, 176),
                         remoteNextUp(model(WidgetTheme.Dark), NextUpLayout.Small, 76, 76),
-                        remoteNextUp(model(WidgetTheme.Light), NextUpLayout.Medium, 176, 76),
+                        remoteNextUp(model(WidgetTheme.Light), NextUpLayout.Medium, 176, 84),
                     ),
                     listOf(
                         remoteNextUp(model(WidgetTheme.Light), NextUpLayout.Wide, 360, 76),
@@ -307,11 +350,25 @@ class WidgetScreenshotTest {
 
     private fun themed(cell: (WidgetTheme) -> Cell): List<Cell> = WidgetTheme.entries.map(cell)
 
-    private fun remoteClocks(model: WidgetModel, layout: TwoClocksLayout, w: Int, h: Int): Cell =
-        remote(model, w, h) { TwoClocksRemote(model, layout) }
+    /** [layout] at [w] × [h], fitted for the bucket the host plays at that size (which must be [layout]'s). */
+    private fun remoteClocks(model: WidgetModel, layout: TwoClocksLayout, w: Int, h: Int): Cell {
+        val bucket = WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, CellDp(w.toFloat(), h.toFloat()))
+        check(bucket.layout == layout) { "The host plays ${bucket.layout} at $w×$h, not $layout" }
+        return remote(model, w, h) { TwoClocksRemote(model, layout, bucket.fitAt) }
+    }
 
-    private fun remoteNextUp(model: WidgetModel, layout: NextUpLayout, w: Int, h: Int): Cell =
-        remote(model, w, h) { NextUpRemote(model, layout) }
+    private fun remoteNextUp(model: WidgetModel, layout: NextUpLayout, w: Int, h: Int): Cell {
+        val bucket = WidgetSizes.pick(WidgetSizes.NEXT_UP, CellDp(w.toFloat(), h.toFloat()))
+        check(bucket.layout == layout) { "The host plays ${bucket.layout} at $w×$h, not $layout" }
+        return remote(model, w, h) { NextUpRemote(model, layout, bucket.fitAt) }
+    }
+
+    /** [bucket] at the smallest size the host plays it at ([Bucket.fitAt]). */
+    private fun remoteClocks(model: WidgetModel, bucket: Bucket<TwoClocksLayout>): Cell =
+        remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { TwoClocksRemote(model, bucket.layout, bucket.fitAt) }
+
+    private fun remoteNextUp(model: WidgetModel, bucket: Bucket<NextUpLayout>): Cell =
+        remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { NextUpRemote(model, bucket.layout, bucket.fitAt) }
 
     private fun remote(model: WidgetModel, w: Int, h: Int, content: @Composable () -> Unit): Cell {
         val d = document(w, h, content)
@@ -341,6 +398,23 @@ class WidgetScreenshotTest {
         @Suppress("RestrictedApiAndroidX") // test-only: pin the player clock so goldens are stable
         val document = RemoteDocument(ByteArrayInputStream(bytes), SystemClock(Clock.fixed(now, zone)))
         return Doc(widthDp, heightDp, w, h, document)
+    }
+
+    /** [cells] packed into rows that fit the 800 dp canvas, in order. */
+    @Composable
+    private fun Flow(cells: List<Cell>, gap: Dp = SQUARES_GAP, canvasDp: Int = 800) {
+        val rows = mutableListOf(mutableListOf<Cell>())
+        var used = gap.value
+        cells.forEach { cell ->
+            val width = cell.widthDp + 3 * gap.value
+            if (used + width > canvasDp && rows.last().isNotEmpty()) {
+                rows += mutableListOf<Cell>()
+                used = gap.value
+            }
+            rows.last() += cell
+            used += width
+        }
+        Grid(rows, gap)
     }
 
     /** [gap] spaces the cells and pads each backdrop; rows must fit the 800 dp canvas or the last cell is squeezed. */

@@ -6,8 +6,10 @@ import android.util.SizeF
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetSizes
 import dev.sebastiano.clockblocker.opus.widget.rc.widgetProfileFor
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
+import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -23,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.xmlpull.v1.XmlPullParser
 import java.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
@@ -71,5 +74,23 @@ class WidgetRendererTest {
         fun Map<SizeF, *>.areas() = keys.map { it.width * it.height }
         WidgetRenderer.NEXT_UP_SIZES.areas() shouldBe WidgetRenderer.NEXT_UP_SIZES.areas().sorted()
         WidgetRenderer.TWO_CLOCKS_SIZES.areas() shouldBe WidgetRenderer.TWO_CLOCKS_SIZES.areas().sorted()
+    }
+
+    @Test
+    fun `no provider lets a launcher place or resize a widget below the size its labels are fitted for`() {
+        val density = context.resources.displayMetrics.density
+        fun dp(xml: Int, attr: Int): Float {
+            val parser = context.resources.getXml(xml)
+            while (parser.next() != XmlPullParser.START_TAG) Unit
+            val values = context.resources.obtainAttributes(parser, intArrayOf(attr))
+            return values.getDimension(0, 0f).also { values.recycle() } / density
+        }
+        for (xml in listOf(R.xml.widget_next_up_info, R.xml.widget_two_clocks_info)) {
+            // Below WidgetSizes.FLOOR no bucket fits and the host plays the smallest one anyway, which may clip.
+            dp(xml, android.R.attr.minResizeWidth) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.width
+            dp(xml, android.R.attr.minResizeHeight) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.height
+            dp(xml, android.R.attr.minWidth) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.width
+            dp(xml, android.R.attr.minHeight) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.height
+        }
     }
 }

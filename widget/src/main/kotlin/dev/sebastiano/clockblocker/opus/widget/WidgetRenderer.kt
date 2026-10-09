@@ -8,6 +8,7 @@ import androidx.compose.remote.creation.profile.Profile
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationIntents
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
+import dev.sebastiano.clockblocker.opus.widget.rc.Bucket
 import dev.sebastiano.clockblocker.opus.widget.rc.DeepLinkIntents
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
@@ -16,6 +17,7 @@ import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeSupport
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetSizes
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import kotlin.coroutines.cancellation.CancellationException
@@ -74,41 +76,27 @@ class WidgetRenderer(
                 TWO_CLOCKS_SIZES,
                 click,
                 done,
-            ) { layout -> TwoClocksRemote(model, layout) }
+            ) { bucket -> TwoClocksRemote(model, bucket.layout, bucket.fitAt) }
             WidgetKind.NextUp -> RemoteComposeRenderer.responsive(
                 context,
                 profile,
                 NEXT_UP_SIZES,
                 click,
                 done,
-            ) { layout -> NextUpRemote(model, layout) }
+            ) { bucket -> NextUpRemote(model, bucket.layout, bucket.fitAt) }
         }
     }
 
     companion object {
         private const val TAG = "ClockblockWidget"
 
-        /**
-         * Responsive buckets, smallest area first. The host shows the largest that fits. Thresholds sit below typical
-         * launcher cell sizes: 1×1 (Compact), 2×2, 2×3, 4×2, 4×3.
-         */
-        val TWO_CLOCKS_SIZES: Map<SizeF, TwoClocksLayout> = linkedMapOf(
-            SizeF(90f, 90f) to TwoClocksLayout.Compact,
-            SizeF(120f, 120f) to TwoClocksLayout.Square,
-            SizeF(240f, 110f) to TwoClocksLayout.Wide,
-            SizeF(120f, 230f) to TwoClocksLayout.Tall,
-            SizeF(240f, 220f) to TwoClocksLayout.Large,
-        )
+        /** Two Clocks' responsive entries ([WidgetSizes.TWO_CLOCKS]): each bucket's minimum maps to that bucket. */
+        val TWO_CLOCKS_SIZES: Map<SizeF, Bucket<TwoClocksLayout>> = sizes(WidgetSizes.TWO_CLOCKS)
 
-        /** 1×1, 2×1, 4×1, 2×2, 4×2 (ribbon), 2×3 and 4×3 (the 2×3 layout, wider). Smallest area first. */
-        val NEXT_UP_SIZES: Map<SizeF, NextUpLayout> = linkedMapOf(
-            SizeF(40f, 40f) to NextUpLayout.Small,
-            SizeF(110f, 40f) to NextUpLayout.Medium,
-            SizeF(240f, 40f) to NextUpLayout.Wide,
-            SizeF(110f, 110f) to NextUpLayout.Square,
-            SizeF(240f, 110f) to NextUpLayout.Ribbon,
-            SizeF(110f, 250f) to NextUpLayout.Tall,
-            SizeF(240f, 250f) to NextUpLayout.Tall,
-        )
+        /** Next up's responsive entries ([WidgetSizes.NEXT_UP]). */
+        val NEXT_UP_SIZES: Map<SizeF, Bucket<NextUpLayout>> = sizes(WidgetSizes.NEXT_UP)
+
+        private fun <L> sizes(buckets: List<Bucket<L>>): Map<SizeF, Bucket<L>> =
+            buckets.associateByTo(linkedMapOf()) { SizeF(it.min.width, it.min.height) }
     }
 }
