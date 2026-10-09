@@ -52,7 +52,7 @@
     <string name="settings_perm_notifications">Notifications</string>
     <string name="settings_perm_notifications_description">Without this, reminders can\'t show at all.</string>
     <string name="settings_perm_exact">Exact timing</string>
-    <string name="settings_perm_exact_description">Without it, reminders may arrive up to 10 minutes late.</string>
+    <string name="settings_perm_exact_description">Without it, reminders may arrive up to 10\u00A0minutes late.</string>
     <string name="settings_perm_live">Live Updates</string>
     <string name="settings_perm_live_description">Travel-day progress in the status bar. Otherwise a normal notification.</string>
     <string name="settings_perm_battery">Battery optimisation</string>
@@ -73,8 +73,8 @@
         <item quantity="other">%1$d optional extras are off.</item>
     </plurals>
     <plurals name="settings_perm_summary_attention">
-        <item quantity="one">%1$d needs your attention</item>
-        <item quantity="other">%1$d need your attention</item>
+        <item quantity="one">%1$d permission needs attention</item>
+        <item quantity="other">%1$d permissions need attention</item>
     </plurals>
     <string name="settings_perm_summary_attention_description">Without it, reminders may not arrive, or arrive late.</string>
     <string name="settings_perm_expanded">Expanded</string>
