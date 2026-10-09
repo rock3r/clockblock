@@ -55,7 +55,7 @@ The app asks when you fall asleep and wake up with no alarm, and suggests an ans
 
 ### 5. Your tools
 
-<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Start adjusting before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
+<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
 
 Pick what you're happy to use. Each switch has the symbol of the advice it adds to your plan. When a switch is
 on, its row takes that advice's colour.
@@ -64,7 +64,7 @@ on, its row takes that advice's colour.
 |---|---|
 | Caffeine | Suggests little-and-often coffee to stay sharp, and a cut-off before sleep. If you don't drink coffee, turn it off. |
 | I can sleep on planes | When off, sleep on the plane becomes "rest in the dark" instead. |
-| Start adjusting before I leave | Shifts your clock a little on the days before departure, so you land partly adapted. |
+| Adjust before I leave | Shifts your clock a little on the days before departure, so you land partly adapted. |
 | Melatonin | Off by default. See below. |
 
 Then choose how hard the plan should push:

@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -198,18 +199,21 @@ private fun TripMenu(expanded: Boolean, onDismiss: () -> Unit, actions: TripCard
         actions.onCreateReturn?.let { onReturn ->
             MenuItem(R.string.trip_action_return, R.drawable.ic_trips_return, TripsTestTags.MenuReturn) { onDismiss(); onReturn() }
         }
-        MenuItem(R.string.trip_action_delete, R.drawable.ic_trips_delete, TripsTestTags.MenuDelete) {
+        MenuItem(R.string.trip_action_delete, R.drawable.ic_trips_delete, TripsTestTags.MenuDelete, destructive = true) {
             onDismiss(); actions.onDelete()
         }
     }
 }
 
+/** A menu entry; [destructive] ones (Delete) take the error colour for both label and icon. */
 @Composable
-private fun MenuItem(label: Int, icon: Int, tag: String, onClick: () -> Unit) {
+private fun MenuItem(label: Int, icon: Int, tag: String, destructive: Boolean = false, onClick: () -> Unit) {
+    val error = MaterialTheme.colorScheme.error
     DropdownMenuItem(
         text = { Text(stringResource(label)) },
         leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
         onClick = onClick,
+        colors = if (destructive) MenuDefaults.itemColors(textColor = error, leadingIconColor = error) else MenuDefaults.itemColors(),
         modifier = Modifier.testTag(tag),
     )
 }
