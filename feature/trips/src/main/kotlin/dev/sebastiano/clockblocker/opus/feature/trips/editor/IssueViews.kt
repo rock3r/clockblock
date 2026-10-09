@@ -50,7 +50,7 @@ internal fun TripIssue.fix(): IssueFix? = when (this) {
 
 /**
  * One validation finding, inline under its leg. Severity is carried by colour, icon *and* a text label
- * ("Error" / "Check this" / "Note"), never colour alone. Errors are announced politely as they appear.
+ * ("Fix this" / "Check this" / "Note"), never colour alone. Errors are announced politely as they appear.
  */
 @Composable
 internal fun IssueBanner(
