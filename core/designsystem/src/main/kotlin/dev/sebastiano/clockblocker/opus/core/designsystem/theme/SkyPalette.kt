@@ -28,17 +28,26 @@ class SkyPalette internal constructor(private val skies: Map<SkyPhase, SkyGradie
 
     operator fun get(phase: SkyPhase): SkyGradient = skies.getValue(phase)
 
-    /** Keyframes (hour of day → phase) for a day with the given sunrise/sunset hours. */
-    internal fun keyframes(sunriseHour: Float, sunsetHour: Float): List<Pair<Float, SkyPhase>> = listOf(
-        (sunriseHour - 2.0f) to SkyPhase.Night,
-        (sunriseHour - 0.75f) to SkyPhase.PreDawn,
-        (sunriseHour + 0.25f) to SkyPhase.Dawn,
-        (sunriseHour + 2.25f) to SkyPhase.Day,
-        (sunsetHour - 1.75f) to SkyPhase.Day,
-        (sunsetHour - 0.5f) to SkyPhase.Golden,
-        (sunsetHour + 0.5f) to SkyPhase.Dusk,
-        (sunsetHour + 1.75f) to SkyPhase.Night,
-    ).map { (h, p) -> wrap(h) to p }.sortedBy { it.first }
+    /**
+     * Keyframes (hour of day → phase) for a day with the given sunrise/sunset hours. A sunset after midnight can be
+     * past 24 h or an hour of the clock before sunrise. A night under [NightSpan] (near the midnight sun) or a day
+     * under [DaySpan] (near the polar night) squeezes its keyframes in proportion, so they keep their order.
+     */
+    internal fun keyframes(sunriseHour: Float, sunsetHour: Float): List<Pair<Float, SkyPhase>> {
+        val day = wrap(sunsetHour - sunriseHour).let { if (it == 0f) 24f else it }
+        val d = (day / DaySpan).coerceAtMost(1f)
+        val n = ((24f - day) / NightSpan).coerceAtMost(1f)
+        return listOf(
+            (sunriseHour - 2.0f * n) to SkyPhase.Night,
+            (sunriseHour - 0.75f * n) to SkyPhase.PreDawn,
+            (sunriseHour + 0.25f * d) to SkyPhase.Dawn,
+            (sunriseHour + 2.25f * d) to SkyPhase.Day,
+            (sunsetHour - 1.75f * d) to SkyPhase.Day,
+            (sunsetHour - 0.5f * d) to SkyPhase.Golden,
+            (sunsetHour + 0.5f * n) to SkyPhase.Dusk,
+            (sunsetHour + 1.75f * n) to SkyPhase.Night,
+        ).map { (h, p) -> wrap(h) to p }.sortedBy { it.first }
+    }
 
     /** The dominant (nearest keyframe) phase at [hour] (0–24, fractional). */
     fun phaseAt(hour: Float, sunriseHour: Float = DefaultSunrise, sunsetHour: Float = DefaultSunset): SkyPhase {
@@ -105,6 +114,13 @@ class SkyPalette internal constructor(private val skies: Map<SkyPhase, SkyGradie
     companion object {
         const val DefaultSunrise = 6.5f
         const val DefaultSunset = 19.0f
+
+        /**
+         * The shortest night (dusk, night, night, pre-dawn: 3¾ h between the first and last) and day (dawn, day, day,
+         * golden: 4 h) whose keyframes keep their usual hours; shorter ones squeeze them in proportion.
+         */
+        private const val NightSpan = 4.0f
+        private const val DaySpan = 4.5f
 
         /** Oklab lightness above which dark-theme skies are compressed, and by how much. */
         private const val DarkKnee = 0.30f
