@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.Sun
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -45,6 +46,45 @@ class HeaderArcTest {
         london shouldNotBe HeaderDaylight.Default
         london.sunriseHour shouldBeIn 4.5f..5.0f
         london.sunsetHour shouldBeIn 21.0f..21.5f
+    }
+
+    private val tromso = Place("TOS", "Tromsø", "Tromsø", "NO", "Europe/Oslo", 69.65, 18.96)
+    private val oslo = ZoneId.of("Europe/Oslo")
+
+    @Test
+    fun `a sunset after midnight keeps the real day, its sunset past 24 h (#97)`() {
+        // Tromsø, 17 May 2026: the sun sets at 00:06 (last night's sunset) and rises again before 02:00. Tonight's
+        // sunset is past this day, at 00:40 on the 18th, so the header's day ends at last night's: 24:06.
+        val daylight = headerDaylight(tromso, oslo, LocalDate.of(2026, 5, 17))
+        daylight shouldNotBe HeaderDaylight.Default
+        daylight.sunriseHour shouldBeIn 0.5f..2f
+        daylight.sunsetHour shouldBeIn 24.05f..24.15f
+        daylight.arcPoint(0.33f).isSun.shouldBeFalse() // 00:20: the sun has set
+        daylight.arcPoint(0.05f).isSun.shouldBeTrue() // 00:03: not yet
+        daylight.arcPoint(23.9f).isSun.shouldBeTrue()
+    }
+
+    private val late = HeaderDaylight(sunriseHour = 1.5f, sunsetHour = 24.5f)
+
+    @Test
+    fun `past midnight the sun still rides the arc to its sunset, the moon the short night`() {
+        late.arcPoint(13f) shouldBe ArcPoint(0.5f, isSun = true)
+        late.arcPoint(0.25f).isSun.shouldBeTrue()
+        late.arcPoint(1f) shouldBe ArcPoint(0.5f, isSun = false)
+    }
+
+    @Test
+    fun `every point of a day with a sunset after midnight lies on the arc`() = runTest {
+        checkAll(Arb.numericFloat(-48f, 48f)) { hour -> late.arcPoint(hour).t shouldBeIn 0f..1f }
+    }
+
+    @Test
+    fun `across a sunset after midnight the ghost waits at the nearer end`() {
+        // Body in the short night, wall clock in the evening sun: the ring waits at the sunset end of the night.
+        late.ghostT(bodyHour = 1f, localHour = 23f) shouldBe 0f
+        // Body in the evening sun, wall clock in the short night: at the sunset end of the day.
+        late.ghostT(bodyHour = 22f, localHour = 0.75f) shouldBe 1f
+        late.joins(bodyHour = 22f, localHour = 0.25f).shouldBeTrue()
     }
 
     @Test
