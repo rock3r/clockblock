@@ -11,6 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -29,6 +32,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -594,6 +598,44 @@ class PlanContentTest {
             compose.mainClock.advanceTimeByFrame()
             compose.onAllNodesWithTag(PlanTags.HeaderSky).assertCountEquals(1)
         }
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - scrolling the rail by hand marks the day in view on the strip, without picking it`() {
+        show(midAdaptation)
+        val inView = hasStateDescription(context.getString(R.string.plan_strip_pill_in_view))
+        compose.onNodeWithTag(PlanTags.dayPill(4)).assert(!inView)
+
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(4)).assert(inView).assertIsNotSelected()
+        // Today stays the strip's selection (live), and only one pill is marked.
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assertIsSelected().assert(!inView)
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assert(!inView)
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun `two panes - the strip scrolls to the day the rail shows`() {
+        show(midAdaptation)
+        val last = realPlan.days.last().index
+        // The strip is swiped back to the plan's first days, leaving the last day's pill out of sight.
+        compose.onNodeWithTag(PlanTags.DayStrip).performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(last)).assertIsNotDisplayed()
+
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(last)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(last)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `one pane - the strip doesn't mark a day for the rail`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        compose.waitForIdle()
+        compose.onAllNodes(hasStateDescription(context.getString(R.string.plan_strip_pill_in_view))).assertCountEquals(0)
     }
 
     @Test
