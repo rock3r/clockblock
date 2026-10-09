@@ -12,6 +12,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -578,7 +580,15 @@ private fun ProfileSection(
         onAcknowledgeMelatonin = actions::acknowledgeMelatonin,
     )
     SectionHeader(stringResource(R.string.settings_effort))
-    EffortSelector(profile.intensity, onSelect = { intensity: Intensity -> actions.updateProfile { it.copy(intensity = intensity) } })
+    // In a card like Theme, so every control on the page sits on a surface.
+    Surface(shape = segmentedShape(0, 1), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        EffortSelector(
+            profile.intensity,
+            onSelect = { intensity: Intensity -> actions.updateProfile { it.copy(intensity = intensity) } },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            onCard = true,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -1209,8 +1219,16 @@ internal fun ImportConfirm(pending: PendingImport, onReplace: () -> Unit, onMerg
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.settings_cancel)) }
-            OutlinedButton(onClick = onMerge, modifier = Modifier.heightIn(min = 48.dp).testTag(SettingsTags.ImportMerge)) { Text(stringResource(R.string.settings_import_merge)) }
-            Button(onClick = onReplace, modifier = Modifier.heightIn(min = 48.dp).testTag(SettingsTags.ImportReplace)) { Text(stringResource(R.string.settings_import_replace)) }
+            // Destructive actions never take the primary emphasis: Replace deletes trips, so it is outlined in the
+            // error colour, and the safe Merge is the filled primary.
+            val error = MaterialTheme.colorScheme.error
+            OutlinedButton(
+                onClick = onReplace,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = error),
+                border = BorderStroke(1.dp, error),
+                modifier = Modifier.heightIn(min = 48.dp).testTag(SettingsTags.ImportReplace),
+            ) { Text(stringResource(R.string.settings_import_replace)) }
+            Button(onClick = onMerge, modifier = Modifier.heightIn(min = 48.dp).testTag(SettingsTags.ImportMerge)) { Text(stringResource(R.string.settings_import_merge)) }
         }
     }
 }

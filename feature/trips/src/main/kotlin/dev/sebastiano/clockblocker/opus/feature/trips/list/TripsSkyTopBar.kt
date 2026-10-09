@@ -102,7 +102,8 @@ internal fun TripsSkyTopBar(
             if (subtitle != null) {
                 TopAppBar(
                     title = titleSlot,
-                    subtitle = { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    // One line here: the body clock and the counts share it ("Body clock 10:03 · 1 upcoming").
+                    subtitle = { Text(subtitle.lines().joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     actions = actions,
                     colors = colors,
                     scrollBehavior = scrollBehavior,
