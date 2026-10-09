@@ -216,5 +216,27 @@ class DialDstTest {
         blockBoundaryInstant(state, -450f) shouldBe Instant.parse("2026-10-31T21:00:00Z")
     }
 
+    @Test
+    fun `a block drawn past its real end keeps the hand's instant at its drawn end`() {
+        // 01:50 EDT → 01:10 EST is drawn forward with its real 20 minutes, to 02:10 on the face: its real end, 01:10,
+        // isn't where the arc ends, so the boundary there stays 02:10 (EST), the time the hand shows.
+        val state = fall()
+        blockBoundaryInstant(state, 100f) shouldBe state.instantAt(100f)
+        blockBoundaryInstant(state, 80f) shouldBe Instant.parse("2026-11-01T05:50:00Z")
+    }
+
+    @Test
+    fun `scrubbed to the second run of the repeated hour, the readouts follow the real instant`() {
+        // The hand at +60 on the face (01:30) but the second 01:30 (EST): two real hours on, so the body clock,
+        // which runs on real time, reads an hour later than at the first 01:30.
+        val state = repeatedHour()
+        val first = state.scrubbedTo(60f)
+        val second = state.scrubbedTo(60f, at = Instant.parse("2026-11-01T06:30:00Z"))
+
+        second.instant shouldBe Instant.parse("2026-11-01T06:30:00Z")
+        second.localTime shouldBe LocalTime.of(1, 30)
+        second.bodyTime shouldBe first.bodyTime.plusHours(1)
+    }
+
     // endregion
 }

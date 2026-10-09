@@ -44,7 +44,9 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotio
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.TimeFormatter
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.min
@@ -120,10 +122,17 @@ fun TwoSkiesDial(
 
     val boundaries = remember(state) { blockBoundaries(state) }
 
+    // The real instant the hand last landed on, when it isn't the face's own (a block boundary in a fall-back night's
+    // repeated hour, see blockBoundaryInstant). The drawn body clock and the description follow it, as the host's
+    // cards do; any other report clears it.
+    var landed by remember { mutableStateOf<Landing?>(null) }
+    val landing by remember { derivedStateOf { landed?.takeIf { it.offset == scrub.value } } }
+
     // The scrub offset is minutes of the wall-clock face (as are the arcs and boundaries); the host gets the real
-    // instant under the hand, which differs across a DST change. [at] overrides it when the caller knows better: a
-    // block boundary inside a fall-back night's repeated hour (see blockBoundaryInstant).
+    // instant under the hand, which differs across a DST change. [at] overrides it when the caller knows better (see
+    // landed above).
     fun report(offset: Float, at: Instant? = null) {
+        landed = at?.let { Landing(offset, it) }
         currentOnScrub?.invoke(at ?: currentState.instantAt(offset))
     }
 
@@ -154,7 +163,7 @@ fun TwoSkiesDial(
 
     // Semantics (composition): coarse scrub so TalkBack text doesn't recompose every frame.
     val coarseScrub by remember { derivedStateOf { (scrub.value / 5f).toInt() * 5f } }
-    val shown = if (coarseScrub == 0f) state else state.scrubbedTo(coarseScrub)
+    val shown = landing?.let { state.scrubbedTo(it.offset, it.at) } ?: if (coarseScrub == 0f) state else state.scrubbedTo(coarseScrub)
     val description = dialDescription(shown, formatter)
     val nextLabel = stringResource(R.string.dial_action_next_block)
     val previousLabel = stringResource(R.string.dial_action_previous_block)
@@ -285,7 +294,9 @@ fun TwoSkiesDial(
             widthDp = size.width / density,
             heightDp = size.height / density,
             scrubMinutes = scrub.value,
-            bodyAheadMinutes = bodyAhead.value,
+            // The spec turns the body sky by the clock change under the hand on the face; a landing in the second run
+            // of the repeated hour is that much more real time on, so the body clock reads that much later.
+            bodyAheadMinutes = bodyAhead.value + (landing?.let { currentState.minutesPastFace(it) } ?: 0f),
             mode = bodyRing,
             measurer = ComposeDialTextMeasurer(measurer, fonts, this),
             textGrowth = fontScale,
@@ -364,19 +375,28 @@ internal fun blockBoundaries(state: DialState): List<Float> = state.arcs
  * knows which 01:30 it ends at (#94). Anything else, or an arc without instants, falls back to [DialState.instantAt].
  */
 internal fun blockBoundaryInstant(state: DialState, offset: Float): Instant {
-    val windowStart = -DialState.PastWindowMinutes
-    val windowEnd = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
+    val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull() ?: return state.instantAt(offset)
     fun at(minutes: Float) = abs(minutes - offset) < BoundaryToleranceMinutes
+    // Only an instant whose wall-clock time is the boundary's: not a start the window clips, nor the real end of a
+    // block drawn forward past it (one that ends earlier on the face than it starts).
+    fun Instant.isHere() = at(faceMinutesFrom(state.instant, this, zone))
     for (arc in state.arcs) {
         val start = DialGeometry.relativeMinute(state.localMinute, arc.startMinute)
         val end = start + arc.sweepMinutes
-        if (arc.startInstant != null && at(start) && !at(windowStart)) return arc.startInstant
-        if (arc.endInstant != null && at(end) && arc.sweepMinutes > 0f && !at(windowEnd)) return arc.endInstant
+        arc.startInstant?.takeIf { at(start) && it.isHere() }?.let { return it }
+        arc.endInstant?.takeIf { at(end) && it.isHere() }?.let { return it }
     }
     return state.instantAt(offset)
 }
 
 private const val BoundaryToleranceMinutes = 0.01f
+
+/** The hand at [offset] on the face, at the real instant [at] (see blockBoundaryInstant). */
+private data class Landing(val offset: Float, val at: Instant)
+
+/** Real minutes from the instant the face gives the [landing]'s offset to the landing's own instant. */
+private fun DialState.minutesPastFace(landing: Landing): Float =
+    Duration.between(instantAt(landing.offset), landing.at).seconds / 60f
 
 @Composable
 private fun dialDescription(state: DialState, formatter: TimeFormatter): String {

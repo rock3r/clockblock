@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
@@ -61,5 +62,7 @@ class TwoSkiesDialActionsTest {
 
         reported.shouldNotBeEmpty()
         reported.last() shouldBe end
+        // The dial reads the same instant as the cards: two real hours on, the body clock (in step at 00:30) is 2:30.
+        compose.onNodeWithTag("dial").assertContentDescriptionContains("Your body clock is 2:30 AM", substring = true)
     }
 }
