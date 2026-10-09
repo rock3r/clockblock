@@ -48,14 +48,15 @@ fun celestialPosition(
 ): CelestialPosition {
     val h = ((hour % 24f) + 24f) % 24f
     // Measured round the clock from sunrise, so a sunset after midnight (past 24 h, or an hour before sunrise) works.
-    val dayLength = (((sunsetHour - sunriseHour) % 24f + 24f) % 24f).coerceIn(1f, 23f)
-    val sinceSunrise = (((h - sunriseHour) % 24f) + 24f) % 24f
+    val dayLength = (sunsetHour - sunriseHour).mod(24f).coerceIn(1f, 23f)
+    val sinceSunrise = (h - sunriseHour).mod(24f)
     val isSun = sinceSunrise <= dayLength
+    // Clamped: a day under 1 h or over 23 h is drawn as 1 h or 23 h, so the far end of the other half stays on the arc.
     val t = if (isSun) {
         sinceSunrise / dayLength
     } else {
-        (sinceSunrise - dayLength) / (24f - dayLength)
-    }
+        (((h - sunsetHour) % 24f + 24f) % 24f) / (24f - dayLength)
+    }.coerceIn(0f, 1f)
     val x = 0.1f + 0.8f * t
     val y = horizon - arc * sin(PI.toFloat() * t)
     return CelestialPosition(x, y, isSun)
