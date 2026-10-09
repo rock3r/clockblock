@@ -264,7 +264,8 @@ once you're adapted the two rings are identical.
   hold them, and readouts lose "in sync", then AM/PM, but never the body time. `liveReadouts` lays a
   12-hour time out for its widest reading, for hosts that rewrite it between captures. `remote_dial_vs_app.png` in the widget goldens shows the two
   renderers side by side.
-- **Two strips** (`TwoStrips.spec()`): the same two skies as two horizontal bars over a window round now, local on
+- **Two strips** (`TwoStrips.spec()`): the same two skies as two horizontal bars over a 24 h window round now (8 h back
+  to the hour, like the dial, so it never shows more than the dial's 16 h ahead), local on
   top and body below, with a now line across both. Widgets use them where a round dial gets too small to read: the
   1×1, the 2×1 and 4×1 rows and the 2×2 landscape card. The app keeps Two skies as its hero. Levels go by the box:
   under 150 dp wide is Glance (local time, the bars, and body time where it fits), wide boxes are Simple (bar labels,

@@ -16,16 +16,14 @@ import kotlin.math.min
  * the jet lag, [BodyRingMode]). A now line crosses both, so one glance shows "afternoon here, morning for you", and
  * the bars line up once you've adapted. No curved text.
  *
- * The window is a fixed 24 h with now [LeadFraction] of the way in; live hosts slide the now line along the
+ * The window is a fixed 24 h with now the dial's past ([DialState.PastWindowMinutes], on the hour) in, so it ends where
+ * the dial state's advice does; live hosts slide the now line along the
  * [TimeAxis] until the next capture. Levels, by the box ([DetailLevel.forStrip]):
  * - [DetailLevel.Glance]: the bars and the now line between the two times (a 1×1 widget, a narrow 2×1).
  * - [DetailLevel.Simple]: the times beside or above the bars, the bars' night labels, the advice in focus.
  * - [DetailLevel.Full]: adds the advice in words, hour rows with the times on the now line, and the jet lag bracket.
  */
 object TwoStrips {
-    /** Where now sits along the window when captured. */
-    const val LeadFraction = 0.3f
-
     /**
      * Lays the strips out in a [widthDp] × [heightDp] box.
      *
@@ -65,9 +63,12 @@ object TwoStrips {
     fun defaultPlaceOptions(state: DialState): List<String> =
         listOfNotNull(state.placeName?.takeIf { it.isNotBlank() }, ZoneLabels.city(state.displayZoneId)).distinct()
 
-    /** The first local minute of the window for now at [nowMinute]: [LeadFraction] of a day earlier, on the hour. */
+    /**
+     * The first local minute of the window for now at [nowMinute]: the dial's past earlier, back to the hour. Rounding
+     * back keeps the window's end at most the dial state's 16 h ahead, so no block it hasn't got can be due on screen.
+     */
     fun windowStart(nowMinute: Float): Float =
-        (floor((nowMinute - LeadFraction * DialGeometry.MinutesPerDay) / 60f) * 60f).mod(DialGeometry.MinutesPerDay)
+        (floor((nowMinute - DialState.PastWindowMinutes) / 60f) * 60f).mod(DialGeometry.MinutesPerDay)
 
     private class Builder(
         val state: DialState,

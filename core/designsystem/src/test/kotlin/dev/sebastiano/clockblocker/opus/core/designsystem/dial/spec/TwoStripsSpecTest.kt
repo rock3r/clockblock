@@ -88,6 +88,18 @@ class TwoStripsSpecTest {
     }
 
     @Test
+    fun `the strips show no more future than the dial state holds`() = runTest {
+        // The dial state keeps advice up to its past window short of a day ahead; the strips must not show beyond it.
+        val future = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
+        checkAll(Arb.int(0, 1439)) { now ->
+            val shown = (TwoStrips.windowStart(now.toFloat()) + DialGeometry.MinutesPerDay - now).mod(DialGeometry.MinutesPerDay)
+                .let { if (it == 0f) DialGeometry.MinutesPerDay else it }
+            (shown <= future) shouldBe true
+            (shown > future - 60f) shouldBe true
+        }
+    }
+
+    @Test
     fun `the level comes from the box`() {
         DetailLevel.forStrip(117f, 51f) shouldBe DetailLevel.Glance
         DetailLevel.forStrip(56f, 50f) shouldBe DetailLevel.Glance
@@ -99,14 +111,14 @@ class TwoStripsSpecTest {
     }
 
     @Test
-    fun `now sits about a third of the way along a 24 h window that starts on the hour`() {
+    fun `now sits the dial's 8 h in, back to the hour, along a 24 h window that starts on the hour`() {
         val s = spec()
         val axis = s.axis.shouldNotBeNull()
         axis.spanMinutes shouldBe DialGeometry.MinutesPerDay
         (axis.startMinute % 60f) shouldBe 0f
         val along = (axis.x(tokyo.localMinute) - axis.left) / (axis.right - axis.left)
-        along shouldBeGreaterThan 0.26f
-        along shouldBeLessThan 0.31f
+        along shouldBeGreaterThan 480f / 1440f
+        along shouldBeLessThan 540f / 1440f + 0.001f
         s.nowMinute shouldBe tokyo.localMinute
     }
 
@@ -168,10 +180,10 @@ class TwoStripsSpecTest {
 
     @Test
     fun `a block the window's seam cuts draws both pieces, its glyph on the one under the now line`() {
-        // 07:30 under an overnight sleep (23:30–08:00): the window starts at midnight, so the block shows at both ends.
+        // 08:30 under an overnight sleep (23:30–09:00): the window starts at midnight, so the block shows at both ends.
         val night = tokyo.copy(
-            localMinute = 7 * 60f + 30f,
-            arcs = persistentListOf(DialArc("sleep", AdviceType.Sleep, 23 * 60f + 30f, 510f)),
+            localMinute = 8 * 60f + 30f,
+            arcs = persistentListOf(DialArc("sleep", AdviceType.Sleep, 23 * 60f + 30f, 570f)),
         )
         val s = spec(night, w = 250f, h = 84f)
         val axis = s.axis.shouldNotBeNull()
