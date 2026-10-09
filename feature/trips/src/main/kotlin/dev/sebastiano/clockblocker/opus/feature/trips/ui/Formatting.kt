@@ -64,12 +64,5 @@ internal fun Place.utcOffsetLabel(at: Instant): String = ZoneLabels.offset(zone,
 
 internal fun ZoneOffset.utcLabel(): String = ZoneLabels.offset(this)
 
-/** Localised country name for an ISO 3166 alpha-2 code ("PT" → "Portugal"); the code if unknown. */
-internal fun countryName(countryCode: String, locale: Locale = Locale.getDefault()): String {
-    if (countryCode.isBlank()) return ""
-    val name = Locale.Builder().setRegion(countryCode).build().getDisplayCountry(locale)
-    return name.ifBlank { countryCode }
-}
-
 /** City for labels like "local time in Lisbon". */
 internal val Place.cityLabel: String get() = city.ifBlank { name }.ifBlank { displayCode }
