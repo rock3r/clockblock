@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
@@ -45,9 +46,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleFloatingActionButton
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -269,16 +267,17 @@ private fun summaryLine(state: TripsUiState): String? {
     if (state.loading) return null
     val sky = state.sky
     val times = rememberTimeFormatter()
-    val parts = buildList {
-        if (sky != null && sky.bodyClock) add(stringResource(R.string.trips_body_clock, times.formatFull(sky.time)))
+    val bodyClock = if (sky != null && sky.bodyClock) stringResource(R.string.trips_body_clock, times.formatFull(sky.time)) else null
+    val counts = buildList {
         if (state.inProgress.isNotEmpty()) add(stringResource(R.string.trips_summary_in_progress, state.inProgress.size))
         if (state.upcoming.isNotEmpty()) add(stringResource(R.string.trips_summary_upcoming, state.upcoming.size))
         if (state.past.isNotEmpty()) add(stringResource(R.string.trips_summary_past, state.past.size))
     }
-    if (parts.isEmpty()) return null
-    // Wrap only between parts ("2 in progress · 1 upcoming ·" / "1 past"), never inside one ("1" / "past").
+    // The body clock on its own line, the counts on the next ("Body clock 10:03" / "1 in progress · 2 upcoming ·
+    // 1 past"). Counts wrap only between parts, never inside one ("1" / "past").
     val separator = stringResource(R.string.trips_summary_separator).replaceFirst(' ', NoBreakSpace)
-    return parts.joinToString(separator) { it.replace(' ', NoBreakSpace) }
+    val countLine = counts.takeIf { it.isNotEmpty() }?.joinToString(separator) { it.replace(' ', NoBreakSpace) }
+    return listOfNotNull(bodyClock, countLine).takeIf { it.isNotEmpty() }?.joinToString("\n")
 }
 
 private const val NoBreakSpace = '\u00A0'
@@ -301,41 +300,34 @@ private fun TripsFabMenu(
         scaleY = scale
         transformOrigin = TransformOrigin(1f, 1f)
     }
-    val openLabel = stringResource(R.string.trips_fab_open)
     val closeLabel = stringResource(R.string.trips_fab_close)
+    val newTripLabel = stringResource(R.string.trips_new_trip)
     FloatingActionButtonMenu(
         expanded = expanded,
         button = {
-            ToggleFloatingActionButton(
-                checked = expanded,
-                onCheckedChange = onExpandedChange,
-                // In-progress trip cards are primaryContainer; a primaryContainer FAB vanished over them (dark
-                // dynamic especially). Primary in both states keeps the FAB its own layer, and the menu items
-                // (primaryContainer) still read as its children.
-                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
-                    initialColor = MaterialTheme.colorScheme.primary,
-                    finalColor = MaterialTheme.colorScheme.primary,
-                ),
+            // Labels beside glyphs: closed, the button reads "New trip" next to its plus; open, it collapses to
+            // the round close button (the library animates the width with its own motion). Primary in both states:
+            // in-progress cards are primaryContainer, and a primaryContainer FAB vanished over them.
+            ExtendedFloatingActionButton(
+                text = { Text(newTripLabel) },
+                icon = {
+                    Icon(
+                        painterResource(if (expanded) R.drawable.ic_trips_close else R.drawable.ic_trips_add),
+                        contentDescription = null,
+                    )
+                },
+                onClick = { onExpandedChange(!expanded) },
+                expanded = !expanded,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier
                     .testTag(TripsTestTags.Fab)
                     .semantics {
                         traversalIndex = -1f
-                        contentDescription = if (expanded) closeLabel else openLabel
+                        // The library hides the label text from accessibility, so the button names itself.
+                        contentDescription = if (expanded) closeLabel else newTripLabel
                     },
-            ) {
-                val icon = if (checkedProgress > 0.5f) R.drawable.ic_trips_close else R.drawable.ic_trips_add
-                Icon(
-                    painterResource(icon),
-                    contentDescription = null,
-                    modifier = Modifier.animateIcon(
-                        checkedProgress = { checkedProgress },
-                        color = ToggleFloatingActionButtonDefaults.iconColor(
-                            initialColor = MaterialTheme.colorScheme.onPrimary,
-                            finalColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ),
-                )
-            }
+            )
         },
     ) {
         FloatingActionButtonMenuItem(

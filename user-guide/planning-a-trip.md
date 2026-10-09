@@ -20,9 +20,9 @@ along the flight is.
 During a trip, the sky behind the screen title follows your body clock, and the subtitle shows your body clock
 time.
 
-To add another trip, tap the **+** button. It offers **New trip**, **Return from** the destination of the trip
-you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a phone in landscape, the
-**+** button sits in the top bar instead, so it never covers a trip card.
+To add another trip, tap the **New trip** button in the corner. It offers **New trip**, **Return from** the
+destination of the trip you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a
+phone in landscape, a **+** button sits in the top bar instead, so it never covers a trip card.
 
 <img src="images/add-menu.png" alt="The Trips screen with the add menu open: New trip, Return from London and Try a demo trip." width="280" />
 
@@ -90,7 +90,7 @@ For a short trip, staying on home time is usually easier: you're back before you
 <img src="images/return-trip.png" alt="The Return trip screen: Flight 1 from London (LHR) to San Francisco (SFO) under a boarding-pass card, on Tue, Jun 23, departing 19:30 and arriving 21:50, 10 h 20 m in the air." width="280" />
 
 To plan the way home, open the trip's menu (the three dots on its card) and choose **Create return trip**, or tap
-**+** and **Return from** the destination. The app reverses the route and suggests times. Check them against your
+**New trip** in the corner and then **Return from** the destination. The app reverses the route and suggests times. Check them against your
 ticket before you save.
 
 ## Changing a trip

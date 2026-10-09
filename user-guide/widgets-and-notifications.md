@@ -125,7 +125,7 @@ list what's up next, next to your route ("LIS → HND"). It says "Free time" whe
 4. On some phones, turning off **Battery optimisation** for the app helps too.
 5. Tap **Send a test reminder** to check.
 
-Also check that **Reminders** is turned on, and that you haven't turned off one of the app's notification
+Also check that **Remind me before each change** is turned on, and that you haven't turned off one of the app's notification
 categories in Android's settings. The categories are Light, Sleep & energy, Supplements & caffeine, Travel day
 (live) and Now.
 

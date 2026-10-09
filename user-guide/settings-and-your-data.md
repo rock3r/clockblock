@@ -6,7 +6,7 @@ how to back it up.
 
 ## Your profile and tools
 
-<img src="images/settings-profile.png" alt="Settings: Your profile with Home time zone Los Angeles GMT−7, Usual sleep 23:00 to 07:00, 8 h, and Chronotype Somewhere in between. Below, Tools: Caffeine, I can sleep on planes and Start adjusting before I leave are on; Melatonin is off." width="300" />
+<img src="images/settings-profile.png" alt="Settings: Your profile with Home time zone Los Angeles GMT−7, Usual sleep 23:00 to 07:00, 8 h, and Chronotype Somewhere in between. Below, Tools: Caffeine, I can sleep on planes and Adjust before I leave are on; Melatonin is off." width="300" />
 
 | Setting | What it does |
 |---|---|
@@ -18,7 +18,7 @@ how to back it up.
 
 ## Appearance and reminders
 
-<img src="images/settings-reminders.png" alt="Settings: Theme with System, Light and Dark; Dynamic colour off; Reduce motion off; Night-safe automatically on. Below, Reminders on, How early set to 15 min, Hide details on the lock screen off, and Send a test reminder." width="300" />
+<img src="images/settings-reminders.png" alt="Settings: Theme with System, Light and Dark; Dynamic colour off; Reduce motion off; Night-safe automatically on. Below, Remind me before each change on, How early set to 15 min, Hide details on the lock screen off, and Send a test reminder." width="300" />
 
 | Setting | What it does |
 |---|---|
@@ -26,7 +26,7 @@ how to back it up.
 | Dynamic colour | Takes the app's colours from your wallpaper. The colours of the advice stay the same. |
 | Reduce motion | Calmer transitions and still pictures, on top of your phone's own setting. |
 | Night-safe automatically | Makes the plan screen dark and dim while your plan says avoid light or sleep, or during your body's night when no light is planned. The widgets turn dark while your plan says avoid light or sleep. |
-| Reminders | Turns all reminders and the Now notification on or off. Widgets keep working. |
+| Remind me before each change | Turns all reminders and the Now notification on or off. Widgets keep working. |
 | How early | When reminders arrive: on time, or 5, 10, 15 or 30 minutes before a block starts. |
 | Hide details on the lock screen | Keeps places, flight numbers and supplement names off the lock screen whenever Android hides sensitive notification content, and always off widgets placed on the lock screen. Times and the kind of block stay. Off by default. See [On the lock screen](widgets-and-notifications.md#on-the-lock-screen). |
 | Send a test reminder | Sends a sample reminder so you can check that reminders arrive. |
@@ -53,7 +53,7 @@ to save it, for example your Downloads folder or a cloud drive app. The file is 
 **Import a backup** reads a file made by this app. Before anything changes, it tells you what's in the file and
 asks how to import it:
 
-<img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Merge, Replace." width="400" />
+<img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Replace (outlined in red), Merge (filled)." width="400" />
 
 - **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
   trips and check-ins. Each trip ends up with exactly the backup's check-ins: ones you made on this phone that
