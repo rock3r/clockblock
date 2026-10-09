@@ -68,6 +68,14 @@ class ComponentMathTest {
     }
 
     @Test
+    fun `the sun sets at the real sunset, even on a day under an hour or over 23 hours`() {
+        celestialPosition(11.25f, 11f, 11.5f).isSun shouldBe true
+        celestialPosition(11.75f, 11f, 11.5f).isSun shouldBe false
+        celestialPosition(23.75f, 0.5f, 24f).isSun shouldBe true
+        celestialPosition(0.25f, 0.5f, 24f).isSun shouldBe false
+    }
+
+    @Test
     fun `celestial position stays inside the box for any hour`() = runTest {
         checkAll(Arb.float(-48f, 48f).filter { it.isFinite() }) { h ->
             val p = celestialPosition(h)
