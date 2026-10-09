@@ -107,8 +107,6 @@
     <string name="editor_place_supporting">%1$s · %2$s · %3$s</string>
     <string name="editor_place_pick_hint">Pick a match below, or press Enter for the top one</string>
     <string name="editor_place_no_results">No airport or city matches “%1$s”.</string>
-    <string name="editor_place_result_description">%1$s, %2$s, %3$s, %4$s, %5$s</string>
-    <string name="editor_place_result_time">%1$s local time</string>
     <string name="editor_place_popular">Popular airports</string>
     <string name="editor_swap">Swap From and To</string>
     <string name="editor_arrival_estimated">Estimated from the flight distance. Adjust it to your ticket.</string>

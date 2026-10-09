@@ -32,7 +32,8 @@ phone in landscape, a **+** button sits in the top bar instead, so it never cove
 
 1. Under **From**, type a city, an airport name or a three-letter code (for example LIS) and pick the airport.
    The search works offline. Before you type, the list offers a few popular airports. Each result shows the
-   country's flag, the airport's current local time (with a sun or moon for day or night) and its UTC offset.
+   city with its country's flag, the airport name and country underneath, the airport's current local time (with
+   a sun or moon for day or night) and its UTC offset. Picking your home time zone uses the same rows.
 2. Do the same under **To**. Picked the airports the wrong way round? Tap the swap button next to them.
 3. Set the departure date and time. Use the **local time at the departure airport**, as printed on your ticket.
    The label reminds you: "Departs · local time in Lisbon".
