@@ -210,8 +210,8 @@ object TwoStrips {
             while (s > 0.3f) {
                 val l = at(localSpec, s)
                 val b = at(bodySpec, s)
-                val lw = measurer.width(localText, l)
-                val bw = bodyText?.let { measurer.width(it, b) } ?: 0f
+                val lw = liveWidth(localText, l, local = true)
+                val bw = bodyText?.let { liveWidth(it, b, local = false) } ?: 0f
                 val wide = if (row) lw + RowGap + bw else max(lw, bw)
                 val textH = if (row) tightH(l) + TightGap else tightH(l) + TightGap + (if (bodyText != null) tightH(b) + TightGap else 0f)
                 val tallest = h - 2f * pad - barsMin()
@@ -421,7 +421,7 @@ object TwoStrips {
             val localText = labels.fullTime(now)
             val bodyText = if (aligned) labels.inSync() else labels.bodyTime(labels.fullTime(state.bodyMinute))
             fun at(spec: TextSpec) = spec.copy(size = max(spec.size * 0.7f, labelText))
-            return measurer.width(localText, at(localSpec)) + 6f + measurer.width(bodyText, at(bodySpec)) + FitSlack <= w - 2f * pad - 8f
+            return liveWidth(localText, at(localSpec), local = true) + 6f + liveWidth(bodyText, at(bodySpec), local = false) + FitSlack <= w - 2f * pad - 8f
         }
 
         /** Local time, body time and the offset on one line above the bars. */
@@ -430,7 +430,7 @@ object TwoStrips {
             val bodyText = if (aligned) labels.inSync() else labels.bodyTime(labels.fullTime(state.bodyMinute))
             val offSpec = label(TextSpec(10f * grow, weight = 650, slanted = true, tabular = false))
             fun at(spec: TextSpec, s: Float) = spec.copy(size = max(spec.size * s, labelText))
-            fun widthAt(s: Float) = measurer.width(localText, at(localSpec, s)) + 6f + measurer.width(bodyText, at(bodySpec, s))
+            fun widthAt(s: Float) = liveWidth(localText, at(localSpec, s), local = true) + 6f + liveWidth(bodyText, at(bodySpec, s), local = false)
             fun roomWith(offW: Float) = w - 2f * pad - offW - 8f
             // The largest scale, down to 0.7, at which both times fit (a little under the room: measured widths
             // don't scale exactly with the size, as glyphs snap to pixels).
@@ -451,9 +451,10 @@ object TwoStrips {
             val s = scaleFor(room) ?: 0.7f
             val l = at(localSpec, s)
             val b = at(bodySpec, s)
-            val lw = measurer.width(localText, l)
+            // The body time starts after the widest local reading, so a longer one never runs into it.
+            val lw = liveWidth(localText, l, local = true)
             ops += DialOp.Text(localText, pad, cy, l, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = true))
-            if (offset != null || lw + 6f + measurer.width(bodyText, b) <= room) {
+            if (offset != null || lw + 6f + liveWidth(bodyText, b, local = false) <= room) {
                 bodyText(bodyText, pad + lw + 6f, cy + (l.size - b.size) * 0.32f, b, HAlign.Start, prefixed = true)
             }
             if (offset != null) {
@@ -484,12 +485,13 @@ object TwoStrips {
             if (bodyText == null) {
                 val y = (h - lineH(ls)) / 2f
                 ops += DialOp.Text(localText, pad, y + lineH(ls) / 2f, ls, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = localText != labels.time(now)))
-                return pad + measurer.width(localText, ls)
+                return pad + liveWidth(localText, ls, local = true)
             }
             val y = (h - (lineH(ls) + lineH(bs) + TextGap)) / 2f
             ops += DialOp.Text(localText, pad, y + lineH(ls) / 2f, ls, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = localText != labels.time(now)))
             bodyText(bodyText, pad, y + lineH(ls) + TextGap + lineH(bs) / 2f, bs, HAlign.Start, marker = bodyText != labels.time(state.bodyMinute))
-            return pad + max(measurer.width(localText, ls), measurer.width(bodyText, bs))
+            // The bars start after the widest readings, so the times never grow into them.
+            return pad + max(liveWidth(localText, ls, local = true), liveWidth(bodyText, bs, local = false))
         }
 
         /** The body time (live), or "in sync" once adapted. [prefixed]: "08:20 body" rather than "08:20". */
@@ -669,6 +671,22 @@ object TwoStrips {
 
         /** The widest a live time can get until the next capture ("00:00" / "12:00"), for its pill. */
         fun widestTime(): String = labels.time(12 * 60f).let { t -> if (t.length >= 5) t else "12:00" }
+
+        /**
+         * The widest [text] gets before the next capture, when it's a live reading of the local (or body) clock: the
+         * host rewrites it every minute, so the layout leaves room for a two-digit hour ("10:00 PM") either way.
+         */
+        fun liveWidth(text: String, spec: TextSpec, local: Boolean): Float {
+            val minute = if (local) now else state.bodyMinute
+            val reading: ((Float) -> String)? = when (text) {
+                labels.fullTime(minute) -> { m -> labels.fullTime(m) }
+                labels.time(minute) -> { m -> labels.time(m) }
+                labels.bodyTime(labels.fullTime(minute)) -> { m -> labels.bodyTime(labels.fullTime(m)) }
+                else -> null
+            }
+            val own = measurer.width(text, spec)
+            return if (reading == null) own else maxOf(own, measurer.width(reading(10 * 60f), spec), measurer.width(reading(22 * 60f), spec))
+        }
 
         /** A word's [spec], at least the host's [labelText]. */
         fun label(spec: TextSpec): TextSpec = if (spec.size < labelText) spec.copy(size = labelText) else spec

@@ -18,6 +18,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialOp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialPart
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialSpec
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.HAlign
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TimeAxis
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.LiveClock
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.LiveTime
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TextSpec
@@ -85,6 +86,15 @@ internal fun RemoteDrawScope.drawDialSpec(spec: DialSpec, type: DialType, clocks
     }
 }
 
+/**
+ * How far the strips' now line moves [sinceMinutes] after the capture: along the axis, wrapping from its end back to
+ * its start (the window is a whole day of sky). [withNeedle] plays the same sum on the host clock.
+ */
+internal fun stripShift(axis: TimeAxis, nowMinute: Float, sinceMinutes: Float): Float {
+    val offset = (nowMinute - axis.startMinute).mod(axis.spanMinutes)
+    return (sinceMinutes + offset) % axis.spanMinutes * axis.dpPerMinute - offset * axis.dpPerMinute
+}
+
 /** Runs [block] with the needle moved from where the spec drew it to the host clock's now. */
 private fun RemoteDrawScope.withNeedle(spec: DialSpec, clocks: LiveClocks, block: RemoteDrawScope.() -> Unit) {
     // Minutes since the capture (−1 … 0 right at capture, as the spec's now carries seconds).
@@ -93,9 +103,11 @@ private fun RemoteDrawScope.withNeedle(spec: DialSpec, clocks: LiveClocks, block
         (spec.nowMinute - captured).rf
     val axis = spec.axis
     if (axis != null) {
-        // Along the strips, and no further than their end (the next capture recentres the window).
-        val room = axis.right - axis.x(spec.nowMinute)
-        translate((since * axis.dpPerMinute.rf).min(room.rf), 0f.rf) { block() }
+        // Along the strips, wrapping from their end back to their start ([stripShift]): the window is a whole day
+        // of sky, so a widget that isn't captured again for hours still shows now at the right minute.
+        val offset = (spec.nowMinute - axis.startMinute).mod(axis.spanMinutes)
+        val along = (since + offset.rf) % axis.spanMinutes.rf
+        translate(along * axis.dpPerMinute.rf - (offset * axis.dpPerMinute).rf, 0f.rf) { block() }
     } else {
         // Round the dial: a quarter of a degree a minute, clockwise.
         rotate(since / 4f.rf, RemoteOffset(spec.cx.rf, spec.cy.rf)) { block() }

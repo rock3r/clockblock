@@ -74,6 +74,20 @@ class TwoStripsSpecTest {
     }
 
     @Test
+    fun `the header leaves room for the widest live reading before the body time`() {
+        // Captured at 9:59 AM: the host will write 10:00 AM in the same place before the next capture.
+        val twelve = DefaultDialLabels(is24Hour = false)
+        val early = tokyo.copy(localMinute = 9 * 60f + 59f, arcs = persistentListOf())
+        for (floor in listOf(0f, 10f, 13f)) {
+            val s = TwoStrips.spec(early, palette, twelve, 250f, 84f, labelText = floor)
+            val local = s.all<DialOp.Text>().single { it.live?.clock == LiveClock.Local }
+            val body = s.all<DialOp.Text>().single { it.live?.clock == LiveClock.Body }
+            val widest = ApproxTextMeasurer.width(twelve.fullTime(10 * 60f), local.spec)
+            (body.x >= local.x + widest) shouldBe true
+        }
+    }
+
+    @Test
     fun `the level comes from the box`() {
         DetailLevel.forStrip(117f, 51f) shouldBe DetailLevel.Glance
         DetailLevel.forStrip(56f, 50f) shouldBe DetailLevel.Glance
