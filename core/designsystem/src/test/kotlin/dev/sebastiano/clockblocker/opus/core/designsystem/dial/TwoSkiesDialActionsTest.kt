@@ -107,6 +107,26 @@ class TwoSkiesDialActionsTest {
     }
 
     @Test
+    fun `when now moves on while the hand is still travelling, the landing and the cards agree`() {
+        var state by mutableStateOf(fallBack)
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
+        compose.mainClock.advanceTimeByFrame()
+
+        // The minute ticks over mid-flight: the landing resolved against 00:30 must still be the second 01:30 run.
+        state = fallBack.copy(instant = now.plusSeconds(5 * 60L), localMinute = 35f)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+
+        reported.last() shouldBe end.plusSeconds(5 * 60L)
+        compose.onNodeWithTag("dial").assertContentDescriptionContains("1:35 AM local. Your body clock is 2:35 AM", substring = true)
+    }
+
+    @Test
     fun `when now moves past the change itself, the hand reads the face again`() {
         var state by mutableStateOf(fallBack)
         compose.setContent {

@@ -130,36 +130,47 @@ fun TwoSkiesDial(
 
     // The scrub offset is minutes of the wall-clock face (as are the arcs and boundaries); the host gets the real
     // instant under the hand, which differs across a DST change. [at] overrides it when the caller knows better (see
-    // landed above).
-    fun report(offset: Float, at: Instant? = null) {
-        landed = at?.let { Landing(offset, it, currentState.instant) }
-        currentOnScrub?.invoke(at ?: currentState.instantAt(offset))
+    // landed above), resolved when now was [anchor]: the host gets it moved on to the current now, as the dial shows it.
+    fun report(offset: Float, at: Instant? = null, anchor: Instant = currentState.instant) {
+        val landing = at?.let { Landing(offset, it, anchor) }
+        landed = landing
+        currentOnScrub?.invoke(landing?.atFor(currentState) ?: currentState.instantAt(offset))
     }
 
     // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand.
-    LaunchedEffect(Unit) { if (scrub.value != 0f) report(scrub.value, landing?.atFor(currentState)) }
+    LaunchedEffect(Unit) {
+        if (scrub.value != 0f) landing.let { report(scrub.value, it?.at, it?.anchor ?: currentState.instant) }
+    }
 
     /**
      * Moves the hand on [spec] and reports every frame, so the cards and the sky travel with it: the hand and the
      * data it drives are one event, never two that disagree (motion review: scrub release, Rewind). The last report
-     * is [at] when given.
+     * is [at] (resolved when now was [anchor]) when given.
      */
     suspend fun animateReporting(
         target: Float,
         spec: AnimationSpec<Float>,
         initialVelocity: Float = 0f,
         at: Instant? = null,
+        anchor: Instant? = null,
     ) {
         scrub.animateTo(target, spec, initialVelocity) { report(value) }
-        report(target, at)
+        report(target, at, anchor ?: currentState.instant)
     }
 
-    fun animateScrubTo(offset: Float, at: Instant? = null) {
-        scope.launch { animateReporting(offset, motion.dataSpatial(), at = at) }
+    fun animateScrubTo(offset: Float, at: Instant? = null, anchor: Instant? = null) {
+        scope.launch { animateReporting(offset, motion.dataSpatial(), at = at, anchor = anchor) }
     }
 
-    /** Next/Previous block: lands on the boundary's real instant, so the cards agree the block has changed. */
-    fun animateScrubToBoundary(offset: Float) = animateScrubTo(offset, blockBoundaryInstant(currentState, offset))
+    /**
+     * Next/Previous block: lands on the boundary's real instant, so the cards agree the block has changed. The
+     * boundary is resolved against now as it is here; if the minute ticks over during the move, the landing moves on
+     * with it rather than being measured against the new now.
+     */
+    fun animateScrubToBoundary(offset: Float) {
+        val from = currentState
+        animateScrubTo(offset, blockBoundaryInstant(from, offset), from.instant)
+    }
 
     // Semantics (composition): coarse scrub so TalkBack text doesn't recompose every frame.
     val coarseScrub by remember { derivedStateOf { (scrub.value / 5f).toInt() * 5f } }
