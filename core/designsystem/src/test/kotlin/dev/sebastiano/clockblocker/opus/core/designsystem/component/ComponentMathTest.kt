@@ -58,6 +58,24 @@ class ComponentMathTest {
     }
 
     @Test
+    fun `a sunset after midnight keeps the sun up past midnight and the moon owns the short night (#97)`() {
+        // Sunrise 01:30, sunset 00:30 the next day: 23 h of sun, an hour of night.
+        celestialPosition(13f, 1.5f, 24.5f).let { it.isSun shouldBe true; it.x shouldBe (0.5f plusOrMinus 1e-4f) }
+        celestialPosition(0.25f, 1.5f, 24.5f).isSun shouldBe true
+        celestialPosition(1f, 1.5f, 24.5f).let { it.isSun shouldBe false; it.x shouldBe (0.5f plusOrMinus 1e-4f) }
+        // The same day with its sunset as an hour of the clock.
+        celestialPosition(1f, 1.5f, 0.5f) shouldBe celestialPosition(1f, 1.5f, 24.5f)
+    }
+
+    @Test
+    fun `the sun sets at the real sunset, even on a day under an hour or over 23 hours`() {
+        celestialPosition(11.25f, 11f, 11.5f).isSun shouldBe true
+        celestialPosition(11.75f, 11f, 11.5f).isSun shouldBe false
+        celestialPosition(23.75f, 0.5f, 24f).isSun shouldBe true
+        celestialPosition(0.25f, 0.5f, 24f).isSun shouldBe false
+    }
+
+    @Test
     fun `celestial position stays inside the box for any hour`() = runTest {
         checkAll(Arb.float(-48f, 48f).filter { it.isFinite() }) { h ->
             val p = celestialPosition(h)

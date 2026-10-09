@@ -36,6 +36,33 @@ class SkyPaletteTest {
         sky.phaseAt(21f, sunriseHour = 4f, sunsetHour = 22.5f) shouldBe SkyPhase.Day
     }
 
+    /** The phases round the clock from the first PreDawn: the order a sky goes through in a day. */
+    private fun cycle(sunriseHour: Float, sunsetHour: Float): List<SkyPhase> {
+        val phases = sky.keyframes(sunriseHour, sunsetHour).map { it.second }
+        val from = phases.indexOf(SkyPhase.PreDawn)
+        return phases.drop(from) + phases.take(from)
+    }
+
+    private val dayInOrder = listOf(
+        SkyPhase.PreDawn, SkyPhase.Dawn, SkyPhase.Day, SkyPhase.Day, SkyPhase.Golden, SkyPhase.Dusk, SkyPhase.Night, SkyPhase.Night,
+    )
+
+    @Test
+    fun `a night of an hour still goes from dusk through night to pre-dawn (#97)`() {
+        // Sunset 00:30, sunrise 01:30 (near the midnight sun), with the sunset given either side of midnight.
+        cycle(sunriseHour = 1.5f, sunsetHour = 24.5f) shouldBe dayInOrder
+        cycle(sunriseHour = 1.5f, sunsetHour = 0.5f) shouldBe dayInOrder
+        sky.phaseAt(1f, sunriseHour = 1.5f, sunsetHour = 24.5f) shouldNotBe SkyPhase.Day
+        sky.phaseAt(13f, sunriseHour = 1.5f, sunsetHour = 24.5f) shouldBe SkyPhase.Day
+    }
+
+    @Test
+    fun `a day of two hours still goes from dawn through day to golden hour`() {
+        // Sunrise 11:00, sunset 13:00 (near the polar night).
+        cycle(sunriseHour = 11f, sunsetHour = 13f) shouldBe dayInOrder
+        sky.phaseAt(3f, sunriseHour = 11f, sunsetHour = 13f) shouldBe SkyPhase.Night
+    }
+
     @Test
     fun `gradient equals the keyframe sky at the keyframe`() {
         val noon = sky.gradientAt(12f)

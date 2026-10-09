@@ -15,7 +15,8 @@ import kotlin.math.abs
 /**
  * The sun's day where the plan's local time is (issue #21): sunrise and sunset as hours of the local day. The header
  * paints its sky, its sun / moon and their path for this day, so the body-clock sun and the local-time ghost share
- * one arc: the same hour lands on the same spot.
+ * one arc: the same hour lands on the same spot. A sunset after midnight is past 24 h ([sunsetHour] is always after
+ * [sunriseHour], under a day later); everything that reads it measures round the clock.
  */
 @Immutable
 internal data class HeaderDaylight(val sunriseHour: Float, val sunsetHour: Float) {
@@ -24,15 +25,15 @@ internal data class HeaderDaylight(val sunriseHour: Float, val sunsetHour: Float
         val Default = HeaderDaylight(SkyPalette.DefaultSunrise, SkyPalette.DefaultSunset)
 
         /**
-         * From the real sun ([Sun.on]) in [zone]. The header's sky and arc need a sunrise before the sunset on the same
-         * local day, so the midnight sun, polar night and a sunset past midnight keep the [Default] day (the dial's
-         * sky rings show those as they are).
+         * From the real sun ([Sun.on]) in [zone]. The midnight sun and the polar night keep the [Default] day (the
+         * dial's sky rings show those as they are). A sunset at or before sunrise on the clock is after midnight:
+         * it moves past 24 h (#97).
          */
         fun of(sun: SunDay?, zone: ZoneId): HeaderDaylight {
             if (sun !is SunDay.RisesAndSets) return Default
             val sunrise = hourOf(sun.sunrise, zone)
             val sunset = hourOf(sun.sunset, zone)
-            return if (sunset > sunrise) HeaderDaylight(sunrise, sunset) else Default
+            return HeaderDaylight(sunrise, if (sunset > sunrise) sunset else sunset + 24f)
         }
 
         private fun hourOf(instant: Instant, zone: ZoneId): Float =
@@ -44,10 +45,16 @@ internal data class HeaderDaylight(val sunriseHour: Float, val sunsetHour: Float
 internal fun headerDaylight(trip: Trip?, moment: PlanMoment): HeaderDaylight =
     headerDaylight(trip?.placeIn(moment.zone, moment.instant), moment.zone, moment.instant.atZone(moment.zone).toLocalDate())
 
-/** The daylight at [place] (in [zone]) on the local [date]; [HeaderDaylight.Default] without a place. */
+/**
+ * The daylight at [place] (in [zone]) on the local [date]; [HeaderDaylight.Default] without a place. The sunrise and
+ * sunset are the ones inside the local day: when tonight's sunset is past midnight, the day ends at last night's,
+ * which is what the small hours of [date] saw (#80, #97).
+ */
 internal fun headerDaylight(place: Place?, zone: ZoneId, date: LocalDate): HeaderDaylight {
     if (place == null) return HeaderDaylight.Default
-    return HeaderDaylight.of(Sun.on(date, zone, place.latitude, place.longitude), zone)
+    val start = date.atStartOfDay(zone).toInstant()
+    val end = date.plusDays(1).atStartOfDay(zone).toInstant()
+    return HeaderDaylight.of(Sun.on(date, zone, place.latitude, place.longitude, start, end), zone)
 }
 
 /** A point on the header's arc: [t] from 0 (rising, at the start) to 1 (setting, at the end), on the day or night half. */
