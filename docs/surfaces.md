@@ -301,8 +301,9 @@ dp.
 
 ### Labels never clip
 
-No label is cut off or ends in "…" at any size from 57×51 dp (a 1×1 cell) up, at font scales up to 1.3×. The
-launcher can't measure text, so
+No label is cut off or ends in "…" at any size from 57×51 dp (a 1×1 cell) up, at font scales up to 1.3×. Both
+widgets declare that size as their smallest (`minResizeWidth` / `minResizeHeight`), so a launcher can't shrink one
+below it. The launcher can't measure text, so
 [`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) decides at capture
 time what each layout shows, measuring the text the way the player draws it
 ([`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt)). It fits each

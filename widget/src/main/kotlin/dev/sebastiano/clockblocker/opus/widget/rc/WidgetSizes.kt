@@ -42,7 +42,10 @@ data class Bucket<L>(val layout: L, val min: CellDp) {
  * ([FLOOR]): the guarantee that no label clips holds from [FLOOR] up.
  */
 object WidgetSizes {
-    /** The smallest cell the widgets promise to fit: a portrait 1×1 is 57 dp wide, a landscape one 51 dp tall. */
+    /**
+     * The smallest cell the widgets promise to fit: a portrait 1×1 is 57 dp wide, a landscape one 51 dp tall. Both
+     * providers declare it as their minimum (and minimum resize) size, so no launcher plays a bucket below it.
+     */
     val FLOOR = CellDp(57f, 51f)
 
     /**
