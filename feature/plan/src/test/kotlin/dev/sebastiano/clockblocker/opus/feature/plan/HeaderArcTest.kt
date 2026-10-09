@@ -98,6 +98,8 @@ class HeaderArcTest {
         day.ghostT(bodyHour = 13f, localHour = 14f, snapT = 0.1f) shouldBe day.arcPoint(13f).t
         day.ghostT(bodyHour = 13f, localHour = 14f, snapT = 0.05f) shouldBe day.arcPoint(14f).t
         day.ghostT(bodyHour = 13f, localHour = 16f, snapT = 0.1f) shouldBe day.arcPoint(16f).t
+        // A wall clock past sunset waits at the end even when the evening sun is near it: hours apart, never in step.
+        day.ghostT(bodyHour = 19.5f, localHour = 22.5f, snapT = 0.1f) shouldBe 1f
     }
 
     @Test

@@ -80,8 +80,8 @@ private fun hoursApart(a: Float, b: Float): Float {
 
 /**
  * Where the ghost ring sits on the arc ([ArcPoint.t]). In step (under [GhostJoinHours] apart), or when it would land
- * within [snapT] of the body's sun / moon (the ring's own radius, as a fraction of the arc, so it would still circle
- * the sun's middle), it sits exactly on the sun / moon and circles it: a small drift never reads as a
+ * at its own spot on the same half within [snapT] of the body's sun / moon (the ring's own radius, as a fraction of
+ * the arc, so it would still circle the sun's middle), it sits exactly on the sun / moon and circles it: a small drift never reads as a
  * misregistration, and a join that short would hide under the markers anyway. The arc shows the half of the day the body's sun / moon is on,
  * so a wall clock on the same half sits at its own spot. On the other half it waits at the nearer end, past which
  * it is (before sunrise, at the start of the day; after sunset, at its end), rather than at its own spot on the
@@ -90,13 +90,9 @@ private fun hoursApart(a: Float, b: Float): Float {
 internal fun HeaderDaylight.ghostT(bodyHour: Float, localHour: Float, snapT: Float = 0f): Float {
     val body = arcPoint(bodyHour)
     if (hoursApart(bodyHour, localHour) < GhostJoinHours) return body.t
-    val t = ghostOnArc(body, localHour)
-    return if (abs(t - body.t) < snapT) body.t else t
-}
-
-private fun HeaderDaylight.ghostOnArc(body: ArcPoint, localHour: Float): Float {
     val local = arcPoint(localHour)
-    if (body.isSun == local.isSun) return local.t
+    // Only a true spot on the same half snaps; a ring waiting at an end is hours away, however near the sun it sits.
+    if (body.isSun == local.isSun) return if (abs(local.t - body.t) < snapT) body.t else local.t
     val (start, end) = if (body.isSun) sunriseHour to sunsetHour else sunsetHour to sunriseHour
     val beforeStart = (start - localHour).mod(24f)
     val afterEnd = (localHour - end).mod(24f)
