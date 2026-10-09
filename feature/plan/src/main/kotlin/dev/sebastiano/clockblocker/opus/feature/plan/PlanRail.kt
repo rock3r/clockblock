@@ -1,6 +1,8 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -200,6 +203,36 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
 /** Index (within [rows]) of the "now" position: the marker or the block containing now. */
 internal fun List<RailRow>.nowRowIndex(): Int =
     indexOfFirst { it is RailRow.NowMarker || (it is RailRow.Block && it.nowFraction != null) }
+
+/** Index (within [rows]) of the first block row [highlighted] lights up (itself or one of its chips), or -1. */
+internal fun List<RailRow>.highlightedRowIndex(highlighted: Set<String>): Int =
+    if (highlighted.isEmpty()) {
+        -1
+    } else {
+        indexOfFirst { row -> row is RailRow.Block && (row.item.advice.id in highlighted || row.children.any { it.advice.id in highlighted }) }
+    }
+
+/**
+ * Like [LazyListState.scrollToItem] ([index]'s top ends [scrollOffset] px above the viewport's top), but moving on
+ * [spec]. An item that isn't laid out is approached by its estimated distance (jumping to a screenful away first
+ * when it is far), then settled exactly.
+ */
+internal suspend fun LazyListState.animateScrollToItem(index: Int, scrollOffset: Int, spec: AnimationSpec<Float>) {
+    fun laidOut() = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+    if (laidOut() == null) {
+        val visible = layoutInfo.visibleItemsInfo
+        if (visible.isEmpty()) return scrollToItem(index, scrollOffset)
+        val screenful = visible.size
+        val first = firstVisibleItemIndex
+        if (index > first + 3 * screenful) scrollToItem(index - screenful) else if (index < first - 3 * screenful) scrollToItem(index + screenful)
+        val average = visible.sumOf { it.size } / visible.size
+        val estimate = (index - firstVisibleItemIndex) * average - firstVisibleItemScrollOffset + scrollOffset
+        animateScrollBy(estimate.toFloat(), spec)
+    }
+    val item = laidOut() ?: return scrollToItem(index, scrollOffset)
+    val delta = item.offset + scrollOffset
+    if (delta != 0) animateScrollBy(delta.toFloat(), spec)
+}
 
 /** The day (`PlanDay.index`) this row belongs to; null for the "earlier days" toggle. */
 internal val RailRow.dayIndex: Int?
