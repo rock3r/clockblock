@@ -258,7 +258,8 @@ once you're adapted the two rings are identical.
   four styles), and leaves out the wash behind the needle. Only the needle moves with the launcher's clock, and the
   readouts are written from it. A host can set a text floor (`minText`, 7 dp on widgets): the AM/PM marker holds
   it and the digits give way. It can also set a label floor (`labelText`, 10 sp at the font scale on widgets): ring
-  and bar labels are at least that big, or left out when their ring or bar can't hold them. `liveReadouts` lays a
+  and bar labels and the smaller readouts are at least that big; labels are left out when their ring or bar can't
+  hold them, and readouts lose "in sync", then AM/PM, but never the body time. `liveReadouts` lays a
   12-hour time out for its widest reading, for hosts that rewrite it between captures. `remote_dial_vs_app.png` in the widget goldens shows the two
   renderers side by side.
 - **Two strips** (`TwoStrips.spec()`): the same two skies as two horizontal bars over a window round now, local on

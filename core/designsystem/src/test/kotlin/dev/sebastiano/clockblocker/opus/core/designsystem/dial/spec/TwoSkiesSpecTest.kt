@@ -220,6 +220,22 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a host's label floor sets the centre readouts, dropping in sync, then AM PM, never the body time`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(68f, 88f, 120f, 160f)) for (floor in listOf(10f, 13f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, minText = 7f, labelText = floor)
+                .ops.filterIsInstance<DialOp.Text>().filter { it.part == DialPart.Readout }
+            texts.forEach { (it.spec.size >= floor - 0.01f) shouldBe true }
+            // The body time stays, with or without its AM/PM.
+            texts.any { it.live?.clock == LiveClock.Body && it.text.startsWith(twelve.time(tokyo.bodyMinute)) } shouldBe true
+        }
+        // In a 68 dp glance at 13 dp, "in sync" can't fit under the local time: it goes rather than shrinks.
+        val adapted = tokyo.copy(bodyAheadMinutes = 0f)
+        TwoSkies.spec(adapted, palette, twelve, 68f, 68f, minText = 7f, labelText = 13f).ops.filterIsInstance<DialOp.Text>()
+            .none { it.text == twelve.inSync() } shouldBe true
+    }
+
+    @Test
     fun `a host that rewrites the time keeps room before the AM PM marker for the widest reading`() {
         val twelve = DefaultDialLabels(is24Hour = false)
         for (side in listOf(88f, 160f, 328f)) {

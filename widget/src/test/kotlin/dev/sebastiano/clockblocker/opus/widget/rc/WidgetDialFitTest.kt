@@ -7,6 +7,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialOp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialPart
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialSpec
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.HAlign
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.LiveClock
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.VAlign
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
@@ -140,7 +141,7 @@ class WidgetDialFitTest {
                         WidgetSizes.TWO_CLOCKS.forEach { bucket ->
                             val where = "$scenario +${hour}h ${if (is24) "24h" else "12h"}${if (redact) " redacted" else ""} " +
                                 "@${scale}x $density ${bucket.layout} ${bucket.min}"
-                            failures += problems(spec(s, bucket, is24), design(bucket.layout), is24).map { "$where: $it" }
+                            failures += problems(spec(s, bucket, is24), design(bucket.layout), is24, s.dial.isAligned).map { "$where: $it" }
                         }
                     }
                 }
@@ -172,7 +173,7 @@ class WidgetDialFitTest {
         return Box(x0, cy - size / 2f, x0 + w, cy + size / 2f)
     }
 
-    private fun problems(spec: DialSpec, design: DialDesign, is24: Boolean): List<String> = buildList {
+    private fun problems(spec: DialSpec, design: DialDesign, is24: Boolean, aligned: Boolean): List<String> = buildList {
         val type = DialType.of(context)
         val texts = spec.ops.filterIsInstance<DialOp.Text>().filter { it.text.isNotBlank() }
         val boxes = texts.map { it to box(it, type) }
@@ -200,6 +201,14 @@ class WidgetDialFitTest {
         }
         val curved = spec.ops.filterIsInstance<DialOp.CurvedText>()
         curved.forEach { t -> if (t.spec.size < floor) add("label \"${t.text}\" at ${t.spec.size} dp, under the ${floor + 0.01f} dp floor") }
+        // The readouts too: the local time's AM/PM and the body time (or "in sync") are never under the floor.
+        texts.filter { it.part == DialPart.Readout }.forEach { t ->
+            if (t.spec.size < floor) add("readout \"${t.text}\" at ${t.spec.size} dp, under the ${floor + 0.01f} dp floor")
+        }
+        // The body time always shows beside the local time, so the two skies stay told apart ("in sync" may go).
+        val clocks = texts.mapNotNull { it.live?.clock }.toSet()
+        if (LiveClock.Local !in clocks) add("no local time")
+        if (!aligned && LiveClock.Body !in clocks) add("no body time")
         // …and sit inside their ring or bar.
         val rings = spec.ops.filterIsInstance<DialOp.SweepRing>()
         curved.filter { it.part == DialPart.RingLabel }.forEach { t ->

@@ -99,6 +99,7 @@ object TwoStrips {
          * the local time.
          */
         fun glance() {
+            if (labelText > 0f) return glanceFloored()
             val pad = 2f
             val barH = (h * 0.13f).coerceIn(4f, 8f)
             val gap = barH * 0.45f
@@ -167,6 +168,98 @@ object TwoStrips {
         }
 
         /**
+         * Glance with a host's label floor: both times at least [labelText], shrinking no further. When they don't
+         * fit, "in sync" goes first, then the body time's AM/PM, then the local time's; the bars thin down to make
+         * room. The body time itself always stays, so the bars can be told apart.
+         */
+        fun glanceFloored() {
+            val pad = 1.5f
+            val designedBar = (h * 0.13f).coerceIn(MinGlanceBar, 8f)
+            val localSpec = TextSpec(17f * grow, weight = 520)
+            val bodySpec = TextSpec(11.5f * grow, weight = 560, slanted = true)
+            val localFull = labels.fullTime(now)
+            val localShort = labels.time(now)
+            val bodyFull = if (aligned) labels.inSync() else labels.fullTime(state.bodyMinute)
+            val bodyShort = if (aligned) null else labels.time(state.bodyMinute)
+            // Longest first: drop "in sync" (or the body's AM/PM), then the local AM/PM.
+            val options = buildList {
+                add(localFull to bodyFull)
+                add(localFull to bodyShort)
+                add(localShort to bodyShort)
+            }.distinct()
+            fun barsFor(barH: Float) = 2f * barH + barH * 0.45f
+            for ((localText, bodyText) in options) for (row in listOf(true, false)) {
+                if (row && (w < GlanceRowAspect * h || bodyText == null)) continue
+                val fit = glanceFit(localText, bodyText, localSpec, bodySpec, row, pad) ?: continue
+                val (l, b, textH) = fit
+                val barH = ((h - 2f * pad - textH) / 2.45f).coerceIn(MinGlanceBar, designedBar)
+                if (textH + barsFor(barH) > h - 2f * pad + FitSlack) continue
+                return drawGlance(localText, bodyText, l, b, row, barH, pad, localText == localFull)
+            }
+            // Nothing fits: the shortest times at the floor over the thinnest bars.
+            val l = localSpec.copy(size = labelText)
+            val b = bodySpec.copy(size = labelText)
+            drawGlance(localShort, bodyShort, l, b, row = false, barH = MinGlanceBar, pad = pad, localMarker = false)
+        }
+
+        /** Sizes for the two times in a glance (at most designed, at least the floor) and the text's height, or null. */
+        fun glanceFit(localText: String, bodyText: String?, localSpec: TextSpec, bodySpec: TextSpec, row: Boolean, pad: Float): Triple<TextSpec, TextSpec, Float>? {
+            val room = w - 2f * pad
+            fun at(spec: TextSpec, s: Float) = spec.copy(size = max(spec.size * s, labelText))
+            var s = 1f
+            while (s > 0.3f) {
+                val l = at(localSpec, s)
+                val b = at(bodySpec, s)
+                val lw = measurer.width(localText, l)
+                val bw = bodyText?.let { measurer.width(it, b) } ?: 0f
+                val wide = if (row) lw + RowGap + bw else max(lw, bw)
+                val textH = if (row) tightH(l) + TightGap else tightH(l) + TightGap + (if (bodyText != null) tightH(b) + TightGap else 0f)
+                val tallest = h - 2f * pad - barsMin()
+                if (wide + FitSlack <= room && textH <= tallest) return Triple(l, b, textH)
+                if (l.size <= labelText && b.size <= labelText) return null
+                s -= 0.02f
+            }
+            return null
+        }
+
+        fun barsMin(): Float = 2.45f * MinGlanceBar
+
+        /** A glance's line: its text size and no leading (the times are digits, with no descenders to clear). */
+        fun tightH(spec: TextSpec): Float = spec.size
+
+        fun drawGlance(localText: String, bodyText: String?, l: TextSpec, b: TextSpec, row: Boolean, barH: Float, pad: Float, localMarker: Boolean) {
+            val gap = barH * 0.45f
+            val bars = 2f * barH + gap
+            val localLive = LiveTime(LiveClock.Local, marker = localMarker)
+            val bodyMarker = bodyText != null && !aligned && bodyText != labels.time(state.bodyMinute)
+            fun body(x: Float, y: Float, h: HAlign) {
+                if (bodyText == null) return
+                val live = if (aligned) null else LiveTime(LiveClock.Body, marker = bodyMarker)
+                ops += DialOp.Text(bodyText, x, y, b, p.body, h = h, part = DialPart.Readout, live = live)
+            }
+            if (row) {
+                var y = (this.h - (tightH(l) + TightGap + bars)) / 2f
+                val cy = y + tightH(l) / 2f
+                ops += DialOp.Text(localText, pad, cy, l, p.ink, h = HAlign.Start, part = DialPart.Readout, live = localLive)
+                body(w - pad, cy + (l.size - b.size) * 0.32f, HAlign.End)
+                y += tightH(l) + TightGap
+                axis = TimeAxis(pad + barH / 2f, w - pad - barH / 2f, windowStart(now), DialGeometry.MinutesPerDay)
+                bars(y, barH, gap, pad)
+                nowLine(y - 1f, y + bars + 1f, width = 1.6f)
+                return
+            }
+            val stack = bars + tightH(l) + TightGap + (if (bodyText != null) tightH(b) + TightGap else 0f)
+            var y = (this.h - stack) / 2f
+            ops += DialOp.Text(localText, w / 2f, y + tightH(l) / 2f, l, p.ink, part = DialPart.Readout, live = localLive)
+            y += tightH(l) + TightGap
+            axis = TimeAxis(pad + barH / 2f, w - pad - barH / 2f, windowStart(now), DialGeometry.MinutesPerDay)
+            bars(y, barH, gap, pad)
+            nowLine(y - 1f, y + bars + 1f, width = 1.6f)
+            y += bars + TightGap
+            body(w / 2f, y + tightH(b) / 2f, HAlign.Center)
+        }
+
+        /**
          * The times above the bars when there is height for them, else beside them (a 4×1 row); the advice in focus
          * above the bars when there is room; the bars carry their night labels.
          */
@@ -181,7 +274,7 @@ object TwoStrips {
             val minBars = 2f * barH + gap
             val top: Float
             val left: Float
-            if (h - 2f * pad >= minBars + header + TextGap) {
+            if (h - 2f * pad >= minBars + header + TextGap && headerFits(localSpec, bodySpec, pad)) {
                 // Times above: local, body, and the offset on the right.
                 top = pad + header + TextGap
                 left = pad
@@ -323,25 +416,44 @@ object TwoStrips {
             ops += DialOp.Line(x, y0, x, y1, p.ink, width, part = DialPart.Needle)
         }
 
+        /** Whether both times fit on the header line (at 0.7 of their size, or the label floor), without the jet lag. */
+        fun headerFits(localSpec: TextSpec, bodySpec: TextSpec, pad: Float): Boolean {
+            val localText = labels.fullTime(now)
+            val bodyText = if (aligned) labels.inSync() else labels.bodyTime(labels.fullTime(state.bodyMinute))
+            fun at(spec: TextSpec) = spec.copy(size = max(spec.size * 0.7f, labelText))
+            return measurer.width(localText, at(localSpec)) + 6f + measurer.width(bodyText, at(bodySpec)) + FitSlack <= w - 2f * pad - 8f
+        }
+
         /** Local time, body time and the offset on one line above the bars. */
         fun headerRow(cy: Float, localSpec: TextSpec, bodySpec: TextSpec, pad: Float) {
             val localText = labels.fullTime(now)
             val bodyText = if (aligned) labels.inSync() else labels.bodyTime(labels.fullTime(state.bodyMinute))
             val offSpec = label(TextSpec(10f * grow, weight = 650, slanted = true, tabular = false))
-            // The two times' text, less the fixed gap between them, which doesn't scale.
-            val texts = measurer.width(localText, localSpec) + measurer.width(bodyText, bodySpec)
-            fun roomWith(offW: Float) = w - 2f * pad - offW - 8f - 6f
+            fun at(spec: TextSpec, s: Float) = spec.copy(size = max(spec.size * s, labelText))
+            fun widthAt(s: Float) = measurer.width(localText, at(localSpec, s)) + 6f + measurer.width(bodyText, at(bodySpec, s))
+            fun roomWith(offW: Float) = w - 2f * pad - offW - 8f
+            // The largest scale, down to 0.7, at which both times fit (a little under the room: measured widths
+            // don't scale exactly with the size, as glyphs snap to pixels).
+            fun scaleFor(room: Float): Float? {
+                if (widthAt(1f) + FitSlack <= room) return 1f
+                var s = 1f
+                while (s > 0.7f) {
+                    s = max(0.7f, s - 0.02f)
+                    if (widthAt(s) + FitSlack <= room) return s
+                }
+                return null
+            }
             // The jet lag goes before the body time does: the two times are what tell the bars apart.
             val offset = labels.offset(ahead).takeUnless { aligned }
-                ?.takeIf { texts * 0.7f <= roomWith(measurer.width(it, offSpec) + 16f) }
+                ?.takeIf { scaleFor(roomWith(measurer.width(it, offSpec) + 16f)) != null }
             val offW = offset?.let { measurer.width(it, offSpec) + 16f } ?: 0f
-            val room = roomWith(offW) + 6f
-            val s = if (texts + 6f > room) ((room - 6f) / texts).coerceAtLeast(0.7f) else 1f
-            val l = localSpec.copy(size = localSpec.size * s)
-            val b = bodySpec.copy(size = bodySpec.size * s)
+            val room = roomWith(offW)
+            val s = scaleFor(room) ?: 0.7f
+            val l = at(localSpec, s)
+            val b = at(bodySpec, s)
             val lw = measurer.width(localText, l)
             ops += DialOp.Text(localText, pad, cy, l, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = true))
-            if (lw + 6f + measurer.width(bodyText, b) <= room) {
+            if (offset != null || lw + 6f + measurer.width(bodyText, b) <= room) {
                 bodyText(bodyText, pad + lw + 6f, cy + (l.size - b.size) * 0.32f, b, HAlign.Start, prefixed = true)
             }
             if (offset != null) {
@@ -354,28 +466,38 @@ object TwoStrips {
 
         /** Local time over body time at the left of a short row. Returns the column's width. */
         fun sideTimes(localSpec: TextSpec, bodySpec: TextSpec, pad: Float): Float {
-            val localText = labels.fullTime(now)
-            val bodyText = if (aligned) labels.inSync() else labels.fullTime(state.bodyMinute)
             val maxCol = w * 0.42f
-            val l = fitWidth(localText, localSpec, maxCol)
-            val b = fitWidth(bodyText, bodySpec, maxCol)
-            val total = lineH(l) + lineH(b) + TextGap
-            // Shrink both to the row's height.
-            val s = ((h - 2f * pad) / total).coerceAtMost(1f)
-            val ls = l.copy(size = l.size * s)
-            val bs = b.copy(size = b.size * s)
+            var localText = labels.fullTime(now)
+            var bodyText: String? = if (aligned) labels.inSync() else labels.fullTime(state.bodyMinute)
+            fun floored(spec: TextSpec) = if (spec.size < labelText) spec.copy(size = labelText) else spec
+            // At the label floor, a time too wide for the column loses its AM/PM ("in sync" goes instead).
+            if (labelText > 0f && measurer.width(localText, floored(localSpec)) > maxCol) localText = labels.time(now)
+            if (labelText > 0f && measurer.width(bodyText!!, floored(bodySpec)) > maxCol) bodyText = if (aligned) null else labels.time(state.bodyMinute)
+            val l = floored(fitWidth(localText, localSpec, maxCol))
+            val b = floored(fitWidth(bodyText ?: localText, bodySpec, maxCol))
+            fun total(ls: TextSpec, bs: TextSpec) = lineH(ls) + if (bodyText != null) lineH(bs) + TextGap else 0f
+            // Shrink both to the row's height, no further than the floor; "in sync" goes when that's not enough.
+            if (labelText > 0f && aligned && total(floored(l.copy(size = 0f)), floored(b.copy(size = 0f))) > h - 2f * pad) bodyText = null
+            val s = ((h - 2f * pad) / total(l, b)).coerceAtMost(1f)
+            val ls = floored(l.copy(size = l.size * s))
+            val bs = floored(b.copy(size = b.size * s))
+            if (bodyText == null) {
+                val y = (h - lineH(ls)) / 2f
+                ops += DialOp.Text(localText, pad, y + lineH(ls) / 2f, ls, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = localText != labels.time(now)))
+                return pad + measurer.width(localText, ls)
+            }
             val y = (h - (lineH(ls) + lineH(bs) + TextGap)) / 2f
-            ops += DialOp.Text(localText, pad, y + lineH(ls) / 2f, ls, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = true))
-            bodyText(bodyText, pad, y + lineH(ls) + TextGap + lineH(bs) / 2f, bs, HAlign.Start)
+            ops += DialOp.Text(localText, pad, y + lineH(ls) / 2f, ls, p.ink, h = HAlign.Start, part = DialPart.Readout, live = LiveTime(LiveClock.Local, marker = localText != labels.time(now)))
+            bodyText(bodyText, pad, y + lineH(ls) + TextGap + lineH(bs) / 2f, bs, HAlign.Start, marker = bodyText != labels.time(state.bodyMinute))
             return pad + max(measurer.width(localText, ls), measurer.width(bodyText, bs))
         }
 
         /** The body time (live), or "in sync" once adapted. [prefixed]: "08:20 body" rather than "08:20". */
-        fun bodyText(text: String, x: Float, y: Float, spec: TextSpec, h: HAlign, prefixed: Boolean = false) {
+        fun bodyText(text: String, x: Float, y: Float, spec: TextSpec, h: HAlign, prefixed: Boolean = false, marker: Boolean = true) {
             val live = when {
                 aligned -> null
-                prefixed -> liveBodyTime(labels).copy(marker = true)
-                else -> LiveTime(LiveClock.Body, marker = true)
+                prefixed -> liveBodyTime(labels).copy(marker = marker)
+                else -> LiveTime(LiveClock.Body, marker = marker)
             }
             ops += DialOp.Text(text, x, y, spec, p.body, h = h, part = DialPart.Readout, live = live)
         }
@@ -563,6 +685,15 @@ object TwoStrips {
     private const val LineHeight = 1.2f
 
     private const val TextGap = 2f
+
+    /** The gap between a floored glance's times and its bars. */
+    private const val TightGap = 1f
+
+    /** The thinnest a floored glance's bars get to make room for its times. */
+    private const val MinGlanceBar = 3.5f
+
+    /** Room left over when text is fitted to a width, for measuring that doesn't scale exactly. */
+    private const val FitSlack = 1f
 
     /** Glance puts both times on one row when the box is at least this many times wider than tall. */
     private const val GlanceRowAspect = 1.8f

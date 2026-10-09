@@ -66,6 +66,14 @@ class TwoStripsSpecTest {
     }
 
     @Test
+    fun `the jet lag gives way before the body time, at every label floor and text size`() {
+        for (floor in listOf(0f, 10f, 13f, 16f, 20f)) for (growth in listOf(1f, 1.15f)) for ((w, h) in listOf(250f to 51f, 250f to 84f, 200f to 84f)) {
+            val s = TwoStrips.spec(tokyo, palette, DefaultDialLabels(is24Hour = false), w, h, textGrowth = growth, labelText = floor)
+            s.all<DialOp.Text>().mapNotNull { it.live?.clock }.toSet() shouldBe setOf(LiveClock.Local, LiveClock.Body)
+        }
+    }
+
+    @Test
     fun `the level comes from the box`() {
         DetailLevel.forStrip(117f, 51f) shouldBe DetailLevel.Glance
         DetailLevel.forStrip(56f, 50f) shouldBe DetailLevel.Glance

@@ -218,8 +218,8 @@ object TwoSkies {
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
-            localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
-            bodyReadout(cy + 12f * k, TextSpec(10.5f * k * grow, weight = 550, slanted = true))
+            val local = localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
+            bodyReadout(cy + 12f * k, TextSpec(10.5f * k * grow, weight = 550, slanted = true), innerR - ringW / 2f, local)
             return innerR - ringW / 2f
         }
 
@@ -231,8 +231,8 @@ object TwoSkies {
             face(44f * k)
             rings(outerR, innerR, ringW)
             needle(innerR - ringW / 2f, outerR + ringW / 2f, 1.8f * k, tip = null)
-            localTime(cy - 5f * k, TextSpec(16.5f * k, weight = 520), markerSize = 6.5f * k, maxWidth = 52f * k)
-            bodyReadout(cy + 10f * k, TextSpec(11f * k, weight = 580, slanted = true))
+            val local = localTime(cy - 5f * k, TextSpec(16.5f * k, weight = 520), markerSize = 6.5f * k, maxWidth = 52f * k)
+            bodyReadout(cy + 10f * k, TextSpec(11f * k, weight = 580, slanted = true), innerR - ringW / 2f, local)
             return innerR - ringW / 2f
         }
 
@@ -242,12 +242,36 @@ object TwoSkies {
         /** A clock reading a live host keeps current; none while scrubbing (the readouts show the scrubbed time). */
         fun live(time: LiveTime): LiveTime? = time.takeUnless { scrubbed }
 
-        /** The body time with its AM/PM marker, or "in sync" once adapted. */
-        fun bodyReadout(y: Float, spec: TextSpec) {
+        /**
+         * The body time with its AM/PM marker, or "in sync" once adapted. With a host's label floor ([labelText]) it
+         * is at least that big and sits under the local time (whose line ends at [above]), inside the hub
+         * ([hubR]). When it doesn't fit there, "in sync" goes, then the body time's AM/PM; the body time itself stays.
+         */
+        fun bodyReadout(y: Float, spec: TextSpec, hubR: Float, above: Float) {
+            if (labelText > 0f) return flooredBodyReadout(y, spec, hubR, above)
             ops += if (aligned) {
                 DialOp.Text(labels.inSync(), cx, y, spec, p.body, part = DialPart.Readout)
             } else {
                 DialOp.Text(labels.fullTime(bodyMinute), cx, y, spec, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body, marker = true)))
+            }
+        }
+
+        fun flooredBodyReadout(y0: Float, spec: TextSpec, hubR: Float, above: Float) {
+            val sized = if (spec.size < labelText) spec.copy(size = labelText) else spec
+            val y = maxOf(y0, above + sized.size / 2f + 1f)
+            val edge = kotlin.math.abs(y - cy) + sized.size / 2f
+            val room = if (edge < hubR) 2f * kotlin.math.sqrt(hubR * hubR - edge * edge) - 2f else 0f
+            fun fits(text: String) = measurer.width(text, sized) <= room
+            if (aligned) {
+                val text = labels.inSync()
+                if (fits(text)) ops += DialOp.Text(text, cx, y, sized, p.body, part = DialPart.Readout)
+                return
+            }
+            val full = labels.fullTime(bodyMinute)
+            ops += if (fits(full)) {
+                DialOp.Text(full, cx, y, sized, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body, marker = true)))
+            } else {
+                DialOp.Text(labels.time(bodyMinute), cx, y, sized, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body)))
             }
         }
 
@@ -422,7 +446,7 @@ object TwoSkies {
          * The local time, centred as a group with its AM/PM marker on 12-hour clocks, scaled down as a whole when
          * it would be wider than [maxWidth].
          */
-        fun localTime(y: Float, spec: TextSpec, markerSize: Float, maxWidth: Float = Float.MAX_VALUE) {
+        fun localTime(y: Float, spec: TextSpec, markerSize: Float, maxWidth: Float = Float.MAX_VALUE): Float {
             val digits = labels.time(display)
             val marker = labels.marker(display)
             val markerSpec = TextSpec(markerSize, weight = 600, tabular = false)
@@ -432,18 +456,24 @@ object TwoSkies {
             val wide = if (steady) listOf(digits, labels.time(10 * 60f), labels.time(12 * 60f)).maxBy { measurer.width(it, spec) } else digits
             val natural = measurer.width(wide, spec) + (marker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
             var fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
-            if (marker == null) {
-                val digitsSpec = spec.copy(size = spec.size * fit)
+            fun digitsAlone(fit: Float): Float {
+                val digitsSpec = spec.copy(size = maxOf(spec.size * fit, labelText))
                 ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
-                return
+                return y + digitsSpec.size / 2f
             }
-            val smallSpec = markerSpec.copy(size = maxOf(markerSize * fit, minText))
+            if (marker == null) return digitsAlone(fit)
+            val smallSpec = markerSpec.copy(size = maxOf(markerSize * fit, minText, labelText))
             if (smallSpec.size > markerSize * fit) {
                 // The marker is held at the host's floor: the digits take what is left of the width.
                 val room = maxWidth - gap * fit - measurer.width(marker, smallSpec)
                 fit = minOf(fit, room / measurer.width(wide, spec)).coerceAtLeast(0f)
             }
             val digitsSpec = spec.copy(size = spec.size * fit)
+            if (labelText > 0f && digitsSpec.size < smallSpec.size * MinDigitsToMarker) {
+                // The marker at the label floor would dwarf the digits: the time goes without it.
+                val alone = measurer.width(wide, spec)
+                return digitsAlone(if (alone > maxWidth && alone > 0f) maxWidth / alone else 1f)
+            }
             val w = measurer.width(wide, digitsSpec)
             val total = w + gap * fit + measurer.width(marker, smallSpec)
             val left = cx - total / 2f
@@ -457,6 +487,7 @@ object TwoSkies {
                 marker, left + w + gap * fit, y - digitsSpec.size * 0.18f, smallSpec, p.inkMuted, h = HAlign.Start,
                 part = DialPart.Readout, live = live(LiveTime(LiveClock.Local, digits = false, marker = true)),
             )
+            return y + digitsSpec.size / 2f
         }
 
         fun pill(y: Float, text: String, spec: TextSpec, padH: Float, height: Float) {
@@ -485,6 +516,9 @@ internal const val CapHeight = 0.72f
 
 /** The most of a ring's or bar's thickness a label's capitals may fill. */
 internal const val MaxFill = 0.85f
+
+/** The local time's digits stay at least this many times the size of its AM/PM marker, or the marker goes. */
+private const val MinDigitsToMarker = 1.15f
 
 /** "08:20 body" as a [LiveTime]: the body clock's digits inside [DialLabels.bodyTime]'s words. */
 internal fun liveBodyTime(labels: DialLabels): LiveTime {
