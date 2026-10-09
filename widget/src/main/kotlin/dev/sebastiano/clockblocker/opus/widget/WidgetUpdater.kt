@@ -72,14 +72,16 @@ class WidgetUpdater(
     private val mutex = Mutex()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var lastNight = application.isNight()
+    private var lastRenderConfig = RenderConfig.of(application.resources.configuration)
 
     init {
-        // A light/dark switch changes the System theme and the picker previews, but no widget broadcast reports it.
+        // No widget broadcast reports these changes: a light/dark switch (the System theme and the picker previews),
+        // or a font scale, Bold text or density change (the labels are fitted for all three at capture time, see
+        // LabelFit, and the captured text bakes in the Bold text weight).
         application.registerComponentCallbacks(
             object : ComponentCallbacks {
                 override fun onConfigurationChanged(newConfig: Configuration) {
-                    if (nightModeChanged(newConfig)) scope.launch { runCatching { updateAll() } }
+                    if (renderConfigChanged(newConfig)) scope.launch { runCatching { updateAll() } }
                 }
 
                 @Deprecated("Deprecated in Java")
@@ -88,25 +90,57 @@ class WidgetUpdater(
         )
     }
 
-    /** True once per light/dark switch (other configuration changes are ignored). */
-    internal fun nightModeChanged(configuration: Configuration): Boolean {
-        val night = configuration.isNight()
-        if (night == lastNight) return false
-        lastNight = night
+    /** True once per change of what the rendered widgets depend on: night mode, font scale, Bold text or density. */
+    internal fun renderConfigChanged(configuration: Configuration): Boolean {
+        val config = RenderConfig.of(configuration)
+        if (config == lastRenderConfig) return false
+        lastRenderConfig = config
         return true
     }
 
+    /** The parts of the configuration a captured widget depends on. */
+    private data class RenderConfig(
+        val night: Boolean,
+        val fontScale: Float,
+        val densityDpi: Int,
+        val fontWeightAdjustment: Int,
+    ) {
+        val key: String get() = "${if (night) "night" else "day"}-$fontScale-$densityDpi-w$fontWeightAdjustment"
+
+        companion object {
+            fun of(configuration: Configuration) = RenderConfig(
+                configuration.isNight(),
+                configuration.fontScale,
+                configuration.densityDpi,
+                configuration.weightAdjustment(),
+            )
+        }
+    }
+
+    private val prefs get() = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /**
+     * Whether the widgets were last rendered at another configuration (or never): the callback above only hears
+     * changes while the process runs, and no widget broadcast reports a font scale, Bold text or density change.
+     */
+    private fun renderedConfigStale(): Boolean =
+        prefs.getString(KEY_RENDERED_CONFIG, null) != RenderConfig.of(application.resources.configuration).key
+
     /** Re-render all widgets of both kinds. */
     suspend fun updateAll() {
+        val config = RenderConfig.of(application.resources.configuration)
         WidgetKind.entries.forEach { kind -> render(kind, ids(kind)) }
+        prefs.edit().putString(KEY_RENDERED_CONFIG, config.key).apply()
         publishPreviewsIfNeeded()
     }
 
     /**
      * Re-render the given widget ids of one kind. Also re-publishes the picker previews when their key is stale, so
-     * a light/dark switch while the app was not running still reaches the picker on the next widget update.
+     * a light/dark switch while the app was not running still reaches the picker on the next widget update. For the
+     * same reason, when the configuration changed since the last full render, every widget is rendered again.
      */
     suspend fun update(kind: WidgetKind, appWidgetIds: IntArray) {
+        if (renderedConfigStale()) return updateAll()
         render(kind, appWidgetIds)
         publishPreviewsIfNeeded()
     }
@@ -150,19 +184,27 @@ class WidgetUpdater(
         val trip = plan?.let { p -> withTimeoutOrNull(readTimeoutMs) { tripRepository.trip(p.tripId).first() } }
         val route = trip?.let { WidgetRoute(it.origin.displayCode, it.destination.displayCode) }
         val places = trip?.let(WidgetStateMapper::placeNames).orEmpty()
-        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places)
+        val codes = trip?.let(WidgetStateMapper::placeCodes).orEmpty()
+        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
     /**
-     * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on
-     * the app version *and* the system night mode, so the picker follows a light/dark switch.
+     * Generated widget-picker previews with a sample plan (the platform rate-limits these calls). Keyed on the app
+     * version, the system night mode, the font scale, Bold text and the density, so the picker follows a light/dark
+     * switch and its labels are fitted again when the fit would change.
      */
     suspend fun publishPreviewsIfNeeded(force: Boolean = false) {
-        val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val version = application.packageManager.getPackageInfo(application.packageName, 0).longVersionCode
-        val night = application.isNight()
-        val key = previewKey(version, night)
+        val configuration = application.resources.configuration
+        val night = configuration.isNight()
+        val key = previewKey(
+            version,
+            night,
+            configuration.fontScale,
+            configuration.densityDpi,
+            configuration.weightAdjustment(),
+        )
         if (!force && prefs.getString(KEY_PREVIEW, null) == key) return
         val now = clock.instant()
         val state = WidgetStateMapper.map(
@@ -170,6 +212,7 @@ class WidgetUpdater(
             now,
             route = DemoPlans.ROUTE,
             placeNames = DemoPlans.PLACE_NAMES,
+            placeCodes = DemoPlans.PLACE_CODES,
         )
         val renderer = rendererFactory(application)
         // The picker is not the plan: always the regular palette, never night-safe.
@@ -200,6 +243,7 @@ class WidgetUpdater(
         private const val TAG = "ClockblockWidget"
         private const val PREFS = "opus_widgets"
         private const val KEY_PREVIEW = "generated_previews_key"
+        private const val KEY_RENDERED_CONFIG = "rendered_config_key"
         private const val READ_TIMEOUT_MS = 3_000L
 
         fun componentName(context: Context, kind: WidgetKind): ComponentName = when (kind) {
@@ -207,8 +251,18 @@ class WidgetUpdater(
             WidgetKind.NextUp -> ComponentName(context, NextUpWidgetProvider::class.java)
         }
 
-        /** Cache key of the generated picker previews: re-publish after an update or a light/dark switch. */
-        fun previewKey(versionCode: Long, night: Boolean): String = "$versionCode-${if (night) "night" else "day"}"
+        /**
+         * Cache key of the generated picker previews: re-publish after an update, a light/dark switch, or a font
+         * scale, Bold text or density change (the previews' labels are fitted for these at capture time, like placed
+         * widgets).
+         */
+        fun previewKey(
+            versionCode: Long,
+            night: Boolean,
+            fontScale: Float,
+            densityDpi: Int,
+            fontWeightAdjustment: Int,
+        ): String = "$versionCode-${if (night) "night" else "day"}-$fontScale-$densityDpi-w$fontWeightAdjustment"
 
         /**
          * Theme for a render: the app's theme setting (System follows the device), switched to the night-safe palette
@@ -228,9 +282,11 @@ class WidgetUpdater(
             return if (dark) WidgetTheme.Dark else WidgetTheme.Light
         }
 
-        private fun Context.isNight() = resources.configuration.isNight()
-
         private fun Configuration.isNight() = uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
+        /** Bold text's weight boost, 0 when off or undefined (as in `TextFit.weightAdjustment`). */
+        private fun Configuration.weightAdjustment() =
+            if (fontWeightAdjustment == Configuration.FONT_WEIGHT_ADJUSTMENT_UNDEFINED) 0 else fontWeightAdjustment
     }
 }
 

@@ -43,6 +43,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -207,23 +208,77 @@ class WidgetUpdaterTest {
     }
 
     @Test
-    fun `preview key changes with the app version and with night mode`() {
-        WidgetUpdater.previewKey(12, night = false) shouldBe WidgetUpdater.previewKey(12, night = false)
-        WidgetUpdater.previewKey(12, night = false) shouldNotBe WidgetUpdater.previewKey(12, night = true)
-        WidgetUpdater.previewKey(12, night = true) shouldNotBe WidgetUpdater.previewKey(13, night = true)
+    fun `preview key changes with the app version, night mode, font scale, bold text and density`() {
+        fun key(
+            version: Long = 12,
+            night: Boolean = false,
+            fontScale: Float = 1f,
+            densityDpi: Int = 420,
+            fontWeightAdjustment: Int = 0,
+        ) = WidgetUpdater.previewKey(version, night, fontScale, densityDpi, fontWeightAdjustment)
+        key() shouldBe key()
+        key() shouldNotBe key(night = true)
+        key(night = true) shouldNotBe key(version = 13, night = true)
+        // The previews are fitted at capture time like placed widgets: re-publish when the fit would change.
+        key() shouldNotBe key(fontScale = 1.3f)
+        key() shouldNotBe key(densityDpi = 480)
+        // Bold text: the captured text bakes in the adjusted weight, and wider glyphs change the fit.
+        key() shouldNotBe key(fontWeightAdjustment = 300)
     }
 
     @Test
-    fun `a light-dark switch triggers one refresh, other configuration changes none`() {
-        fun config(night: Boolean, fontScale: Float = 1f) = Configuration(app.resources.configuration).apply {
+    fun `a light-dark, font scale, bold text or density change triggers one refresh, other changes none`() {
+        val start = Configuration(app.resources.configuration)
+        fun config(
+            night: Boolean = false,
+            fontScale: Float = start.fontScale,
+            densityDpi: Int = start.densityDpi,
+            orientation: Int = start.orientation,
+            fontWeightAdjustment: Int = start.fontWeightAdjustment,
+        ) = Configuration(start).apply {
             val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
             this.fontScale = fontScale
+            this.densityDpi = densityDpi
+            this.orientation = orientation
+            this.fontWeightAdjustment = fontWeightAdjustment
         }
-        updater.nightModeChanged(config(night = false, fontScale = 1.3f)).shouldBeFalse()
-        updater.nightModeChanged(config(night = true)).shouldBeTrue()
-        updater.nightModeChanged(config(night = true)).shouldBeFalse()
-        updater.nightModeChanged(config(night = false)).shouldBeTrue()
+        val turned = if (start.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            Configuration.ORIENTATION_LANDSCAPE
+        } else {
+            Configuration.ORIENTATION_PORTRAIT
+        }
+        updater.renderConfigChanged(config(orientation = turned)).shouldBeFalse()
+        updater.renderConfigChanged(config(night = true)).shouldBeTrue()
+        updater.renderConfigChanged(config(night = true)).shouldBeFalse()
+        updater.renderConfigChanged(config(night = false)).shouldBeTrue()
+        // Labels are fitted for the font scale and the density (text snaps to whole pixels): re-fit on either.
+        updater.renderConfigChanged(config(fontScale = 1.3f)).shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f)).shouldBeFalse()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = start.densityDpi * 2)).shouldBeFalse()
+        // Bold text: the host draws the adjusted weight baked into the capture, and the fit measures it.
+        val dense = start.densityDpi * 2
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = dense, fontWeightAdjustment = 300))
+            .shouldBeTrue()
+        updater.renderConfigChanged(config(fontScale = 1.3f, densityDpi = dense, fontWeightAdjustment = 300))
+            .shouldBeFalse()
+    }
+
+    @Test
+    fun `a widget update after an unseen configuration change re-renders every widget`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val clocks = place(WidgetKind.TwoClocks, 31)
+        val next = place(WidgetKind.NextUp, 32)
+        updater.updateAll()
+        rendered.clear()
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        rendered.keys shouldBe setOf(next)
+        // The font scale changed while no process was running to hear it: the next update re-fits both kinds.
+        RuntimeEnvironment.setFontScale(1.3f)
+        rendered.clear()
+        updater.update(WidgetKind.NextUp, intArrayOf(next))
+        rendered.keys shouldBe setOf(clocks, next)
     }
 
     @Test
@@ -291,7 +346,8 @@ class WidgetUpdaterTest {
             override val settings: Flow<AppSettings> = flow { awaitCancellation() }
             override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
         }
-        val updater = updater(stuck).apply { readTimeoutMs = 50 }
+        // The timeout bounds every read, the plan's too: long enough for a loaded CI runner to read the plan.
+        val updater = updater(stuck).apply { readTimeoutMs = 1_000 }
         val lock = place(WidgetKind.NextUp, 25, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
         val home = place(WidgetKind.NextUp, 26)
         updater.update(WidgetKind.NextUp, intArrayOf(lock, home))

@@ -68,7 +68,20 @@ data class WidgetTexts(
     val spokenNow: String = "$title. $subtitle",
     /** Words of the spoken live countdown ("1 hour 10 minutes left"). */
     val countdownWords: CountdownWords = CountdownWords(),
+    /**
+     * Shorter forms of [secondary] for small cells, with the place cut or replaced by its airport code ("10:00 in
+     * XNA", see `PlaceNames`). Shown only where [secondary] can't fit whole; screen readers keep [secondary].
+     */
+    val secondaryShort: List<String> = emptyList(),
+    /**
+     * The "until" line with the other zone's time joined on, as short as it gets: "until 16:30 · 08:30 LIS". For
+     * cells where the other zone's time can't have its own line. Null without a secondary zone.
+     */
+    val untilCompact: String? = null,
 ) {
+    /** [secondary], then [secondaryShort]: the forms a layout tries, in order. Empty without a secondary zone. */
+    val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
+
     /**
      * "Up next: Melatonin at 20:30 (12:30 in Lisbon), Sleep at 22:00 (14:00 in Lisbon)": spoken for the queue region.
      * Derived from [upcoming], so a copy with fewer rows speaks only the rows it shows.
@@ -92,7 +105,12 @@ data class UpcomingText(
     val spoken: String = listOfNotNull("$label at $time", secondary?.let { "($it)" }).joinToString(" "),
     /** Glyph next to the label: the advice's own, or the neutral plan step when redacted. */
     val glyph: GlyphKind = GlyphKind.Advice(type),
-)
+    /** Shorter forms of [secondary] for small cells (see [WidgetTexts.secondaryShort]). */
+    val secondaryShort: List<String> = emptyList(),
+) {
+    /** [secondary], then [secondaryShort]: the forms a layout tries, in order. */
+    val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
+}
 
 /**
  * The widget Done button. While [logged] is null it is a button that logs [adviceId] as done; once something is
@@ -189,8 +207,19 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         }
         val subtitle = subtitleLines.joinToString(" · ")
 
-        val secondary = secondaryAt?.let { at ->
-            s.secondaryZoneId?.let { str(R.string.widget_secondary_time, time(at, ZoneId.of(it)), s.placeName(it)) }
+        // "10:00 in Lisbon", then its shorter forms for small cells ("10:00 in XNA"): the full form first.
+        fun otherZone(at: Instant, zoneId: String): List<String> {
+            val atThere = time(at, ZoneId.of(zoneId))
+            return s.placeNameOptions(zoneId).map { str(R.string.widget_secondary_time, atThere, it) }
+        }
+        val secondaryForms = secondaryAt?.let { at -> s.secondaryZoneId?.let { otherZone(at, it) } }.orEmpty()
+        val secondary = secondaryForms.firstOrNull()
+        // "until 18:00 · 10:00 LIS": the until line (first whenever there is an other-zone time) and the shortest place.
+        val untilCompact = secondaryAt?.let { at ->
+            s.secondaryZoneId?.let { zoneId ->
+                val compact = str(R.string.widget_secondary_compact, time(at, ZoneId.of(zoneId)), s.placeNameOptions(zoneId).last())
+                str(R.string.widget_until_compact, subtitleLines.first(), compact)
+            }
         }
         val countdownEnd = current?.end?.takeIf { Duration.between(s.capturedAt, it) < Duration.ofHours(24) }
         // Spoken: the other zone's time joins the line whose time it repeats ("until 18:00 (10:00 in Lisbon)").
@@ -210,8 +239,8 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         val upcoming = s.upcoming.map {
             val label = label(it.type)
             val time = time(it.start, zone)
-            val secondary =
-                secondaryZone?.let { z -> str(R.string.widget_secondary_time, time(it.start, z), s.placeName(z.id)) }
+            val forms = secondaryZone?.let { z -> otherZone(it.start, z.id) }.orEmpty()
+            val secondary = forms.firstOrNull()
             UpcomingText(
                 type = it.type,
                 label = label,
@@ -223,6 +252,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                     str(R.string.widget_starts_at_with_secondary, label, time, secondary)
                 },
                 glyph = glyph(it.type),
+                secondaryShort = forms.drop(1),
             )
         }
         return WidgetTexts(
@@ -231,6 +261,8 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             subtitle = subtitle,
             subtitleLines = subtitleLines,
             secondary = secondary,
+            secondaryShort = secondaryForms.drop(1),
+            untilCompact = untilCompact,
             countdownEnd = countdownEnd,
             misalignment = misalignment,
             dialTitle = title,

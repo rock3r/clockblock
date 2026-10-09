@@ -60,6 +60,8 @@ sealed interface WidgetState {
          * times name the same place as [route]. Zones it doesn't name fall back to the zone's city (`DialMath.cityName`).
          */
         val placeNames: Map<String, String> = emptyMap(),
+        /** The IATA code of each place in [placeNames] (IANA id → "SFO"): the shortest form of a long name. */
+        val placeCodes: Map<String, String> = emptyMap(),
         /**
          * Shown on a lock screen with "Hide details on the lock screen" on (see [WidgetStateMapper.redact]): no places,
          * route or supplement names. Times and block kinds stay.
@@ -68,6 +70,9 @@ sealed interface WidgetState {
     ) : WidgetState {
         /** The name of [zoneId]'s place: the trip's city when it has one there, else the zone's own city. */
         fun placeName(zoneId: String): String = placeNames[zoneId] ?: DialMath.cityName(zoneId)
+
+        /** [placeName] and its shorter forms, full name first ([PlaceNames.options]): what small widgets fall back to. */
+        fun placeNameOptions(zoneId: String): List<String> = PlaceNames.options(placeName(zoneId), placeCodes[zoneId])
 
         /**
          * Local (display) time minus body time, minutes: "+300" = local time is 5 h ahead of your body. Drives the dial
