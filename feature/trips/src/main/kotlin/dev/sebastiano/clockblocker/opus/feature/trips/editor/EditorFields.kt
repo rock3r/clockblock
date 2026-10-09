@@ -190,7 +190,7 @@ private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                placeResultTitle(flagEmoji(place.countryCode), place.city, country, countryName(place.countryCode, Locale.ENGLISH)),
+                placeResultTitle(place.city, place.countryCode),
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -242,16 +242,20 @@ private fun DayNightDot(time: LocalTime) {
 }
 
 /**
- * "🇵🇹 Lisbon · Portugal": the title line of a search result. A city-state is named once ("🇸🇬 Singapore"), also
- * when [country] is localised: the city names come from bundled English data, so [countryInCityLanguage] (the
- * country's English name) is compared too ("Singapore" vs a German "Singapur").
+ * "🇵🇹 Lisbon · Portugal": the title line of a search result, with the country in [locale]. A city-state is named
+ * once ("🇸🇬 Singapore", "🇭🇰 Hong Kong"): decided from [countryCode], because the bundled city names are English
+ * while the country label is localised ("Singapur") or longer ("Hong Kong SAR China").
  */
-internal fun placeResultTitle(flag: String, city: String, country: String, countryInCityLanguage: String = country): String {
-    val place = "$flag $city".trim()
-    val sameAsCity = listOf(country, countryInCityLanguage).any { it.trim().equals(city.trim(), ignoreCase = true) }
-    val region = country.trim().takeUnless { it.isBlank() || sameAsCity }
+internal fun placeResultTitle(city: String, countryCode: String, locale: Locale = Locale.getDefault()): String {
+    val place = "${flagEmoji(countryCode)} $city".trim()
+    val cityState = countryCode.trim().uppercase() in CityStateRegions ||
+        countryName(countryCode, Locale.ENGLISH).equals(city.trim(), ignoreCase = true)
+    val region = countryName(countryCode, locale).trim().takeUnless { it.isBlank() || cityState }
     return listOfNotNull(place.ifBlank { null }, region).joinToString(" · ")
 }
+
+/** Regions whose airport city is the region itself, whatever the locale data calls them. */
+private val CityStateRegions = setOf("SG", "HK", "MO", "MC", "VA", "GI", "SM")
 
 /** Regional-indicator flag for an ISO 3166 alpha-2 code ("PT" → 🇵🇹); empty when the code isn't two letters. */
 internal fun flagEmoji(countryCode: String): String {
