@@ -144,4 +144,15 @@ class RailRowsTest {
         rows.filterIsInstance<RailRow.ZoneSwitch>().shouldBeEmpty()
         rows.filterIsInstance<RailRow.Header>().firstOrNull().shouldNotBeNull()
     }
+    @Test
+    fun `the highlighted row is the block itself or the one carrying it as a chip`() {
+        val rows = buildRailRows(realPlan.railDays(PlanFixtures.MidAdaptation, emptyMap()), PlanFixtures.MidAdaptation, showEarlier = true)
+        val blocks = rows.withIndex().filter { it.value is RailRow.Block }
+        val (index, row) = blocks.first { (it.value as RailRow.Block).children.isNotEmpty() }
+        val block = row as RailRow.Block
+        rows.highlightedRowIndex(setOf(block.item.advice.id)) shouldBe index
+        rows.highlightedRowIndex(setOf(block.children.first().advice.id)) shouldBe index
+        rows.highlightedRowIndex(emptySet()) shouldBe -1
+        rows.highlightedRowIndex(setOf("not-in-the-plan")) shouldBe -1
+    }
 }
