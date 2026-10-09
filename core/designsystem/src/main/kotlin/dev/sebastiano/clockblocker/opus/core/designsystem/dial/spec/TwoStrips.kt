@@ -371,7 +371,8 @@ object TwoStrips {
 
         /**
          * The advice in focus on the axis: its block as a capsule (hatched for avoid light, the part already past
-         * washed back), its glyph at the start, and the next one's glyph; on Full its words above.
+         * washed back) with its glyph at the start. On Full the next one's glyph follows and the words ride above;
+         * on Simple its name sits beside the capsule (never a glyph alone), and the row goes when the name doesn't fit.
          */
         fun adviceRow(top: Float, rowH: Float, words: Boolean, sayY: Float = 0f, say: TextSpec? = null) {
             val current = focus.current
@@ -380,14 +381,16 @@ object TwoStrips {
             val cy = top + rowH / 2f
             val discR = rowH / 2f
             val sx = clampX(axis.x(shown.startMinute).takeIf { inWindow(shown.startMinute) } ?: axis.left)
-            if (shown.sweepMinutes > 0f) capsule(shown, cy, rowH * 0.7f, washPast = current != null)
+            val rowStart = ops.size
+            val capsuleEnd = if (shown.sweepMinutes > 0f) capsule(shown, cy, rowH * 0.7f, washPast = current != null) else null
             glyph(shown.type, sx, cy, discR)
-            if (next != null && current != null && inWindow(next.startMinute)) {
-                val nx = axis.x(next.startMinute)
-                val endX = axis.x(current.endMinute)
-                glyph(next.type, if (kotlin.math.abs(nx - endX) < discR) nx + discR else nx, cy, discR * 0.8f)
+            if (!words) {
+                if (!nameBeside(shown.type, sx - discR, max(sx + discR, capsuleEnd ?: 0f), cy)) {
+                    while (ops.size > rowStart) ops.removeAt(ops.lastIndex)
+                }
+                return
             }
-            if (!words || say == null) return
+            if (say == null) return
             val label = labels.advice(shown.type)
             val text = when {
                 current != null && current.sweepMinutes > 0f -> labels.until(label, labels.fullTime(current.narratedEndMinute))
@@ -405,11 +408,41 @@ object TwoStrips {
             val lineW = if (withThen) tw + thenW else tw
             val x = (sx - discR).coerceIn(4f, max(4f, w - 4f - lineW))
             ops += DialOp.Text(text, x, sayY, say, p.ink, h = HAlign.Start, part = DialPart.Narration)
-            if (withThen) ops += DialOp.Text(thenText!!, x + tw + 8f, sayY, thenSpec, p.inkMuted, h = HAlign.Start, part = DialPart.Narration)
+            if (!withThen) return
+            ops += DialOp.Text(thenText!!, x + tw + 8f, sayY, thenSpec, p.inkMuted, h = HAlign.Start, part = DialPart.Narration)
+            // The next one's glyph, named by the line above.
+            if (next != null && current != null && inWindow(next.startMinute)) {
+                val nx = axis.x(next.startMinute)
+                val endX = axis.x(current.endMinute)
+                glyph(next.type, if (kotlin.math.abs(nx - endX) < discR) nx + discR else nx, cy, discR * 0.8f)
+            }
         }
 
-        fun capsule(a: DialArc, cy: Float, height: Float, washPast: Boolean) {
-            val (x0, x1) = runs(a.startMinute, a.sweepMinutes).firstOrNull() ?: return
+        /**
+         * The advice's name after its mark (from [x0] to [x1]), or before it when there's no room after; kept off the
+         * now line. False when it fits neither side.
+         */
+        fun nameBeside(type: AdviceType, x0: Float, x1: Float, cy: Float): Boolean {
+            val name = labels.advice(type)
+            val spec = TextSpec(10.5f * grow, weight = 650, tabular = false)
+            val tw = measurer.width(name, spec)
+            val nowX = axis.x(now)
+            val gap = 4f
+            fun clear(a: Float) = a > nowX + gap || a + tw < nowX - gap
+            val after = x1 + gap
+            val before = x0 - gap - tw
+            val at = when {
+                after + tw <= w - 2f && clear(after) -> after
+                before >= 2f && clear(before) -> before
+                else -> return false
+            }
+            ops += DialOp.Text(name, at, cy, spec, p.ink, h = HAlign.Start, part = DialPart.Advice)
+            return true
+        }
+
+        /** The block as a capsule along the axis. Returns where it ends, or null when it's outside the window. */
+        fun capsule(a: DialArc, cy: Float, height: Float, washPast: Boolean): Float? {
+            val (x0, x1) = runs(a.startMinute, a.sweepMinutes).firstOrNull() ?: return null
             val r = height / 2f
             val top = cy - r
             val bottom = cy + r
@@ -424,11 +457,13 @@ object TwoStrips {
                     x += step
                 }
             }
-            if (!washPast) return
-            val nowX = axis.x(now)
-            if (nowX > x0 && nowX < x1) {
-                ops += DialOp.Rect(x0 - r - 1f, top - 1f, nowX, bottom + 1f, 0f, p.face.withAlpha(0.42f), part = DialPart.AdvicePast)
+            if (washPast) {
+                val nowX = axis.x(now)
+                if (nowX > x0 && nowX < x1) {
+                    ops += DialOp.Rect(x0 - r - 1f, top - 1f, nowX, bottom + 1f, 0f, p.face.withAlpha(0.42f), part = DialPart.AdvicePast)
+                }
             }
+            return x1 + r
         }
 
         fun glyph(type: AdviceType, x: Float, cy: Float, discR: Float) {

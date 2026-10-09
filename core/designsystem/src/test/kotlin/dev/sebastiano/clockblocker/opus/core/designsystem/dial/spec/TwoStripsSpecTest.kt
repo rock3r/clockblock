@@ -120,10 +120,22 @@ class TwoStripsSpecTest {
     @Test
     fun `the advice in focus rides above the bars with its glyph, and its words on Full`() {
         val simple = spec(w = 240f, h = 112f)
-        simple.all<DialOp.Glyph>().map { it.type } shouldContainAll listOf(AdviceType.AvoidLight)
+        simple.all<DialOp.Glyph>().map { it.type } shouldBe listOf(AdviceType.AvoidLight)
         simple.all<DialOp.Text>(DialPart.Narration).shouldBeEmpty()
+        // Never a glyph alone: its name rides beside the capsule.
+        simple.all<DialOp.Text>(DialPart.Advice).map { it.text } shouldBe listOf("Avoid light")
         val full = spec(w = 328f, h = 170f)
         full.all<DialOp.Text>(DialPart.Narration).map { it.text } shouldContainAll listOf("Avoid light until 16:30", "then take melatonin")
+    }
+
+    @Test
+    fun `a glyph never shows without its name`() = runTest {
+        val sizes = listOf(160f to 80f, 250f to 84f, 240f to 112f, 400f to 140f, 328f to 170f)
+        checkAll(Arb.int(0, 1439), Arb.element(sizes)) { minute, (w, h) ->
+            val s = spec(tokyo.copy(localMinute = minute.toFloat()), w, h)
+            val names = s.all<DialOp.Text>().map { it.text }
+            s.all<DialOp.Glyph>().forEach { g -> names.any { it.contains(labels.advice(g.type), ignoreCase = true) } shouldBe true }
+        }
     }
 
     @Test

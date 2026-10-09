@@ -36,6 +36,7 @@ object TwoSkies {
      * @param bodyAheadMinutes the body clock relative to local time *as drawn*; hosts animate it when the day
      *   changes so the inner ring turns into place. Defaults to the state's.
      * @param textGrowth extra scale for the centre readouts under large font sizes (kept small so they fit).
+     * @param namePlace false on a lock screen that hides details: the local ring and the centre name no place.
      */
     fun spec(
         state: DialState,
@@ -48,6 +49,7 @@ object TwoSkies {
         mode: BodyRingMode = BodyRingMode.Simple,
         measurer: DialTextMeasurer = ApproxTextMeasurer,
         textGrowth: Float = 1f,
+        namePlace: Boolean = true,
     ): DialSpec {
         val side = min(widthDp, heightDp)
         val level = DetailLevel.forSize(side)
@@ -63,6 +65,7 @@ object TwoSkies {
             ahead = bodyAheadMinutes,
             mode = mode,
             grow = textGrowth.coerceIn(1f, 1.15f),
+            namePlace = namePlace,
         )
         val hub = when (level) {
             DetailLevel.Full -> b.full(side / 2f / 164f)
@@ -111,6 +114,7 @@ object TwoSkies {
         val ahead: Float,
         val mode: BodyRingMode,
         val grow: Float,
+        val namePlace: Boolean,
     ) {
         val ops = mutableListOf<DialOp>()
         /**
@@ -142,8 +146,10 @@ object TwoSkies {
             // Ring labels, on the marks themselves: whose sky it is, and which half is night.
             val ringText = TextSpec(9.5f * k, weight = 650, caps = true, tracking = 0.12f, tabular = false)
             val bodyText = ringText.copy(slanted = true)
-            ringLabel(labels.placeNight(place), outerR, localNight.centre, localNight.lengthMinutes, ringText, p.sky.onNight)
-            ringLabel(labels.placeDay(place), outerR, localNight.dayCentre, 1440f - localNight.lengthMinutes, ringText, p.sky.onDay)
+            if (namePlace) {
+                ringLabel(labels.placeNight(place), outerR, localNight.centre, localNight.lengthMinutes, ringText, p.sky.onNight)
+                ringLabel(labels.placeDay(place), outerR, localNight.dayCentre, 1440f - localNight.lengthMinutes, ringText, p.sky.onDay)
+            }
             ringLabel(labels.bodyNight(), innerR, bodyNight.centre, bodyNight.lengthMinutes, bodyText, p.sky.onNight)
             ringLabel(labels.bodyDay(), innerR, bodyNight.dayCentre, 1440f - bodyNight.lengthMinutes, bodyText, p.sky.onDay)
 
@@ -160,10 +166,12 @@ object TwoSkies {
             needle(innerR - ringW / 2f - 2f * k, outerR + ringW / 2f + 2.5f * k, 3f * k, tip = 4.5f * k)
 
             // Centre: where you are, local time upright, body time slanted, the offset in words.
-            ops += DialOp.Text(
-                place.uppercase(), cx, cy - 34f * k,
-                CentrePlaceText.copy(size = CentrePlaceText.size * k), p.inkMuted, part = DialPart.Readout,
-            )
+            if (namePlace) {
+                ops += DialOp.Text(
+                    place.uppercase(), cx, cy - 34f * k,
+                    CentrePlaceText.copy(size = CentrePlaceText.size * k), p.inkMuted, part = DialPart.Readout,
+                )
+            }
             // The local time sits level with the 06 and 18 numerals: it may grow up to the gap between them.
             val sideNumeral = maxOf(measurer.width(labels.numeral(6), numeral), measurer.width(labels.numeral(18), numeral))
             localTime(
@@ -189,7 +197,7 @@ object TwoSkies {
             face(80f * k)
             rings(outerR, innerR, ringW)
             val ringText = TextSpec(7.6f * k, weight = 700, caps = true, tracking = 0.1f, tabular = false)
-            shortRingLabel(place, outerR, localNight, ringText)
+            if (namePlace) shortRingLabel(place, outerR, localNight, ringText)
             shortRingLabel(labels.body(), innerR, bodyNight, ringText.copy(slanted = true))
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)

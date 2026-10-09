@@ -173,6 +173,21 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a dial that names no place keeps the body's labels and drops the place's`() {
+        for (side in listOf(328f, 180f)) {
+            val texts = TwoSkies.spec(tokyo, palette, labels, side, side, namePlace = false).ops.mapNotNull {
+                when (it) {
+                    is DialOp.CurvedText -> it.text
+                    is DialOp.Text -> it.text
+                    else -> null
+                }
+            }
+            texts.none { it.contains("TOKYO", ignoreCase = true) } shouldBe true
+            texts.any { it.contains("BODY") } shouldBe true
+        }
+    }
+
+    @Test
     fun `upcoming advice is narrated with its start when nothing is on`() {
         val texts = spec(scrub = 18 * 60f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
         texts shouldContain "Sleep at 23:00"

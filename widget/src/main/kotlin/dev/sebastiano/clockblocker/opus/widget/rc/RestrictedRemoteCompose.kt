@@ -95,6 +95,12 @@ internal object HostText {
         }
     }
 
+    /** The 12-hour clock's marker for a minute-of-day expression: [am] before noon, [pm] after. */
+    fun marker(minuteOfDay: RemoteFloat, am: String, pm: String): RemoteString =
+        selectIfLt(minuteOfDay, NOON_MINUTE.rf, am.rs, pm.rs)
+
+    private const val NOON_MINUTE = 720f
+
     /**
      * Live countdown: "42m", "2h 10m" ("2h10m" when [compact]). [totalMinutes] is the distance from capture to the
      * end of the block, [capturedUtcMinute] the UTC minute of day at capture. Clamps at "0m" if the widget was not
