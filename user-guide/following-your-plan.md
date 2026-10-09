@@ -57,6 +57,9 @@ when it ends ("See bright light until 15:00") and what comes next. When nothing 
 when it starts. On a small phone, the dial is simpler: the rings say only the city and "Body", and the Now card
 below gives the details.
 
+The dial follows the clock on the wall. On the night the clocks change, a block from 01:00 to 04:00 covers three
+hours of the dial, even though only two hours pass when the clocks go forward.
+
 To look ahead, drag the needle around the dial. The Now card changes to show what you'd be doing "At 18:30",
 for example. Let go and the needle returns to now (or to the day you picked in the day strip). You can also tap the
 centre to return. With TalkBack, the dial offers the actions **Next block**, **Previous block** and **Back to

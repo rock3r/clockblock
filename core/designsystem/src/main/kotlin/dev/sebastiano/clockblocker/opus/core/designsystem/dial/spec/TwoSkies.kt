@@ -62,7 +62,8 @@ object TwoSkies {
             cy = heightDp / 2f,
             display = (state.localMinute + scrubMinutes).mod(DialGeometry.MinutesPerDay),
             scrubbed = scrubMinutes != 0f,
-            ahead = bodyAheadMinutes,
+            // The body clock runs on real time: when the hand crosses a clock change, its lead on local time changes.
+            ahead = DialGeometry.minuteDelta(0f, bodyAheadMinutes - state.clockChangeAt(scrubMinutes)),
             mode = mode,
             grow = textGrowth.coerceIn(1f, 1.15f),
             namePlace = namePlace,
