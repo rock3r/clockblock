@@ -124,8 +124,8 @@ fun TwoSkiesDial(
 
     // The real instant the hand last landed on, when it isn't the face's own (a block boundary in a fall-back night's
     // repeated hour, see blockBoundaryInstant). The drawn body clock and the description follow it, as the host's
-    // cards do; any other report clears it.
-    var landed by remember { mutableStateOf<Landing?>(null) }
+    // cards do; any other report clears it. Saved with the scrub offset, so a configuration change keeps it.
+    var landed by rememberSaveable(stateSaver = LandingSaver) { mutableStateOf<Landing?>(null) }
     val landing by remember { derivedStateOf { landed?.takeIf { it.offset == scrub.value } } }
 
     // The scrub offset is minutes of the wall-clock face (as are the arcs and boundaries); the host gets the real
@@ -137,7 +137,7 @@ fun TwoSkiesDial(
     }
 
     // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand.
-    LaunchedEffect(Unit) { if (scrub.value != 0f) report(scrub.value) }
+    LaunchedEffect(Unit) { if (scrub.value != 0f) report(scrub.value, landing?.at) }
 
     /**
      * Moves the hand on [spec] and reports every frame, so the cards and the sky travel with it: the hand and the
@@ -446,4 +446,10 @@ private fun String.lowercaseFirst(): String = replaceFirstChar { it.lowercase() 
 private val ScrubSaver: Saver<Animatable<Float, *>, Float> = Saver(
     save = { it.value },
     restore = { Animatable(it) },
+)
+
+/** A [Landing] as its offset and epoch milliseconds; nothing when there is none. */
+private val LandingSaver: Saver<Landing?, Any> = Saver(
+    save = { landing -> landing?.let { arrayListOf(it.offset, it.at.toEpochMilli()) } },
+    restore = { saved -> (saved as List<*>).let { Landing(it[0] as Float, Instant.ofEpochMilli(it[1] as Long)) } },
 )
