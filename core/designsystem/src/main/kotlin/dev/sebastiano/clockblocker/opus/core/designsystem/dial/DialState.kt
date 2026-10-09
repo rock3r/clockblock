@@ -5,8 +5,11 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlin.math.abs
 import kotlin.math.atan2
 
@@ -43,6 +46,31 @@ object DialGeometry {
 }
 
 /**
+ * The instant [minutes] of the wall-clock face away from [from] in [zone]: the same as [minutes] of real time,
+ * except across a DST change. A face time the clocks skip (02:30 when they spring forward at 02:00) gives the change
+ * itself; a face time that happens twice (fall back) keeps the offset at [from], so a hand starting inside the
+ * repeated hour stays on its side of the change.
+ */
+internal fun faceInstant(from: Instant, zone: ZoneId, minutes: Float): Instant {
+    val start = from.atZone(zone)
+    val local = start.toLocalDateTime().plusSeconds((minutes * 60f).toLong())
+    zone.rules.getTransition(local)?.takeIf { it.isGap }?.let { return it.instant }
+    return ZonedDateTime.ofLocal(local, zone, start.offset).toInstant()
+}
+
+/**
+ * How many minutes of the wall-clock face [start] → [end] covers in [zone], at most a whole face: real time plus the
+ * DST change in between (01:00 EST → 04:00 EDT is 2 h of real time and 3 h of the face). A block that would end
+ * earlier on the face than it starts (inside a repeated hour) keeps its real length.
+ */
+internal fun faceMinutesBetween(start: Instant, end: Instant, zone: ZoneId): Float {
+    val elapsed = Duration.between(start, end).seconds / 60f
+    val shift = (zone.rules.getOffset(end).totalSeconds - zone.rules.getOffset(start).totalSeconds) / 60f
+    val face = elapsed + shift
+    return if (face > 0f) face.coerceAtMost(DialGeometry.MinutesPerDay) else elapsed
+}
+
+/**
  * One advice window projected onto the dial, in display-zone minutes of the day. [startInstant] / [endInstant] are
  * the advice's real start and end (never clipped to the window, nor wrapped round the face): what orders blocks of
  * 24 h or more, or across a DST change, where minutes of the day can't. Null when unknown (hand-built states).
@@ -52,7 +80,11 @@ data class DialArc(
     val adviceId: String,
     val type: AdviceType,
     val startMinute: Float,
-    /** 0 for instantaneous advice (melatonin): drawn as a dot. */
+    /**
+     * Minutes of the wall-clock face the arc covers, which across a DST change differ from real time (see
+     * [faceMinutesBetween]). Scrub offsets, block boundaries and focus are all in face minutes too; only
+     * [DialState.instantAt] turns them back into real instants. 0 for instantaneous advice (melatonin): drawn as a dot.
+     */
     val sweepMinutes: Float,
     val isNow: Boolean = false,
     /** Where the advice really ends (display-zone minute), even when the arc is clipped to the dial's window. */
@@ -130,9 +162,17 @@ data class DialState(
     /** Display-zone minute at which the body clock reads [bodyMinute]. */
     fun localMinuteForBody(bodyMinute: Float): Float = (bodyMinute - bodyAheadMinutes).mod(DialGeometry.MinutesPerDay)
 
-    /** Shift the readouts to another instant inside the dial's window (scrubbing). */
+    /**
+     * The real instant under the hand [minutesFromNow] minutes of the *face* away from now. The dial is a wall-clock
+     * face, so across a DST change face minutes and real minutes differ (see [faceInstant]).
+     */
+    fun instantAt(minutesFromNow: Float): Instant =
+        runCatching { ZoneId.of(displayZoneId) }.getOrNull()?.let { faceInstant(instant, it, minutesFromNow) }
+            ?: instant.plusSeconds((minutesFromNow * 60f).toLong())
+
+    /** Shift the readouts to another instant inside the dial's window (scrubbing), [minutesFromNow] on the face. */
     fun scrubbedTo(minutesFromNow: Float): DialState = copy(
-        instant = instant.plusSeconds((minutesFromNow * 60f).toLong()),
+        instant = instantAt(minutesFromNow),
         localMinute = (localMinute + minutesFromNow).mod(DialGeometry.MinutesPerDay),
     )
 
