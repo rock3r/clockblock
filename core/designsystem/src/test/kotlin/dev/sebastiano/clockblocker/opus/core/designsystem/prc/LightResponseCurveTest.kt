@@ -121,10 +121,44 @@ class LightResponseCurveTest {
     }
 
     @Test
-    fun `a window is placed in hours around the coldest point and clipped to the curve`() {
+    fun `a window is placed in hours around the coldest point`() {
         val cbtMin = Instant.parse("2026-05-01T04:30:00Z")
-        LightResponseCurve.window(cbtMin, cbtMin.plusSeconds(3600), cbtMin.plusSeconds(4 * 3600)) shouldBe 1.0..4.0
-        LightResponseCurve.window(cbtMin, cbtMin.minusSeconds(14 * 3600), cbtMin.minusSeconds(10 * 3600)) shouldBe -12.0..-10.0
-        LightResponseCurve.window(cbtMin, cbtMin.minusSeconds(5400), cbtMin.plusSeconds(1800)) shouldBe -1.5..0.5
+        LightResponseCurve.window(cbtMin, cbtMin.plusSeconds(3600), cbtMin.plusSeconds(4 * 3600)).segments shouldBe listOf(1.0..4.0)
+        LightResponseCurve.window(cbtMin, cbtMin.minusSeconds(5400), cbtMin.plusSeconds(1800)).segments shouldBe listOf(-1.5..0.5)
+    }
+
+    @Test
+    fun `a window that runs past either end wraps round to the other, because the curve repeats every 24 h`() {
+        val cbtMin = Instant.parse("2026-05-01T04:30:00Z")
+        val home = LightResponseCurve.window(cbtMin, cbtMin.plusSeconds(3 * 3600), cbtMin.plusSeconds(16 * 3600))
+        home.segments shouldBe listOf(3.0..12.0, -12.0..-8.0)
+        val early = LightResponseCurve.window(cbtMin, cbtMin.minusSeconds(14 * 3600), cbtMin.minusSeconds(10 * 3600))
+        early.segments shouldBe listOf(10.0..12.0, -12.0..-10.0)
+        LightResponseCurve.window(cbtMin, cbtMin.plusSeconds(13 * 3600), cbtMin.plusSeconds(15 * 3600)).segments shouldBe listOf(-11.0..-9.0)
+    }
+
+    @Test
+    fun `a wrapped window keeps its middle and contains only its own hours`() {
+        val window = LightResponseCurve.Window.between(3.0, 16.0)
+        window.middle shouldBe 9.5
+        LightResponseCurve.Window.between(10.0, 16.0).middle shouldBe -11.0
+        (11.0 in window) shouldBe true
+        (-10.0 in window) shouldBe true
+        (-7.0 in window) shouldBe false
+        (0.0 in window) shouldBe false
+        window.largest shouldBe 3.0..12.0
+    }
+
+    @Test
+    fun `a window never covers more than the whole curve`() = runTest {
+        checkAll(Arb.numericDouble(-48.0, 48.0), Arb.numericDouble(0.0, 72.0)) { start, length ->
+            val window = LightResponseCurve.Window.between(start, start + length)
+            window.segments.sumOf { it.endInclusive - it.start } shouldBe (minOf(length, 24.0) plusOrMinus 1e-9)
+            window.segments.forEach {
+                it.start shouldBeIn -12.0..12.0
+                it.endInclusive shouldBeIn -12.0..12.0
+            }
+            window.middle shouldBeIn -12.0..12.0
+        }
     }
 }

@@ -24,7 +24,10 @@ class LightResponseCurveCardTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun show(window: ClosedFloatingPointRange<Double>? = null) = compose.setContent {
+    private fun show(window: ClosedFloatingPointRange<Double>? = null) =
+        show(window?.let { LightResponseCurve.Window.between(it.start, it.endInclusive) })
+
+    private fun show(window: LightResponseCurve.Window?) = compose.setContent {
         ClockblockTheme(dynamicColor = false, reduceMotion = true) {
             LightResponseCurveCard(window = window, windowType = window?.let { AdviceType.SeeBrightLight })
         }
@@ -58,6 +61,14 @@ class LightResponseCurveCardTest {
         curve.assert(state("1 h 30 min after your body's coldest point, in this block. Light here moves your clock earlier, strongly."))
         compose.runOnUiThread { action("Reset to this block").action!!.invoke() }
         curve.assert(state("2 h 30 min after your body's coldest point, in this block. Light here moves your clock earlier, strongly."))
+    }
+
+    @Test
+    fun `a block that wraps past the end of the curve counts the hours it wraps to`() {
+        show(LightResponseCurve.Window.between(3.0, 16.0))
+        curve.assert(state("9 h 30 min after your body's coldest point, in this block. Light here barely moves your clock."))
+        repeat(20) { compose.runOnUiThread { action("Earlier hour").action!!.invoke() } }
+        curve.assert(state("10 h 30 min before your body's coldest point, in this block. Light here barely moves your clock."))
     }
 
     @Test

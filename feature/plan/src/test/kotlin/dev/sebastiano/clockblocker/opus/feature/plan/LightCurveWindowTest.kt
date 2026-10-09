@@ -46,9 +46,15 @@ class LightCurveWindowTest {
 
     @Test
     fun `light advice is placed around the coldest point nearest to it`() {
-        lightCurveWindow(plan, advice(AdviceType.SeeBrightLight, "2026-05-01T05:00:00Z", "2026-05-01T08:00:00Z")) shouldBe 1.0..4.0
-        lightCurveWindow(plan, advice(AdviceType.AvoidLight, "2026-05-01T21:00:00Z", "2026-05-02T00:30:00Z")) shouldBe -6.0..-2.5
-        lightCurveWindow(plan, advice(AdviceType.SeeLight, "2026-05-02T04:00:00Z", "2026-05-02T05:00:00Z")) shouldBe 1.0..2.0
+        lightCurveWindow(plan, advice(AdviceType.SeeBrightLight, "2026-05-01T05:00:00Z", "2026-05-01T08:00:00Z"))?.segments shouldBe listOf(1.0..4.0)
+        lightCurveWindow(plan, advice(AdviceType.AvoidLight, "2026-05-01T21:00:00Z", "2026-05-02T00:30:00Z"))?.segments shouldBe listOf(-6.0..-2.5)
+        lightCurveWindow(plan, advice(AdviceType.SeeLight, "2026-05-02T04:00:00Z", "2026-05-02T05:00:00Z"))?.segments shouldBe listOf(1.0..2.0)
+    }
+
+    @Test
+    fun `a long block that runs past the end of the curve wraps round to its start`() {
+        lightCurveWindow(plan, advice(AdviceType.SeeLight, "2026-05-01T07:00:00Z", "2026-05-01T20:00:00Z"))?.segments shouldBe
+            listOf(3.0..12.0, -12.0..-8.0)
     }
 
     @Test
@@ -68,7 +74,7 @@ class LightCurveWindowTest {
         val light = realPlan.allAdvice.filter { it.type == AdviceType.SeeBrightLight || it.type == AdviceType.SeeLight }
         light.forEach { advice ->
             val window = lightCurveWindow(realPlan, advice).shouldNotBeNull()
-            val middle = (window.start + window.endInclusive) / 2
+            val middle = window.middle
             when (advice.reason) {
                 AdviceReason.LightAdvancesClock -> (middle > 0) shouldBe true
                 AdviceReason.LightDelaysClock -> (middle < 0) shouldBe true

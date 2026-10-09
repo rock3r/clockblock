@@ -128,8 +128,10 @@ does not use it**: the planner's light windows come from §12. The card's model 
   same shape and timing at about 40 % of the amplitude, so these words describe direction and relative strength,
   not a prediction for a given exposure.
 - In the Why sheet, the block is drawn as a band, placed in hours from the CBTmin estimate nearest to it
-  (`PhasePoint.cbtMin` of the plan's body-clock track). Every See light block of a real plan lands on the side that
-  matches its reason (`LightCurveWindowTest`).
+  (`PhasePoint.cbtMin` of the plan's body-clock track). A block that runs past T ± 12 h wraps round to the other end
+  of the axis, because the curve repeats every 24 h: a See light block from T + 3 h to T + 16 h is drawn as two bands,
+  +3…+12 h and −12…−8 h. Every See light block of a real plan lands on the side that matches its reason
+  (`LightCurveWindowTest`).
 - Not medical advice. Individual curves vary, and CBTmin is itself an estimate (§8).
 
 ---

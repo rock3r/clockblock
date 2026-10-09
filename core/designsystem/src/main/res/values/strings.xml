@@ -77,6 +77,8 @@
     <string name="light_curve_coldest">your body\'s coldest point</string>
     <string name="light_curve_axis_before">12 h before</string>
     <string name="light_curve_axis_after">12 h after</string>
+    <string name="light_curve_axis_before_short">−12 h</string>
+    <string name="light_curve_axis_after_short">+12 h</string>
     <string name="light_curve_this_block">this block</string>
     <string name="light_curve_at_coldest">At your body\'s coldest point</string>
     <string name="light_curve_before">%1$s before your body\'s coldest point</string>

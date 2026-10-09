@@ -82,12 +82,50 @@ object LightResponseCurve {
     /** [hours] on the handle's quarter-hour grid, within the curve. */
     fun snap(hours: Double): Double = ((hours / StepHours).roundToLong() * StepHours).coerceIn(-SpanHours, SpanHours) + 0.0
 
-    /** An advice window [start]…[end] in hours from [cbtMin], clipped to the curve. */
-    fun window(cbtMin: Instant, start: Instant, end: Instant): ClosedFloatingPointRange<Double> =
-        hoursFrom(cbtMin, start)..hoursFrom(cbtMin, end)
+    /**
+     * An advice window [start]…[end] in hours from [cbtMin]. A block that runs past either end of the curve wraps
+     * round to the other end, because the curve repeats every 24 h.
+     */
+    fun window(cbtMin: Instant, start: Instant, end: Instant): Window =
+        Window.between(hoursFrom(cbtMin, start), hoursFrom(cbtMin, end))
 
-    private fun hoursFrom(cbtMin: Instant, instant: Instant): Double =
-        (Duration.between(cbtMin, instant).toMillis() / 3_600_000.0).coerceIn(-SpanHours, SpanHours)
+    private fun hoursFrom(cbtMin: Instant, instant: Instant): Double = Duration.between(cbtMin, instant).toMillis() / 3_600_000.0
+
+    /** [hours] folded onto the curve, −12 (inclusive) … +12 (exclusive). */
+    private fun wrap(hours: Double): Double {
+        val x = (hours + SpanHours).mod(2 * SpanHours) - SpanHours
+        return if (x >= SpanHours) x - 2 * SpanHours else x
+    }
+
+    /**
+     * An advice block on the curve, as one segment, or two when it wraps past +12 h round to −12 h. Segments are in
+     * the block's own order (the first starts where the block starts) and cover at most the whole curve.
+     */
+    data class Window(val segments: List<ClosedFloatingPointRange<Double>>) {
+        /** The block's midpoint on the curve, wrapped like the block. */
+        val middle: Double =
+            wrap(segments.first().start + segments.sumOf { it.endInclusive - it.start } / 2)
+
+        /** The longest segment, where the block's label goes. */
+        val largest: ClosedFloatingPointRange<Double> = segments.maxBy { it.endInclusive - it.start }
+
+        /** Whether a segment end at [hours] is only the seam where the block wraps (±12 h), not a real edge of it. */
+        fun isSeam(hours: Double): Boolean = segments.size > 1 && abs(abs(hours) - SpanHours) < 1e-9
+
+        operator fun contains(hours: Double): Boolean = segments.any { hours in it }
+
+        companion object {
+            /** The block from [startHours] to [endHours] (hours from the coldest point, any range), on the curve. */
+            fun between(startHours: Double, endHours: Double): Window {
+                val length = (endHours - startHours).coerceIn(0.0, 2 * SpanHours)
+                val start = wrap(startHours)
+                val end = start + length
+                return Window(
+                    if (end <= SpanHours) listOf(start..end) else listOf(start..SpanHours, -SpanHours..end - 2 * SpanHours),
+                )
+            }
+        }
+    }
 
     /** `u·(1−u)^b` on 0…1, scaled so its peak (at u = [peakAt]) is 1. Zero at both ends. */
     private class Lobe(peakAt: Double) {

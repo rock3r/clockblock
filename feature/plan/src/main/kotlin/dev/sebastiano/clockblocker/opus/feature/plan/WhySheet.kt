@@ -54,7 +54,7 @@ internal fun WhySheet(
     secondaryZone: ZoneId,
     flightRoute: String?,
     onDismiss: () -> Unit,
-    curveWindow: ClosedFloatingPointRange<Double>? = null,
+    curveWindow: LightResponseCurve.Window? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -82,7 +82,7 @@ internal fun WhySheetContent(
     secondaryZone: ZoneId,
     flightRoute: String?,
     modifier: Modifier = Modifier,
-    curveWindow: ClosedFloatingPointRange<Double>? = null,
+    curveWindow: LightResponseCurve.Window? = null,
 ) {
     val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
@@ -139,7 +139,7 @@ internal fun WhySheetContent(
 }
 
 /** Light advice gets the light response curve: [advice]'s block in hours from the coldest point nearest to it. */
-internal fun lightCurveWindow(plan: JetLagPlan, advice: Advice): ClosedFloatingPointRange<Double>? {
+internal fun lightCurveWindow(plan: JetLagPlan, advice: Advice): LightResponseCurve.Window? {
     if (advice.type !in LightCurveTypes || plan.phase.isEmpty()) return null
     val middle = advice.start.plus(advice.duration.dividedBy(2))
     val cbtMin = plan.phase.minBy { abs(Duration.between(it.instant, middle).toMillis()) }.cbtMin

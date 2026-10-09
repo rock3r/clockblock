@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -82,16 +83,16 @@ object LightResponseCurveTags {
  * lobes take the dial's sky colours (dawn for earlier, twilight for later) and carry direct labels, so no legend
  * is needed and meaning never rests on hue. The readout stays qualitative ([LightResponseCurve.effectAt]).
  *
- * @param window the advice block in hours from the coldest point (see [LightResponseCurve.window]), or null.
+ * @param window the advice block on the curve (see [LightResponseCurve.window]), or null.
  * @param windowType the block's advice type, which colours the window band.
  */
 @Composable
 fun LightResponseCurveCard(
     modifier: Modifier = Modifier,
-    window: ClosedFloatingPointRange<Double>? = null,
+    window: LightResponseCurve.Window? = null,
     windowType: AdviceType? = null,
 ) {
-    val home = LightResponseCurve.snap(window?.let { (it.start + it.endInclusive) / 2 } ?: LightResponseCurve.PeakAdvanceAtHours)
+    val home = LightResponseCurve.snap(window?.middle ?: LightResponseCurve.PeakAdvanceAtHours)
     var hours by rememberSaveable(home) { mutableDoubleStateOf(home) }
     val position = remember(home) { Animatable(hours.toFloat()) }
     val motion by rememberUpdatedState(ClockblockTheme.motion)
@@ -173,7 +174,7 @@ fun LightResponseCurveCard(
 @Composable
 private fun CurvePlot(
     position: () -> Float,
-    window: ClosedFloatingPointRange<Double>?,
+    window: LightResponseCurve.Window?,
     windowType: AdviceType?,
     onTap: (Double) -> Unit,
     onDrag: (Double) -> Unit,
@@ -262,14 +263,20 @@ private fun CurvePlot(
             drawLobe(g, from = -LightResponseCurve.SpanHours, to = 0.0, laterFill)
             drawLobe(g, from = 0.0, to = LightResponseCurve.SpanHours, earlierFill)
             // The block's window: a tinted band over the lobes, edged in the advice colour, hatched for Avoid light
-            // (the app's colour-blind pattern).
+            // (the app's colour-blind pattern). A block that wraps past ±12 h is two bands, unedged at the seam.
             if (window != null && band != null && windowType != null) {
-                val left = g.xAt(window.start)
-                val right = g.xAt(window.endInclusive)
                 val edge = if (band.hasOutline) band.outline else band.color
-                drawRect(band.color.copy(alpha = BandAlpha), Offset(left, g.curveTop), Size(right - left, g.curveBottom - g.curveTop))
-                if (windowType.pattern == AdvicePattern.Hatch) drawHatch(left, right, g.curveTop, g.curveBottom, edge)
-                for (x in listOf(left, right)) drawLine(edge, Offset(x, g.curveTop), Offset(x, g.curveBottom), 1.5.dp.toPx())
+                for (segment in window.segments) {
+                    val left = g.xAt(segment.start)
+                    val right = g.xAt(segment.endInclusive)
+                    drawRect(band.color.copy(alpha = BandAlpha), Offset(left, g.curveTop), Size(right - left, g.curveBottom - g.curveTop))
+                    if (windowType.pattern == AdvicePattern.Hatch) drawHatch(left, right, g.curveTop, g.curveBottom, edge)
+                    for (h in listOf(segment.start, segment.endInclusive)) {
+                        if (window.isSeam(h)) continue
+                        val x = g.xAt(h)
+                        drawLine(edge, Offset(x, g.curveTop), Offset(x, g.curveBottom), 1.5.dp.toPx())
+                    }
+                }
             }
             // Axis, three-hour ticks and the coldest point.
             drawLine(colors.outline, Offset(g.inset, g.zeroY), Offset(g.width - g.inset, g.zeroY), 1.dp.toPx())
@@ -293,12 +300,13 @@ private fun CurvePlot(
             if (window != null && band != null) {
                 val pad = 4.dp.toPx()
                 val pill = Size(bandLabel.size.width + 2 * pad, bandLabel.size.height.toFloat())
-                val after = window.start + window.endInclusive >= 0
+                val segment = window.largest
+                val after = segment.start + segment.endInclusive >= 0
                 val gap = 5.dp.toPx()
                 // Kept on its own side of the coldest point, so it never hides the crossover.
                 val coldest = g.xAt(0.0)
                 val (minLeft, maxLeft) = if (after) coldest + gap to g.width - pill.width else 0f to coldest - gap - pill.width
-                val centred = (g.xAt(window.start) + g.xAt(window.endInclusive) - pill.width) / 2
+                val centred = (g.xAt(segment.start) + g.xAt(segment.endInclusive) - pill.width) / 2
                 val left = if (minLeft <= maxLeft) centred.coerceIn(minLeft, maxLeft) else centred.coerceIn(0f, g.width - pill.width)
                 val top = if (after) g.zeroY + gap else g.zeroY - gap - pill.height
                 drawRoundRect(colors.surfaceContainerHighest, Offset(left, top), pill, CornerRadius(pill.height / 2))
@@ -316,20 +324,41 @@ private fun CurvePlot(
     }
 }
 
+/**
+ * The axis under the plot: "your body's coldest point" centred under the crossover on one line, with the ends
+ * ("12 h before" / "12 h after") shortening to "−12 h" / "+12 h" when the row is too tight (narrow sheets, big fonts),
+ * and dropping out when even those would collide.
+ */
 @Composable
 private fun AxisLabels() {
     val style = MaterialTheme.typography.labelSmall
     val color = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.light_curve_axis_before), style = style, color = color, modifier = Modifier.weight(1f))
+    val measurer = rememberTextMeasurer()
+    val coldest = stringResource(R.string.light_curve_coldest)
+    val long = stringResource(R.string.light_curve_axis_before) to stringResource(R.string.light_curve_axis_after)
+    val short = stringResource(R.string.light_curve_axis_before_short) to stringResource(R.string.light_curve_axis_after_short)
+    val gap = with(LocalDensity.current) { AxisGap.toPx() }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val half = constraints.maxWidth / 2f
+        // Long ends, else short ends, else no ends (the readout still gives the hours), so the centre stays one line.
+        val ends: Pair<String, String>? = remember(style, half, long, short, coldest) {
+            fun width(text: String) = measurer.measure(text, style, maxLines = 1).size.width
+            fun fits(pair: Pair<String, String>) = width(coldest) / 2f + maxOf(width(pair.first), width(pair.second)) + gap <= half
+            when {
+                fits(long) -> long
+                fits(short) -> short
+                else -> null
+            }
+        }
+        if (ends != null) Text(ends.first, style = style, color = color, maxLines = 1, modifier = Modifier.align(Alignment.CenterStart))
         Text(
-            stringResource(R.string.light_curve_coldest),
+            coldest,
             style = style,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
-            modifier = Modifier.weight(2f),
+            modifier = Modifier.align(Alignment.Center),
         )
-        Text(stringResource(R.string.light_curve_axis_after), style = style, color = color, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+        if (ends != null) Text(ends.second, style = style, color = color, maxLines = 1, modifier = Modifier.align(Alignment.CenterEnd))
     }
 }
 
@@ -385,7 +414,7 @@ private fun DrawScope.drawHatch(left: Float, right: Float, top: Float, bottom: F
     }
 
 @Composable
-private fun positionText(hours: Double, window: ClosedFloatingPointRange<Double>?): String {
+private fun positionText(hours: Double, window: LightResponseCurve.Window?): String {
     val minutes = (abs(hours) * 60).roundToInt()
     val amount = when {
         minutes % 60 == 0 -> stringResource(R.string.light_curve_hours, minutes / 60)
@@ -413,6 +442,7 @@ private val CurveHeight = 132.dp
 private val HandleRadius = 10.dp
 private val HandleHalo = 17.dp
 private val LabelGap = 4.dp
+private val AxisGap = 8.dp
 private const val HeldScale = 1.2f
 private const val LabelWidthFraction = 0.6f
 private const val LobeAlpha = 0.8f
