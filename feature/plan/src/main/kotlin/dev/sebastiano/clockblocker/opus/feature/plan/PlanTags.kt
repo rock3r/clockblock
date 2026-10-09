@@ -31,6 +31,7 @@ object PlanTags {
     const val NowMarker = "plan_now_marker"
     const val EarlierDays = "plan_earlier_days"
     const val WhySheet = "plan_why_sheet"
+    const val WhyLightCurve = "plan_why_light_curve"
     const val Toolbar = "plan_toolbar"
     const val ToolbarNow = "plan_toolbar_now"
     const val ToolbarDay = "plan_toolbar_day"
