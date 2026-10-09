@@ -39,7 +39,8 @@ object Sun {
      * The sun on the local [date] in [zone] at [latitude], [longitude] (degrees, north and east positive): the
      * sunrise before and the sunset after that date's solar noon, so the date line can't pull in another day. Days
      * before and after the midnight sun can set after midnight: then the sunset is the next calendar day's, the one
-     * that ends this day (tonight's, which the dial is about to reach), not the one just after last midnight.
+     * that ends this day (tonight's), not the one just after last midnight. A sky showing a window of time (the
+     * dial) wants the other overload, which takes the sunrise and sunset inside it.
      */
     fun on(date: LocalDate, zone: ZoneId, latitude: Double, longitude: Double): SunDay {
         val clockNoon = date.atTime(LocalTime.NOON).atZone(zone).toInstant()
@@ -51,6 +52,24 @@ object Sun {
         if (cosH > 1.0) return SunDay.AlwaysDown(noon)
         if (cosH < -1.0) return SunDay.AlwaysUp(noon)
         return SunDay.RisesAndSets(event(noon, atNoon, latitude, -1), event(noon, atNoon, latitude, +1), noon)
+    }
+
+    /**
+     * [on] for a sky that shows [start] until [end] (at most a day, like the dial's 8 h behind and 16 h ahead): the
+     * sunrise and the sunset that fall inside it, from [date] or the days either side when [date]'s own fall outside.
+     * Around the midnight sun the sun sets after midnight, so in the small hours the night began at *last* night's
+     * sunset, and in the evening it ends at *tomorrow*'s sunrise. Polar days and nights stay as [on] gives them, and a
+     * neighbouring day that doesn't rise or set offers nothing.
+     */
+    fun on(date: LocalDate, zone: ZoneId, latitude: Double, longitude: Double, start: Instant, end: Instant): SunDay {
+        val day = on(date, zone, latitude, longitude)
+        if (day !is SunDay.RisesAndSets) return day
+        val around = listOf(date.minusDays(1), date.plusDays(1))
+            .map { on(it, zone, latitude, longitude) }
+            .filterIsInstance<SunDay.RisesAndSets>()
+        fun inside(at: Instant) = !at.isBefore(start) && at.isBefore(end)
+        fun pick(own: Instant, others: List<Instant>) = if (inside(own)) own else others.firstOrNull(::inside) ?: own
+        return day.copy(sunrise = pick(day.sunrise, around.map { it.sunrise }), sunset = pick(day.sunset, around.map { it.sunset }))
     }
 
     /**
