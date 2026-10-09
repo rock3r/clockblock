@@ -248,14 +248,26 @@ private fun DayNightDot(time: LocalTime) {
  */
 internal fun placeResultTitle(city: String, countryCode: String, locale: Locale = Locale.getDefault()): String {
     val place = "${flagEmoji(countryCode)} $city".trim()
-    val cityState = countryCode.trim().uppercase() in CityStateRegions ||
-        countryName(countryCode, Locale.ENGLISH).equals(city.trim(), ignoreCase = true)
+    val name = city.trim()
+    val cityState = CityStateNames[countryCode.trim().uppercase()].orEmpty().any { it.equals(name, ignoreCase = true) } ||
+        countryName(countryCode, Locale.ENGLISH).equals(name, ignoreCase = true)
     val region = countryName(countryCode, locale).trim().takeUnless { it.isBlank() || cityState }
     return listOfNotNull(place.ifBlank { null }, region).joinToString(" · ")
 }
 
-/** Regions whose airport city is the region itself, whatever the locale data calls them. */
-private val CityStateRegions = setOf("SG", "HK", "MO", "MC", "VA", "GI", "SM")
+/**
+ * City-states and the city names that *are* the region, whatever the locale data calls the region
+ * ("Hong Kong SAR China"). Other cities in the same region (Seletar in Singapore) still get the country.
+ */
+private val CityStateNames = mapOf(
+    "SG" to listOf("Singapore"),
+    "HK" to listOf("Hong Kong"),
+    "MO" to listOf("Macau", "Macao"),
+    "MC" to listOf("Monaco", "Monte Carlo"),
+    "VA" to listOf("Vatican City"),
+    "GI" to listOf("Gibraltar"),
+    "SM" to listOf("San Marino"),
+)
 
 /** Regional-indicator flag for an ISO 3166 alpha-2 code ("PT" → 🇵🇹); empty when the code isn't two letters. */
 internal fun flagEmoji(countryCode: String): String {

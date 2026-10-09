@@ -31,6 +31,11 @@ class PlaceResultTitleTest {
     }
 
     @Test
+    fun `another airport inside a city state keeps the country`() {
+        placeResultTitle(city = "Seletar", countryCode = "SG", locale = Locale.ENGLISH) shouldBe "🇸🇬 Seletar · Singapore"
+    }
+
+    @Test
     fun `missing parts leave no stray separators`() {
         placeResultTitle(city = "Lisbon", countryCode = "", locale = Locale.ENGLISH) shouldBe "Lisbon"
     }
