@@ -63,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -427,6 +428,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     }
     val dayOffsets = remember(plan, railDays) { dayStripOffsets(plan, railDays) }
     val rows = remember(railDays, state.now, screen.showEarlier) { buildRailRows(railDays, state.now, screen.showEarlier) }
+    // Two panes: the day the rail is showing, for the strip to mark and keep in sight. Layout is read in the derived
+    // state, so scrolling only recomposes the strip when the day changes. (Rows start after the rail's title.)
+    val railDayInView = remember(rail, rows) {
+        derivedStateOf { rows.dayInView(rail.layoutInfo, firstRow = 1, atEnd = !rail.canScrollForward && rail.canScrollBackward) }
+    }
     val routes = remember(plan, state.trip, resources) { flightRoutes(plan, state.trip, resources) }
     val highlighted = remember(shown, preview) {
         if (preview == null) emptySet() else buildSet {
@@ -640,7 +646,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                 .padding(bottom = bottomPadding),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            heroKeys.forEach { key -> sections.Section(key) }
+                            heroKeys.forEach { key -> sections.Section(key, railDayInView) }
                             PlanFooter()
                         }
                         Box(Modifier.weight(0.54f).fillMaxHeight()) {
@@ -770,8 +776,9 @@ private class PlanSections(
         if (shown.stage != PlanStage.Complete) add(KeyStatus)
     }
 
+    /** [railDayInView]: the day the rail beside the hero shows (two panes only), for the day strip. */
     @Composable
-    fun Section(key: String) {
+    fun Section(key: String, railDayInView: State<Int?>? = null) {
         val width = Modifier.widthIn(max = 640.dp).fillMaxWidth()
         when (key) {
             // Keyed by trip: the current plan can move on to another trip, whose strip starts from its own days
@@ -790,6 +797,7 @@ private class PlanSections(
                             screen.dayPicks++
                         },
                         modifier = width,
+                        inViewIndex = railDayInView?.value,
                     )
                 }
             }

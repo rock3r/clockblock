@@ -36,7 +36,9 @@ the gap that day. Once your body has caught up, the dots sit on top of each othe
 
 Tap a pill to see that day at the current time of day. The header, the dial and the Now card switch to that day, and
 the Now card's heading says which day you're looking at, for example "Day 3 at 11:00". Tap today's pill, or **Now**
-in the toolbar, to go back. On a tablet, the timeline also scrolls to the day you picked.
+in the toolbar, to go back. On a tablet, the timeline also scrolls to the day you picked. And when you scroll the
+timeline yourself, the strip follows it: the day you're looking at gets a short bar under its pill. That doesn't
+pick the day.
 
 ### The dial
 
