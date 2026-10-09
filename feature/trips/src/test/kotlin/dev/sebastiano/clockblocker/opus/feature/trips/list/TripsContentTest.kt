@@ -3,8 +3,12 @@ package dev.sebastiano.clockblocker.opus.feature.trips.list
 import androidx.activity.BackEventCompat
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -60,6 +64,19 @@ class TripsContentTest : TripsScreenshotTest() {
         compose.onNodeWithTag(TripsTestTags.DemoTrip).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.NewTrip).performClick()
         calls shouldContainExactly listOf("new")
+    }
+
+    @Test
+    fun fabCarriesALabelUntilItOpens() {
+        // Labels beside glyphs: closed, the FAB reads "New trip" next to its plus; open, it is the close button.
+        show()
+        // The visible label sits under clearAndSetSemantics in the library, so the name comes from the description.
+        compose.onNodeWithTag(TripsTestTags.Fab).assert(hasContentDescription("New trip"))
+        compose.onNode(hasText("New trip") and hasAnyAncestor(hasTestTag(TripsTestTags.Fab)), useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.Fab).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(TripsTestTags.Fab).assert(hasContentDescription("Close menu"))
+        compose.onNodeWithTag(TripsTestTags.Fab).assert(hasContentDescription("New trip").not())
     }
 
     @Test

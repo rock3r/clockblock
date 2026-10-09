@@ -15,6 +15,9 @@
     <string name="welcome_badge_free">Free and open source</string>
     <string name="welcome_badge_private">No account</string>
     <string name="welcome_disclaimer">General information, not medical advice. For healthy adults; not for flight crew on duty.</string>
+    <string name="welcome_disclaimer_short">Not medical advice</string>
+    <string name="welcome_disclaimer_show">Show the full disclaimer</string>
+    <string name="welcome_disclaimer_hide">Hide the full disclaimer</string>
     <string name="welcome_get_started">Get started</string>
     <string name="welcome_art_description">Two clocks, a sun and a moon, sliding into line</string>
 
@@ -87,7 +90,7 @@
     <string name="tool_caffeine_description">Little-and-often coffee to stay sharp, and a cut-off before sleep. If you don\'t drink it, no need to start now.</string>
     <string name="tool_planes">I can sleep on planes</string>
     <string name="tool_planes_description">Off means in-flight sleep becomes rest in the dark.</string>
-    <string name="tool_adjust_before">Start adjusting before I leave</string>
+    <string name="tool_adjust_before">Adjust before I leave</string>
     <string name="tool_adjust_before_description">Shift a little on the days before departure, so you land partly adapted.</string>
     <string name="tool_melatonin">Melatonin</string>
     <string name="tool_melatonin_description">Off by default. Read the safety note to switch it on.</string>

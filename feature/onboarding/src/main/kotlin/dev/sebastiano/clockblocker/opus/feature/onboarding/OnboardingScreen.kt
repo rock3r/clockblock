@@ -73,6 +73,7 @@ object OnboardingTags {
     const val GetStarted = "onboarding_get_started"
     const val Finish = "onboarding_finish"
     const val MaybeLater = "onboarding_maybe_later"
+    const val Disclaimer = "onboarding_disclaimer"
 
     /** `onboarding_step_Welcome` … `onboarding_step_Reminders`, on each step's root. */
     fun step(step: OnboardingStep): String = "onboarding_step_${step.name}"
@@ -262,14 +263,20 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
         horizontalArrangement = if (step == OnboardingStep.Welcome) Arrangement.Center else Arrangement.SpaceBetween,
     ) {
         when (step) {
-            OnboardingStep.Welcome -> Button(
-                onClick = actions::next,
-                contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-                modifier = Modifier
-                    .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                    .then(if (wide) Modifier.widthIn(min = 280.dp) else Modifier.fillMaxWidth())
-                    .testTag(OnboardingTags.GetStarted),
-            ) { Text(stringResource(R.string.welcome_get_started), style = MaterialTheme.typography.titleMedium) }
+            OnboardingStep.Welcome -> Column(
+                Modifier.then(if (wide) Modifier else Modifier.fillMaxWidth()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                WelcomeDisclaimer()
+                Button(
+                    onClick = actions::next,
+                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+                    modifier = Modifier
+                        .heightIn(min = ButtonDefaults.MediumContainerHeight)
+                        .then(if (wide) Modifier.widthIn(min = 280.dp) else Modifier.fillMaxWidth())
+                        .testTag(OnboardingTags.GetStarted),
+                ) { Text(stringResource(R.string.welcome_get_started), style = MaterialTheme.typography.titleMedium) }
+            }
             OnboardingStep.Reminders -> {
                 val granted = state.permissions.notificationsGranted
                 // Before notifications are allowed, "Maybe later" finishes without asking. Once they are, both would

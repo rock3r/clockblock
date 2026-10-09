@@ -41,8 +41,8 @@
     <string name="settings_opus_mode">Opus mode</string>
     <string name="settings_opus_mode_description">Concert hall theme: black, gold and serifs. You earned it.</string>
 
-    <string name="settings_reminders_enabled">Reminders</string>
-    <string name="settings_reminders_enabled_description">A quiet nudge before each change in your plan.</string>
+    <string name="settings_reminders_enabled">Remind me before each change</string>
+    <string name="settings_reminders_enabled_description">A quiet nudge, timed to the minute.</string>
     <string name="settings_lead">How early</string>
     <string name="settings_lead_option">%1$d min</string>
     <string name="settings_lead_at_start">On time</string>

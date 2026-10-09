@@ -72,6 +72,25 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         actions.calls shouldContainExactly listOf("next")
     }
 
+    /** The disclaimer is pinned above Get started, so it's on screen even when the welcome words scroll. */
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-xxhdpi")
+    fun `not medical advice stays on screen in landscape at a large font`() {
+        setContent(fontScale = 1.5f) { OnboardingContent(onboardingState(OnboardingStep.Welcome), actions, Modifier.fillMaxSize()) }
+        compose.onNodeWithTag(OnboardingTags.Disclaimer).assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.GetStarted).assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping not medical advice shows the full disclaimer`() {
+        show(onboardingState(OnboardingStep.Welcome))
+        val full = ApplicationProvider.getApplicationContext<Context>().getString(R.string.welcome_disclaimer)
+        compose.onNodeWithText(full).assertDoesNotExist()
+        compose.onNodeWithTag(OnboardingTags.Disclaimer).performClick()
+        compose.onNodeWithText(full).assertIsDisplayed()
+        actions.calls shouldHaveSize 0
+    }
+
     @Test
     fun `next, back and skip are wired on a middle step`() {
         show(onboardingState(OnboardingStep.Sleep))

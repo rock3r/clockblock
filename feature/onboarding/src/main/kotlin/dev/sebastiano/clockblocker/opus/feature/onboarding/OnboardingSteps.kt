@@ -328,14 +328,6 @@ private fun WelcomeStep(wide: Boolean) {
             Badge(stringResource(R.string.welcome_badge_free))
             Badge(stringResource(R.string.welcome_badge_private))
         }
-        Spacer(Modifier.size(24.dp))
-        Text(
-            stringResource(R.string.welcome_disclaimer),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = align,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
     if (wide) BoxWithConstraints(Modifier.fillMaxSize()) {
         val short = maxHeight < ShortPaneHeight
