@@ -132,6 +132,15 @@ class DialDstTest {
         texts shouldContain "04:00 body"
     }
 
+    @Test
+    fun `a body offset pushed past 12 h by the change wraps round`() {
+        // 11½ h behind at 00:30 EST; the clocks jump an hour, so at 04:00 EDT the body is 11½ h ahead, not 12½ h behind.
+        val labels = DefaultDialLabels(is24Hour = true)
+        val texts = TwoSkies.spec(spring.copy(bodyAheadMinutes = -690f), DialPalettes.Light, labels, 328f, 328f, scrubMinutes = 210f)
+            .ops.filterIsInstance<DialOp.Text>().map { it.text }
+        texts shouldContain labels.offset(690f)
+    }
+
     // endregion
 
     // region Fall back: 00:00 EDT → 03:00 EST is 4 h of real time and 3 h of the face.
