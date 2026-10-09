@@ -360,16 +360,24 @@ internal object LabelFit {
         }
     }
 
-    /** "No trip" and "Plan one" in the widget, the glyph above them when there is room. */
+    /**
+     * "No trip" and "Plan one" in the widget, the glyph above them when there is room. "No trip" shrinks before
+     * "Plan one" has to go; only a 1×1 at a large font scale shows "No trip" alone (the tap still plans one).
+     */
     private fun empty(context: Context, texts: WidgetTexts, cell: CellDp): EmptyFit {
         val width = cell.width - 2 * EMPTY_PAD_DP
         val height = cell.height - 2 * EMPTY_PAD_DP
+        for (sp in TITLE_SP downTo EMPTY_MIN_SP) {
+            val title = TextFit.fit(context, texts.title, width, sp, sp, maxLines = 2, semibold = true, fewerLinesFirst = true) ?: continue
+            val action = TextFit.fit(context, texts.subtitle, width, min(DETAIL_SP, sp), EMPTY_MIN_SP, semibold = true)
+                ?.takeIf { title.heightDp + EMPTY_GAP_DP + it.heightDp <= height }
+                ?: continue
+            val text = title.heightDp + EMPTY_GAP_DP + action.heightDp
+            return EmptyFit(glyph = text + EMPTY_GLYPH_DP + EMPTY_GAP_DP <= height, title = title, action = action)
+        }
         val title = TextFit.fit(context, texts.title, width, TITLE_SP, EMPTY_MIN_SP, maxLines = 2, semibold = true, fewerLinesFirst = true)
             ?: TextFit.measure(context, texts.title, width, EMPTY_MIN_SP, maxLines = 2, semibold = true)
-        val action = TextFit.fit(context, texts.subtitle, width, DETAIL_SP, EMPTY_MIN_SP)
-            ?.takeIf { title.heightDp + EMPTY_GAP_DP + it.heightDp <= height }
-        val text = title.heightDp + (action?.let { it.heightDp + EMPTY_GAP_DP } ?: 0f)
-        return EmptyFit(glyph = text + EMPTY_GLYPH_DP + EMPTY_GAP_DP <= height, title = title, action = action)
+        return EmptyFit(glyph = title.heightDp + EMPTY_GLYPH_DP + EMPTY_GAP_DP <= height, title = title, action = null)
     }
 
     /** Floor of the "No trip" texts in a 1×1 at a large font scale. */

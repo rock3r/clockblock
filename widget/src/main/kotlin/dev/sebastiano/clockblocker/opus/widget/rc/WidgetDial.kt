@@ -76,7 +76,7 @@ internal object WidgetDial {
         return when (design) {
             DialDesign.TwoSkies -> TwoSkies.spec(
                 state.dial, palette(palette), labels, widthDp, heightDp, mode = bodyRing, measurer = type.measurer, textGrowth = growth,
-                namePlace = !state.redacted,
+                namePlace = !state.redacted, minText = MIN_TEXT_DP,
             )
             DialDesign.TwoStrips -> TwoStrips.spec(
                 state.dial, palette(palette), labels, widthDp, heightDp, mode = bodyRing, measurer = type.measurer, textGrowth = growth,
@@ -99,6 +99,9 @@ internal object WidgetDial {
             pm = labels.marker(EVENING_MINUTE) ?: "PM",
         )
     }
+
+    /** The smallest text the widget dial draws, in dp: a launcher shows widgets small and at arm's length. */
+    const val MIN_TEXT_DP = 7f
 
     private const val MORNING_MINUTE = 60f
     private const val EVENING_MINUTE = 13 * 60f

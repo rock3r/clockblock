@@ -37,6 +37,8 @@ object TwoSkies {
      *   changes so the inner ring turns into place. Defaults to the state's.
      * @param textGrowth extra scale for the centre readouts under large font sizes (kept small so they fit).
      * @param namePlace false on a lock screen that hides details: the local ring and the centre name no place.
+     * @param minText the smallest text the host can show, in dp (a widget's): the AM/PM marker and the Simple ring
+     *   labels stay at least this big (the local time's digits give way instead). The app's dial (0) keeps the designed proportions.
      */
     fun spec(
         state: DialState,
@@ -50,6 +52,7 @@ object TwoSkies {
         measurer: DialTextMeasurer = ApproxTextMeasurer,
         textGrowth: Float = 1f,
         namePlace: Boolean = true,
+        minText: Float = 0f,
     ): DialSpec {
         val side = min(widthDp, heightDp)
         val level = DetailLevel.forSize(side)
@@ -67,6 +70,7 @@ object TwoSkies {
             mode = mode,
             grow = textGrowth.coerceIn(1f, 1.15f),
             namePlace = namePlace,
+            minText = minText,
         )
         val hub = when (level) {
             DetailLevel.Full -> b.full(side / 2f / 164f)
@@ -116,6 +120,7 @@ object TwoSkies {
         val mode: BodyRingMode,
         val grow: Float,
         val namePlace: Boolean,
+        val minText: Float,
     ) {
         val ops = mutableListOf<DialOp>()
         /**
@@ -197,7 +202,7 @@ object TwoSkies {
             val ringW = 13f * k
             face(80f * k)
             rings(outerR, innerR, ringW)
-            val ringText = TextSpec(7.6f * k, weight = 700, caps = true, tracking = 0.1f, tabular = false)
+            val ringText = TextSpec(maxOf(7.6f * k, minText), weight = 700, caps = true, tracking = 0.1f, tabular = false)
             if (namePlace) shortRingLabel(place, outerR, localNight, ringText)
             shortRingLabel(labels.body(), innerR, bodyNight, ringText.copy(slanted = true))
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
@@ -411,13 +416,19 @@ object TwoSkies {
             val markerSpec = TextSpec(markerSize, weight = 600, tabular = false)
             val gap = spec.size * 0.06f
             val natural = measurer.width(digits, spec) + (marker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
-            val fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
-            val digitsSpec = spec.copy(size = spec.size * fit)
+            var fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
             if (marker == null) {
+                val digitsSpec = spec.copy(size = spec.size * fit)
                 ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
                 return
             }
-            val smallSpec = markerSpec.copy(size = markerSize * fit)
+            val smallSpec = markerSpec.copy(size = maxOf(markerSize * fit, minText))
+            if (smallSpec.size > markerSize * fit) {
+                // The marker is held at the host's floor: the digits take what is left of the width.
+                val room = maxWidth - gap * fit - measurer.width(marker, smallSpec)
+                fit = minOf(fit, room / measurer.width(digits, spec)).coerceAtLeast(0f)
+            }
+            val digitsSpec = spec.copy(size = spec.size * fit)
             val w = measurer.width(digits, digitsSpec)
             val total = w + gap * fit + measurer.width(marker, smallSpec)
             val left = cx - total / 2f

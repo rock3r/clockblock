@@ -44,8 +44,6 @@ data class WidgetTexts(
     val deepLink: String,
     val contentDescription: String,
     val is24Hour: Boolean,
-    /** "body", prefix of the body-clock readout. */
-    val bodyPrefix: String = "body",
     /** "Tokyo · Day 2": where the dial's times are shown and which plan day it is. Null without a plan. */
     val header: String? = null,
     /** "Up next" rows for the larger sizes (label + start time, local). */
@@ -151,13 +149,12 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             secondary = null,
             countdownEnd = null,
             misalignment = null,
-            // The dial centre already reads "No trip / Plan one"; classic layouts show this single caption.
+            // Two Clocks shows "No trip" over "Plan one" (EmptyContent); classic layouts show this single caption.
             dialTitle = str(R.string.widget_no_trip_full),
             dialDetail = null,
             deepLink = DeepLinks.NEW_TRIP,
             contentDescription = str(R.string.widget_no_trip_full),
             is24Hour = is24Hour,
-            bodyPrefix = str(R.string.widget_body_prefix),
         )
         is WidgetState.Active -> active(state)
     }
@@ -270,7 +267,6 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             deepLink = DeepLinks.plan(s.tripId),
             contentDescription = str(R.string.widget_a11y_two_clocks, localNow, bodyNow, bodyPhrase, now),
             is24Hour = is24Hour,
-            bodyPrefix = str(R.string.widget_body_prefix),
             header = header(s),
             upcoming = upcoming,
             adaptation = s.adaptation,

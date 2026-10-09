@@ -1,6 +1,18 @@
 package dev.sebastiano.clockblocker.opus.widget
 
 import android.content.Context
+import androidx.compose.foundation.Canvas
+import androidx.compose.remote.creation.compose.layout.RemoteBox
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.ComposeDialTextMeasurer
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialFonts
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.drawDialSpec
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TwoSkies
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TwoStrips
+import dev.sebastiano.clockblocker.opus.widget.rc.DialDesign
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetDial
+import dev.sebastiano.clockblocker.opus.widget.rc.WidgetDialCanvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,7 +100,7 @@ class WidgetScreenshotTest {
             val current = (plan?.let { WidgetStateMapper.map(it, now) } as? WidgetState.Active)?.current
             if (logged != null && current != null) add(AdviceLog(current.adviceId, logged))
         }
-        val full = plan?.let { WidgetStateMapper.map(it, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES) } ?: WidgetState.NoTrip
+        val full = plan?.let { WidgetStateMapper.map(it, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES, places = DemoPlans.PLACES) } ?: WidgetState.NoTrip
         val state = if (redacted) WidgetStateMapper.redact(full) else full
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
     }
@@ -162,6 +174,12 @@ class WidgetScreenshotTest {
                 listOf(
                     themed { remoteClocks(model(it), TwoClocksLayout.Compact, 76, 76) } +
                         remoteClocks(model(WidgetTheme.Light, scenario = null), TwoClocksLayout.Compact, 76, 76),
+                    // 2×1 portrait, 2×1 landscape and 4×1 portrait rows.
+                    listOf(
+                        remoteClocks(model(WidgetTheme.Light), TwoClocksLayout.Strip, 130, 102),
+                        remoteClocks(model(WidgetTheme.Dark), TwoClocksLayout.Strip, 269, 56),
+                        remoteClocks(model(WidgetTheme.NightSafe, DemoPlans.Scenario.Sleep), TwoClocksLayout.Strip, 276, 102),
+                    ),
                     themed { remoteClocks(model(it), TwoClocksLayout.Tall, 176, 260) },
                     listOf(
                         remoteClocks(model(WidgetTheme.NightSafe), TwoClocksLayout.Wide, 360, 172),
@@ -258,7 +276,7 @@ class WidgetScreenshotTest {
     private fun labelModels(is24: Boolean, place: String? = null): List<WidgetModel> {
         val names = place?.let { DemoPlans.PLACE_NAMES + ("Europe/Lisbon" to it) } ?: DemoPlans.PLACE_NAMES
         fun state(scenario: DemoPlans.Scenario?): WidgetState = scenario?.let {
-            WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, it), now, route = DemoPlans.ROUTE, placeNames = names)
+            WidgetStateMapper.map(DemoPlans.lisbonTokyo(now, it), now, route = DemoPlans.ROUTE, placeNames = names, places = DemoPlans.PLACES)
         } ?: WidgetState.NoTrip
         val active = state(DemoPlans.Scenario.AvoidLight) as WidgetState.Active
         val current = checkNotNull(active.current)
@@ -341,6 +359,57 @@ class WidgetScreenshotTest {
                     ),
                 ),
             )
+        }
+    }
+
+    /**
+     * The widget's dial next to the app's at the same state and size, each pair app first, then widget: Two skies
+     * at the glance (96 dp), simple (176 dp) and full (290 dp) sizes, then the Two strips at a 1×1-like glance
+     * (110×80) and a 4×1-like row (250×56). Light, then dark. Same palette on both (the widget's face), so what
+     * differs is the renderer: the app's Google Sans Flex against the widget's system font, and Remote Compose's
+     * fallbacks (segment gradients, glyph-by-glyph curved text).
+     */
+    @Test
+    fun remoteDialVsApp() {
+        val sizes = listOf(
+            DialDesign.TwoSkies to (96 to 96),
+            DialDesign.TwoSkies to (176 to 176),
+            DialDesign.TwoSkies to (290 to 290),
+            DialDesign.TwoStrips to (110 to 80),
+            DialDesign.TwoStrips to (250 to 56),
+        )
+        captureRoboImage("$DIR/remote_dial_vs_app.png") {
+            Flow(
+                listOf(WidgetTheme.Light, WidgetTheme.Dark).flatMap { theme ->
+                    val m = model(theme)
+                    sizes.flatMap { (design, size) -> listOf(appDial(m, design, size.first, size.second), widgetDial(m, design, size.first, size.second)) }
+                },
+            )
+        }
+    }
+
+    /** The app's renderer ([drawDialSpec], Google Sans Flex) for [model]'s dial in a [w] × [h] dp box. */
+    private fun appDial(model: WidgetModel, design: DialDesign, w: Int, h: Int): Cell = Cell(model.theme(), w, h) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val state = model.state as WidgetState.Active
+        val palette = WidgetDial.palette(model.palette)
+        val labels = WidgetDial.labels(context, model.texts.is24Hour)
+        val textMeasurer = ComposeDialTextMeasurer(measurer, DialFonts.App, density)
+        val spec = when (design) {
+            DialDesign.TwoSkies -> TwoSkies.spec(state.dial, palette, labels, w.toFloat(), h.toFloat(), measurer = textMeasurer)
+            DialDesign.TwoStrips -> TwoStrips.spec(
+                state.dial, palette, labels, w.toFloat(), h.toFloat(), measurer = textMeasurer,
+                placeOptions = state.placeNameOptions(state.displayZoneId),
+            )
+        }
+        Canvas(Modifier.size(w.dp, h.dp).background(Color(model.palette.surface))) { drawDialSpec(spec, measurer, DialFonts.App) }
+    }
+
+    /** The widget's renderer ([WidgetDialCanvas], system font, Remote Compose) for the same box. */
+    private fun widgetDial(model: WidgetModel, design: DialDesign, w: Int, h: Int): Cell = remote(model, w, h) {
+        RemoteBox(RemoteModifier.fillMaxSize().background(Color(model.palette.surface).rc)) {
+            WidgetDialCanvas(model, design, w.toFloat(), h.toFloat())
         }
     }
 

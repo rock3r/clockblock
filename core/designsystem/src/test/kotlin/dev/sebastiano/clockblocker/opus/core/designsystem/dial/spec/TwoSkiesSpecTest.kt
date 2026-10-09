@@ -188,6 +188,22 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a host's text floor keeps the AM PM marker readable, the digits giving way`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(60f, 72f, 88f, 100f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, minText = 7f).ops.filterIsInstance<DialOp.Text>()
+            texts.forEach { (it.spec.size >= 7f) shouldBe true }
+            // Still one group: digits and marker side by side within the glance's width.
+            val marker = texts.single { it.text == twelve.marker(tokyo.localMinute) }
+            val digits = texts.single { it.text == twelve.time(tokyo.localMinute) }
+            (marker.x >= digits.x + ApproxTextMeasurer.width(digits.text, digits.spec) - 0.01f) shouldBe true
+        }
+        // Without a floor the app's own sizes stay as they were.
+        val app = TwoSkies.spec(tokyo, palette, twelve, 72f, 72f).ops.filterIsInstance<DialOp.Text>()
+        app.single { it.text == twelve.marker(tokyo.localMinute) }.spec.size shouldBe (6.5f * 72f / 88f plusOrMinus 0.5f)
+    }
+
+    @Test
     fun `upcoming advice is narrated with its start when nothing is on`() {
         val texts = spec(scrub = 18 * 60f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
         texts shouldContain "Sleep at 23:00"
