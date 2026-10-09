@@ -210,8 +210,9 @@ fun TwoSkiesDial(
                         val allowEgg = easterEggsEnabled && currentOnRewind != null && !reduce
                         val longPress = if (allowEgg) awaitLongPressOrCancellation(down.id) else null
                         if (longPress == null) {
-                            // A tap on the centre returns the hand to now; the cards travel with it.
-                            if (scrub.value != 0f) {
+                            // A tap on the centre returns the hand to now; the cards travel with it. A landing at
+                            // offset 0 (now on the face, but the other run of a repeated hour) is a preview too.
+                            if (scrub.value != 0f || landing != null) {
                                 scope.launch {
                                     animateReporting(0f, motion.dataSpatial())
                                     currentOnScrubEnd?.invoke()

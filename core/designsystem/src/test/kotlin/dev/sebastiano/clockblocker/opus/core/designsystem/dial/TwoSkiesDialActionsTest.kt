@@ -9,10 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
@@ -90,26 +92,32 @@ class TwoSkiesDialActionsTest {
         compose.onNodeWithTag("dial").assertContentDescriptionContains("Your body clock is 2:30 AM", substring = true)
     }
 
-    @Test
-    fun `a configuration change re-reports a landing in the repeated hour with the hand at now`() {
-        // At the first 01:30 (EDT), a block that started at 01:00 EDT ends at the second 01:30 (EST): on the face, now.
-        val firstRun = Instant.parse("2026-11-01T05:30:00Z")
-        val state = fallBack.copy(
-            instant = firstRun,
-            localMinute = 90f,
-            arcs = persistentListOf(
-                DialArc("sleep", AdviceType.Sleep, startMinute = 60f, sweepMinutes = 30f, startInstant = Instant.parse("2026-11-01T05:00:00Z"), endInstant = end),
-            ),
-        )
-        val reported = mutableListOf<Instant>()
-        val restoration = StateRestorationTester(compose)
-        restoration.setContent {
-            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
-        }
+    // At the first 01:30 (EDT), a block that started at 01:00 EDT ends at the second 01:30 (EST): on the face, now.
+    private val firstRun = Instant.parse("2026-11-01T05:30:00Z")
+    private val endsAtNowOnTheFace = fallBack.copy(
+        instant = firstRun,
+        localMinute = 90f,
+        arcs = persistentListOf(
+            DialArc("sleep", AdviceType.Sleep, startMinute = 60f, sweepMinutes = 30f, startInstant = Instant.parse("2026-11-01T05:00:00Z"), endInstant = end),
+        ),
+    )
+
+    /** Previous then Next: the hand back at offset 0, landed on the second 01:30. */
+    private fun landAtNowInTheSecondRun() {
         compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_previous_block))
         compose.waitForIdle()
         compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
         compose.waitForIdle()
+    }
+
+    @Test
+    fun `a configuration change re-reports a landing in the repeated hour with the hand at now`() {
+        val reported = mutableListOf<Instant>()
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            ClockblockTheme { TwoSkiesDial(endsAtNowOnTheFace, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        landAtNowInTheSecondRun()
         reported.last() shouldBe end
 
         // The host's preview isn't saved: the restored dial tells it again where the hand is.
@@ -119,6 +127,22 @@ class TwoSkiesDialActionsTest {
 
         reported.shouldNotBeEmpty()
         reported.last() shouldBe end
+    }
+
+    @Test
+    fun `tapping the centre returns a landing in the repeated hour with the hand at now to now`() {
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(endsAtNowOnTheFace, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        landAtNowInTheSecondRun()
+        reported.last() shouldBe end
+
+        compose.onNodeWithTag("dial").performTouchInput { click(center) }
+        compose.waitForIdle()
+
+        reported.last() shouldBe firstRun
+        compose.onNodeWithTag("dial").assertContentDescriptionContains("Your body clock is 1:30 AM", substring = true)
     }
 
     @Test
