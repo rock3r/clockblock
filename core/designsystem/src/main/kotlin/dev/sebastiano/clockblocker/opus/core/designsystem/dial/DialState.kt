@@ -166,14 +166,15 @@ data class DialState(
         zoneOrNull()?.let { faceInstant(instant, it, minutesFromNow) } ?: instant.plusSeconds((minutesFromNow * 60f).toLong())
 
     /**
-     * How far the display zone's clocks move between now and [minutesFromNow] on the face, in minutes: +60 across a
-     * spring-forward change, −60 across a fall-back one, else 0. The body clock doesn't move with them, so its lead on
-     * local time ([bodyAheadMinutes]) changes by minus this much.
+     * How far the display zone's clocks move between now and [minutesFromNow] on the face: the face minutes less the
+     * real minutes to [instantAt]. +60 across a spring-forward change, −60 across a fall-back one, else 0 (and part
+     * of the hour inside a skipped hour, whose face times all report the change itself). The body clock runs on real
+     * time, so its lead on local time ([bodyAheadMinutes]) changes by minus this much.
      */
     fun clockChangeAt(minutesFromNow: Float): Float {
         if (minutesFromNow == 0f) return 0f
-        val zone = zoneOrNull() ?: return 0f
-        return (zone.rules.getOffset(instantAt(minutesFromNow)).totalSeconds - zone.rules.getOffset(instant).totalSeconds) / 60f
+        if (zoneOrNull() == null) return 0f
+        return minutesFromNow - Duration.between(instant, instantAt(minutesFromNow)).seconds / 60f
     }
 
     /** Shift the readouts to another instant inside the dial's window (scrubbing), [minutesFromNow] on the face. */

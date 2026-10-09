@@ -125,6 +125,8 @@ class DialDstTest {
         // The body runs on UTC−4: 01:30 at 00:30 EST, and 04:00 at 04:00 EDT, 2½ h of real time later.
         spring.bodyTime shouldBe LocalTime.of(1, 30)
         spring.scrubbedTo(210f).bodyTime shouldBe LocalTime.of(4, 0)
+        // Inside the skipped hour the hand reports the change itself (07:00Z), and the body reads 03:00 then.
+        spring.scrubbedTo(120f).bodyTime shouldBe LocalTime.of(3, 0)
         val texts = TwoSkies.spec(spring, DialPalettes.Light, DefaultDialLabels(is24Hour = true), 328f, 328f, scrubMinutes = 210f)
             .ops.filterIsInstance<DialOp.Text>().map { it.text }
         texts shouldContain "04:00 body"
