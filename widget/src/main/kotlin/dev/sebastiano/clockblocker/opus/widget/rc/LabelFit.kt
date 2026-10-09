@@ -7,6 +7,7 @@ import dev.sebastiano.clockblocker.opus.widget.text.Fitted
 import dev.sebastiano.clockblocker.opus.widget.text.TextFit
 import dev.sebastiano.clockblocker.opus.widget.text.UpcomingText
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -24,7 +25,7 @@ internal const val ROW_GLYPH_GAP_DP = 12
 internal const val ROW_END_DP = 14
 internal const val ROW_END_BESIDE_DONE_DP = 4
 
-/** Width of the widest overlaid countdown ("23h 59m" at 18 sp) at font scale 1; grows with the font scale. */
+/** Floor for the widest overlaid countdown ("23h 59m" at 18 sp) at font scale 1; see [LabelFit.countdownWidthDp]. */
 internal const val COUNTDOWN_TEXT_DP = 68
 internal const val COUNTDOWN_GAP_DP = 12
 internal const val COUNTDOWN_END_DP = 10
@@ -240,8 +241,19 @@ internal object LabelFit {
     fun spScale(context: Context, sp: Int): Float =
         (TextFit.pxForSp(context, sp) / (sp * context.resources.displayMetrics.density)).coerceAtLeast(1f)
 
-    /** Width of the widest countdown at [COUNTDOWN_SP], at the current font scale. */
-    fun countdownWidthDp(context: Context): Int = (COUNTDOWN_TEXT_DP * spScale(context, COUNTDOWN_SP)).roundToInt()
+    /**
+     * Width of the widest countdown at [COUNTDOWN_SP], at the current font scale: the fixed estimate, or the widest
+     * countdown measured at the Medium weight it is drawn in when that is wider (Bold text adds to the weight).
+     */
+    fun countdownWidthDp(context: Context): Int {
+        val estimate = (COUNTDOWN_TEXT_DP * spScale(context, COUNTDOWN_SP)).roundToInt()
+        val widest = HostText.countdownWidest(WIDEST_COUNTDOWN_MINUTES)
+        val measured = TextFit.widthDp(context, widest, COUNTDOWN_SP, TextFit.MEDIUM) + TextFit.SAFETY_DP
+        return max(estimate, ceil(measured).toInt())
+    }
+
+    /** "23h 59m": the longest countdown a block can show. */
+    private const val WIDEST_COUNTDOWN_MINUTES = 23 * 60 + 59
 
     /** Room kept at the end of a one-row Next up for the overlaid countdown; it is sp-sized, so it follows the font scale. */
     fun countdownSlotDp(context: Context, endDp: Int): Int = countdownWidthDp(context) + endDp + COUNTDOWN_GAP_DP

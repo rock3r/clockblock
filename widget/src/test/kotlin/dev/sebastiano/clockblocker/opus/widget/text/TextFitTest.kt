@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.widget.rc.HostText
+import dev.sebastiano.clockblocker.opus.widget.rc.LabelFit
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.floats.shouldBeGreaterThan
+import io.kotest.matchers.floats.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.ints.shouldBeLessThan
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -98,5 +100,17 @@ class TextFitTest {
         TextFit.measure(boldContext, "See bright light", widthDp = 1000f, sp = 13, semibold = true).widthDp shouldBeGreaterThan
             semibold
         TextFit.weightAdjustment(context) shouldBe 0
+    }
+
+    @Test
+    fun `the countdown slot covers the widest countdown at the weight the player draws`() {
+        val widest = HostText.countdownWidest(23 * 60 + 59)
+        fun drawn(ctx: Context) = TextFit.widthDp(ctx, widest, LabelFit.COUNTDOWN_SP, TextFit.MEDIUM)
+        LabelFit.countdownWidthDp(context).toFloat() shouldBeGreaterThanOrEqual drawn(context)
+        val bold = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { fontWeightAdjustment = 300 },
+        )
+        // Bold text draws the Medium countdown at 800: the slot must cover that too, or it overlaps the label.
+        LabelFit.countdownWidthDp(bold).toFloat() shouldBeGreaterThanOrEqual drawn(bold)
     }
 }

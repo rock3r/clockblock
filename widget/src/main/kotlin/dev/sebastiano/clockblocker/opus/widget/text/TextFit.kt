@@ -41,9 +41,17 @@ object TextFit {
     }
 
     private const val REGULAR = 400
+    const val MEDIUM = 500
     private const val SEMIBOLD = 600
     private const val FONT_WEIGHT_MIN = 1
     private const val FONT_WEIGHT_MAX = 1000
+
+    /** Width of [text] on one line at [sp] and [weight] (before Bold text's boost), as the player draws it. */
+    fun widthDp(context: Context, text: String, sp: Int, weight: Int): Float {
+        val paint = paint(context, weight)
+        paint.textSize = pxForSp(context, sp)
+        return paint.measureText(text) / context.resources.displayMetrics.density
+    }
 
     /**
      * [sp] in px the way captured `sp` text gets its size: through the platform's non-linear font scale curve (at
