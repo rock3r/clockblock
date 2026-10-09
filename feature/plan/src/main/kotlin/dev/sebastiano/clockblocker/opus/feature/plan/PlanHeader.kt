@@ -10,10 +10,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.clickable
 import kotlin.math.sin
+import kotlin.math.abs
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.PI
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawPolygon
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.layout.statusBars
@@ -75,7 +80,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
-import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -119,11 +123,14 @@ internal fun PlanHeader(
     shortWindow: Boolean = false,
     firstLight: Boolean = false,
     skyKey: Int? = null,
+    daylight: HeaderDaylight = HeaderDaylight.Default,
 ) {
-    val fade = rememberSkyFade(skyKey, moment.bodyTime)
-    // Ink and the sun / moon follow the sky that is mostly showing (the old day's until a day-pick fade is halfway).
-    val foreground = fade.foregroundTime(moment.bodyTime)
-    val gradient = ClockblockTheme.sky.gradientAt(foreground)
+    val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
+    val fade = rememberSkyFade(skyKey, live)
+    // Ink and the sun / moon follow the sky that is mostly showing (the old day's until a day-pick fade is halfway):
+    // its body time, wall clock and daylight together, so nothing on top mixes two days.
+    val foreground = fade.foreground(live)
+    val gradient = ClockblockTheme.sky.gradientAt(foreground.bodyTime, foreground.daylight.sunriseHour, foreground.daylight.sunsetHour)
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
@@ -134,7 +141,7 @@ internal fun PlanHeader(
     ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
-        HeaderSky(fade, moment.bodyTime, Modifier.matchParentSize())
+        HeaderSky(fade, live, Modifier.matchParentSize())
         val subtitle: @Composable () -> Unit = {
             PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
         }
@@ -178,11 +185,14 @@ internal fun PlanHeader(
                 scrollBehavior = scrollBehavior,
             )
         }
-        // Above the app bar: its Surface would swallow the moon's taps otherwise.
+        // Above the app bar: its Surface would swallow the moon's taps otherwise. The frame changes per scrub frame, so
+        // it goes in as a provider read in layout and draw.
+        val celestialFrame by rememberUpdatedState(foreground)
         HeaderCelestial(
-            bodyTime = foreground,
+            frame = remember { { celestialFrame } },
+            ink = ink,
             eggEnabled = easterEggs,
-            reserveEnd = if (nightSafe) 184.dp else 72.dp,
+            reserveEnd = if (nightSafe) 200.dp else 72.dp,
             collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
             onTip = onMoonTip,
             firstLight = firstLight,
@@ -191,11 +201,14 @@ internal fun PlanHeader(
     }
 }
 
-/** What the header sky showed: [bodyTime] for the day keyed by [key] (the picked day, `null` = live). */
-private data class SkyFrame(val key: Int?, val bodyTime: LocalTime)
+/** What the header shows at one moment: the body's time, the wall clock's and the day's sunrise and sunset. */
+private data class HeaderFrame(val bodyTime: LocalTime, val localTime: LocalTime, val daylight: HeaderDaylight)
 
-/** One frozen sky under a fade: the body time it paints, at [alpha]. */
-private data class SkyLayer(val bodyTime: LocalTime, val alpha: Float)
+/** What the header showed: [frame] for the day keyed by [key] (the picked day, `null` = live). */
+private data class SkyFrame(val key: Int?, val frame: HeaderFrame)
+
+/** One frozen sky under a fade: the body time it paints under [daylight], at [alpha]. */
+private data class SkyLayer(val bodyTime: LocalTime, val alpha: Float, val daylight: HeaderDaylight)
 
 /**
  * At most this many frozen skies under a fade. Skies hidden under an opaque one are dropped first, so this only bites
@@ -207,19 +220,20 @@ private const val MaxSkyLayers = 6
 private const val OpaqueAlpha = 0.999f
 
 /**
- * The body time the header's foreground follows (ink of the title, icons and status bar, and the sun / moon) while
- * the sky cross-fades from [from] to [to]: the old sky's until the new one is half faded in ([progress] 0 → 1), so
- * everything on top matches the sky that is mostly showing. With no fade ([from] `null`) it is simply [to].
+ * The moment (body time, or the whole frame) the header's foreground follows (ink of the title, icons and status bar,
+ * and the sun / moon with their path) while the sky cross-fades from [from] to [to]: the old sky's until the new one
+ * is half faded in ([progress] 0 → 1), so everything on top matches the sky that is mostly showing. With no fade
+ * ([from] `null`) it is simply [to].
  */
-internal fun headerInkTime(from: LocalTime?, to: LocalTime, progress: Float): LocalTime =
+internal fun <T : Any> headerInkTime(from: T?, to: T, progress: Float): T =
     if (from == null || progress >= 0.5f) to else from
 
 /**
  * A day-pick cross-fade of the header sky: [layers] (frozen, bottom first, the bottom one opaque) under the live sky,
- * which fades in as [progress] → 1. [fromTime] is what the foreground followed when the fade started.
+ * which fades in as [progress] → 1. [from] is what the foreground followed when the fade started.
  */
 @Stable
-private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTime?) {
+private class SkyFade(val layers: List<SkyLayer>, private val from: HeaderFrame?) {
     val progress = Animatable(if (layers.isEmpty()) 1f else 0f)
 
     /** The frozen skies are still (partly) visible. Flips once per fade, so it is safe to read in composition. */
@@ -228,24 +242,24 @@ private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTim
     /** The new sky is the one mostly showing (see [headerInkTime]). Flips once per fade. */
     private val pastMidpoint by derivedStateOf { progress.value >= 0.5f }
 
-    fun foregroundTime(live: LocalTime): LocalTime = headerInkTime(fromTime, live, if (pastMidpoint) 1f else 0f)
+    fun foreground(live: HeaderFrame): HeaderFrame = headerInkTime(from, live, if (pastMidpoint) 1f else 0f)
 
     /**
      * What this fade shows right now, with the live sky at [live], as frozen layers for the next fade to start over:
      * an interrupted fade keeps its blend instead of jumping to its target. Reads without observing (a one-off).
      */
-    fun freeze(live: LocalTime): List<SkyLayer> = Snapshot.withoutReadObservation {
+    fun freeze(live: HeaderFrame): List<SkyLayer> = Snapshot.withoutReadObservation {
         if (!fading) {
-            listOf(SkyLayer(live, 1f))
+            listOf(SkyLayer(live.bodyTime, 1f, live.daylight))
         } else {
-            val stack = layers + SkyLayer(live, progress.value)
+            val stack = layers + SkyLayer(live.bodyTime, progress.value, live.daylight)
             // Anything under an (all but) opaque layer can't be seen: only that much of the stack is kept.
             val base = stack.indexOfLast { it.alpha >= OpaqueAlpha }.coerceAtLeast(0)
             stack.drop(base).takeLast(MaxSkyLayers).mapIndexed { i, layer -> if (i == 0) layer.copy(alpha = 1f) else layer }
         }
     }
 
-    fun frozenForeground(live: LocalTime): LocalTime = Snapshot.withoutReadObservation { foregroundTime(live) }
+    fun frozenForeground(live: HeaderFrame): HeaderFrame = Snapshot.withoutReadObservation { foreground(live) }
 }
 
 /**
@@ -254,7 +268,7 @@ private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTim
  * fade at all: the live sky repaints in place.
  */
 @Composable
-private fun rememberSkyFade(key: Int?, bodyTime: LocalTime): SkyFade {
+private fun rememberSkyFade(key: Int?, frame: HeaderFrame): SkyFade {
     val motion = ClockblockTheme.motion
     // The frame and fade the last composition drew. Plain (not state): they are only read when the key changes.
     val last = remember { arrayOfNulls<SkyFrame>(1) }
@@ -263,14 +277,14 @@ private fun rememberSkyFade(key: Int?, bodyTime: LocalTime): SkyFade {
         val before = last[0]?.takeIf { it.key != key }
         val prev = previous[0]
         when {
-            before == null -> SkyFade(emptyList(), fromTime = null)
-            prev == null -> SkyFade(listOf(SkyLayer(before.bodyTime, 1f)), fromTime = before.bodyTime)
-            else -> SkyFade(prev.freeze(before.bodyTime), fromTime = prev.frozenForeground(before.bodyTime))
+            before == null -> SkyFade(emptyList(), from = null)
+            prev == null -> SkyFade(listOf(SkyLayer(before.frame.bodyTime, 1f, before.frame.daylight)), from = before.frame)
+            else -> SkyFade(prev.freeze(before.frame), from = prev.frozenForeground(before.frame))
         }
     }
     LaunchedEffect(fade) { if (fade.layers.isNotEmpty()) fade.progress.animateTo(1f, motion.colour()) }
     SideEffect {
-        last[0] = SkyFrame(key, bodyTime)
+        last[0] = SkyFrame(key, frame)
         previous[0] = fade
     }
     return fade
@@ -282,20 +296,24 @@ private fun rememberSkyFade(key: Int?, bodyTime: LocalTime): SkyFade {
  * shows through.
  */
 @Composable
-private fun HeaderSky(fade: SkyFade, bodyTime: LocalTime, modifier: Modifier = Modifier) {
+private fun HeaderSky(fade: SkyFade, live: HeaderFrame, modifier: Modifier = Modifier) {
     Box(modifier) {
         if (fade.fading) {
             fade.layers.forEach { layer ->
                 BodyClockSky(
                     bodyTime = layer.bodyTime,
                     modifier = Modifier.fillMaxSize().graphicsLayer { alpha = layer.alpha }.testTag(PlanTags.HeaderSky),
+                    sunriseHour = layer.daylight.sunriseHour,
+                    sunsetHour = layer.daylight.sunsetHour,
                     showCelestial = false,
                 )
             }
         }
         BodyClockSky(
-            bodyTime = bodyTime,
+            bodyTime = live.bodyTime,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = fade.progress.value }.testTag(PlanTags.HeaderSky),
+            sunriseHour = live.daylight.sunriseHour,
+            sunsetHour = live.daylight.sunsetHour,
             showCelestial = false,
         )
     }
@@ -375,23 +393,55 @@ private val NavRowHeight = 64.dp
 private val CelestialRadius = 12.dp
 private val CelestialInsetStart = 72.dp
 
+/** The ghost ring sits this far outside the sun / moon, so in step it circles them. */
+private val GhostGap = 4.dp
+private const val PathAlpha = 0.45f
+private const val JoinAlpha = 0.6f
+private const val GhostAlpha = 0.85f
+
 private val HeaderStars = listOf(
     0.30f to 0.10f, 0.42f to 0.22f, 0.55f to 0.08f, 0.64f to 0.30f, 0.12f to 0.52f,
     0.78f to 0.14f, 0.88f to 0.40f, 0.50f to 0.46f, 0.22f to 0.28f, 0.70f to 0.56f,
 )
 
-/** Where the sun / moon sit: an arc across the navigation row, between the up arrow and the actions. */
-private fun Density.celestialCenter(width: Float, top: Float, hour: Float, reserveEnd: Dp): Offset {
-    val t = ((celestialPosition(hour).x - 0.1f) / 0.8f).coerceIn(0f, 1f)
+/** Line segments the sun path is drawn with: smooth at any header width. */
+private const val ArcSteps = 48
+
+/**
+ * Where the sun / moon sit at [t] along their path ([ArcPoint.t]): a half sine across the navigation row, between the
+ * up arrow and the actions.
+ */
+private fun Density.celestialCenter(width: Float, top: Float, t: Float, reserveEnd: Dp, rtl: Boolean): Offset {
     val start = CelestialInsetStart.toPx()
     val end = (width - reserveEnd.toPx()).coerceAtLeast(start + 1f)
     val band = NavRowHeight.toPx()
-    return Offset(start + (end - start) * t, top + band * (0.74f - 0.48f * sin(PI.toFloat() * t)))
+    val x = start + (end - start) * t
+    // Right to left, the up arrow and the actions swap sides, so the path runs (and rises) the other way.
+    return Offset(if (rtl) width - x else x, top + band * (0.74f - 0.48f * sin(PI.toFloat() * t)))
+}
+
+/** The path from [from] to [to] (both [ArcPoint.t]) along [celestialCenter]'s half sine, into [out]. */
+private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, reserveEnd: Dp, rtl: Boolean, out: Path): Path {
+    out.rewind()
+    val steps = (ArcSteps * abs(to - from)).roundToInt().coerceAtLeast(2)
+    for (i in 0..steps) {
+        val p = celestialCenter(width, top, from + (to - from) * i / steps, reserveEnd, rtl)
+        if (i == 0) out.moveTo(p.x, p.y) else out.lineTo(p.x, p.y)
+    }
+    return out
 }
 
 /**
  * The header's sun or moon at the **body's** solar time, riding the navigation row so it never hides the title,
  * plus a few stars at body night. It fades out as the header collapses (read in the draw phase).
+ *
+ * Sun path (issue #21): the faint dashed half sine the sun / moon ride, and a ghost ring where they would be by the
+ * wall clock ([HeaderFrame.localTime]; [HeaderDaylight.ghostT]: at the nearer end when the wall clock is on the other
+ * half of the day). When the body is ½ h or more off the wall clock on the same half, a faint arc joins the two along
+ * the path ([HeaderDaylight.joins]); in step, the ring circles the sun. All of it is laid out for the frame's
+ * daylight, the real day where the traveller is, mirrored right to left, and is decoration only: the subtitle says
+ * how far off the body is, in words. Nothing here moves on its own; it repaints when the times do. [frame] changes per
+ * scrub frame, so it is read in layout and draw; only the sun / moon switch reaches composition.
  *
  * Moon-phase easter egg: tap the moon [MoonTaps] times and it morphs through "phases" (circle, cookie, clover,
  * ghost, heart) into a cookie that gets a bite taken out of it, then [onTip] fires ("Midnight snack? Your gut
@@ -401,7 +451,8 @@ private fun Density.celestialCenter(width: Float, top: Float, hour: Float, reser
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HeaderCelestial(
-    bodyTime: LocalTime,
+    frame: () -> HeaderFrame,
+    ink: Color,
     eggEnabled: Boolean,
     reserveEnd: Dp,
     collapsedFraction: () -> Float,
@@ -409,8 +460,9 @@ private fun HeaderCelestial(
     modifier: Modifier = Modifier,
     firstLight: Boolean = false,
 ) {
-    val hour = bodyTime.toHourFloat()
-    val isSun = celestialPosition(hour).isSun
+    // Only the sun / moon switch reaches composition (it decides the moon's tap target); positions are read in layout
+    // and draw, since the frame changes per scrub frame.
+    val isSun by remember { derivedStateOf { frame().let { it.daylight.arcPoint(it.bodyTime.toHourFloat()).isSun } } }
     val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
     val art = ClockblockTheme.artColors
     val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
@@ -424,6 +476,7 @@ private fun HeaderCelestial(
     val path = remember { Path() }
     val bite = remember { Path() }
     val bitten = remember { Path() }
+    val trail = remember { Path() }
     val currentOnTip by rememberUpdatedState(onTip)
     val hatched = taps >= MoonTaps
     val expanded by remember { derivedStateOf { collapsedFraction() < 0.5f } }
@@ -481,7 +534,13 @@ private fun HeaderCelestial(
             if (alpha <= 0f) return@drawBehind
             val top = topInset.toPx()
             val r = CelestialRadius.toPx()
-            val rest = celestialCenter(size.width, top, hour, reserveEnd)
+            val now = frame()
+            val daylight = now.daylight
+            val hour = now.bodyTime.toHourFloat()
+            val localHour = now.localTime.toHourFloat()
+            val body = daylight.arcPoint(hour)
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            val rest = celestialCenter(size.width, top, body.t, reserveEnd, rtl)
             // Rising: from just below the header's bottom edge (the horizon) up to its resting place.
             val c = rest.copy(y = rest.y + (1f - risen) * (size.height - rest.y + r * 1.2f))
             if (!isSun) {
@@ -490,6 +549,29 @@ private fun HeaderCelestial(
                     drawCircle(moonColor.copy(alpha = moonColor.alpha * 0.6f * alpha), if (i % 3 == 0) star * 1.4f else star, Offset(size.width * x, top + (size.height - top) * y))
                 }
             }
+            // The sun path, the join to the wall clock's spot on it, and the ghost ring there.
+            val pathInk = ink.copy(alpha = ink.alpha * alpha * if (nightSafe) 0.6f else 1f)
+            drawPath(
+                arcPath(size.width, top, 0f, 1f, reserveEnd, rtl, trail),
+                pathInk.copy(alpha = pathInk.alpha * PathAlpha),
+                style = Stroke(1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))),
+            )
+            // In step, or so close that the ring would still circle the sun's middle: drawn exactly around it.
+            val arcWidth = (size.width - reserveEnd.toPx() - CelestialInsetStart.toPx()).coerceAtLeast(1f)
+            val ghostT = daylight.ghostT(hour, localHour, snapT = (r + GhostGap.toPx()) / arcWidth)
+            if (daylight.joins(hour, localHour) && ghostT != body.t) {
+                drawPath(
+                    arcPath(size.width, top, body.t, ghostT, reserveEnd, rtl, trail),
+                    pathInk.copy(alpha = pathInk.alpha * JoinAlpha),
+                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round),
+                )
+            }
+            drawCircle(
+                pathInk.copy(alpha = pathInk.alpha * GhostAlpha),
+                r + GhostGap.toPx(),
+                celestialCenter(size.width, top, ghostT, reserveEnd, rtl),
+                style = Stroke(1.5.dp.toPx()),
+            )
             val box = Size(r * 2.2f, r * 2.2f)
             translate(c.x - box.width / 2f, c.y - box.height / 2f) {
                 when {
@@ -547,7 +629,9 @@ private fun HeaderCelestial(
         val placeable = measurables.firstOrNull()?.measure(Constraints.fixed(target, target))
         layout(w, h) {
             if (placeable != null) {
-                val c = celestialCenter(w.toFloat(), topInset.toPx(), hour, reserveEnd)
+                val now = frame()
+                val t = now.daylight.arcPoint(now.bodyTime.toHourFloat()).t
+                val c = celestialCenter(w.toFloat(), topInset.toPx(), t, reserveEnd, layoutDirection == LayoutDirection.Rtl)
                 placeable.place((c.x - target / 2f).roundToInt(), (c.y - target / 2f).roundToInt())
             }
         }

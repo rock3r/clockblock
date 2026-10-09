@@ -28,6 +28,8 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -98,6 +100,14 @@ class PlanScreenshotTest {
 
     @Test
     fun nightSafe() = snap("night_safe") { PlanContent(ready(PlanFixtures.Evening, nightSafe = true), actions) }
+
+    /** Right to left: the actions swap sides, so the sun path and its ghost mirror and stay clear of the Night-safe chip. */
+    @Test
+    fun nightSafeRtl() = snap("night_safe_rtl") {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            PlanContent(ready(PlanFixtures.Evening, nightSafe = true), actions)
+        }
+    }
 
     @Test
     fun celebration() = snap("adapted_celebration") { PlanContent(ready(PlanFixtures.Adapted, celebrate = true), actions) }
