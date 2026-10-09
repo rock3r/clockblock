@@ -87,6 +87,31 @@ class SunTest {
     }
 
     @Test
+    fun `a dial's window takes the sunrise and sunset inside it, from the days either side if need be`() {
+        // Tromsø, May 2026: the sun sets after midnight (about 00:06 on the 17th, 00:40 on the 18th), and from the
+        // 18th it doesn't set at all.
+        val oslo = ZoneId.of("Europe/Oslo")
+        fun on(d: LocalDate) = Sun.on(d, oslo, 69.683, 18.919)
+        fun window(d: LocalDate, h: Int, m: Int): SunDay {
+            val at = d.atTime(h, m).atZone(oslo).toInstant()
+            return Sun.on(d, oslo, 69.683, 18.919, at.minus(Duration.ofHours(8)), at.plus(Duration.ofHours(16)))
+        }
+        val may16 = on(LocalDate.of(2026, 5, 16)).shouldBeInstanceOf<SunDay.RisesAndSets>()
+        val may17 = on(LocalDate.of(2026, 5, 17)).shouldBeInstanceOf<SunDay.RisesAndSets>()
+        may16.sunset.atZone(oslo).toLocalDate() shouldBe LocalDate.of(2026, 5, 17)
+
+        // 00:20 on the 17th, between last night's sunset and this morning's sunrise: the dial (16:20 yesterday to
+        // 16:20) shows last night's sunset, not tonight's, so the small hours read as night.
+        window(LocalDate.of(2026, 5, 17), 0, 20) shouldBe may17.copy(sunset = may16.sunset)
+        // 22:00 on the 16th: tonight's sunset, and tomorrow morning's sunrise (the dial runs to 14:00 tomorrow).
+        window(LocalDate.of(2026, 5, 16), 22, 0) shouldBe may16.copy(sunrise = may17.sunrise)
+        // Noon: both of the day's own.
+        window(LocalDate.of(2026, 5, 17), 12, 0) shouldBe may17
+        // 22:00 on the 17th: the 18th has no sunrise (midnight sun), so the day keeps its own.
+        window(LocalDate.of(2026, 5, 17), 22, 0) shouldBe may17
+    }
+
+    @Test
     fun `solar noon is the middle of the day, and of a polar night too`() {
         val london = ZoneId.of("Europe/London")
         val day = Sun.on(LocalDate.of(2026, 6, 21), london, 51.471, -0.460).shouldBeInstanceOf<SunDay.RisesAndSets>()

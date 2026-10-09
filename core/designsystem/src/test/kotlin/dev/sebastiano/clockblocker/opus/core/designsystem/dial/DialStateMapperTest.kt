@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodySky
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
@@ -164,11 +165,14 @@ class DialStateMapperTest {
         val state = plan(bodyOffsetMinutes = 60).toDialState(t0, tokyo, haneda)
 
         val sun = Sun.on(LocalDate.of(2026, 10, 10), tokyo, 35.550, 139.787).shouldBeInstanceOf<SunDay.RisesAndSets>()
+        // At 14:00 the dial runs from 06:00 to 06:00 tomorrow: this morning's sunrise (05:43) is outside it, so the
+        // sky shows tomorrow's, the next one round the dial.
+        val tomorrow = Sun.on(LocalDate.of(2026, 10, 11), tokyo, 35.550, 139.787).shouldBeInstanceOf<SunDay.RisesAndSets>()
         state.daylight shouldBe Daylight.RisesAndSets
-        state.sunriseMinute shouldBe (DialGeometry.minuteOfDay(sun.sunrise.atZone(tokyo).toLocalTime()) plusOrMinus 0.01f)
+        state.sunriseMinute shouldBe (DialGeometry.minuteOfDay(tomorrow.sunrise.atZone(tokyo).toLocalTime()) plusOrMinus 0.01f)
         state.sunsetMinute shouldBe (DialGeometry.minuteOfDay(sun.sunset.atZone(tokyo).toLocalTime()) plusOrMinus 0.01f)
-        // USNO: 05:43 and 17:13 that day.
-        state.sunriseMinute shouldBe (5 * 60f + 43f plusOrMinus 1f)
+        // USNO: 05:43 and 17:13 that day (05:44 the next morning).
+        state.sunriseMinute shouldBe (5 * 60f + 44f plusOrMinus 1f)
         state.sunsetMinute shouldBe (17 * 60f + 13f plusOrMinus 1f)
     }
 
@@ -200,5 +204,20 @@ class DialStateMapperTest {
 
         val june = plan(bodyOffsetMinutes = 60).toDialState(Instant.parse("2026-06-21T12:00:00Z"), oslo, tromso)
         june.daylight shouldBe Daylight.AlwaysUp
+    }
+
+    @Test
+    fun `in the small hours after a sunset past midnight the sky uses last night's sunset`() {
+        // Tromsø, 17 May 2026 at 00:20: the sun set at about 00:06 (last night) and rises at about 01:14.
+        val oslo = ZoneId.of("Europe/Oslo")
+        val tromso = Place("TOS", "Tromsø", "Tromsø", "NO", "Europe/Oslo", 69.683, 18.919)
+        val at = Instant.parse("2026-05-16T22:20:00Z")
+        val lastNight = Sun.on(LocalDate.of(2026, 5, 16), oslo, 69.683, 18.919).shouldBeInstanceOf<SunDay.RisesAndSets>()
+
+        val state = plan(bodyOffsetMinutes = 60).toDialState(at, oslo, tromso)
+
+        state.sunsetMinute shouldBe (DialGeometry.minuteOfDay(lastNight.sunset.atZone(oslo).toLocalTime()) plusOrMinus 0.01f)
+        val night = BodySky.localNight(state)
+        ((state.localMinute - night.start).mod(DialGeometry.MinutesPerDay) < night.lengthMinutes) shouldBe true
     }
 }

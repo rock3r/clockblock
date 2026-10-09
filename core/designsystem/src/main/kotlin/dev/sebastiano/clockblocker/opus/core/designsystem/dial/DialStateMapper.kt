@@ -18,8 +18,9 @@ import java.time.ZoneOffset
  *   arcs never overlap where the window wraps. Window and arcs are measured on the wall-clock face, which differs
  *   from real time across a DST change (#66).
  * - The body clock comes from [JetLagPlan.bodyOffsetAt]; CBTmin from the nearest [dev.sebastiano.clockblocker.opus.core.model.PhasePoint].
- * - The sky rings get the real sunrise and sunset at [place] (the trip's stop in [displayZone]) on the local date
- *   at [instant], and the dial names it; without a place they keep [DialState]'s default sun and the zone's city.
+ * - The sky rings get the real sunrise and sunset at [place] (the trip's stop in [displayZone]) that fall inside the
+ *   window, from the local date at [instant] or the days either side, and the dial names it; without a place they
+ *   keep [DialState]'s default sun and the zone's city.
  */
 fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? = null): DialState {
     val localOffset: ZoneOffset = displayZone.rules.getOffset(instant)
@@ -89,7 +90,15 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
         instant.atZone(ZoneId.of(d.zoneId)).toLocalDate() == d.date
     }
 
-    val sun = place?.let { Sun.on(instant.atZone(displayZone).toLocalDate(), displayZone, it.latitude, it.longitude) }
+    // The sunrise and sunset inside the dial's window: around the midnight sun, the small hours belong to last night's
+    // sunset (after midnight) and the evening to tomorrow's sunrise (#80).
+    val sun = place?.let {
+        Sun.on(
+            instant.atZone(displayZone).toLocalDate(), displayZone, it.latitude, it.longitude,
+            start = faceInstant(instant, displayZone, windowStart),
+            end = faceInstant(instant, displayZone, windowEnd),
+        )
+    }
 
     return DialState(
         instant = instant,
