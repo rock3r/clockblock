@@ -44,9 +44,21 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_7
+          # The default /data partition is too small for the debug and test APKs: installs failed with "Requested
+          # internal only, but not enough space". The AVD is created fresh on every run (no AVD cache), so this
+          # always applies.
+          disk-size: 8G
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew :app:connectedDebugAndroidTest
+          # Each line runs on its own. boot_completed can be set before the package manager answers ("cmd: Can't find
+          # service: package"), so wait for it before installing. The Gradle log is kept for the check below.
+          script: |
+            adb wait-for-device
+            timeout 300 sh -c 'until adb shell cmd package list packages >/dev/null 2>&1; do sleep 2; done'
+            bash -c 'set -o pipefail; ./gradlew :app:connectedDebugAndroidTest 2>&1 | tee connected-tests.log'
+      # The runner can end successfully without running anything (an APK that didn't install); make that a failure.
+      - name: Check that the e2e tests ran
+        run: bash .github/scripts/verify-e2e-ran.sh connected-tests.log
       - name: Upload e2e reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -55,4 +67,5 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            connected-tests.log
           retention-days: 7

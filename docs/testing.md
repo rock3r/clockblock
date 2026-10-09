@@ -136,7 +136,7 @@ All seven jobs run in parallel. Each one reports its own check on the pull reque
 | Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
 | Places generator tests | CI | Python 3.12 `unittest` over `tools/places`: the city-name rules and the committed `places.tsv` | none |
-| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
+| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (Pixel 7 profile, 8 GB disk, animations off, KVM), once the package manager answers. Then [`verify-e2e-ran.sh`](../.github/scripts/verify-e2e-ran.sh) fails the job if an APK didn't install or no test ran, because the test runner can end successfully without running anything | `e2e-reports` with the Gradle log, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
