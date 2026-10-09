@@ -37,7 +37,10 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
         .mapNotNull { advice ->
             if (advice.type.isMoment || advice.start == advice.end) {
                 if (advice.start.isBefore(windowStart) || !advice.start.isBefore(windowEnd)) return@mapNotNull null
-                DialArc(advice.id, advice.type, minuteOf(advice.start), 0f, isNow = advice.start == instant)
+                DialArc(
+                    advice.id, advice.type, minuteOf(advice.start), 0f, isNow = advice.start == instant,
+                    startInstant = advice.start, endInstant = advice.end,
+                )
             } else {
                 val s = maxOf(advice.start, windowStart)
                 val e = minOf(advice.end, windowEnd)
@@ -49,6 +52,8 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
                     sweepMinutes = Duration.between(s, e).seconds / 60f,
                     isNow = instant in advice,
                     narratedEndMinute = minuteOf(advice.end),
+                    startInstant = advice.start,
+                    endInstant = advice.end,
                 )
             }
         }

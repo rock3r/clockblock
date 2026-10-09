@@ -42,7 +42,11 @@ object DialGeometry {
         LocalTime.ofSecondOfDay(((minuteOfDay.mod(MinutesPerDay)) * 60f).toLong().coerceIn(0, 86_399))
 }
 
-/** One advice window projected onto the dial, in display-zone minutes of the day. */
+/**
+ * One advice window projected onto the dial, in display-zone minutes of the day. [startInstant] / [endInstant] are
+ * the advice's real start and end (never clipped to the window, nor wrapped round the face): what orders blocks of
+ * 24 h or more, or across a DST change, where minutes of the day can't. Null when unknown (hand-built states).
+ */
 @Immutable
 data class DialArc(
     val adviceId: String,
@@ -53,6 +57,8 @@ data class DialArc(
     val isNow: Boolean = false,
     /** Where the advice really ends (display-zone minute), even when the arc is clipped to the dial's window. */
     val narratedEndMinute: Float = (startMinute + sweepMinutes).mod(DialGeometry.MinutesPerDay),
+    val startInstant: Instant? = null,
+    val endInstant: Instant? = null,
 ) {
     val endMinute: Float get() = (startMinute + sweepMinutes).mod(DialGeometry.MinutesPerDay)
 }

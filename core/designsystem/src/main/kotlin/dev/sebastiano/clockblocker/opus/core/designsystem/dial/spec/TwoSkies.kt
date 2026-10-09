@@ -315,10 +315,8 @@ object TwoSkies {
             val thenSpec = TextSpec(10f * sayK, weight = 550, tabular = false)
             // "then …" only when it really follows: advice that starts before the block in focus ends (sleep inside
             // a long flight) is narrated with its start instead, so the rim never puts them in the wrong order.
-            val currentRuns = (current.narratedEndMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
-            val nextIn = (next.startMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
             val nextLabel = labels.advice(next.type)
-            val thenText = if (nextIn < currentRuns) labels.at(nextLabel, labels.fullTime(next.startMinute)) else labels.then(nextLabel)
+            val thenText = if (startsBeforeEnd(next, current)) labels.at(nextLabel, labels.fullTime(next.startMinute)) else labels.then(nextLabel)
             val thenDeg = degreesFor(thenText, thenSpec, rimR)
             val thenCentre = if (inward) {
                 // Reading right to left round the dial: "then …" continues on the far side of the glyph.
@@ -427,4 +425,17 @@ object TwoSkies {
             return (cx + r * cos(rad).toFloat()) to (cy + r * sin(rad).toFloat())
         }
     }
+}
+
+/**
+ * Whether [next] starts before [current] ends, in real time when both carry their instants (a block of 24 h or more
+ * wraps the face, and a DST change shifts its minutes); otherwise by minutes of the day from [current]'s start.
+ */
+internal fun startsBeforeEnd(next: DialArc, current: DialArc): Boolean {
+    val start = next.startInstant
+    val end = current.endInstant
+    if (start != null && end != null) return start.isBefore(end)
+    val currentRuns = (current.narratedEndMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
+    val nextIn = (next.startMinute - current.startMinute).mod(DialGeometry.MinutesPerDay)
+    return nextIn < currentRuns
 }
