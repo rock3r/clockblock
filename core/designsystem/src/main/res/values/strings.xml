@@ -98,4 +98,7 @@
     <string name="light_curve_action_later">Later hour</string>
     <string name="light_curve_action_reset">Reset</string>
     <string name="light_curve_action_reset_block">Reset to this block</string>
+
+    <!-- Airport search result row (TalkBack): "LHR, London, London Heathrow Airport, United Kingdom. 10:03 local time, GMT+1". -->
+    <string name="place_result_description">%1$s. %2$s local time, %3$s</string>
 </resources>

@@ -30,12 +30,14 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.advice.shortInstructio
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ConfettiCanvas
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.DualTimeText
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.WindowLightArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.NowCardShape
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -61,6 +63,35 @@ class ComponentScreenshotTest : ScreenshotTest() {
     @Test fun dualTime12h() = snap("component_dual_time_12h", use24Hour = false) { DualTimes() }
     @Test fun confetti() = snap("component_confetti") { ConfettiCanvas({ 0.32f }, Modifier.size(360.dp, 320.dp)) }
     @Test fun loading() = snap("component_loading") { ShapeLoadingIndicator() }
+
+    // Phone width: the city must never truncate, and the country wraps on the second line instead.
+    @Test @Config(qualifiers = "w360dp-h900dp-xhdpi")
+    fun placeResults() = snap("component_place_result_rows") { PlaceResults() }
+
+    @Test @Config(qualifiers = "w360dp-h900dp-xhdpi")
+    fun placeResultsDark() = snap("component_place_result_rows_dark", darkTheme = true) { PlaceResults() }
+
+    @Test @Config(qualifiers = "w360dp-h900dp-xhdpi")
+    fun placeResultsLargeFont() = snap("component_place_result_rows_fontscale_1_5", fontScale = 1.5f) { PlaceResults() }
+}
+
+private val SamplePlaces = listOf(
+    Place("LHR", "London Heathrow Airport", "London", "GB", "Europe/London", 51.471, -0.460),
+    Place("LAX", "Los Angeles International Airport", "Los Angeles", "US", "America/Los_Angeles", 33.943, -118.408),
+    Place("SIN", "Singapore Changi Airport", "Singapore", "SG", "Asia/Singapore", 1.350, 103.994),
+    Place("XSP", "Seletar Airport", "Seletar", "SG", "Asia/Singapore", 1.417, 103.868),
+    Place("", "Lisbon", "Lisbon", "PT", "Europe/Lisbon", 38.722, -9.139),
+)
+
+@Composable
+private fun PlaceResults() {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        SamplePlaces.forEach { place ->
+            Box(Modifier.background(MaterialTheme.colorScheme.surfaceContainer)) {
+                PlaceResultRow(place, Now, onClick = {})
+            }
+        }
+    }
 }
 
 /** The design system applied to a representative screen, in every theme variant and at font scale 1.5. */
