@@ -17,6 +17,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import dev.sebastiano.clockblocker.opus.AppGraph
@@ -25,6 +26,7 @@ import dev.sebastiano.clockblocker.opus.ClockblockApplication
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingTags
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -128,6 +130,17 @@ abstract class ClockblockE2eTest {
 
     /** True when a node with [tag] is currently in the tree. */
     fun exists(tag: String): Boolean = compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+
+    /**
+     * Finishes onboarding on its last step without the notification prompt: "Maybe later" while notifications aren't
+     * allowed, "Finish" once they are (the step then offers Back instead of "Maybe later", #101). The permission stays
+     * granted across tests on an emulator, so either can be on screen.
+     */
+    fun finishOnboardingWithoutPrompt() {
+        awaitTag(OnboardingTags.Finish)
+        compose.waitForIdle()
+        awaitTag(if (exists(OnboardingTags.MaybeLater)) OnboardingTags.MaybeLater else OnboardingTags.Finish).performClick()
+    }
 
     private fun awaitAny(matcher: SemanticsMatcher, timeoutMillis: Long) {
         compose.waitUntil("a node matching ${matcher.description}", timeoutMillis) { nodesExist(matcher) }

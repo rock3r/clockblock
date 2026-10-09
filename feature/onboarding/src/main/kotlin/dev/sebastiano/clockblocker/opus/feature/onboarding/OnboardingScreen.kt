@@ -278,12 +278,18 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
                 ) { Text(stringResource(R.string.welcome_get_started), style = MaterialTheme.typography.titleMedium) }
             }
             OnboardingStep.Reminders -> {
-                TextButton(
-                    onClick = actions::finish,
-                    enabled = !state.isSaving,
-                    modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
-                ) { Text(stringResource(R.string.reminders_maybe_later)) }
                 val granted = state.permissions.notificationsGranted
+                // Before notifications are allowed, "Maybe later" finishes without asking. Once they are, both would
+                // just finish, so the step offers Back like the others (#101).
+                if (granted) {
+                    OnboardingBackButton(actions::back, rtl)
+                } else {
+                    TextButton(
+                        onClick = actions::finish,
+                        enabled = !state.isSaving,
+                        modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
+                    ) { Text(stringResource(R.string.reminders_maybe_later)) }
+                }
                 Button(
                     onClick = { if (granted) actions.finish() else actions.requestNotifications(thenFinish = true) },
                     enabled = !state.isSaving,
@@ -292,18 +298,7 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
                 ) { Text(stringResource(if (granted) R.string.onboarding_finish else R.string.reminders_allow_finish)) }
             }
             else -> {
-                OutlinedButton(
-                    onClick = actions::back,
-                    modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.Back),
-                ) {
-                    Icon(
-                        painterResource(R.drawable.onboarding_ic_arrow_back),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp).graphicsLayer { scaleX = if (rtl) -1f else 1f },
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.onboarding_back))
-                }
+                OnboardingBackButton(actions::back, rtl)
                 Button(
                     onClick = actions::next,
                     contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
@@ -314,5 +309,22 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
                 ) { Text(stringResource(R.string.onboarding_next), style = MaterialTheme.typography.titleMedium) }
             }
         }
+    }
+}
+
+/** The outlined Back of the bottom bar (steps 2–5, and step 6 once notifications are allowed). */
+@Composable
+private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean) {
+    OutlinedButton(
+        onClick = onBack,
+        modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.Back),
+    ) {
+        Icon(
+            painterResource(R.drawable.onboarding_ic_arrow_back),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp).graphicsLayer { scaleX = if (rtl) -1f else 1f },
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.onboarding_back))
     }
 }
