@@ -68,7 +68,7 @@ class SettingsTest : ClockblockE2eTest() {
         awaitTag(OnboardingTags.GetStarted).performClick()
         awaitTag(OnboardingTags.Skip).performClick()
         awaitTag(OnboardingTags.step(OnboardingStep.Reminders))
-        awaitTag(OnboardingTags.MaybeLater).performClick()
+        finishOnboardingWithoutPrompt()
 
         awaitGone("route_onboarding", LongTimeoutMillis)
         awaitTag("route_settings").assertIsDisplayed()

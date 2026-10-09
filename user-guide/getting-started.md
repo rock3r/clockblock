@@ -94,8 +94,9 @@ asleep, except the one that wakes you.
 - **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them several minutes
   late, and much later while the phone is idle (Doze).
 
-Tap **Allow and finish** (or **Finish** if notifications are already allowed), or **Maybe later**. You can grant
-the permissions any time from Settings → **What Android allows**.
+Tap **Allow and finish**, or **Maybe later** to finish without allowing notifications. If notifications are
+already allowed, the buttons are **Back** and **Finish**. You can grant the permissions any time from Settings →
+**What Android allows**.
 
 ## What's next
 
