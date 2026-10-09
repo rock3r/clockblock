@@ -153,6 +153,9 @@ class DialStateMapperTest {
         arc.sweepMinutes shouldBe (17 * 60f plusOrMinus 0.01f)
         arc.endMinute shouldBe (6 * 60f plusOrMinus 0.01f) // 06:00 Tokyo, the window's end
         arc.narratedEndMinute shouldBe (8 * 60f plusOrMinus 0.01f) // 08:00 Tokyo, when it really ends
+        // The real instants, unclipped: what orders it against other advice.
+        arc.startInstant shouldBe flight.start
+        arc.endInstant shouldBe flight.end
     }
 
     @Test
