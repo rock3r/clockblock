@@ -3,10 +3,11 @@ package dev.sebastiano.clockblocker.opus.e2e
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isOff
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
@@ -62,23 +63,24 @@ class PlanInteractionsTest : ClockblockE2eTest() {
         launch(deepLink = "clockblock://plan/${active.trip.id}")
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
 
-        // The block happening now has a check-off circle on its rail row; ticking it is the Now card's Done.
+        // The block happening now has a check-off circle on its rail row; ticking it is the Now card's Done. The
+        // circle follows the stored log, not the tap, so wait for the log and then for the circle.
         val tick = PlanTags.checkOff(active.advice.id)
         scrollToMiddle(PlanTags.Rail, tick).assertIsOff().performClick()
-        awaitTag(tick).assertIsOn()
         awaitOutcome(active, AdviceOutcome.Done)
+        await(hasTestTag(tick) and isOn())
 
         // The snackbar's Undo puts back what the log held before: nothing.
         await(hasText(context.getString(PlanR.string.plan_undo)) and hasClickAction()).performClick()
         awaitOutcome(active, null)
-        awaitTag(tick).assertIsOff()
+        await(hasTestTag(tick) and isOff())
 
         // Unticking a ticked row forgets the log too.
         awaitTag(tick).performClick()
         awaitOutcome(active, AdviceOutcome.Done)
-        awaitTag(tick).performClick()
+        await(hasTestTag(tick) and isOn()).performClick()
         awaitOutcome(active, null)
-        awaitTag(tick).assertIsOff()
+        await(hasTestTag(tick) and isOff())
     }
 
     @OptIn(ExperimentalTestApi::class)
