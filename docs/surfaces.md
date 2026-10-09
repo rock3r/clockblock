@@ -337,8 +337,8 @@ so if the app isn't running at the time, the next widget update or advice bounda
   screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
-checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times and the four longest
-city names in the bundled places list. It runs at five densities, from mdpi to xxxhdpi, because text rounds to
+checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times, the four longest
+city names in the bundled places list, and two longer fixed names that only fit when shortened. It runs at five densities, from mdpi to xxxhdpi, because text rounds to
 whole pixels differently on each. It also checks that the "until" line never drops, that the other zone's time
 drops only at 1.3×, that "Up next" never keeps a row the now block needs, and that each docs cell gets a layout no
 larger than itself. The `remote_labels_*` goldens show every real label, and the `remote_minimums_*` goldens show

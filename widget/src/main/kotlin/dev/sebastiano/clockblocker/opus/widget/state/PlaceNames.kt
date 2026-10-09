@@ -1,8 +1,9 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
 /**
- * Shorter forms of a place name, for widget text that has to fit a small cell. Bundled cities can be long ("Qian
- * Gorlos Mongol Autonomous County", "Fayetteville/Springdale/Rogers"), and no layout can promise to fit any length.
+ * Shorter forms of a place name, for widget text that has to fit a small cell. City names can be long ("Les
+ * Îles-de-la-Madeleine", "Grand Canyon - Tusayan", or a longer name in a future data update), and no layout can
+ * promise to fit any length.
  * So the widgets fit the first form that fits whole (see `LabelFit`), and screen readers always get the full name.
  */
 object PlaceNames {

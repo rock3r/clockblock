@@ -58,8 +58,9 @@ class WidgetLabelFitTest {
     }
 
     /**
-     * The places to fit: two common ones, then the longest cities in the bundled airport data (`places.tsv`), which
-     * only fit through their shorter forms ([PlaceNames.options]).
+     * The places to fit: two common ones, two fixed extra-long names, then the longest cities in the bundled airport
+     * data (`places.tsv`). The long ones only fit through their shorter forms ([PlaceNames.options]). The fixed names
+     * keep that path tested if a data clean-up shortens the bundled cities (it did, in #88).
      */
     private val places: List<TestPlace> by lazy {
         val longest = File("../core/data/src/main/assets/places.tsv").readLines()
@@ -68,7 +69,7 @@ class WidgetLabelFitTest {
             .map { TestPlace(city = it[2], code = it[0]) }
             .sortedByDescending { it.city.length }
             .take(LONGEST_PLACES)
-        listOf(LISBON, SAN_FRANCISCO) + longest
+        listOf(LISBON, SAN_FRANCISCO, LONG_SLASHED, LONG_WORDS) + longest
     }
 
     /** Every advice label, "Plan step", and the states, with the longest times and the given place. */
@@ -392,8 +393,8 @@ class WidgetLabelFitTest {
 
     @Test
     fun `a long place shortens before anything clips, and shows in full where it fits`() {
-        val cpc = TestPlace("Chapelco/San Martin de los Andes", "CPC")
-        val ysq = TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ")
+        val cpc = LONG_SLASHED
+        val ysq = LONG_WORDS
         val medium = WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Medium)
         val tallerMedium = WidgetSizes.NEXT_UP.last { it.layout == NextUpLayout.Medium }
         val largest = WidgetSizes.NEXT_UP.maxBy { it.min.width * it.min.height }
@@ -422,6 +423,10 @@ class WidgetLabelFitTest {
     private companion object {
         val LISBON = TestPlace("Lisbon", "LIS")
         val SAN_FRANCISCO = TestPlace("San Francisco", "SFO")
+
+        /** Fixed long names (once the bundled data's longest), longer than any city left in `places.tsv`. */
+        val LONG_SLASHED = TestPlace("Chapelco/San Martin de los Andes", "CPC")
+        val LONG_WORDS = TestPlace("Qian Gorlos Mongol Autonomous County", "YSQ")
 
         /** How many of the longest bundled cities the matrix fits. */
         const val LONGEST_PLACES = 4
