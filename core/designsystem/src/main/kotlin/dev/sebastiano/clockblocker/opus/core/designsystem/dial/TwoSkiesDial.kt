@@ -119,8 +119,10 @@ fun TwoSkiesDial(
 
     val boundaries = remember(state) { blockBoundaries(state) }
 
+    // The scrub offset is minutes of the wall-clock face (as are the arcs and boundaries); the host gets the real
+    // instant under the hand, which differs across a DST change.
     fun report(offset: Float) {
-        currentOnScrub?.invoke(currentState.instant.plusSeconds((offset * 60f).toLong()))
+        currentOnScrub?.invoke(currentState.instantAt(offset))
     }
 
     // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand.
