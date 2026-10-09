@@ -32,9 +32,9 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:onboarding` | 87 | 35 |
 | `:feature:plan` | 184 | 31 |
 | `:feature:settings` | 81 | 30 |
-| `:feature:trips` | 97 | 25 |
+| `:feature:trips` | 100 | 25 |
 | `:widget` | 126 | 16 |
-| **Total** | **1374** | **234** |
+| **Total** | **1377** | **234** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 

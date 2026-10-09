@@ -189,7 +189,7 @@ private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                listOf(flagEmoji(place.countryCode) + " " + place.city, country).map { it.trim() }.filter { it.isNotBlank() }.joinToString(" · "),
+                placeResultTitle(flagEmoji(place.countryCode), place.city, country),
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -238,6 +238,13 @@ private fun DayNightDot(time: LocalTime) {
             drawPath(moon, Color(0xFFF4F1FF))
         }
     }
+}
+
+/** "🇵🇹 Lisbon · Portugal": the title line of a search result. A city-state is named once ("🇸🇬 Singapore"). */
+internal fun placeResultTitle(flag: String, city: String, country: String): String {
+    val place = "$flag $city".trim()
+    val region = country.trim().takeUnless { it.isBlank() || it.equals(city.trim(), ignoreCase = true) }
+    return listOfNotNull(place.ifBlank { null }, region).joinToString(" · ")
 }
 
 /** Regional-indicator flag for an ISO 3166 alpha-2 code ("PT" → 🇵🇹); empty when the code isn't two letters. */
