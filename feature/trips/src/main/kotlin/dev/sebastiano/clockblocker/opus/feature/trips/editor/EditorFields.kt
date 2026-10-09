@@ -64,6 +64,7 @@ import dev.sebastiano.clockblocker.opus.feature.trips.ui.countryName
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.utcOffsetLabel
 import java.time.Instant
 import java.time.LocalTime
+import java.util.Locale
 
 /**
  * Airport/city field with search-as-you-type. Results (already ranked by [dev.sebastiano.clockblocker.opus.core.data.PlaceSearch])
@@ -189,7 +190,7 @@ private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                placeResultTitle(flagEmoji(place.countryCode), place.city, country),
+                placeResultTitle(flagEmoji(place.countryCode), place.city, country, countryName(place.countryCode, Locale.ENGLISH)),
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -240,10 +241,15 @@ private fun DayNightDot(time: LocalTime) {
     }
 }
 
-/** "🇵🇹 Lisbon · Portugal": the title line of a search result. A city-state is named once ("🇸🇬 Singapore"). */
-internal fun placeResultTitle(flag: String, city: String, country: String): String {
+/**
+ * "🇵🇹 Lisbon · Portugal": the title line of a search result. A city-state is named once ("🇸🇬 Singapore"), also
+ * when [country] is localised: the city names come from bundled English data, so [countryInCityLanguage] (the
+ * country's English name) is compared too ("Singapore" vs a German "Singapur").
+ */
+internal fun placeResultTitle(flag: String, city: String, country: String, countryInCityLanguage: String = country): String {
     val place = "$flag $city".trim()
-    val region = country.trim().takeUnless { it.isBlank() || it.equals(city.trim(), ignoreCase = true) }
+    val sameAsCity = listOf(country, countryInCityLanguage).any { it.trim().equals(city.trim(), ignoreCase = true) }
+    val region = country.trim().takeUnless { it.isBlank() || sameAsCity }
     return listOfNotNull(place.ifBlank { null }, region).joinToString(" · ")
 }
 

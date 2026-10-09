@@ -16,6 +16,13 @@ class PlaceResultTitleTest {
     }
 
     @Test
+    fun `a city state is named once when the country is localised`() {
+        // German: the bundled city data says "Singapore", the device locale says "Singapur".
+        placeResultTitle(flag = "🇸🇬", city = "Singapore", country = "Singapur", countryInCityLanguage = "Singapore") shouldBe "🇸🇬 Singapore"
+        placeResultTitle(flag = "🇵🇹", city = "Lissabon", country = "Portugal", countryInCityLanguage = "Portugal") shouldBe "🇵🇹 Lissabon · Portugal"
+    }
+
+    @Test
     fun `missing parts leave no stray separators`() {
         placeResultTitle(flag = "", city = "Lisbon", country = "Portugal") shouldBe "Lisbon · Portugal"
         placeResultTitle(flag = "🇵🇹", city = "Lisbon", country = "") shouldBe "🇵🇹 Lisbon"
