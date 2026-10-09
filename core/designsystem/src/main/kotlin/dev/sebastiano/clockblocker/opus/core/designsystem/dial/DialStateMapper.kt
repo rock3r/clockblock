@@ -48,11 +48,17 @@ fun JetLagPlan.toDialState(instant: Instant, displayZone: ZoneId, place: Place? 
                 val s = maxOf(advice.start, windowStart)
                 val e = minOf(advice.end, windowEnd)
                 if (!s.isBefore(e)) return@mapNotNull null
+                val startMinute = minuteOf(s)
+                // Never past the window's end on the face: when that end falls in a skipped hour, its instant (the
+                // change itself) reads later on the face than the cutoff, and the arc would run into the past sector.
+                val toWindowEnd = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes -
+                    DialGeometry.relativeMinute(DialGeometry.minuteOfDay(local), startMinute)
+                val sweep = faceMinutesBetween(s, e, displayZone).let { if (toWindowEnd > 0f) it.coerceAtMost(toWindowEnd) else it }
                 DialArc(
                     adviceId = advice.id,
                     type = advice.type,
-                    startMinute = minuteOf(s),
-                    sweepMinutes = faceMinutesBetween(s, e, displayZone),
+                    startMinute = startMinute,
+                    sweepMinutes = sweep,
                     isNow = instant in advice,
                     narratedEndMinute = minuteOf(advice.end),
                     startInstant = advice.start,

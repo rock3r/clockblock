@@ -90,6 +90,19 @@ class DialDstTest {
         spring.instantAt(120f) shouldBe Instant.parse("2026-03-08T07:00:00Z") // 02:30 never happens
     }
 
+    @Test
+    fun `an arc clipped where the window ends inside the skipped hour stops at the window's face end`() {
+        // From 10:30 EST the day before, the window ends 16 h of the face later, at 02:30: a time that never happens.
+        val state = plan(
+            LocalDate.of(2026, 3, 7),
+            advice("sleep", AdviceType.Sleep, "2026-03-08T03:00:00Z", "2026-03-08T10:00:00Z"), // 22:00 EST → 06:00 EDT
+        ).toDialState(Instant.parse("2026-03-07T15:30:00Z"), newYork)
+
+        val sleep = state.arcs.single()
+        sleep.startMinute shouldBe (22 * 60f plusOrMinus 0.01f)
+        sleep.sweepMinutes shouldBe (270f plusOrMinus 0.01f) // to 02:30, never into the past sector
+    }
+
     // endregion
 
     // region Fall back: 00:00 EDT → 03:00 EST is 4 h of real time and 3 h of the face.
