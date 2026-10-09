@@ -124,10 +124,12 @@ internal fun PlanHeader(
     skyKey: Int? = null,
     daylight: HeaderDaylight = HeaderDaylight.Default,
 ) {
-    val fade = rememberSkyFade(skyKey, moment.bodyTime, daylight)
-    // Ink and the sun / moon follow the sky that is mostly showing (the old day's until a day-pick fade is halfway).
-    val foreground = fade.foregroundTime(moment.bodyTime)
-    val gradient = ClockblockTheme.sky.gradientAt(foreground, daylight.sunriseHour, daylight.sunsetHour)
+    val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
+    val fade = rememberSkyFade(skyKey, live)
+    // Ink and the sun / moon follow the sky that is mostly showing (the old day's until a day-pick fade is halfway):
+    // its body time, wall clock and daylight together, so nothing on top mixes two days.
+    val foreground = fade.foreground(live)
+    val gradient = ClockblockTheme.sky.gradientAt(foreground.bodyTime, foreground.daylight.sunriseHour, foreground.daylight.sunsetHour)
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
@@ -138,7 +140,7 @@ internal fun PlanHeader(
     ) {
         // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
         // behind the title.
-        HeaderSky(fade, moment.bodyTime, daylight, Modifier.matchParentSize())
+        HeaderSky(fade, live, Modifier.matchParentSize())
         val subtitle: @Composable () -> Unit = {
             PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
         }
@@ -184,9 +186,9 @@ internal fun PlanHeader(
         }
         // Above the app bar: its Surface would swallow the moon's taps otherwise.
         HeaderCelestial(
-            bodyTime = foreground,
-            localTime = moment.instant.atZone(moment.zone).toLocalTime(),
-            daylight = daylight,
+            bodyTime = foreground.bodyTime,
+            localTime = foreground.localTime,
+            daylight = foreground.daylight,
             ink = ink,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 200.dp else 72.dp,
@@ -198,8 +200,11 @@ internal fun PlanHeader(
     }
 }
 
-/** What the header sky showed: [bodyTime] under [daylight] for the day keyed by [key] (the picked day, `null` = live). */
-private data class SkyFrame(val key: Int?, val bodyTime: LocalTime, val daylight: HeaderDaylight)
+/** What the header shows at one moment: the body's time, the wall clock's and the day's sunrise and sunset. */
+private data class HeaderFrame(val bodyTime: LocalTime, val localTime: LocalTime, val daylight: HeaderDaylight)
+
+/** What the header showed: [frame] for the day keyed by [key] (the picked day, `null` = live). */
+private data class SkyFrame(val key: Int?, val frame: HeaderFrame)
 
 /** One frozen sky under a fade: the body time it paints under [daylight], at [alpha]. */
 private data class SkyLayer(val bodyTime: LocalTime, val alpha: Float, val daylight: HeaderDaylight)
@@ -214,19 +219,20 @@ private const val MaxSkyLayers = 6
 private const val OpaqueAlpha = 0.999f
 
 /**
- * The body time the header's foreground follows (ink of the title, icons and status bar, and the sun / moon) while
- * the sky cross-fades from [from] to [to]: the old sky's until the new one is half faded in ([progress] 0 → 1), so
- * everything on top matches the sky that is mostly showing. With no fade ([from] `null`) it is simply [to].
+ * The moment (body time, or the whole frame) the header's foreground follows (ink of the title, icons and status bar,
+ * and the sun / moon with their path) while the sky cross-fades from [from] to [to]: the old sky's until the new one
+ * is half faded in ([progress] 0 → 1), so everything on top matches the sky that is mostly showing. With no fade
+ * ([from] `null`) it is simply [to].
  */
-internal fun headerInkTime(from: LocalTime?, to: LocalTime, progress: Float): LocalTime =
+internal fun <T : Any> headerInkTime(from: T?, to: T, progress: Float): T =
     if (from == null || progress >= 0.5f) to else from
 
 /**
  * A day-pick cross-fade of the header sky: [layers] (frozen, bottom first, the bottom one opaque) under the live sky,
- * which fades in as [progress] → 1. [fromTime] is what the foreground followed when the fade started.
+ * which fades in as [progress] → 1. [from] is what the foreground followed when the fade started.
  */
 @Stable
-private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTime?) {
+private class SkyFade(val layers: List<SkyLayer>, private val from: HeaderFrame?) {
     val progress = Animatable(if (layers.isEmpty()) 1f else 0f)
 
     /** The frozen skies are still (partly) visible. Flips once per fade, so it is safe to read in composition. */
@@ -235,24 +241,24 @@ private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTim
     /** The new sky is the one mostly showing (see [headerInkTime]). Flips once per fade. */
     private val pastMidpoint by derivedStateOf { progress.value >= 0.5f }
 
-    fun foregroundTime(live: LocalTime): LocalTime = headerInkTime(fromTime, live, if (pastMidpoint) 1f else 0f)
+    fun foreground(live: HeaderFrame): HeaderFrame = headerInkTime(from, live, if (pastMidpoint) 1f else 0f)
 
     /**
      * What this fade shows right now, with the live sky at [live], as frozen layers for the next fade to start over:
      * an interrupted fade keeps its blend instead of jumping to its target. Reads without observing (a one-off).
      */
-    fun freeze(live: LocalTime, daylight: HeaderDaylight): List<SkyLayer> = Snapshot.withoutReadObservation {
+    fun freeze(live: HeaderFrame): List<SkyLayer> = Snapshot.withoutReadObservation {
         if (!fading) {
-            listOf(SkyLayer(live, 1f, daylight))
+            listOf(SkyLayer(live.bodyTime, 1f, live.daylight))
         } else {
-            val stack = layers + SkyLayer(live, progress.value, daylight)
+            val stack = layers + SkyLayer(live.bodyTime, progress.value, live.daylight)
             // Anything under an (all but) opaque layer can't be seen: only that much of the stack is kept.
             val base = stack.indexOfLast { it.alpha >= OpaqueAlpha }.coerceAtLeast(0)
             stack.drop(base).takeLast(MaxSkyLayers).mapIndexed { i, layer -> if (i == 0) layer.copy(alpha = 1f) else layer }
         }
     }
 
-    fun frozenForeground(live: LocalTime): LocalTime = Snapshot.withoutReadObservation { foregroundTime(live) }
+    fun frozenForeground(live: HeaderFrame): HeaderFrame = Snapshot.withoutReadObservation { foreground(live) }
 }
 
 /**
@@ -261,7 +267,7 @@ private class SkyFade(val layers: List<SkyLayer>, private val fromTime: LocalTim
  * fade at all: the live sky repaints in place.
  */
 @Composable
-private fun rememberSkyFade(key: Int?, bodyTime: LocalTime, daylight: HeaderDaylight): SkyFade {
+private fun rememberSkyFade(key: Int?, frame: HeaderFrame): SkyFade {
     val motion = ClockblockTheme.motion
     // The frame and fade the last composition drew. Plain (not state): they are only read when the key changes.
     val last = remember { arrayOfNulls<SkyFrame>(1) }
@@ -270,14 +276,14 @@ private fun rememberSkyFade(key: Int?, bodyTime: LocalTime, daylight: HeaderDayl
         val before = last[0]?.takeIf { it.key != key }
         val prev = previous[0]
         when {
-            before == null -> SkyFade(emptyList(), fromTime = null)
-            prev == null -> SkyFade(listOf(SkyLayer(before.bodyTime, 1f, before.daylight)), fromTime = before.bodyTime)
-            else -> SkyFade(prev.freeze(before.bodyTime, before.daylight), fromTime = prev.frozenForeground(before.bodyTime))
+            before == null -> SkyFade(emptyList(), from = null)
+            prev == null -> SkyFade(listOf(SkyLayer(before.frame.bodyTime, 1f, before.frame.daylight)), from = before.frame)
+            else -> SkyFade(prev.freeze(before.frame), from = prev.frozenForeground(before.frame))
         }
     }
     LaunchedEffect(fade) { if (fade.layers.isNotEmpty()) fade.progress.animateTo(1f, motion.colour()) }
     SideEffect {
-        last[0] = SkyFrame(key, bodyTime, daylight)
+        last[0] = SkyFrame(key, frame)
         previous[0] = fade
     }
     return fade
@@ -289,7 +295,7 @@ private fun rememberSkyFade(key: Int?, bodyTime: LocalTime, daylight: HeaderDayl
  * shows through.
  */
 @Composable
-private fun HeaderSky(fade: SkyFade, bodyTime: LocalTime, daylight: HeaderDaylight, modifier: Modifier = Modifier) {
+private fun HeaderSky(fade: SkyFade, live: HeaderFrame, modifier: Modifier = Modifier) {
     Box(modifier) {
         if (fade.fading) {
             fade.layers.forEach { layer ->
@@ -303,10 +309,10 @@ private fun HeaderSky(fade: SkyFade, bodyTime: LocalTime, daylight: HeaderDaylig
             }
         }
         BodyClockSky(
-            bodyTime = bodyTime,
+            bodyTime = live.bodyTime,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = fade.progress.value }.testTag(PlanTags.HeaderSky),
-            sunriseHour = daylight.sunriseHour,
-            sunsetHour = daylight.sunsetHour,
+            sunriseHour = live.daylight.sunriseHour,
+            sunsetHour = live.daylight.sunsetHour,
             showCelestial = false,
         )
     }
@@ -456,8 +462,7 @@ private fun HeaderCelestial(
     val body = daylight.arcPoint(hour)
     val isSun = body.isSun
     val localHour = localTime.toHourFloat()
-    val ghostT = daylight.ghostT(hour, localHour)
-    val joined = daylight.joins(hour, localHour)
+    val joins = daylight.joins(hour, localHour)
     val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
     val art = ClockblockTheme.artColors
     val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
@@ -545,7 +550,10 @@ private fun HeaderCelestial(
                 pathInk.copy(alpha = pathInk.alpha * PathAlpha),
                 style = Stroke(1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))),
             )
-            if (joined) {
+            // In step, or so close that the ring would still circle the sun's middle: drawn exactly around it.
+            val arcWidth = (size.width - reserveEnd.toPx() - CelestialInsetStart.toPx()).coerceAtLeast(1f)
+            val ghostT = daylight.ghostT(hour, localHour, snapT = (r + GhostGap.toPx()) / arcWidth)
+            if (joins && ghostT != body.t) {
                 drawPath(
                     arcPath(size.width, top, body.t, ghostT, reserveEnd, trail),
                     pathInk.copy(alpha = pathInk.alpha * JoinAlpha),

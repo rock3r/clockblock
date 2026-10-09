@@ -84,6 +84,23 @@ class HeaderArcTest {
     }
 
     @Test
+    fun `in step, under half an hour apart, the ghost sits exactly on the body's sun or moon`() {
+        day.ghostT(bodyHour = 13f, localHour = 13.4f) shouldBe day.arcPoint(13f).t
+        day.ghostT(bodyHour = 23.9f, localHour = 0.2f) shouldBe day.arcPoint(23.9f).t
+        // Across sunrise too: a few minutes either side of it is still in step.
+        day.ghostT(bodyHour = 6.1f, localHour = 5.9f) shouldBe day.arcPoint(6.1f).t
+        day.ghostT(bodyHour = 13f, localHour = 13.5f) shouldBe day.arcPoint(13.5f).t
+    }
+
+    @Test
+    fun `a ghost that would sit inside its own ring of the sun is drawn exactly around it`() {
+        // An hour is 1/14 of this day's arc: within a snap of 0.1 it circles the sun, beyond it it stands apart.
+        day.ghostT(bodyHour = 13f, localHour = 14f, snapT = 0.1f) shouldBe day.arcPoint(13f).t
+        day.ghostT(bodyHour = 13f, localHour = 14f, snapT = 0.05f) shouldBe day.arcPoint(14f).t
+        day.ghostT(bodyHour = 13f, localHour = 16f, snapT = 0.1f) shouldBe day.arcPoint(16f).t
+    }
+
+    @Test
     fun `across sunrise or sunset the ghost waits at the nearer end of the body's half`() {
         // Body just after sunrise, wall clock just before it: the ring waits at the start, by the sun.
         day.ghostT(bodyHour = 7f, localHour = 5.5f) shouldBe 0f

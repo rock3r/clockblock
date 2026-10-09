@@ -519,9 +519,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
         )
-        // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date.
+        // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date
+        // (the place can change within a zone and a date, e.g. a same-day flight inside one zone).
+        val shownPlace = state.trip?.placeIn(shown.zone, shown.instant)
         val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
-        val daylight = remember(state.trip, shown.zone, shownDate) { headerDaylight(state.trip, shown) }
+        val daylight = remember(shownPlace, shown.zone, shownDate) { headerDaylight(shownPlace, shown.zone, shownDate) }
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
