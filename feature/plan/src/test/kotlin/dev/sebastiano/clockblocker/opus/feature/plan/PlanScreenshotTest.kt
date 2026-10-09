@@ -175,6 +175,16 @@ class PlanScreenshotTest {
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun expandedTwoPane() = snap("expanded_two_pane") { PlanContent(ready(PlanFixtures.MidAdaptation), PlanActions()) }
 
+    /** Two panes, the rail scrolled by hand to Day 4: the strip marks Day 4's pill (a bar at its foot), today stays selected. */
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
+    fun expandedTwoPaneRailScrolled() {
+        snap("expanded_two_pane_rail_scrolled", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), PlanActions()) }
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_expanded_two_pane_rail_scrolled.png")
+    }
+
     @Test
     @Config(qualifiers = "w1280dp-h800dp-xhdpi")
     fun emptyPane() = snap("empty_pane") { PlanEmptyPane(onNewTrip = {}) }
