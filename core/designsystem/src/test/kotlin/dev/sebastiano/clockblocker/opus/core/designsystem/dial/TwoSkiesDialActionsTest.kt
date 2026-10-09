@@ -2,6 +2,9 @@ package dev.sebastiano.clockblocker.opus.core.designsystem.dial
 
 import android.content.Context
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -85,5 +88,21 @@ class TwoSkiesDialActionsTest {
 
         reported.last() shouldBe end
         compose.onNodeWithTag("dial").assertContentDescriptionContains("Your body clock is 2:30 AM", substring = true)
+    }
+
+    @Test
+    fun `when now moves on, the landing moves with the hand`() {
+        var state by mutableStateOf(fallBack)
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = {}) }
+        }
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
+        compose.waitForIdle()
+
+        // Five minutes on, the hand (still an hour of the face ahead) is at the second 01:35: 2:35 on the body clock.
+        state = fallBack.copy(instant = now.plusSeconds(5 * 60L), localMinute = 35f)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("dial").assertContentDescriptionContains("1:35 AM local. Your body clock is 2:35 AM", substring = true)
     }
 }

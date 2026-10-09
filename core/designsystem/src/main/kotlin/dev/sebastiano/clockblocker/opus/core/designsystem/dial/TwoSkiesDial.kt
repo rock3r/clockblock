@@ -132,12 +132,12 @@ fun TwoSkiesDial(
     // instant under the hand, which differs across a DST change. [at] overrides it when the caller knows better (see
     // landed above).
     fun report(offset: Float, at: Instant? = null) {
-        landed = at?.let { Landing(offset, it) }
+        landed = at?.let { Landing(offset, it, currentState.instant) }
         currentOnScrub?.invoke(at ?: currentState.instantAt(offset))
     }
 
     // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand.
-    LaunchedEffect(Unit) { if (scrub.value != 0f) report(scrub.value, landing?.at) }
+    LaunchedEffect(Unit) { if (scrub.value != 0f) report(scrub.value, landing?.atFor(currentState)) }
 
     /**
      * Moves the hand on [spec] and reports every frame, so the cards and the sky travel with it: the hand and the
@@ -163,7 +163,7 @@ fun TwoSkiesDial(
 
     // Semantics (composition): coarse scrub so TalkBack text doesn't recompose every frame.
     val coarseScrub by remember { derivedStateOf { (scrub.value / 5f).toInt() * 5f } }
-    val shown = landing?.let { state.scrubbedTo(it.offset, it.at) } ?: if (coarseScrub == 0f) state else state.scrubbedTo(coarseScrub)
+    val shown = landing?.let { state.scrubbedTo(it.offset, it.atFor(state)) } ?: if (coarseScrub == 0f) state else state.scrubbedTo(coarseScrub)
     val description = dialDescription(shown, formatter)
     val nextLabel = stringResource(R.string.dial_action_next_block)
     val previousLabel = stringResource(R.string.dial_action_previous_block)
@@ -391,12 +391,17 @@ internal fun blockBoundaryInstant(state: DialState, offset: Float): Instant {
 
 private const val BoundaryToleranceMinutes = 0.01f
 
-/** The hand at [offset] on the face, at the real instant [at] (see blockBoundaryInstant). */
-private data class Landing(val offset: Float, val at: Instant)
+/**
+ * The hand at [offset] on the face, at the real instant [at] (see blockBoundaryInstant), landed when the dial was
+ * anchored at [anchor]. The offset is from now, so as now moves on the hand and its instant move with it ([atFor]).
+ */
+private data class Landing(val offset: Float, val at: Instant, val anchor: Instant) {
+    fun atFor(state: DialState): Instant = at.plus(Duration.between(anchor, state.instant))
+}
 
 /** Real minutes from the instant the face gives the [landing]'s offset to the landing's own instant. */
 private fun DialState.minutesPastFace(landing: Landing): Float =
-    Duration.between(instantAt(landing.offset), landing.at).seconds / 60f
+    Duration.between(instantAt(landing.offset), landing.atFor(this)).seconds / 60f
 
 @Composable
 private fun dialDescription(state: DialState, formatter: TimeFormatter): String {
@@ -448,8 +453,10 @@ private val ScrubSaver: Saver<Animatable<Float, *>, Float> = Saver(
     restore = { Animatable(it) },
 )
 
-/** A [Landing] as its offset and epoch milliseconds; nothing when there is none. */
+/** A [Landing] as its offset and two epoch milliseconds; nothing when there is none. */
 private val LandingSaver: Saver<Landing?, Any> = Saver(
-    save = { landing -> landing?.let { arrayListOf(it.offset, it.at.toEpochMilli()) } },
-    restore = { saved -> (saved as List<*>).let { Landing(it[0] as Float, Instant.ofEpochMilli(it[1] as Long)) } },
+    save = { landing -> landing?.let { arrayListOf(it.offset, it.at.toEpochMilli(), it.anchor.toEpochMilli()) } },
+    restore = { saved ->
+        (saved as List<*>).let { Landing(it[0] as Float, Instant.ofEpochMilli(it[1] as Long), Instant.ofEpochMilli(it[2] as Long)) }
+    },
 )
