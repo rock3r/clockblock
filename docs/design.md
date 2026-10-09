@@ -121,7 +121,7 @@ Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet 
 1. Welcome: animated "Two Clocks" hero, one-line value prop, "Free & open source" badge.
 2. Usual sleep: drag the two ends of a sleep arc on a 24 h dial (like the Android Clock Bedtime screen). Weekday/weekend toggle.
 3. Chronotype: 3 large cards (Lark / In between / Owl) + optional 5-question reduced MEQ.
-4. Tools: toggles for **Melatonin** (+ fast/slow release), **Caffeine**, **Can sleep on planes**, **Start adjusting before I leave**.
+4. Tools: toggles for **Melatonin** (+ fast/slow release), **Caffeine**, **Can sleep on planes**, **Adjust before I leave**.
 5. Effort: Gentle / Balanced / Max (a `ButtonGroup` with morphing selection).
 6. Reminders: explain → `POST_NOTIFICATIONS` → exact-alarm rationale. "Not now" is honoured, permanently.
 

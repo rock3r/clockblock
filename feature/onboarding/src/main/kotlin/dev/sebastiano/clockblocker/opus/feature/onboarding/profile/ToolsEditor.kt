@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
@@ -358,7 +359,7 @@ private val ToolGlyphSize = 40.dp
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun EffortSelector(selected: Intensity, onSelect: (Intensity) -> Unit, modifier: Modifier = Modifier) {
+fun EffortSelector(selected: Intensity, onSelect: (Intensity) -> Unit, modifier: Modifier = Modifier, onCard: Boolean = false) {
     val motion = ClockblockTheme.motion
     val options = Intensity.entries
     Column(modifier) {
@@ -370,6 +371,13 @@ fun EffortSelector(selected: Intensity, onSelect: (Intensity) -> Unit, modifier:
                 ToggleButton(
                     checked = intensity == selected,
                     onCheckedChange = { onSelect(intensity) },
+                    // On a surfaceContainer card (Settings) the default unchecked container is the card's own
+                    // colour: lift it a step so unselected options still read as buttons.
+                    colors = if (onCard) {
+                        ToggleButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+                    } else {
+                        ToggleButtonDefaults.colors()
+                    },
                     shapes = when (index) {
                         0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                         options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
