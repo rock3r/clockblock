@@ -69,7 +69,7 @@ object TwoSkies {
             DetailLevel.Simple -> b.simple(side / 2f / 80f)
             DetailLevel.Glance -> b.glance(side / 2f / 44f)
         }
-        return DialSpec(level, widthDp, heightDp, b.cx, b.cy, side / 2f, hub, b.ops.toList())
+        return DialSpec(level, widthDp, heightDp, b.cx, b.cy, side / 2f, hub, b.ops.toList(), nowMinute = b.display)
     }
 
     /** Radius (dp) of the hub inside the body ring for a dial whose smaller side is [sideDp]: taps there return to now. */
@@ -173,6 +173,7 @@ object TwoSkies {
             ops += DialOp.Text(
                 labels.bodyTime(labels.time(bodyMinute)), cx, cy + 18f * k,
                 TextSpec(15f * k * grow, weight = 480, slanted = true), p.body, part = DialPart.Readout,
+                live = live(liveBodyTime(labels)),
             )
             pill(cy + 41f * k, labels.offset(ahead), TextSpec(9.5f * k, weight = 650, slanted = true, tabular = false), 8f * k, 18f * k)
             return innerR - ringW / 2f
@@ -194,10 +195,7 @@ object TwoSkies {
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
             localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
-            ops += DialOp.Text(
-                if (aligned) labels.inSync() else labels.fullTime(bodyMinute), cx, cy + 12f * k,
-                TextSpec(10.5f * k * grow, weight = 550, slanted = true), p.body, part = DialPart.Readout,
-            )
+            bodyReadout(cy + 12f * k, TextSpec(10.5f * k * grow, weight = 550, slanted = true))
             return innerR - ringW / 2f
         }
 
@@ -210,15 +208,24 @@ object TwoSkies {
             rings(outerR, innerR, ringW)
             needle(innerR - ringW / 2f, outerR + ringW / 2f, 1.8f * k, tip = null)
             localTime(cy - 5f * k, TextSpec(16.5f * k, weight = 520), markerSize = 6.5f * k, maxWidth = 52f * k)
-            ops += DialOp.Text(
-                if (aligned) labels.inSync() else labels.fullTime(bodyMinute), cx, cy + 10f * k,
-                TextSpec(11f * k, weight = 580, slanted = true), p.body, part = DialPart.Readout,
-            )
+            bodyReadout(cy + 10f * k, TextSpec(11f * k, weight = 580, slanted = true))
             return innerR - ringW / 2f
         }
 
         // endregion
         // region Marks
+
+        /** A clock reading a live host keeps current; none while scrubbing (the readouts show the scrubbed time). */
+        fun live(time: LiveTime): LiveTime? = time.takeUnless { scrubbed }
+
+        /** The body time with its AM/PM marker, or "in sync" once adapted. */
+        fun bodyReadout(y: Float, spec: TextSpec) {
+            ops += if (aligned) {
+                DialOp.Text(labels.inSync(), cx, y, spec, p.body, part = DialPart.Readout)
+            } else {
+                DialOp.Text(labels.fullTime(bodyMinute), cx, y, spec, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body, marker = true)))
+            }
+        }
 
         fun face(r: Float) {
             ops += DialOp.Circle(cx, cy, r, p.face, part = DialPart.Face)
@@ -355,7 +362,7 @@ object TwoSkies {
             if (!washPast) return
             val elapsed = (display - a.startMinute).mod(DialGeometry.MinutesPerDay).coerceAtMost(a.sweepMinutes)
             if (elapsed > 0f && elapsed < a.sweepMinutes) {
-                ops += DialOp.Arc(cx, cy, r, w * 1.2f, start - 4f, elapsed / 4f + 4f, p.face.withAlpha(0.42f), part = DialPart.Advice)
+                ops += DialOp.Arc(cx, cy, r, w * 1.2f, start - 4f, elapsed / 4f + 4f, p.face.withAlpha(0.42f), part = DialPart.AdvicePast)
             }
         }
 
@@ -398,15 +405,18 @@ object TwoSkies {
             val fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
             val digitsSpec = spec.copy(size = spec.size * fit)
             if (marker == null) {
-                ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout)
+                ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
                 return
             }
             val smallSpec = markerSpec.copy(size = markerSize * fit)
             val w = measurer.width(digits, digitsSpec)
             val total = w + gap * fit + measurer.width(marker, smallSpec)
             val left = cx - total / 2f
-            ops += DialOp.Text(digits, left, y, digitsSpec, p.ink, h = HAlign.Start, part = DialPart.Readout)
-            ops += DialOp.Text(marker, left + w + gap * fit, y - digitsSpec.size * 0.18f, smallSpec, p.inkMuted, h = HAlign.Start, part = DialPart.Readout)
+            ops += DialOp.Text(digits, left, y, digitsSpec, p.ink, h = HAlign.Start, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
+            ops += DialOp.Text(
+                marker, left + w + gap * fit, y - digitsSpec.size * 0.18f, smallSpec, p.inkMuted, h = HAlign.Start,
+                part = DialPart.Readout, live = live(LiveTime(LiveClock.Local, digits = false, marker = true)),
+            )
         }
 
         fun pill(y: Float, text: String, spec: TextSpec, padH: Float, height: Float) {
@@ -426,6 +436,14 @@ object TwoSkies {
         }
     }
 }
+
+/** "08:20 body" as a [LiveTime]: the body clock's digits inside [DialLabels.bodyTime]'s words. */
+internal fun liveBodyTime(labels: DialLabels): LiveTime {
+    val template = labels.bodyTime(TimeSlot)
+    return LiveTime(LiveClock.Body, prefix = template.substringBefore(TimeSlot), suffix = template.substringAfter(TimeSlot, ""))
+}
+
+private const val TimeSlot = "\u0001"
 
 /**
  * Whether [next] starts before [current] ends, in real time when both carry their instants (a block of 24 h or more

@@ -383,6 +383,7 @@ class TwoSkiesSpecTest {
         is DialOp.SweepRing -> box(op.cx, op.cy, op.r + op.width / 2f)
         is DialOp.Line -> listOf(op.x0 to op.y0, op.x1 to op.y1)
         is DialOp.Rect -> listOf(op.left to op.top, op.right to op.bottom)
+        is DialOp.SkyBar -> listOf(op.left to op.top, op.right to op.bottom)
         is DialOp.Glyph -> box(op.cx, op.cy, maxOf(op.discRadius, op.size / 2f))
         is DialOp.Text -> {
             val half = ApproxTextMeasurer.width(op.text, op.spec) / 2f
