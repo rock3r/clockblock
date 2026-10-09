@@ -1,5 +1,8 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.CodeChip
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.countryName
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -60,7 +63,6 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
-import dev.sebastiano.clockblocker.opus.feature.trips.ui.countryName
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.utcOffsetLabel
 import java.time.Instant
 import java.time.LocalTime
@@ -151,144 +153,10 @@ internal fun PlaceResults(search: PlaceSearchState, now: Instant, onSelect: (Pla
                 )
             }
             search.results.forEachIndexed { index, place ->
-                if (index > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                PlaceResultRow(place, now, onClick = { onSelect(place) })
+                // Inset to the text column: row padding 16 + code chip 48 + gap 12.
+                if (index > 0) HorizontalDivider(Modifier.padding(start = 76.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                PlaceResultRow(place, now, onClick = { onSelect(place) }, modifier = Modifier.testTag(TripsTestTags.placeResult(place.displayCode)))
             }
-        }
-    }
-}
-
-@Composable
-private fun PlaceResultRow(place: Place, now: Instant, onClick: () -> Unit) {
-    val country = countryName(place.countryCode)
-    val offset = place.utcOffsetLabel(now)
-    val localTime = now.atZone(place.zone).toLocalTime()
-    val time = rememberTimeFormatter().formatFull(localTime)
-    val description = stringResource(
-        R.string.editor_place_result_description,
-        place.displayCode,
-        place.city,
-        place.name,
-        country,
-        "${stringResource(R.string.editor_place_result_time, time)}, $offset",
-    )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .testTag(TripsTestTags.placeResult(place.displayCode))
-            .clickable(onClick = onClick)
-            .clearAndSetSemantics {
-                contentDescription = description
-                role = Role.Button
-                onClick { onClick(); true }
-            }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CodeChip(place.displayCode, Modifier.widthIn(min = 48.dp))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                placeResultTitle(place.city, place.countryCode),
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                place.name,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                DayNightDot(localTime)
-                Spacer(Modifier.width(6.dp))
-                Text(time, style = ClockblockTheme.textStyles.timeLabel)
-            }
-            Text(offset, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-/**
- * A tiny sky at [time]: the sky colour of that hour with a sun or a crescent moon. Decorative (the time next to it
- * carries the meaning).
- */
-@Composable
-private fun DayNightDot(time: LocalTime) {
-    val hour = time.toHourFloat()
-    val sky = ClockblockTheme.sky.gradientAt(hour)
-    val isSun = celestialPosition(hour).isSun
-    val sun = ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
-    Canvas(Modifier.size(18.dp).clearAndSetSemantics {}) {
-        val r = size.minDimension / 2f
-        drawCircle(sky.verticalBrush(0f, size.height), r)
-        val c = center
-        if (isSun) {
-            drawCircle(sun, r * 0.42f, c)
-        } else {
-            val moon = Path().apply {
-                addOval(Rect(c, r * 0.48f))
-                op(this, Path().apply { addOval(Rect(c + Offset(r * 0.26f, -r * 0.2f), r * 0.42f)) }, PathOperation.Difference)
-            }
-            drawPath(moon, Color(0xFFF4F1FF))
-        }
-    }
-}
-
-/**
- * "🇵🇹 Lisbon · Portugal": the title line of a search result, with the country in [locale]. A city-state is named
- * once ("🇸🇬 Singapore", "🇭🇰 Hong Kong"): decided from [countryCode], because the bundled city names are English
- * while the country label is localised ("Singapur") or longer ("Hong Kong SAR China").
- */
-internal fun placeResultTitle(city: String, countryCode: String, locale: Locale = Locale.getDefault()): String {
-    val place = "${flagEmoji(countryCode)} $city".trim()
-    val name = city.trim()
-    val cityState = CityStateNames[countryCode.trim().uppercase()].orEmpty().any { it.equals(name, ignoreCase = true) } ||
-        countryName(countryCode, Locale.ENGLISH).equals(name, ignoreCase = true)
-    val region = countryName(countryCode, locale).trim().takeUnless { it.isBlank() || cityState }
-    return listOfNotNull(place.ifBlank { null }, region).joinToString(" · ")
-}
-
-/**
- * City-states and the city names that *are* the region, whatever the locale data calls the region
- * ("Hong Kong SAR China"). Other cities in the same region (Seletar in Singapore) still get the country.
- */
-private val CityStateNames = mapOf(
-    "SG" to listOf("Singapore"),
-    "HK" to listOf("Hong Kong"),
-    "MO" to listOf("Macau", "Macao"),
-    "MC" to listOf("Monaco", "Monte Carlo"),
-    "VA" to listOf("Vatican City"),
-    "GI" to listOf("Gibraltar"),
-    "SM" to listOf("San Marino"),
-)
-
-/** Regional-indicator flag for an ISO 3166 alpha-2 code ("PT" → 🇵🇹); empty when the code isn't two letters. */
-internal fun flagEmoji(countryCode: String): String {
-    val code = countryCode.trim().uppercase()
-    if (code.length != 2 || code.any { it !in 'A'..'Z' }) return ""
-    return code.map { String(Character.toChars(RegionalIndicatorA + (it - 'A'))) }.joinToString("")
-}
-
-private const val RegionalIndicatorA = 0x1F1E6
-
-/** The IATA code in a small tonal box, in the dot-matrix label face (so codes line up in result lists). */
-@Composable
-internal fun CodeChip(code: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-    ) {
-        Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
-            IataCode(code, style = ClockblockTheme.textStyles.iataLabel, contentDescription = null, animateChanges = false)
         }
     }
 }

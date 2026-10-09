@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.GreatCircleArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.LittleAndOftenArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.PillowMoonArt
@@ -448,6 +449,7 @@ private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingAction
     }
 }
 
+/** A search result in its segmented card; the row itself is the shared [PlaceResultRow] (same as the trip editor). */
 @Composable
 private fun PlaceRow(
     place: Place,
@@ -456,41 +458,8 @@ private fun PlaceRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val formatter = rememberTimeFormatter()
-    val colors = MaterialTheme.colorScheme
-    val local = formatter.format(LocalTime.ofInstant(now, place.zone))
-    val description = stringResource(R.string.home_result_description, place.city, place.name, place.zoneId)
-    Surface(shape = shape, color = colors.surfaceContainer, modifier = modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .clip(shape)
-                .clickable(onClick = onClick)
-                .semantics(mergeDescendants = true) { contentDescription = description }
-                .heightIn(min = 64.dp)
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .testTag(HomeZoneTags.result(place)),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(shape = MaterialTheme.shapes.medium, color = colors.primaryContainer, modifier = Modifier.widthIn(min = 56.dp)) {
-                Text(
-                    place.displayCode,
-                    style = ClockblockTheme.textStyles.timeLabel,
-                    color = colors.onPrimaryContainer,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(place.city, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1)
-                Text(place.name, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, maxLines = 1)
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(local, style = ClockblockTheme.textStyles.timeLabel, color = colors.onSurface)
-                Text(gmtLabel(place.zone, now), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-            }
-        }
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier.fillMaxWidth()) {
+        PlaceResultRow(place, now, onClick = onClick, modifier = Modifier.clip(shape).testTag(HomeZoneTags.result(place)))
     }
 }
 
