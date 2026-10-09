@@ -18,6 +18,7 @@ import kotlin.math.PI
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.drawPolygon
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.layout.statusBars
@@ -184,11 +185,11 @@ internal fun PlanHeader(
                 scrollBehavior = scrollBehavior,
             )
         }
-        // Above the app bar: its Surface would swallow the moon's taps otherwise.
+        // Above the app bar: its Surface would swallow the moon's taps otherwise. The frame changes per scrub frame, so
+        // it goes in as a provider read in layout and draw.
+        val celestialFrame by rememberUpdatedState(foreground)
         HeaderCelestial(
-            bodyTime = foreground.bodyTime,
-            localTime = foreground.localTime,
-            daylight = foreground.daylight,
+            frame = remember { { celestialFrame } },
             ink = ink,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 200.dp else 72.dp,
@@ -410,19 +411,21 @@ private const val ArcSteps = 48
  * Where the sun / moon sit at [t] along their path ([ArcPoint.t]): a half sine across the navigation row, between the
  * up arrow and the actions.
  */
-private fun Density.celestialCenter(width: Float, top: Float, t: Float, reserveEnd: Dp): Offset {
+private fun Density.celestialCenter(width: Float, top: Float, t: Float, reserveEnd: Dp, rtl: Boolean): Offset {
     val start = CelestialInsetStart.toPx()
     val end = (width - reserveEnd.toPx()).coerceAtLeast(start + 1f)
     val band = NavRowHeight.toPx()
-    return Offset(start + (end - start) * t, top + band * (0.74f - 0.48f * sin(PI.toFloat() * t)))
+    val x = start + (end - start) * t
+    // Right to left, the up arrow and the actions swap sides, so the path runs (and rises) the other way.
+    return Offset(if (rtl) width - x else x, top + band * (0.74f - 0.48f * sin(PI.toFloat() * t)))
 }
 
 /** The path from [from] to [to] (both [ArcPoint.t]) along [celestialCenter]'s half sine, into [out]. */
-private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, reserveEnd: Dp, out: Path): Path {
+private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, reserveEnd: Dp, rtl: Boolean, out: Path): Path {
     out.rewind()
     val steps = (ArcSteps * abs(to - from)).roundToInt().coerceAtLeast(2)
     for (i in 0..steps) {
-        val p = celestialCenter(width, top, from + (to - from) * i / steps, reserveEnd)
+        val p = celestialCenter(width, top, from + (to - from) * i / steps, reserveEnd, rtl)
         if (i == 0) out.moveTo(p.x, p.y) else out.lineTo(p.x, p.y)
     }
     return out
@@ -432,12 +435,13 @@ private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, re
  * The header's sun or moon at the **body's** solar time, riding the navigation row so it never hides the title,
  * plus a few stars at body night. It fades out as the header collapses (read in the draw phase).
  *
- * Sun path (issue #21): the faint dashed half sine the sun / moon ride, and a ghost ring where they would be at
- * [localTime], the wall clock ([HeaderDaylight.ghostT]: at the nearer end when the wall clock is on the other half of
- * the day). When the body is ½ h or more off the wall clock on the same half, a faint arc joins the two along the
- * path ([HeaderDaylight.joins]); in step, the ring circles the sun. All of it is laid
- * out for [daylight], the real day where the traveller is, and is decoration only: the subtitle says how far off the
- * body is, in words. Nothing here moves on its own; it repaints when the times do.
+ * Sun path (issue #21): the faint dashed half sine the sun / moon ride, and a ghost ring where they would be by the
+ * wall clock ([HeaderFrame.localTime]; [HeaderDaylight.ghostT]: at the nearer end when the wall clock is on the other
+ * half of the day). When the body is ½ h or more off the wall clock on the same half, a faint arc joins the two along
+ * the path ([HeaderDaylight.joins]); in step, the ring circles the sun. All of it is laid out for the frame's
+ * daylight, the real day where the traveller is, mirrored right to left, and is decoration only: the subtitle says
+ * how far off the body is, in words. Nothing here moves on its own; it repaints when the times do. [frame] changes per
+ * scrub frame, so it is read in layout and draw; only the sun / moon switch reaches composition.
  *
  * Moon-phase easter egg: tap the moon [MoonTaps] times and it morphs through "phases" (circle, cookie, clover,
  * ghost, heart) into a cookie that gets a bite taken out of it, then [onTip] fires ("Midnight snack? Your gut
@@ -447,9 +451,7 @@ private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, re
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HeaderCelestial(
-    bodyTime: LocalTime,
-    localTime: LocalTime,
-    daylight: HeaderDaylight,
+    frame: () -> HeaderFrame,
     ink: Color,
     eggEnabled: Boolean,
     reserveEnd: Dp,
@@ -458,11 +460,9 @@ private fun HeaderCelestial(
     modifier: Modifier = Modifier,
     firstLight: Boolean = false,
 ) {
-    val hour = bodyTime.toHourFloat()
-    val body = daylight.arcPoint(hour)
-    val isSun = body.isSun
-    val localHour = localTime.toHourFloat()
-    val joins = daylight.joins(hour, localHour)
+    // Only the sun / moon switch reaches composition (it decides the moon's tap target); positions are read in layout
+    // and draw, since the frame changes per scrub frame.
+    val isSun by remember { derivedStateOf { frame().let { it.daylight.arcPoint(it.bodyTime.toHourFloat()).isSun } } }
     val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
     val art = ClockblockTheme.artColors
     val sunColor = if (nightSafe) art.tertiary.copy(alpha = 0.7f) else ClockblockTheme.adviceColors[AdviceType.SeeBrightLight].color
@@ -534,7 +534,13 @@ private fun HeaderCelestial(
             if (alpha <= 0f) return@drawBehind
             val top = topInset.toPx()
             val r = CelestialRadius.toPx()
-            val rest = celestialCenter(size.width, top, body.t, reserveEnd)
+            val now = frame()
+            val daylight = now.daylight
+            val hour = now.bodyTime.toHourFloat()
+            val localHour = now.localTime.toHourFloat()
+            val body = daylight.arcPoint(hour)
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            val rest = celestialCenter(size.width, top, body.t, reserveEnd, rtl)
             // Rising: from just below the header's bottom edge (the horizon) up to its resting place.
             val c = rest.copy(y = rest.y + (1f - risen) * (size.height - rest.y + r * 1.2f))
             if (!isSun) {
@@ -546,16 +552,16 @@ private fun HeaderCelestial(
             // The sun path, the join to the wall clock's spot on it, and the ghost ring there.
             val pathInk = ink.copy(alpha = ink.alpha * alpha * if (nightSafe) 0.6f else 1f)
             drawPath(
-                arcPath(size.width, top, 0f, 1f, reserveEnd, trail),
+                arcPath(size.width, top, 0f, 1f, reserveEnd, rtl, trail),
                 pathInk.copy(alpha = pathInk.alpha * PathAlpha),
                 style = Stroke(1.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 5.dp.toPx()))),
             )
             // In step, or so close that the ring would still circle the sun's middle: drawn exactly around it.
             val arcWidth = (size.width - reserveEnd.toPx() - CelestialInsetStart.toPx()).coerceAtLeast(1f)
             val ghostT = daylight.ghostT(hour, localHour, snapT = (r + GhostGap.toPx()) / arcWidth)
-            if (joins && ghostT != body.t) {
+            if (daylight.joins(hour, localHour) && ghostT != body.t) {
                 drawPath(
-                    arcPath(size.width, top, body.t, ghostT, reserveEnd, trail),
+                    arcPath(size.width, top, body.t, ghostT, reserveEnd, rtl, trail),
                     pathInk.copy(alpha = pathInk.alpha * JoinAlpha),
                     style = Stroke(2.dp.toPx(), cap = StrokeCap.Round),
                 )
@@ -563,7 +569,7 @@ private fun HeaderCelestial(
             drawCircle(
                 pathInk.copy(alpha = pathInk.alpha * GhostAlpha),
                 r + GhostGap.toPx(),
-                celestialCenter(size.width, top, ghostT, reserveEnd),
+                celestialCenter(size.width, top, ghostT, reserveEnd, rtl),
                 style = Stroke(1.5.dp.toPx()),
             )
             val box = Size(r * 2.2f, r * 2.2f)
@@ -623,7 +629,9 @@ private fun HeaderCelestial(
         val placeable = measurables.firstOrNull()?.measure(Constraints.fixed(target, target))
         layout(w, h) {
             if (placeable != null) {
-                val c = celestialCenter(w.toFloat(), topInset.toPx(), body.t, reserveEnd)
+                val now = frame()
+                val t = now.daylight.arcPoint(now.bodyTime.toHourFloat()).t
+                val c = celestialCenter(w.toFloat(), topInset.toPx(), t, reserveEnd, layoutDirection == LayoutDirection.Rtl)
                 placeable.place((c.x - target / 2f).roundToInt(), (c.y - target / 2f).roundToInt())
             }
         }
