@@ -103,7 +103,9 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Trip
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
@@ -481,6 +483,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(screen.appBar)
     val title = planTitle(plan, state.trip)
     val nowOffsetPx = with(density) { -72.dp.roundToPx() }
+    // Whether the rail is moving for the dial's scrub (not for the user). Plain: only read by the follow-up below.
+    val scrubFollowing = remember { booleanArrayOf(false) }
     val timeColumn = rememberTimeColumnWidth()
 
     // Konami code on the rail → 8-bit mode for the session (only where easter eggs are allowed).
@@ -674,6 +678,43 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                             val now = rows.nowRowIndex()
                             if (now > 0 && dayBase == null) rail.scrollToItem(1 + now, nowOffsetPx)
                             screen.railPositioned = rail
+                        }
+                    }
+                    // Scrubbing the dial: the row under its hand (highlighted) comes into view. Keyed by the row, so
+                    // it moves once per block crossed, never per frame of the scrub; only when the row is (partly)
+                    // off screen; on dataSpatial (it is a time position), a jump under reduce motion; and never over
+                    // a scroll of the user's own (a drag or fling already running).
+                    val scrubbing = screen.preview?.takeIf { it != anchor } != null
+                    val scrubRow = if (scrubbing) rows.highlightedRowIndex(highlighted) else -1
+                    // A scrub back past midnight can land in a day folded behind "earlier days": unfold it, so its row
+                    // exists to come up (the follow-up runs once the rows include it).
+                    if (scrubbing && scrubRow < 0 && !screen.showEarlier &&
+                        railDays.any { day -> day.isPast && day.items.any { it.advice.id in highlighted } }
+                    ) {
+                        SideEffect { screen.showEarlier = true }
+                    }
+                    LaunchedEffect(scrubRow) {
+                        if (scrubRow < 0) {
+                            scrubFollowing[0] = false
+                            return@LaunchedEffect
+                        }
+                        if (rail.isScrollInProgress && !scrubFollowing[0]) return@LaunchedEffect
+                        val index = 1 + scrubRow
+                        val layout = rail.layoutInfo
+                        val item = layout.visibleItemsInfo.firstOrNull { it.index == index }
+                        // The pinned day header covers the top: a row is only in view below it (where rows land).
+                        val visibleStart = -nowOffsetPx
+                        val visibleEnd = layout.viewportEndOffset - layout.afterContentPadding
+                        if (item != null && item.offset >= visibleStart && item.offset + item.size <= visibleEnd) return@LaunchedEffect
+                        scrubFollowing[0] = true
+                        try {
+                            if (reduce) rail.scrollToItem(index, nowOffsetPx) else rail.animateScrollToItem(index, nowOffsetPx, motion.dataSpatial())
+                            scrubFollowing[0] = false
+                        } catch (e: CancellationException) {
+                            // The user took the rail over (this effect lives on): their scroll is theirs from now on. A
+                            // restart for the next row (this effect cancelled) keeps the flag for the follow-up.
+                            if (isActive) scrubFollowing[0] = false
+                            throw e
                         }
                     }
                 } else {

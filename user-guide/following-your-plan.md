@@ -62,6 +62,9 @@ for example. Let go and the needle returns to now (or to the day you picked in t
 centre to return. With TalkBack, the dial offers the actions **Next block**, **Previous block** and **Back to
 now**.
 
+While you drag, the timeline highlights the block under the needle. On a tablet, if that block is off screen, the
+timeline also scrolls to it.
+
 ### The Now card
 
 The card shows:
