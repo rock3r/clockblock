@@ -4,6 +4,9 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -84,6 +87,21 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         done shouldContainExactly listOf("lis-hnd-typo")
         val saved = trips.current.single { it.id == "lis-hnd-typo" }
         (saved.legs.single().arrivalLocal > saved.legs.single().departureLocal) shouldBe true
+    }
+
+    @Test
+    fun arrivalBeforeDepartureSaysWhatToFixInPlainWords() {
+        open(TripEditorArgs(tripId = "lis-hnd-typo"))
+        tag(TripsTestTags.editorIssue(0)).performScrollTo()
+
+        val issue = hasAnyAncestor(hasTestTag(TripsTestTags.editorIssue(0)))
+        compose.onNode(issue and hasText("Fix this")).assertExists()
+        compose.onNode(issue and hasText("Error")).assertDoesNotExist()
+        compose.onNode(
+            issue and hasText(
+                "Lands before it takes off. Each time is local to its airport, so check the arrival date and time.",
+            ),
+        ).assertExists()
     }
 
     @Test
