@@ -105,4 +105,21 @@ class TwoSkiesDialActionsTest {
 
         compose.onNodeWithTag("dial").assertContentDescriptionContains("1:35 AM local. Your body clock is 2:35 AM", substring = true)
     }
+
+    @Test
+    fun `when now moves past the change itself, the hand reads the face again`() {
+        var state by mutableStateOf(fallBack)
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = {}) }
+        }
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
+        compose.waitForIdle()
+
+        // 01:00 EST, 90 real minutes on (the body, in step at 00:30 EDT, now an hour ahead): the hand an hour of the
+        // face ahead is at 02:00 EST, not 90 minutes past the landing.
+        state = fallBack.copy(instant = Instant.parse("2026-11-01T06:00:00Z"), localMinute = 60f, bodyAheadMinutes = 60f)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag("dial").assertContentDescriptionContains("2:00 AM local. Your body clock is 3:00 AM", substring = true)
+    }
 }

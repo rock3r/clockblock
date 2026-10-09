@@ -396,7 +396,16 @@ private const val BoundaryToleranceMinutes = 0.01f
  * anchored at [anchor]. The offset is from now, so as now moves on the hand and its instant move with it ([atFor]).
  */
 private data class Landing(val offset: Float, val at: Instant, val anchor: Instant) {
-    fun atFor(state: DialState): Instant = at.plus(Duration.between(anchor, state.instant))
+    /**
+     * The landing's instant for [state]: moved on by the real time since [anchor] while that is still the wall-clock
+     * time under the hand (the same run of the repeated hour). Once now itself crosses the change, the moved instant
+     * no longer sits at [offset] on the face, and the face's own instant is the hand's.
+     */
+    fun atFor(state: DialState): Instant {
+        val moved = at.plus(Duration.between(anchor, state.instant))
+        val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull() ?: return moved
+        return if (abs(faceMinutesFrom(state.instant, moved, zone) - offset) < BoundaryToleranceMinutes) moved else state.instantAt(offset)
+    }
 }
 
 /** Real minutes from the instant the face gives the [landing]'s offset to the landing's own instant. */
