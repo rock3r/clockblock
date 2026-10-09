@@ -64,5 +64,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
+    // Stubs the system document picker with a prepared backup file (BackupImportTest), so no DocumentsUI driving.
+    androidTestImplementation(libs.androidx.test.espresso.intents)
     androidTestImplementation(libs.androidx.test.uiautomator)
 }
