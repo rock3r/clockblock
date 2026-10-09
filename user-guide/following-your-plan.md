@@ -132,6 +132,13 @@ Tap **Why?** on the Now card, or tap a block in the timeline. The sheet that ope
 - **If you skip it**: what happens if you miss it. Usually, one missed block is fine.
 - **The science**: the research it's based on.
 
+Light blocks (**See bright light**, **See some light** and **Avoid light**) also show a **light response curve**
+under **Why**. Drag the sun along it to see whether light at each hour moves your body clock earlier or later, and
+how strongly. The band marked "this block" is the block you opened. The curve is a simplified drawing of what the
+research found, and everyone's body responds a little differently. You can try the same curve in **About**, under
+**How it works**. With TalkBack, open the Actions menu on the curve for **Earlier hour**, **Later hour** and **Reset
+to this block**.
+
 ## What the blocks mean
 
 Every block has a text label, so you never have to guess from an icon.

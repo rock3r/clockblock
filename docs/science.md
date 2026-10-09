@@ -111,6 +111,27 @@ Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types
 | Outdoors, overcast / in shade | 1,000–10,000 |
 | Outdoors, direct sun | 10,000–100,000+ |
 
+### 2.6 The light response curve card (what the app draws)
+
+The Why sheet of every light block (See bright light, See some light, Avoid light) and About ("How the plan works")
+show a schematic light PRC that the user can explore by dragging a sun along it. It is a teaching aid. **The planner
+does not use it**: the planner's light windows come from §12. The card's model is
+`LightResponseCurve` in `:core:designsystem` (unit-tested in `LightResponseCurveTest`):
+
+- The x axis is hours from CBTmin (T), −12…+12 h. The curve repeats every 24 h.
+- Shape after **Khalsa 2003**. Crossover at T. Delays before T, peaking at **−3.4 h at T − 3.5 h**; advances after
+  T, peaking at **+2.0 h at T + 2.5 h**. So the delay lobe is the larger one. Each lobe is a skewed bump `u·(1−u)^b`
+  (u = |x| / 12, b set by where the peak falls), scaled to its peak. Both lobes reach zero only at T ± 12 h, which is
+  the weak region. There is no long dead zone: |shift| > 0.2 h for 0.5 h ≤ |x| ≤ 8 h.
+- The readout is qualitative, never a number of hours. "Strongly" means |shift| ≥ 1.5 h, "barely" means < 0.3 h,
+  and anything between is "a little". The card cites Khalsa 2003 and **St Hilaire 2012**: a 1 h pulse gives the
+  same shape and timing at about 40 % of the amplitude, so these words describe direction and relative strength,
+  not a prediction for a given exposure.
+- In the Why sheet, the block is drawn as a band, placed in hours from the CBTmin estimate nearest to it
+  (`PhasePoint.cbtMin` of the plan's body-clock track). Every See light block of a real plan lands on the side that
+  matches its reason (`LightCurveWindowTest`).
+- Not medical advice. Individual curves vary, and CBTmin is itself an estimate (§8).
+
 ---
 
 ## 3. Melatonin

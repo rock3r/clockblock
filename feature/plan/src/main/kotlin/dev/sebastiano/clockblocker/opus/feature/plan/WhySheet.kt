@@ -29,12 +29,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.AdviceArt
+import dev.sebastiano.clockblocker.opus.core.designsystem.prc.LightResponseCurve
+import dev.sebastiano.clockblocker.opus.core.designsystem.prc.LightResponseCurveCard
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
+import java.time.Duration
 import java.time.ZoneId
+import kotlin.math.abs
 
 /**
  * The "Why?" sheet (design.md §2.5): the illustration, the mechanism in two plain sentences, how to do it (with
@@ -49,6 +54,7 @@ internal fun WhySheet(
     secondaryZone: ZoneId,
     flightRoute: String?,
     onDismiss: () -> Unit,
+    curveWindow: ClosedFloatingPointRange<Double>? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -57,7 +63,14 @@ internal fun WhySheet(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.testTag(PlanTags.WhySheet),
     ) {
-        WhySheetContent(advice, zone, secondaryZone, flightRoute, Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding())
+        WhySheetContent(
+            advice,
+            zone,
+            secondaryZone,
+            flightRoute,
+            Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding(),
+            curveWindow,
+        )
     }
 }
 
@@ -69,6 +82,7 @@ internal fun WhySheetContent(
     secondaryZone: ZoneId,
     flightRoute: String?,
     modifier: Modifier = Modifier,
+    curveWindow: ClosedFloatingPointRange<Double>? = null,
 ) {
     val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
@@ -103,6 +117,10 @@ internal fun WhySheetContent(
         Spacer(Modifier.height(20.dp))
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             WhySection(stringResource(R.string.plan_why_heading), stringResource(advice.reason.explanationRes))
+            // Light advice: the curve behind the reason, with this block on it (issue #20).
+            if (curveWindow != null) {
+                LightResponseCurveCard(Modifier.testTag(PlanTags.WhyLightCurve), window = curveWindow, windowType = advice.type)
+            }
             WhySection(stringResource(R.string.plan_why_how), stringResource(advice.type.howRes))
             if (advice.type != AdviceType.Flight) {
                 WhySection(stringResource(R.string.plan_why_skip), stringResource(R.string.plan_why_skip_body))
@@ -119,6 +137,16 @@ internal fun WhySheetContent(
         )
     }
 }
+
+/** Light advice gets the light response curve: [advice]'s block in hours from the coldest point nearest to it. */
+internal fun lightCurveWindow(plan: JetLagPlan, advice: Advice): ClosedFloatingPointRange<Double>? {
+    if (advice.type !in LightCurveTypes || plan.phase.isEmpty()) return null
+    val middle = advice.start.plus(advice.duration.dividedBy(2))
+    val cbtMin = plan.phase.minBy { abs(Duration.between(it.instant, middle).toMillis()) }.cbtMin
+    return LightResponseCurve.window(cbtMin, advice.start, advice.end)
+}
+
+private val LightCurveTypes = setOf(AdviceType.SeeBrightLight, AdviceType.SeeLight, AdviceType.AvoidLight)
 
 @Composable
 private fun WhySection(title: String, body: String, small: Boolean = false) {

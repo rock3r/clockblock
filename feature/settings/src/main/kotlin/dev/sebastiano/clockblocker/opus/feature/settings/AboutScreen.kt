@@ -68,6 +68,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
+import dev.sebastiano.clockblocker.opus.core.designsystem.prc.LightResponseCurveCard
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.segmentedShape
 import dev.zacsweers.metrox.viewmodel.metroViewModel
@@ -80,6 +81,7 @@ object AboutTags {
     const val OpusTitleCard = "opus_title_card"
     const val OpusTitleDismiss = "opus_title_dismiss"
     const val LicensesList = "licenses_list"
+    const val LightCurve = "about_light_curve"
 
     /** One licences card, keyed by the page it opens. */
     fun credit(url: String): String = "license_credit_${displayUrl(url)}"
@@ -276,6 +278,9 @@ fun AboutContent(
                         }
                     }
                 }
+
+                // The curve behind point 2, to play with (issue #20). No trip here, so no block on it.
+                LightResponseCurveCard(Modifier.padding(top = 12.dp).testTag(AboutTags.LightCurve))
 
                 SectionHeader(stringResource(R.string.about_refs_title))
                 Surface(shape = RoundedCornerShape(24.dp), color = colors.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
