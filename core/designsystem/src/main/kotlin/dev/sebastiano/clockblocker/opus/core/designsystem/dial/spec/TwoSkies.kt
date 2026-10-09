@@ -39,6 +39,10 @@ object TwoSkies {
      * @param namePlace false on a lock screen that hides details: the local ring and the centre name no place.
      * @param minText the smallest text the host can show, in dp (a widget's): the AM/PM marker and the Simple ring
      *   labels stay at least this big (the local time's digits give way instead). The app's dial (0) keeps the designed proportions.
+     * @param labelText the smallest size for the ring labels, in dp, already grown with the font scale (a widget's).
+     *   A label its ring can't hold at that size is dropped rather than shrunk. The app's dial (0) keeps its sizes.
+     * @param liveReadouts true when the host rewrites the readouts from its own clock between captures (a widget):
+     *   the local time and its AM/PM marker are laid out for the widest reading, so longer digits never run into it.
      */
     fun spec(
         state: DialState,
@@ -53,6 +57,8 @@ object TwoSkies {
         textGrowth: Float = 1f,
         namePlace: Boolean = true,
         minText: Float = 0f,
+        labelText: Float = 0f,
+        liveReadouts: Boolean = false,
     ): DialSpec {
         val side = min(widthDp, heightDp)
         val level = DetailLevel.forSize(side)
@@ -71,6 +77,8 @@ object TwoSkies {
             grow = textGrowth.coerceIn(1f, 1.15f),
             namePlace = namePlace,
             minText = minText,
+            labelText = labelText,
+            liveReadouts = liveReadouts,
         )
         val hub = when (level) {
             DetailLevel.Full -> b.full(side / 2f / 164f)
@@ -121,6 +129,8 @@ object TwoSkies {
         val grow: Float,
         val namePlace: Boolean,
         val minText: Float,
+        val labelText: Float,
+        val liveReadouts: Boolean,
     ) {
         val ops = mutableListOf<DialOp>()
         /**
@@ -150,14 +160,14 @@ object TwoSkies {
             rings(outerR, innerR, ringW)
 
             // Ring labels, on the marks themselves: whose sky it is, and which half is night.
-            val ringText = TextSpec(9.5f * k, weight = 650, caps = true, tracking = 0.12f, tabular = false)
+            val ringText = TextSpec(maxOf(9.5f * k, labelText), weight = 650, caps = true, tracking = 0.12f, tabular = false)
             val bodyText = ringText.copy(slanted = true)
             if (namePlace) {
-                ringLabel(labels.placeNight(place), outerR, localNight.centre, localNight.lengthMinutes, ringText, p.sky.onNight)
-                ringLabel(labels.placeDay(place), outerR, localNight.dayCentre, 1440f - localNight.lengthMinutes, ringText, p.sky.onDay)
+                ringLabel(labels.placeNight(place), outerR, ringW, localNight.centre, localNight.lengthMinutes, ringText, p.sky.onNight)
+                ringLabel(labels.placeDay(place), outerR, ringW, localNight.dayCentre, 1440f - localNight.lengthMinutes, ringText, p.sky.onDay)
             }
-            ringLabel(labels.bodyNight(), innerR, bodyNight.centre, bodyNight.lengthMinutes, bodyText, p.sky.onNight)
-            ringLabel(labels.bodyDay(), innerR, bodyNight.dayCentre, 1440f - bodyNight.lengthMinutes, bodyText, p.sky.onDay)
+            ringLabel(labels.bodyNight(), innerR, ringW, bodyNight.centre, bodyNight.lengthMinutes, bodyText, p.sky.onNight)
+            ringLabel(labels.bodyDay(), innerR, ringW, bodyNight.dayCentre, 1440f - bodyNight.lengthMinutes, bodyText, p.sky.onDay)
 
             // The local clock's numerals, just inside the body ring.
             val numeral = TextSpec(8.5f * k, weight = 500)
@@ -202,9 +212,9 @@ object TwoSkies {
             val ringW = 13f * k
             face(80f * k)
             rings(outerR, innerR, ringW)
-            val ringText = TextSpec(maxOf(7.6f * k, minText), weight = 700, caps = true, tracking = 0.1f, tabular = false)
-            if (namePlace) shortRingLabel(place, outerR, localNight, ringText)
-            shortRingLabel(labels.body(), innerR, bodyNight, ringText.copy(slanted = true))
+            val ringText = TextSpec(maxOf(7.6f * k, minText, labelText), weight = 700, caps = true, tracking = 0.1f, tabular = false)
+            if (namePlace) shortRingLabel(place, outerR, ringW, localNight, ringText)
+            shortRingLabel(labels.body(), innerR, ringW, bodyNight, ringText.copy(slanted = true))
             advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
@@ -269,18 +279,20 @@ object TwoSkies {
         }
 
         /** A Simple-level ring label: on the night, or on the day under the midnight sun, when there is no night. */
-        fun shortRingLabel(text: String, r: Float, night: NightSpan, spec: TextSpec) =
+        fun shortRingLabel(text: String, r: Float, ringW: Float, night: NightSpan, spec: TextSpec) =
             if (night.daylight == Daylight.AlwaysUp) {
-                ringLabel(text, r, night.dayCentre, DialGeometry.MinutesPerDay, spec, p.sky.onDay)
+                ringLabel(text, r, ringW, night.dayCentre, DialGeometry.MinutesPerDay, spec, p.sky.onDay)
             } else {
-                ringLabel(text, r, night.centre, night.lengthMinutes, spec, p.sky.onNight)
+                ringLabel(text, r, ringW, night.centre, night.lengthMinutes, spec, p.sky.onNight)
             }
 
         /**
-         * A ring label centred on [centreMinute], dropped when it doesn't fit inside its half of the sky. When the
-         * needle would cross it, it steps aside along its half (the side it was already on, else the other one).
+         * A ring label centred on [centreMinute], dropped when it doesn't fit inside its half of the sky, or across
+         * its ring ([ringW] wide). When the needle would cross it, it steps aside along its half (the side it was
+         * already on, else the other one).
          */
-        fun ringLabel(text: String, r: Float, centreMinute: Float, spanMinutes: Float, spec: TextSpec, color: Argb) {
+        fun ringLabel(text: String, r: Float, ringW: Float, centreMinute: Float, spanMinutes: Float, spec: TextSpec, color: Argb) {
+            if (!fitsAcross(spec, ringW)) return
             val shown = if (spec.caps) text.uppercase() else text
             val needs = degreesFor(shown, spec, r)
             val span = spanMinutes / 4f
@@ -415,7 +427,10 @@ object TwoSkies {
             val marker = labels.marker(display)
             val markerSpec = TextSpec(markerSize, weight = 600, tabular = false)
             val gap = spec.size * 0.06f
-            val natural = measurer.width(digits, spec) + (marker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
+            // A host that rewrites the reading lays the group out for its widest digits ("10:00", "12:00").
+            val steady = liveReadouts && !scrubbed && marker != null
+            val wide = if (steady) listOf(digits, labels.time(10 * 60f), labels.time(12 * 60f)).maxBy { measurer.width(it, spec) } else digits
+            val natural = measurer.width(wide, spec) + (marker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
             var fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
             if (marker == null) {
                 val digitsSpec = spec.copy(size = spec.size * fit)
@@ -426,13 +441,18 @@ object TwoSkies {
             if (smallSpec.size > markerSize * fit) {
                 // The marker is held at the host's floor: the digits take what is left of the width.
                 val room = maxWidth - gap * fit - measurer.width(marker, smallSpec)
-                fit = minOf(fit, room / measurer.width(digits, spec)).coerceAtLeast(0f)
+                fit = minOf(fit, room / measurer.width(wide, spec)).coerceAtLeast(0f)
             }
             val digitsSpec = spec.copy(size = spec.size * fit)
-            val w = measurer.width(digits, digitsSpec)
+            val w = measurer.width(wide, digitsSpec)
             val total = w + gap * fit + measurer.width(marker, smallSpec)
             val left = cx - total / 2f
-            ops += DialOp.Text(digits, left, y, digitsSpec, p.ink, h = HAlign.Start, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
+            if (steady) {
+                // Ending at the marker: digits that grow on the host grow away from it.
+                ops += DialOp.Text(digits, left + w, y, digitsSpec, p.ink, h = HAlign.End, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
+            } else {
+                ops += DialOp.Text(digits, left, y, digitsSpec, p.ink, h = HAlign.Start, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
+            }
             ops += DialOp.Text(
                 marker, left + w + gap * fit, y - digitsSpec.size * 0.18f, smallSpec, p.inkMuted, h = HAlign.Start,
                 part = DialPart.Readout, live = live(LiveTime(LiveClock.Local, digits = false, marker = true)),
@@ -447,6 +467,9 @@ object TwoSkies {
 
         // endregion
 
+        /** Whether [spec]'s capitals fit across a ring or bar [thickness] wide, with a little air. */
+        fun fitsAcross(spec: TextSpec, thickness: Float): Boolean = spec.size * CapHeight <= thickness * MaxFill
+
         fun degreesFor(text: String, spec: TextSpec, r: Float): Float =
             Math.toDegrees((measurer.width(text, spec) / r).toDouble()).toFloat()
 
@@ -456,6 +479,12 @@ object TwoSkies {
         }
     }
 }
+
+/** Capital height per dp of text size (the system font's is about 0.71). */
+internal const val CapHeight = 0.72f
+
+/** The most of a ring's or bar's thickness a label's capitals may fill. */
+internal const val MaxFill = 0.85f
 
 /** "08:20 body" as a [LiveTime]: the body clock's digits inside [DialLabels.bodyTime]'s words. */
 internal fun liveBodyTime(labels: DialLabels): LiveTime {

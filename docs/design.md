@@ -256,8 +256,10 @@ once you're adapted the two rings are identical.
   constant-colour segments (Remote Compose has no shader from Kotlin), sets curved and tracked text glyph by glyph
   (`drawTextOnCircle` is still unverified on a real launcher), rounds weights to regular or bold (the system font's
   four styles), and leaves out the wash behind the needle. Only the needle moves with the launcher's clock, and the
-  readouts are written from it. A host can set a text floor (`minText`, 7 dp on widgets): the AM/PM marker and the
-  ring labels hold it and the digits give way. `remote_dial_vs_app.png` in the widget goldens shows the two
+  readouts are written from it. A host can set a text floor (`minText`, 7 dp on widgets): the AM/PM marker holds
+  it and the digits give way. It can also set a label floor (`labelText`, 10 sp at the font scale on widgets): ring
+  and bar labels are at least that big, or left out when their ring or bar can't hold them. `liveReadouts` lays a
+  12-hour time out for its widest reading, for hosts that rewrite it between captures. `remote_dial_vs_app.png` in the widget goldens shows the two
   renderers side by side.
 - **Two strips** (`TwoStrips.spec()`): the same two skies as two horizontal bars over a window round now, local on
   top and body below, with a now line across both. Widgets use them where a round dial gets too small to read: the

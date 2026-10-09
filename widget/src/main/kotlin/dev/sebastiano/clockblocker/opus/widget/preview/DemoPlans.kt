@@ -76,10 +76,15 @@ object DemoPlans {
         )
         val tokyo = ZoneId.of(DESTINATION)
         val day = PlanDay(2, DayKind.Arrival, now.atZone(tokyo).toLocalDate(), DESTINATION, advice)
-        // Body clock: home (Lisbon, +1 h in summer) drifting east; about 7 h behind Tokyo today. Adapted: on Tokyo
-        // time (+9 h), so the dial reads in sync like the texts.
+        // Body clock: home (Lisbon, +1 h in summer) drifting east; about 7 h behind Tokyo today. Adapted: it left
+        // Lisbon time days ago and has been on Tokyo time (+9 h) since, so the dial reads in sync like the texts and
+        // the adaptation bar is full.
         val phase = if (scenario == Scenario.Adapted) {
-            listOf(PhasePoint(at(-24.0), 540, at(-24.0 + 4.5)), PhasePoint(at(24.0), 540, at(24.0 + 4.5)))
+            listOf(
+                PhasePoint(at(-120.0), 60, at(-120.0 + 9.0)),
+                PhasePoint(at(-24.0), 540, at(-24.0 + 4.5)),
+                PhasePoint(at(24.0), 540, at(24.0 + 4.5)),
+            )
         } else {
             listOf(
                 PhasePoint(at(-24.0), 90, at(-24.0 + 9.0)),

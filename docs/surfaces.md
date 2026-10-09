@@ -258,7 +258,11 @@ into the Remote Compose canvas, scaled to the real size. The level of detail (gl
 region in dp, the same rule the app uses: most widget dials are glances (the two skies, the needle and both
 times), and the wide rows are simple (with the bars' labels and the jet lag). The dial uses the widget's face
 colour and the system font, since Remote Compose can't load the app's font. Text on the dial is never smaller than
-7 dp: the AM/PM marker and the ring labels hold that size and the digits give way.
+7 dp: the AM/PM marker holds that size and the digits give way. Labels (the ring and bar labels, the advice's name,
+the jet lag) are at least 10 sp and grow with the font scale. A label its ring or bar can't hold at that size is
+left out rather than shrunk; the strips still pair the local time with the top bar and the body time with the
+bottom one, and the jet lag pill goes before the body time does. In 12-hour time the local time is laid out for
+its widest reading ("10:00"), so the digits the launcher writes never run into AM/PM.
 
 The launcher's clock keeps the dial live between captures: the needle turns (or the now line slides), and both
 times are written from the launcher's clock. Labels that stepped aside for the needle stay put until the next
@@ -369,7 +373,8 @@ each layout at its minimum size with the longest texts.
 Text on the dial follows the same rule.
 [`WidgetDialFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialFitTest.kt)
 lays out the dial of every Two Clocks layout at its minimum and checks that each piece of text stays inside its
-region, overlaps no other text and is at least 7 dp tall. It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
+region, overlaps no other text and is at least 7 dp tall, that every label is at least 10 sp and sits inside its
+ring or bar. It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
 12 h and 24 h, at several hours of the day, for each demo plan, on the home screen and redacted. It also checks the
 level each layout gets, that the needle and both clocks are always there, and that a redacted dial names no place.
 [`WidgetDialContrastTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialContrastTest.kt)

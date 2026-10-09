@@ -32,6 +32,9 @@ object TwoStrips {
      * @param placeOptions names for where you are, longest first: the first one whose label fits is used. Defaults
      *   to the state's place, then the zone's city.
      * @param textGrowth extra scale for the text under large font sizes (capped so the bars keep their room).
+     * @param labelText the smallest size for every word that isn't one of the two times (the bars' labels, the
+     *   advice's name, the jet lag), in dp, already grown with the font scale (a widget's). A bar label its bar can't
+     *   hold at that size is dropped rather than shrunk; the times beside the bars still say which is which.
      */
     fun spec(
         state: DialState,
@@ -43,9 +46,10 @@ object TwoStrips {
         measurer: DialTextMeasurer = ApproxTextMeasurer,
         textGrowth: Float = 1f,
         placeOptions: List<String> = defaultPlaceOptions(state),
+        labelText: Float = 0f,
     ): DialSpec {
         val level = DetailLevel.forStrip(widthDp, heightDp)
-        val b = Builder(state, palette, labels, measurer, widthDp, heightDp, mode, textGrowth.coerceIn(1f, 1.15f), placeOptions)
+        val b = Builder(state, palette, labels, measurer, widthDp, heightDp, mode, textGrowth.coerceIn(1f, 1.15f), placeOptions, labelText)
         when (level) {
             DetailLevel.Glance -> b.glance()
             DetailLevel.Simple -> b.simple()
@@ -75,6 +79,7 @@ object TwoStrips {
         val mode: BodyRingMode,
         val grow: Float,
         val placeOptions: List<String>,
+        val labelText: Float,
     ) {
         val ops = mutableListOf<DialOp>()
         val now = state.localMinute
@@ -192,7 +197,7 @@ object TwoStrips {
             val barsTop = if (withAdvice) top + advice + 3f else top
             axis = TimeAxis(left + barH / 2f, w - pad - barH / 2f, windowStart(now), DialGeometry.MinutesPerDay)
             if (withAdvice) adviceRow(top, advice, words = false)
-            bars(barsTop, barH, gap, pad, labelsAt = TextSpec(min(8.5f * grow, barH * 0.62f), weight = 650))
+            bars(barsTop, barH, gap, pad, labelsAt = label(TextSpec(min(8.5f * grow, barH * 0.62f), weight = 650)))
             nowLine(if (withAdvice) top - 1f else barsTop - 2f, barsTop + barsH + 2f, width = 2f)
         }
 
@@ -200,7 +205,7 @@ object TwoStrips {
         fun full() {
             val pad = 4f
             val barH = 22f
-            val hours = TextSpec(9.5f * grow, weight = 500)
+            val hours = label(TextSpec(9.5f * grow, weight = 500))
             val bodyHours = hours.copy(slanted = true)
             val pill = TextSpec(10.5f * grow, weight = 650)
             val rowH = max(lineH(hours), lineH(pill) + 4f) + 4f
@@ -213,10 +218,10 @@ object TwoStrips {
             adviceRow(y0 + sayH + 2f, advice, words = true, sayY = y0 + sayH / 2f, say = say)
             val localTop = y0 + sayH + 2f + advice + 6f
             bar(localTop, barH, localColors(), DialPart.LocalSky)
-            barLabels(localTop, barH, local = true, spec = TextSpec(10f * grow, weight = 650), withDay = true)
+            barLabels(localTop, barH, local = true, spec = label(TextSpec(10f * grow, weight = 650)), withDay = true)
             val bodyTop = localTop + barH + rowH
             bar(bodyTop, barH, bodyColors(), DialPart.BodySky)
-            barLabels(bodyTop, barH, local = false, spec = TextSpec(10f * grow, weight = 650, slanted = true), withDay = true)
+            barLabels(bodyTop, barH, local = false, spec = label(TextSpec(10f * grow, weight = 650, slanted = true)), withDay = true)
             nowLine(localTop - 4f, bodyTop + barH + rowH - 2f, width = 2.2f)
             val nowX = axis.x(now)
             // The times ride on the now line; hour labels steer clear of them.
@@ -264,9 +269,10 @@ object TwoStrips {
 
         /**
          * The bar's night (and on Full its day) named on the bar: the longest visible run, kept clear of the now line,
-         * with the longest name that fits; dropped when none does.
+         * with the longest name that fits; dropped when none does, or when the bar is too thin for the text.
          */
         fun barLabels(top: Float, barH: Float, local: Boolean, spec: TextSpec, withDay: Boolean) {
+            if (spec.size * CapHeight > barH * MaxFill) return
             val night = if (local) localNight else bodyNight
             val nightNames = if (local) placeOptions.map { labels.placeNight(it) } + placeOptions else listOf(labels.bodyNight(), labels.body())
             val dayNames = if (local) placeOptions.map { labels.placeDay(it) } else listOf(labels.bodyDay())
@@ -321,12 +327,16 @@ object TwoStrips {
         fun headerRow(cy: Float, localSpec: TextSpec, bodySpec: TextSpec, pad: Float) {
             val localText = labels.fullTime(now)
             val bodyText = if (aligned) labels.inSync() else labels.bodyTime(labels.fullTime(state.bodyMinute))
-            val offset = if (aligned) null else labels.offset(ahead)
-            val offSpec = TextSpec(10f * grow, weight = 650, slanted = true, tabular = false)
+            val offSpec = label(TextSpec(10f * grow, weight = 650, slanted = true, tabular = false))
+            // The two times' text, less the fixed gap between them, which doesn't scale.
+            val texts = measurer.width(localText, localSpec) + measurer.width(bodyText, bodySpec)
+            fun roomWith(offW: Float) = w - 2f * pad - offW - 8f - 6f
+            // The jet lag goes before the body time does: the two times are what tell the bars apart.
+            val offset = labels.offset(ahead).takeUnless { aligned }
+                ?.takeIf { texts * 0.7f <= roomWith(measurer.width(it, offSpec) + 16f) }
             val offW = offset?.let { measurer.width(it, offSpec) + 16f } ?: 0f
-            val room = w - 2f * pad - offW - 8f
-            val natural = measurer.width(localText, localSpec) + 6f + measurer.width(bodyText, bodySpec)
-            val s = if (natural > room) (room / natural).coerceAtLeast(0.7f) else 1f
+            val room = roomWith(offW) + 6f
+            val s = if (texts + 6f > room) ((room - 6f) / texts).coerceAtLeast(0.7f) else 1f
             val l = localSpec.copy(size = localSpec.size * s)
             val b = bodySpec.copy(size = bodySpec.size * s)
             val lw = measurer.width(localText, l)
@@ -336,7 +346,8 @@ object TwoStrips {
             }
             if (offset != null) {
                 val x1 = w - pad
-                ops += DialOp.Rect(x1 - offW, cy - 9f, x1, cy + 9f, 9f, p.bodyContainer, part = DialPart.Offset)
+                val r = max(9f, lineH(offSpec) / 2f + 1f)
+                ops += DialOp.Rect(x1 - offW, cy - r, x1, cy + r, r, p.bodyContainer, part = DialPart.Offset)
                 ops += DialOp.Text(offset, x1 - offW / 2f, cy, offSpec, p.onBodyContainer, part = DialPart.Offset)
             }
         }
@@ -380,9 +391,14 @@ object TwoStrips {
             val shown = current ?: next ?: return
             val cy = top + rowH / 2f
             val discR = rowH / 2f
-            val sx = clampX(axis.x(shown.startMinute).takeIf { inWindow(shown.startMinute) } ?: axis.left)
+            // A block the window's seam cuts shows as two pieces; the glyph starts the one in focus (the piece under
+            // the now line while it's on).
+            val pieces = if (shown.sweepMinutes > 0f) runs(shown.startMinute, shown.sweepMinutes) else emptyList()
+            val nowX = axis.x(now)
+            val main = pieces.firstOrNull { current != null && nowX >= it.first && nowX <= it.second } ?: pieces.firstOrNull()
+            val sx = clampX(main?.first ?: axis.x(shown.startMinute).takeIf { inWindow(shown.startMinute) } ?: axis.left)
             val rowStart = ops.size
-            val capsuleEnd = if (shown.sweepMinutes > 0f) capsule(shown, cy, rowH * 0.7f, washPast = current != null) else null
+            val capsuleEnd = main?.let { capsule(shown, pieces, it, cy, rowH * 0.7f, washPast = current != null) }
             glyph(shown.type, sx, cy, discR)
             if (!words) {
                 if (!nameBeside(shown.type, sx - discR, max(sx + discR, capsuleEnd ?: 0f), cy)) {
@@ -424,7 +440,7 @@ object TwoStrips {
          */
         fun nameBeside(type: AdviceType, x0: Float, x1: Float, cy: Float): Boolean {
             val name = labels.advice(type)
-            val spec = TextSpec(10.5f * grow, weight = 650, tabular = false)
+            val spec = label(TextSpec(10.5f * grow, weight = 650, tabular = false))
             val tw = measurer.width(name, spec)
             val nowX = axis.x(now)
             val gap = 4f
@@ -440,9 +456,13 @@ object TwoStrips {
             return true
         }
 
-        /** The block as a capsule along the axis. Returns where it ends, or null when it's outside the window. */
-        fun capsule(a: DialArc, cy: Float, height: Float, washPast: Boolean): Float? {
-            val (x0, x1) = runs(a.startMinute, a.sweepMinutes).firstOrNull() ?: return null
+        /** The block as a capsule per visible piece along the axis. Returns where the [main] piece ends. */
+        fun capsule(a: DialArc, pieces: List<Pair<Float, Float>>, main: Pair<Float, Float>, cy: Float, height: Float, washPast: Boolean): Float {
+            pieces.forEach { (x0, x1) -> capsulePiece(a, x0, x1, cy, height, washPast) }
+            return main.second + height / 2f
+        }
+
+        fun capsulePiece(a: DialArc, x0: Float, x1: Float, cy: Float, height: Float, washPast: Boolean) {
             val r = height / 2f
             val top = cy - r
             val bottom = cy + r
@@ -463,7 +483,6 @@ object TwoStrips {
                     ops += DialOp.Rect(x0 - r - 1f, top - 1f, nowX, bottom + 1f, 0f, p.face.withAlpha(0.42f), part = DialPart.AdvicePast)
                 }
             }
-            return x1 + r
         }
 
         fun glyph(type: AdviceType, x: Float, cy: Float, discR: Float) {
@@ -497,7 +516,7 @@ object TwoStrips {
 
         /** "7 h later" between the two nights' starts, under the local bar; "in sync" once adapted. */
         fun bracket(top: Float, rowH: Float, nowX: Float, avoid: ClosedFloatingPointRange<Float>) {
-            val spec = TextSpec(9.5f * grow, weight = 650, slanted = true, tabular = false)
+            val spec = label(TextSpec(9.5f * grow, weight = 650, slanted = true, tabular = false))
             if (aligned) return
             val ls = xIfVisible(localNight.start) ?: return
             val bs = xIfVisible(bodyNight.start) ?: return
@@ -528,6 +547,9 @@ object TwoStrips {
 
         /** The widest a live time can get until the next capture ("00:00" / "12:00"), for its pill. */
         fun widestTime(): String = labels.time(12 * 60f).let { t -> if (t.length >= 5) t else "12:00" }
+
+        /** A word's [spec], at least the host's [labelText]. */
+        fun label(spec: TextSpec): TextSpec = if (spec.size < labelText) spec.copy(size = labelText) else spec
 
         fun fitWidth(text: String, spec: TextSpec, maxWidth: Float): TextSpec {
             val tw = measurer.width(text, spec)

@@ -73,10 +73,11 @@ internal object WidgetDial {
         val type = DialType.of(context)
         val labels = labels(context, is24Hour)
         val growth = DialType.textGrowth(context)
+        val labelText = labelTextDp(context)
         return when (design) {
             DialDesign.TwoSkies -> TwoSkies.spec(
                 state.dial, palette(palette), labels, widthDp, heightDp, mode = bodyRing, measurer = type.measurer, textGrowth = growth,
-                namePlace = !state.redacted, minText = MIN_TEXT_DP,
+                namePlace = !state.redacted, minText = MIN_TEXT_DP, labelText = labelText, liveReadouts = true,
             )
             DialDesign.TwoStrips -> TwoStrips.spec(
                 state.dial, palette(palette), labels, widthDp, heightDp, mode = bodyRing, measurer = type.measurer, textGrowth = growth,
@@ -84,6 +85,7 @@ internal object WidgetDial {
                     // The trip's stop (or the zone's city) and its shorter forms; redacted widgets name no place.
                     if (state.redacted) emptyList() else names
                 },
+                labelText = labelText,
             )
         }
     }
@@ -102,6 +104,15 @@ internal object WidgetDial {
 
     /** The smallest text the widget dial draws, in dp: a launcher shows widgets small and at arm's length. */
     const val MIN_TEXT_DP = 7f
+
+    /**
+     * The smallest size for the dial's labels (ring and bar labels, the advice's name, the jet lag), in sp: it grows
+     * with the font scale like the widget's other text. A label that can't fit at it is dropped, never shrunk.
+     */
+    const val LABEL_TEXT_SP = 10f
+
+    /** [LABEL_TEXT_SP] in the spec's dp, at the current font scale. */
+    fun labelTextDp(context: Context): Float = LABEL_TEXT_SP * context.resources.configuration.fontScale
 
     private const val MORNING_MINUTE = 60f
     private const val EVENING_MINUTE = 13 * 60f

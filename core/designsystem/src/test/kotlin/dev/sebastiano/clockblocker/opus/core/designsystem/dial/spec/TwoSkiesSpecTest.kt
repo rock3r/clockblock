@@ -204,6 +204,38 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a host's label floor sets the ring labels, and a ring too thin for them drops them`() {
+        fun ringLabels(side: Float, floor: Float) =
+            TwoSkies.spec(tokyo, palette, labels, side, side, labelText = floor).ops.filterIsInstance<DialOp.CurvedText>()
+                .filter { it.part == DialPart.RingLabel }
+        for (side in listOf(160f, 328f)) {
+            val shown = ringLabels(side, 10f)
+            (shown.isNotEmpty()) shouldBe true
+            shown.forEach { (it.spec.size >= 10f) shouldBe true }
+        }
+        // 13 dp text (10 sp at 1.3×) can't sit inside the 9 dp rings of a 110 dp dial: no label rather than a tiny one.
+        ringLabels(110f, 13f).shouldBeEmpty()
+        // Without a floor the app keeps its own sizes.
+        ringLabels(160f, 0f).forEach { it.spec.size shouldBe (7.6f plusOrMinus 0.01f) }
+    }
+
+    @Test
+    fun `a host that rewrites the time keeps room before the AM PM marker for the widest reading`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(88f, 160f, 328f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, liveReadouts = true).ops.filterIsInstance<DialOp.Text>()
+            val digits = texts.single { it.text == twelve.time(tokyo.localMinute) }
+            val marker = texts.single { it.text == twelve.marker(tokyo.localMinute) }
+            // The digits end at the marker, so a longer reading grows away from it…
+            digits.h shouldBe HAlign.End
+            (marker.x >= digits.x) shouldBe true
+            // …and there's room for "10:00" before it, inside the group's width.
+            val widest = ApproxTextMeasurer.width(twelve.time(10 * 60f), digits.spec)
+            (digits.x - widest >= side / 2f - (marker.x + ApproxTextMeasurer.width(marker.text, marker.spec) - side / 2f) - 0.5f) shouldBe true
+        }
+    }
+
+    @Test
     fun `upcoming advice is narrated with its start when nothing is on`() {
         val texts = spec(scrub = 18 * 60f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
         texts shouldContain "Sleep at 23:00"

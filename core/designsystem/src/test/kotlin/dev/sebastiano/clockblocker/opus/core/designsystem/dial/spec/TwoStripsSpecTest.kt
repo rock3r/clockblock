@@ -50,6 +50,22 @@ class TwoStripsSpecTest {
         ops.filterIsInstance<T>().filter { part == null || it.part == part }
 
     @Test
+    fun `a host's label floor sets every label on the strips, and a bar too thin for it drops its labels`() {
+        for ((w, h) in listOf(250f to 51f, 250f to 84f, 328f to 170f)) {
+            val s = TwoStrips.spec(tokyo, palette, labels, w, h, labelText = 10f)
+            val barLabels = s.all<DialOp.Text>(DialPart.RingLabel)
+            barLabels.shouldNotBeEmpty()
+            // Bar labels, the advice's name, the jet lag: every word that isn't one of the two times.
+            s.all<DialOp.Text>().filter { it.part != DialPart.Readout && it.part != DialPart.Needle }
+                .forEach { (it.spec.size >= 10f) shouldBe true }
+        }
+        // 20 dp text can't sit inside a 14 dp bar: no label rather than a tiny one. Both times stay.
+        val big = TwoStrips.spec(tokyo, palette, labels, 250f, 84f, labelText = 20f)
+        big.all<DialOp.Text>(DialPart.RingLabel).shouldBeEmpty()
+        big.all<DialOp.Text>().mapNotNull { it.live?.clock }.toSet() shouldBe setOf(LiveClock.Local, LiveClock.Body)
+    }
+
+    @Test
     fun `the level comes from the box`() {
         DetailLevel.forStrip(117f, 51f) shouldBe DetailLevel.Glance
         DetailLevel.forStrip(56f, 50f) shouldBe DetailLevel.Glance
@@ -126,6 +142,23 @@ class TwoStripsSpecTest {
         simple.all<DialOp.Text>(DialPart.Advice).map { it.text } shouldBe listOf("Avoid light")
         val full = spec(w = 328f, h = 170f)
         full.all<DialOp.Text>(DialPart.Narration).map { it.text } shouldContainAll listOf("Avoid light until 16:30", "then take melatonin")
+    }
+
+    @Test
+    fun `a block the window's seam cuts draws both pieces, its glyph on the one under the now line`() {
+        // 07:30 under an overnight sleep (23:30–08:00): the window starts at midnight, so the block shows at both ends.
+        val night = tokyo.copy(
+            localMinute = 7 * 60f + 30f,
+            arcs = persistentListOf(DialArc("sleep", AdviceType.Sleep, 23 * 60f + 30f, 510f)),
+        )
+        val s = spec(night, w = 250f, h = 84f)
+        val axis = s.axis.shouldNotBeNull()
+        axis.startMinute shouldBe 0f
+        val nowX = axis.x(night.localMinute)
+        val fills = s.all<DialOp.Rect>(DialPart.Advice).filter { it.color == palette.adviceFill(AdviceType.Sleep) }
+        fills.any { it.left < nowX && it.right > nowX } shouldBe true
+        fills.any { it.right > axis.x(23 * 60f + 30f) } shouldBe true
+        s.all<DialOp.Glyph>().single().cx shouldBeLessThan nowX
     }
 
     @Test

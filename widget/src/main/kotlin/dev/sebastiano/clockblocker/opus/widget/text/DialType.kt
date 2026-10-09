@@ -14,7 +14,8 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TextSpec
  * capture time ([Measurer]) and draws it ([typeface]), so what fits here fits on the host.
  *
  * Text sizes are spec dp: the canvas is scaled to dp, so the paint works in dp too. Canvas text does not follow the
- * font scale; the spec builders grow it a little instead (see [textGrowth]).
+ * font scale; the spec builders grow it a little instead (see [textGrowth]), and the labels keep a floor that
+ * grows with it fully (`WidgetDial.labelTextDp`).
  */
 internal class DialType(private val weightAdjustment: Int) {
 

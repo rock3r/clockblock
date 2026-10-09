@@ -124,7 +124,7 @@ class WidgetDialFitTest {
     }
 
     @Test
-    fun `dial text stays whole, inside its region and clear of other text, at every display`() {
+    fun `dial text stays whole, readable, inside its region and clear of other text, at every display`() {
         val failures = sortedSetOf<String>()
         val scenarios = DemoPlans.Scenario.entries
         // Through the day: times of every width, and the advice in focus changing.
@@ -193,6 +193,24 @@ class WidgetDialFitTest {
                 if (!named) add("the ${g.type} glyph shows without its name")
             }
         }
+        // Labels (every word that isn't a time) are readable: at least 10 sp at the font scale, or not there at all.
+        val floor = WidgetDial.labelTextDp(context) - 0.01f
+        texts.filter { it.part != DialPart.Readout && it.part != DialPart.Needle }.forEach { t ->
+            if (t.spec.size < floor) add("label \"${t.text}\" at ${t.spec.size} dp, under the ${floor + 0.01f} dp floor")
+        }
+        val curved = spec.ops.filterIsInstance<DialOp.CurvedText>()
+        curved.forEach { t -> if (t.spec.size < floor) add("label \"${t.text}\" at ${t.spec.size} dp, under the ${floor + 0.01f} dp floor") }
+        // …and sit inside their ring or bar.
+        val rings = spec.ops.filterIsInstance<DialOp.SweepRing>()
+        curved.filter { it.part == DialPart.RingLabel }.forEach { t ->
+            val ring = rings.firstOrNull { kotlin.math.abs(it.r - t.r) < 0.01f }
+            if (ring == null || t.spec.size * CAP_HEIGHT > ring.width) add("ring label \"${t.text}\" at ${t.spec.size} dp is too big for its ring")
+        }
+        val bars = spec.ops.filterIsInstance<DialOp.SkyBar>()
+        texts.filter { it.part == DialPart.RingLabel }.forEach { t ->
+            val bar = bars.firstOrNull { t.y > it.top && t.y < it.bottom }
+            if (bar == null || t.spec.size * CAP_HEIGHT > bar.bottom - bar.top) add("bar label \"${t.text}\" at ${t.spec.size} dp is too big for its bar")
+        }
     }
 
     private companion object {
@@ -204,5 +222,8 @@ class WidgetDialFitTest {
 
         /** From the baseline up to the middle of a line of text, as a share of its size. */
         const val BASELINE_TO_MIDDLE = 0.35f
+
+        /** Capital height per dp of text size in the system font. */
+        const val CAP_HEIGHT = 0.71f
     }
 }
