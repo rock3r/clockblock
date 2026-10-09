@@ -83,7 +83,7 @@ They drive the real app, with real DataStore files and real notifications.
 | Test class | Tests | What it covers |
 |---|---|---|
 | `SmokeTest` | 2 | The app starts on the right first screen, and shows the navigation after onboarding |
-| `FirstRunTest` | 2 | All onboarding steps with "Maybe later"; skipping ahead and stepping back |
+| `FirstRunTest` | 2 | All onboarding steps, finished without the permission prompt ("Maybe later", or "Finish" when notifications are already allowed); skipping ahead and stepping back |
 | `NotificationsTest` | 2 | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan |
 | `TripsTest` | 3 | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
 | `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |

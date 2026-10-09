@@ -44,11 +44,11 @@ import org.junit.runner.RunWith
 class FirstRunTest : ClockblockE2eTest() {
 
     @Test
-    fun onboardingThroughAllStepsWithMaybeLaterLandsOnTrips() {
+    fun onboardingThroughAllStepsWithoutThePromptLandsOnTrips() {
         launch()
         val choices = walkOnboardingToReminders()
 
-        awaitTag(OnboardingTags.MaybeLater).performClick()
+        finishOnboardingWithoutPrompt()
 
         awaitTag("route_trips", LongTimeoutMillis).assertIsDisplayed()
         awaitTag(ShellTestTags.NavTrips).assertIsDisplayed()
@@ -69,7 +69,7 @@ class FirstRunTest : ClockblockE2eTest() {
 
         awaitTag(OnboardingTags.Skip).performClick()
         awaitTag(OnboardingTags.step(OnboardingStep.Reminders))
-        awaitTag(OnboardingTags.MaybeLater).performClick()
+        finishOnboardingWithoutPrompt()
 
         awaitTag("route_trips", LongTimeoutMillis).assertIsDisplayed()
     }

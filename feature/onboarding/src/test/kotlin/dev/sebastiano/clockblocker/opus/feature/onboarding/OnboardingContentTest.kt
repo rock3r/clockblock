@@ -122,6 +122,21 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         actions.calls shouldContainExactly listOf("finish")
     }
 
+    @Test
+    fun `once notifications are allowed, the last step offers Back instead of Maybe later (#101)`() {
+        show(onboardingState(OnboardingStep.Reminders, notificationsGranted = true))
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
+        compose.onNodeWithTag(OnboardingTags.Back).performClick()
+        actions.calls shouldContainExactly listOf("back")
+    }
+
+    @Test
+    fun `before notifications are allowed, the last step offers Maybe later and no Back`() {
+        show(onboardingState(OnboardingStep.Reminders))
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).assertExists()
+        compose.onNodeWithTag(OnboardingTags.Back).assertDoesNotExist()
+    }
+
     private var step by mutableStateOf(OnboardingStep.Chronotype)
     private lateinit var backDispatcher: OnBackPressedDispatcher
 
