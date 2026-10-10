@@ -225,6 +225,22 @@ class DialDstTest {
     }
 
     @Test
+    fun `a clipped edge in the spring-forward gap doesn't hide a block that starts at the change`() {
+        // 10:30 EDT on 8 March 2026: the window starts at 02:30, a wall time the change skips, so the face's instant
+        // there is the change itself (07:00Z). A block clipped at that edge and one that really starts at the change
+        // (03:00 EDT, 7.5 hours of the face back) share that instant; the stop is the real start, drawn at 03:00.
+        val change = Instant.parse("2026-03-08T07:00:00Z")
+        val state = plan(
+            LocalDate.of(2026, 3, 8),
+            advice("clipped", AdviceType.Sleep, "2026-03-08T05:00:00Z", "2026-03-08T08:00:00Z"),
+            advice("atChange", AdviceType.SeeBrightLight, "2026-03-08T07:00:00Z", "2026-03-08T09:00:00Z"),
+        ).toDialState(Instant.parse("2026-03-08T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe change
+
+        blockBoundaryStops(state).single { it.instant == change }.offset shouldBe (-450f plusOrMinus 0.01f)
+    }
+
+    @Test
     fun `a block drawn past its real end keeps the hand's instant at its drawn end`() {
         // 01:50 EDT → 01:10 EST is drawn forward with its real 20 minutes, to 02:10 on the face: its real end, 01:10,
         // isn't where the arc ends, so the boundary there stays 02:10 (EST), the time the hand shows.

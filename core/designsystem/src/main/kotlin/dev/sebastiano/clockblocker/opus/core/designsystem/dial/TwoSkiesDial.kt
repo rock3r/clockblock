@@ -446,9 +446,12 @@ internal fun blockBoundaryStops(state: DialState): List<BoundaryStop> {
         .filter { (offset, _) -> offset >= -DialState.PastWindowMinutes && offset < DialGeometry.MinutesPerDay - DialState.PastWindowMinutes }
         .map { (offset, own) ->
             val here = own?.takeIf { zone != null && state.isBoundaryHere(it, offset, zone) }
-            BoundaryStop(offset, here ?: blockBoundaryInstant(state, offset))
+            (here != null) to BoundaryStop(offset, here ?: blockBoundaryInstant(state, offset))
         }
-        .distinctBy { it.instant }
+        // Two stops at one instant: keep a block's own boundary over a fallback. A window edge clipped inside a
+        // spring-forward gap falls back to the change itself, the instant a block starting at the change really has.
+        .groupBy { (_, stop) -> stop.instant }
+        .map { (_, same) -> (same.firstOrNull { (own, _) -> own } ?: same.first()).second }
         .sortedBy { it.instant }
 }
 
