@@ -182,10 +182,10 @@ private fun Sheet(light: List<Bitmap>, dark: List<Bitmap>) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(Modifier.background(Color(0xFFF4F0F8), RoundedCornerShape(20.dp)).padding(8.dp)) {
-                    BitmapShot(light[1], 380.dp, cropFraction = 0.6f, cropHeightFraction = 0.38f)
+                    BitmapShot(light[1], 380.dp, cropFraction = 0.6f, cropHeightFraction = 0.48f)
                 }
                 Column(Modifier.background(Color.Black, RoundedCornerShape(20.dp)).padding(8.dp)) {
-                    BitmapShot(dark[1], 380.dp, cropFraction = 0.6f, cropHeightFraction = 0.38f)
+                    BitmapShot(dark[1], 380.dp, cropFraction = 0.6f, cropHeightFraction = 0.48f)
                 }
             }
         }
