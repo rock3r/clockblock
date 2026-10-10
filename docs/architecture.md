@@ -75,16 +75,17 @@ computes it from the trip and the profile when something asks for it, and keeps 
 
 A fifth DataStore file, `widget_configs.json`, holds each placed widget's options (see
 [surfaces](surfaces.md#widget-options)). Widget ids belong to the launcher on this device, so it isn't in the app's
-backup file. Android's own device backup restores it along with the widgets.
+backup file. Android's own backup and phone-to-phone transfer restore it along with the widgets.
 
-Four small SharedPreferences files hold bookkeeping state. They aren't user data and aren't part of backups:
+Four small SharedPreferences files hold bookkeeping state. They aren't user data and aren't part of the app's
+backup file:
 
 | Store | What it keeps |
 |---|---|
 | [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt) | The running "Snooze 15 min" (end time and advice id), so it survives process death |
 | [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt) | The alarm instants already handled, so an alarm and its Doze backstop never remind twice |
 | [`PreferencesCelebrationStore`](../feature/plan/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/plan/PlanStores.kt) | Ids of trips whose plan celebration has already played, so it plays once |
-| [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) | The app version that last published the widget-picker previews |
+| [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) | The configuration the widgets were last drawn at, and the app version that last published the widget-picker previews |
 
 ```mermaid
 flowchart LR
@@ -112,6 +113,25 @@ ViewModels and the alarm scheduler both read the plan from that repository. The 
 `PlanSurface`, so the notification and the widgets show the same advice as the app. They lag only when the
 scheduler's alarm is delayed (no exact-alarm access: up to 10 minutes while awake, about an hour in Doze; see
 [surfaces](surfaces.md#the-scheduler)).
+
+### Android backup
+
+[`data_extraction_rules.xml`](../app/src/main/res/xml/data_extraction_rules.xml) lists what Android's cloud
+backup and phone-to-phone transfer copy. Both sections are include lists, so anything not listed stays on the
+device:
+
+- **Included:** the five DataStore files and the celebration store, so a restored phone doesn't replay
+  celebrations.
+- **Left out:** the snooze and the handled alarm instants (both tied to this device's alarms) and the widget render
+  bookkeeping, which the new phone works out again. Plans are never stored.
+
+Cloud backups are made only when they can be end-to-end encrypted (`disableIfNoEncryptionCapabilities`).
+[`BackupRulesTest`](../app/src/test/kotlin/dev/sebastiano/clockblocker/opus/BackupRulesTest.kt) checks the lists
+against `StoreFiles` and the SharedPreferences names, so a renamed or new store can't drop out of backups silently.
+
+A restore brings files, not alarms, and no boot or app-update broadcast follows it. The first process start (opening the app, or a
+restored widget asking for an update) runs `ClockblockApplication.onCreate`, which starts the alarm scheduler: it
+arms reminders from the restored plan and refreshes every surface.
 
 ### Repositories
 

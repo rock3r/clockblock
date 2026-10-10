@@ -26,13 +26,21 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.Clock
 
-/** File names of the stores inside `filesDir/datastore/`. Part of the on-disk format: never rename. */
-internal object StoreFiles {
+/**
+ * File names of the stores inside `filesDir/datastore/`. Part of the on-disk format: never rename. Every store is
+ * user data, so all of them are listed in the app's Android backup rules (`data_extraction_rules.xml`, checked by
+ * a test against [all]).
+ */
+object StoreFiles {
+    /** Directory under `filesDir` that `dataStoreFile()` puts the stores in. */
+    const val Directory = "datastore"
     const val Profile = "profile.json"
     const val Trips = "trips.json"
     const val Settings = "settings.json"
     const val AdviceLogs = "advice_logs.json"
     const val WidgetConfigs = "widget_configs.json"
+
+    val all: List<String> = listOf(Profile, Trips, Settings, AdviceLogs, WidgetConfigs)
 }
 
 private fun ioScope(dispatchers: AppDispatchers) = CoroutineScope(dispatchers.io + SupervisorJob())

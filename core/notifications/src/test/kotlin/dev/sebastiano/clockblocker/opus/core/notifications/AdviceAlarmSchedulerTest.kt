@@ -240,6 +240,20 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `after a restore, the first start arms reminders and refreshes widgets without any system broadcast`() =
+        runTest(UnconfinedTestDispatcher()) {
+            // Android backup and phone-to-phone transfer bring the data files but no alarms, and no boot or
+            // package-replaced broadcast follows. ClockblockApplication.onCreate calls start() on the first process
+            // start (app opened, or a restored widget asking for an update), and that alone must catch up.
+            scheduled shouldHaveSize 0
+
+            scheduler().start(backgroundScope)
+
+            scheduled shouldHaveSize 8
+            widget.refreshes shouldBe 1
+        }
+
+    @Test
     fun `turning on lock-screen privacy rebuilds a reminder already on screen redacted`() = runTest(UnconfinedTestDispatcher()) {
         val scheduler = scheduler()
         scheduler.start(backgroundScope)
