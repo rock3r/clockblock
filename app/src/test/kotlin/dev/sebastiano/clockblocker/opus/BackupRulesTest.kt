@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus
 
 import dev.sebastiano.clockblocker.opus.core.data.datastore.StoreFiles
+import dev.sebastiano.clockblocker.opus.core.notifications.HandledAlarms
 import dev.sebastiano.clockblocker.opus.core.notifications.SnoozeStore
 import dev.sebastiano.clockblocker.opus.feature.plan.PreferencesCelebrationStore
 import dev.sebastiano.clockblocker.opus.widget.WidgetUpdater
@@ -68,6 +69,7 @@ class BackupRulesTest {
         val included = section(sectionName).rules("include")
         included shouldNotContain Rule("sharedpref", "${SnoozeStore.PREFS}.xml")
         included shouldNotContain Rule("sharedpref", "${WidgetUpdater.PREFS}.xml")
+        included shouldNotContain Rule("sharedpref", "${HandledAlarms.PREFS}.xml")
         // An include list already leaves everything else out; excludes would only hide mistakes.
         section(sectionName).rules("exclude").shouldBeEmpty()
     }

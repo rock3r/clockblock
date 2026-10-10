@@ -43,9 +43,12 @@ data class ScheduledAlarms(
  * it re-derives what happens from the **current** plan, posts at most one reminder, refreshes every
  * [PlanSurface] (the Now notification, widgets…) and re-arms the chain.
  *
- * Exact alarms (`setExactAndAllowWhileIdle`) are used when `SCHEDULE_EXACT_ALARM` is granted; otherwise a
- * 10-minute `setWindow` fallback keeps things working, a bit less punctually. Reminders use absolute times so a
- * late alarm never says something false.
+ * Exact alarms (`setExactAndAllowWhileIdle`) are used when `SCHEDULE_EXACT_ALARM` is granted. Otherwise each instant
+ * is armed twice: a 10-minute `setWindow` fallback (punctual enough while the phone is awake, but held by Doze) and
+ * an allow-while-idle backstop (`setAndAllowWhileIdle`, which Doze lets through, usually within about an hour; best
+ * effort). Inexact alarms can arrive late and out of order, so each delivery handles every armed instant that is due
+ * ([HandledAlarms.claimDue]) before re-arming the chain, which replaces the rest. A delivery of an instant already
+ * handled posts nothing. Reminders use absolute times so a late alarm never says something false.
  *
  * The app calls [start] once (e.g. from `Application.onCreate`); system events (boot, time/zone change, app
  * update, exact-alarm permission change) arrive through [ScheduleResetReceiver][dev.sebastiano.clockblocker.opus.core.notifications.receiver.ScheduleResetReceiver].
@@ -61,6 +64,7 @@ class AdviceAlarmScheduler(
     private val snoozeStore: SnoozeStore,
     private val capabilities: PlatformCapabilities,
     private val clock: NotificationClock,
+    private val handledAlarms: HandledAlarms,
 ) {
     private val mutex = Mutex()
 
@@ -107,16 +111,21 @@ class AdviceAlarmScheduler(
         val settings = settingsRepository.settings.first()
         val now = clock.now()
 
+        // Every armed instant that is due and not yet handled, [at] included: an earlier one may arrive after this
+        // one (inexact alarms aren't ordered), and re-arming below would cancel it. Empty for a duplicate delivery
+        // (the window alarm and its backstop carry the same instant), which must not remind again.
+        val due = handledAlarms.claimDue(at, upTo = now)
+
         val snooze = snoozeStore.current()
         val snoozeElapsed = snooze != null && !snooze.until.isAfter(now)
         if (snoozeElapsed) snoozeStore.clear()
 
-        if (plan != null && settings.remindersEnabled && snoozeStore.active(now) == null) {
-            val due = ReminderSelector.select(TransitionPlanner.transitionsAt(plan, settings, at), now)
+        if (due.isNotEmpty() && plan != null && settings.remindersEnabled && snoozeStore.active(now) == null) {
+            val reminder = ReminderSelector.select(due.flatMap { TransitionPlanner.transitionsAt(plan, settings, it) }, now)
             val snoozed = snooze?.takeIf { snoozeElapsed }?.adviceId
                 ?.let { id -> plan.allAdvice.firstOrNull { it.id == id } }
                 ?.let { ReminderSelector.snoozed(it, now) }
-            (due ?: snoozed)?.let { spec ->
+            (reminder ?: snoozed)?.let { spec ->
                 reminderMutex.withLock {
                     reminders.post(spec, plan, now, redact = settingsRepository.settings.first().hideLockScreenDetails)
                 }
@@ -162,32 +171,50 @@ class AdviceAlarmScheduler(
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()
         val manager = alarmManager ?: return@withLock ScheduledAlarms(emptyList(), exact)
-        instants.forEachIndexed { slot, at -> set(manager, at, NotificationIntents.alarm(application, slot, at), exact) }
-        for (slot in instants.size until MAX_ALARMS) {
-            NotificationIntents.existingAlarm(application, slot)?.let {
-                manager.cancel(it)
-                it.cancel()
+        handledAlarms.recordArmed(instants, now)
+        var allExact = exact
+        instants.forEachIndexed { slot, at ->
+            val armedExact = set(manager, at, NotificationIntents.alarm(application, slot, at), exact)
+            if (armedExact) {
+                cancel(manager, NotificationIntents.existingBackstop(application, slot))
+            } else {
+                allExact = false
+                manager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP, at.toEpochMilli(), NotificationIntents.backstop(application, slot, at),
+                )
             }
         }
-        ScheduledAlarms(instants, exact)
+        for (slot in instants.size until MAX_ALARMS) {
+            cancel(manager, NotificationIntents.existingAlarm(application, slot))
+            cancel(manager, NotificationIntents.existingBackstop(application, slot))
+        }
+        ScheduledAlarms(instants, allExact)
     }
 
+    private fun cancel(manager: AlarmManager, operation: android.app.PendingIntent?) {
+        operation ?: return
+        manager.cancel(operation)
+        operation.cancel()
+    }
+
+    /** Arms [operation] at [at]; returns whether it was armed exact (`false`: the 10-minute window fallback). */
     private fun set(
         manager: AlarmManager,
         at: Instant,
         operation: android.app.PendingIntent,
         exact: Boolean = capabilities.canScheduleExactAlarms(),
-    ) {
+    ): Boolean {
         val millis = at.toEpochMilli()
         if (exact) {
             try {
                 AlarmManagerCompat.setExactAndAllowWhileIdle(manager, AlarmManager.RTC_WAKEUP, millis, operation)
-                return
+                return true
             } catch (_: SecurityException) {
                 // Permission revoked between the check and the call: fall through to the inexact path.
             }
         }
         manager.setWindow(AlarmManager.RTC_WAKEUP, millis, FALLBACK_WINDOW.toMillis(), operation)
+        return false
     }
 
     companion object {

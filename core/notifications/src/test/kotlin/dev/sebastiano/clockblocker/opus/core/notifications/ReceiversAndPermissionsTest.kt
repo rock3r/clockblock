@@ -55,7 +55,7 @@ class ReceiversAndPermissionsTest {
     private val reminders = ReminderNotifier(context, factory, capabilities)
     private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())
     private val scheduler = AdviceAlarmScheduler(
-        context, plans, settings, setOf(nowSurface), reminders, snooze, capabilities, clock,
+        context, plans, settings, setOf(nowSurface), reminders, snooze, capabilities, clock, HandledAlarms(context),
     )
     private val permissions = AndroidNotificationPermissions(context, capabilities, reminders, scheduler)
 
@@ -99,6 +99,7 @@ class ReceiversAndPermissionsTest {
         val widget = RecordingSurface()
         val scheduler = AdviceAlarmScheduler(
             context, plans, settings, setOf(nowSurface, widget), reminders, snooze, capabilities, clock,
+            HandledAlarms(context),
         )
         fun pressWith(action: AdviceAction) {
             AdviceActionReceiver(logs, scheduler, reminders, NotificationWorkScope(this))

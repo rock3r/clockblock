@@ -57,8 +57,23 @@ A few details matter:
   one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features it, so its end
   refresh still fires, a minute into the sleep.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
-  permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
-  next maintenance window, well past 10 minutes.
+  permission, it arms each instant twice:
+  - a 10-minute `setWindow`, which keeps reminders within 10 minutes while the phone is awake. It isn't
+    allow-while-idle, so Doze holds it until a maintenance window, which can be hours away overnight.
+  - a backstop with `setAndAllowWhileIdle` for the same instant (request code `200 + slot`). Doze lets it through,
+    but it is inexact: the platform usually delivers it within an hour of the instant. That is best effort, not a
+    bound: Battery Saver, app standby buckets and the allow-while-idle quota can delay it further.
+
+  Inexact alarms can arrive late and out of order (an instant's silent Start before the reminder due 15 minutes
+  earlier). [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt)
+  persists the instants the current schedule armed (plus any that were due but not delivered yet when it was
+  re-armed) and the ones it handled. Each delivery claims every armed instant that
+  is due, reminds from all of them, then re-arms the chain, which replaces the rest. A delivery of an instant
+  already claimed (the other half of the pair) refreshes and re-arms without reminding again. Handled instants later than
+  the current time are forgotten at the next re-arm, so a clock that was set ahead and then corrected doesn't swallow
+  reminders. In Doze, reminders
+  usually arrive within about an hour instead of waiting for the next maintenance window. Granting exact access
+  cancels the backstops on the next re-arm.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.
   [`ReminderSelector`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/schedule/ReminderSelector.kt)
   drops any reminder that is no longer true when it fires.
@@ -558,7 +573,7 @@ timing row shows "Allowed". Google Play only accepts `USE_EXACT_ALARM` from alar
 | Permission | Why | Who controls it | Without it |
 |---|---|---|---|
 | `POST_NOTIFICATIONS` | Reminders and the Now notification | The user, at runtime | No notifications; widgets still work |
-| `SCHEDULE_EXACT_ALARM` | Reminders on the minute | The user, in "Alarms & reminders" | Reminders use a 10-minute window, and Doze can defer them further |
+| `SCHEDULE_EXACT_ALARM` | Reminders on the minute | The user, in "Alarms & reminders" | Reminders arrive within 10 minutes while the phone is awake, and usually within about an hour while it's idle (Doze; best effort) |
 | `POST_PROMOTED_NOTIFICATIONS` | The travel-day Live Update | Granted at install; the user can turn Live Updates off | A normal ongoing notification |
 | `USE_EXACT_ALARM` (oss build only, instead of `SCHEDULE_EXACT_ALARM`) | Reminders on the minute | Granted at install | (always available) |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm alarms after a reboot | Granted at install | (always available) |

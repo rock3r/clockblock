@@ -11,6 +11,7 @@
     Left out (device-specific or regenerable):
       - opus_notifications_snooze: a running snooze, tied to this device's alarms and expiring in minutes.
       - opus_widgets: this device's widget render configuration and published picker previews.
+      - notifications_handled_alarms: the alarm instants already handled on this device (HandledAlarms).
       - datastore/*.corrupt-* copies, caches, and anything else. Plans are never stored (computed on demand), and
         alarms are re-armed when the app process starts after a restore (AdviceAlarmScheduler.start).
     Cloud backups are made only when they are end-to-end encrypted (the phone has a screen lock).
