@@ -1,7 +1,7 @@
 # MOTION.md — Clockblock
 
-> Agent-drafted from the code in `:core:designsystem` (commit on `feat/design`). Every spec is tagged
-> `OBSERVED`; a human must review and re-tag each one `DECIDED` before it is treated as policy.
+> Agent-drafted from the code in `:core:designsystem`, then reviewed: the owner approved every spec as `DECIDED`
+> (policy) on 2026-10-10. New specs added by agents are tagged `OBSERVED` until a human reviews them.
 
 ## Design system
 - Material 3 Expressive via `MaterialExpressiveTheme`; `ClockblockTheme` picks the `MotionScheme`:
@@ -20,43 +20,43 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 ## Specs
 | Intent | Binding | Tag |
 |---|---|---|
-| Advice glyph Circle → MaterialShape when it becomes "now" | `glyphMorph()` = scheme fastSpatial | OBSERVED |
-| Active glyph ambient (VerySunny step, melatonin twinkle, fatigue pulse) | one `ambientOnce(period)` cycle when it becomes active, then rest (saveable "played"); never loops | OBSERVED |
-| Glyph rotation / heading change, chevrons | `dataSpatial()` | OBSERVED |
-| Glyph fill colour | `colour()` = scheme defaultEffects | OBSERVED |
-| Card → Now card, containers around data | `containerSpatial()` = scheme defaultSpatial | OBSERVED |
-| Small in-place swaps | `fade()` = scheme fastEffects | OBSERVED |
-| Dial scrub settle / "back to now" | `dataSpatial()` (Standard); every frame reported so cards follow the hand | OBSERVED |
-| Dial body sky (inner ring) on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot; its ring labels turn with it | OBSERVED |
-| Rewind easter egg springing home | `rewindReturn()`: raw −1440 → 0 with the release velocity; Expressive slowSpatial by day, Calm slowSpatial (no bounce) under Calm | OBSERVED |
-| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`) | OBSERVED |
-| Illustration entrance / `progress` | `artEntrance()` = scheme slowSpatial, once per instance (saveable); bouncy arts use `glyphMorph()` | OBSERVED |
-| Two Clocks discs sliding on adaptation | `containerSpatial()` via `rememberArtValue` | OBSERVED |
-| Illustration ambient loops (rare surfaces only) | `ambientLoop(ClockblockMotion.*Millis)` (sun 9 s, twinkle 1.8 s, drift 7.2 s, steam 3.2 s, sway 4.2 s, pulse 2.4 s); ×1.5 under Calm | OBSERVED |
-| Confetti flight | `celebrationClock()` (2.2 s linear clock; physics from t), one burst from the Bloom's centre | OBSERVED |
-| Celebration sequence | navigation settles (450 ms) → rings turn into alignment on `dialDayRotation()` + `CONFIRM` → overlay fades in on `colour()` → Bloom scales on `glyphMorph()` → check + confetti together; predictive back seeks the overlay fade | OBSERVED |
-| Wavy adaptation line | still by default (`travel = false`); travel is opt-in for rare surfaces | OBSERVED |
-| Plan loading | nothing for 150 ms (fast loads never flash a loader), then M3 `LoadingIndicator`; ready state cross-fades in (`colour()` / `fade()`) only if the loader was shown | OBSERVED |
-| Plan floating toolbar show/hide | one owner: `AnimatedVisibility` fade (`fade()`) + half-height slide on `navigationSpatial()`; no scroll-driven exit-always. Its surface-gradient scrim lives inside the same `AnimatedVisibility` and only fades (one event, nothing slides separately) | OBSERVED |
-| "First light" (plan of a trip saved ≤ 90 s ago) | header sun/moon rises from below the header's bottom edge to its resting place with an alpha ramp, `artEntrance()` (scheme slowSpatial), once per plan entry (saveable); clipped to the header. Reduce motion: already in place (static carrier; the rise carries no meaning) | OBSERVED |
-| Header moon egg (7 taps) | `CLOCK_TICK` on taps 1–6; crescent waxes to full, then Circle → Cookie12 → Clover8 → Ghostish → Heart → Cookie9 → bite as one continuous `eggChain(steps)` progress | OBSERVED |
-| Sleep dial 24.2 egg | wake handle pushed past 24 h peeks "24:12" + Czeisler line, then rubber-bands back; inline note under the phone's Remove animations; off with the in-app Reduce motion and while the plan says sleep | OBSERVED |
-| Konami 8-bit egg (↑↑↓↓←→←→ swipes on the plan rail) | glyphs morph to `PixelCircle` / `PixelTriangle` on `glyphMorph()` and straighten; sky quantises to 6 bands; times monospace; session-only, snackbar Exit; off under reduce motion and sleep windows | OBSERVED |
-| Suitcase clock ticks | 3 discrete 1 s steps (`delay` × `MotionDurationScale`), then rest | OBSERVED |
-| Top-level destination switch (fade-through) | `navigationFadeOut()` 90 ms EmphasizedAccelerate → `navigationFadeIn()` 210 ms (+90 ms delay) EmphasizedDecelerate + scale-in 0.92 via `navigationSpatial()`; ×1.5 under Calm | OBSERVED |
-| Hierarchy push/pop (shared axis X, 30 dp, RTL-mirrored) | `navigationSpatial()` = Standard defaultSpatial (no bounce; snaps on reduce) + fades | OBSERVED |
-| Predictive back (seekable) | exit scale 0.9 + slide away from swipe edge on `navigationSpatial()`, fade on `colour()` | OBSERVED |
-| List-detail pane enter/exit, pane bounds | `navigationFadeIn()` / `navigationFadeOut()`; bounds `navigationSpatial()` | OBSERVED |
-| Dot-matrix airport code picked (`IataCode`, `· · ·` → `SFO`) | dots turn to the new characters left to right, cell by cell and column by column, on `colour()` (~180 ms); first composition sits at rest | OBSERVED |
-| Rolling readouts (`RollingText` / `RollingTimeText` / `RollingMetricText`) | only the changed run of characters rolls vertically, on `dataSpatial()` (no bounce: the readout is data), with a cross-fade from the same progress; up when the value grows, down when it shrinks; units and unchanged digits stay still; not used for per-frame values (scrubbing) | OBSERVED |
-| Dial offset pill ("7 h behind") and body time on a day change | read the body sky's own animated offset in the draw phase, so the words step through the half hours exactly as the ring turns (one event, never two that disagree) | OBSERVED |
-| Sleep dial readouts (bedtime / wake pills, centre duration) | follow a drag live with no roll (per-frame values); roll on discrete changes (TalkBack or keyboard nudge, a picked time, the 24.2 rubber band) as rolling readouts; text sized for the widest value so it never resizes | OBSERVED |
-| Tool row switched on (onboarding / settings tools) | leading advice glyph Circle → advice shape on `glyphMorph()` (rare: a setup choice), back on `dataSpatial()` (the melatonin glyph twinkles once, as on the plan); row container and text tint to the advice container on `colour()`, read in draw; the switch and label carry the state without them | OBSERVED |
-| Route arc banner: destination picked | flat dotted horizon springs up into the dashed arc on `containerSpatial()` (the dots stretch into dashes as it lifts); the plane glides to its position on `dataSpatial()`; destination code reveals as above | OBSERVED |
-| Day strip following the two-pane rail (scrolled by hand) | the pill of the day the rail shows gets a short bar at its foot, swapped with no animation (rail scrolling is a 100+/day gesture; the day is read through a derived state, so the strip only recomposes at day boundaries); the strip scrolls only when that pill is out of sight, on `animateScrollToItem` (a jump under reduce motion). The bar and TalkBack's "In view on your plan" carry it; it never picks the day | OBSERVED |
-| Header body sky on a day pick (a day strip pill, or a pick going live; the toolbar's day picker only scrolls the rail) | the new day's sky fades in over the old one on `colour()`, keyed by the picked day; the old sky stays put underneath, so the header never shows through, and the fade's alpha is read in the layer. Scrubbing and the minute tick repaint in place with no transition. Header text, icons, status-bar ink and the sun / moon follow the sky that is mostly showing: they switch once, at the fade's midpoint. A pick during a fade freezes the blend on screen and fades the new day in over it (no jump to the interrupted target) | OBSERVED |
-| Two-pane rail following a dial scrub | the rail row under the dial's hand is highlighted (as before) and, when it is fully or partly off screen, the rail scrolls it into view on `dataSpatial()` (it is a time position: no bounce); a jump under reduce motion. Keyed by the row, so it moves once per block crossed, never per frame of the scrub; a row already in view (below the pinned day header) never moves the rail; a scrub into a day folded behind "earlier days" unfolds it first; never starts over a drag or fling of the user's own, and a grab mid-scroll takes the rail over. One pane: no scroll (the dial would scroll away) | OBSERVED |
-| Light response curve sun (Why sheet of light advice, About) | follows a drag live (position read in draw; no recomposition per frame); a tap, TalkBack's Earlier / Later hour and Reset settle on `dataSpatial()` (where the sun sits is data); while held the sun grows 1.2× on `containerSpatial()` (a rare surface, so the Expressive container spring is allowed). The curve, lobes and band never move. Reduce motion: everything snaps; the readout text and the still sun carry the meaning | OBSERVED |
+| Advice glyph Circle → MaterialShape when it becomes "now" | `glyphMorph()` = scheme fastSpatial | DECIDED |
+| Active glyph ambient (VerySunny step, melatonin twinkle, fatigue pulse) | one `ambientOnce(period)` cycle when it becomes active, then rest (saveable "played"); never loops | DECIDED |
+| Glyph rotation / heading change, chevrons | `dataSpatial()` | DECIDED |
+| Glyph fill colour | `colour()` = scheme defaultEffects | DECIDED |
+| Card → Now card, containers around data | `containerSpatial()` = scheme defaultSpatial | DECIDED |
+| Small in-place swaps | `fade()` = scheme fastEffects | DECIDED |
+| Dial scrub settle / "back to now" | `dataSpatial()` (Standard); every frame reported so cards follow the hand | DECIDED |
+| Dial body sky (inner ring) on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot; its ring labels turn with it | DECIDED |
+| Rewind easter egg springing home | `rewindReturn()`: raw −1440 → 0 with the release velocity; Expressive slowSpatial by day, Calm slowSpatial (no bounce) under Calm | DECIDED |
+| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`) | DECIDED |
+| Illustration entrance / `progress` | `artEntrance()` = scheme slowSpatial, once per instance (saveable); bouncy arts use `glyphMorph()` | DECIDED |
+| Two Clocks discs sliding on adaptation | `containerSpatial()` via `rememberArtValue` | DECIDED |
+| Illustration ambient loops (rare surfaces only) | `ambientLoop(ClockblockMotion.*Millis)` (sun 9 s, twinkle 1.8 s, drift 7.2 s, steam 3.2 s, sway 4.2 s, pulse 2.4 s); ×1.5 under Calm | DECIDED |
+| Confetti flight | `celebrationClock()` (2.2 s linear clock; physics from t), one burst from the Bloom's centre | DECIDED |
+| Celebration sequence | navigation settles (450 ms) → rings turn into alignment on `dialDayRotation()` + `CONFIRM` → overlay fades in on `colour()` → Bloom scales on `glyphMorph()` → check + confetti together; predictive back seeks the overlay fade | DECIDED |
+| Wavy adaptation line | still by default (`travel = false`); travel is opt-in for rare surfaces | DECIDED |
+| Plan loading | nothing for 150 ms (fast loads never flash a loader), then M3 `LoadingIndicator`; ready state cross-fades in (`colour()` / `fade()`) only if the loader was shown | DECIDED |
+| Plan floating toolbar show/hide | one owner: `AnimatedVisibility` fade (`fade()`) + half-height slide on `navigationSpatial()`; no scroll-driven exit-always. Its surface-gradient scrim lives inside the same `AnimatedVisibility` and only fades (one event, nothing slides separately) | DECIDED |
+| "First light" (plan of a trip saved ≤ 90 s ago) | header sun/moon rises from below the header's bottom edge to its resting place with an alpha ramp, `artEntrance()` (scheme slowSpatial), once per plan entry (saveable); clipped to the header. Reduce motion: already in place (static carrier; the rise carries no meaning) | DECIDED |
+| Header moon egg (7 taps) | `CLOCK_TICK` on taps 1–6; crescent waxes to full, then Circle → Cookie12 → Clover8 → Ghostish → Heart → Cookie9 → bite as one continuous `eggChain(steps)` progress | DECIDED |
+| Sleep dial 24.2 egg | wake handle pushed past 24 h peeks "24:12" + Czeisler line, then rubber-bands back; inline note under the phone's Remove animations; off with the in-app Reduce motion and while the plan says sleep | DECIDED |
+| Konami 8-bit egg (↑↑↓↓←→←→ swipes on the plan rail) | glyphs morph to `PixelCircle` / `PixelTriangle` on `glyphMorph()` and straighten; sky quantises to 6 bands; times monospace; session-only, snackbar Exit; off under reduce motion and sleep windows | DECIDED |
+| Suitcase clock ticks | 3 discrete 1 s steps (`delay` × `MotionDurationScale`), then rest | DECIDED |
+| Top-level destination switch (fade-through) | `navigationFadeOut()` 90 ms EmphasizedAccelerate → `navigationFadeIn()` 210 ms (+90 ms delay) EmphasizedDecelerate + scale-in 0.92 via `navigationSpatial()`; ×1.5 under Calm | DECIDED |
+| Hierarchy push/pop (shared axis X, 30 dp, RTL-mirrored) | `navigationSpatial()` = Standard defaultSpatial (no bounce; snaps on reduce) + fades | DECIDED |
+| Predictive back (seekable) | exit scale 0.9 + slide away from swipe edge on `navigationSpatial()`, fade on `colour()` | DECIDED |
+| List-detail pane enter/exit, pane bounds | `navigationFadeIn()` / `navigationFadeOut()`; bounds `navigationSpatial()` | DECIDED |
+| Dot-matrix airport code picked (`IataCode`, `· · ·` → `SFO`) | dots turn to the new characters left to right, cell by cell and column by column, on `colour()` (~180 ms); first composition sits at rest | DECIDED |
+| Rolling readouts (`RollingText` / `RollingTimeText` / `RollingMetricText`) | only the changed run of characters rolls vertically, on `dataSpatial()` (no bounce: the readout is data), with a cross-fade from the same progress; up when the value grows, down when it shrinks; units and unchanged digits stay still; not used for per-frame values (scrubbing) | DECIDED |
+| Dial offset pill ("7 h behind") and body time on a day change | read the body sky's own animated offset in the draw phase, so the words step through the half hours exactly as the ring turns (one event, never two that disagree) | DECIDED |
+| Sleep dial readouts (bedtime / wake pills, centre duration) | follow a drag live with no roll (per-frame values); roll on discrete changes (TalkBack or keyboard nudge, a picked time, the 24.2 rubber band) as rolling readouts; text sized for the widest value so it never resizes | DECIDED |
+| Tool row switched on (onboarding / settings tools) | leading advice glyph Circle → advice shape on `glyphMorph()` (rare: a setup choice), back on `dataSpatial()` (the melatonin glyph twinkles once, as on the plan); row container and text tint to the advice container on `colour()`, read in draw; the switch and label carry the state without them | DECIDED |
+| Route arc banner: destination picked | flat dotted horizon springs up into the dashed arc on `containerSpatial()` (the dots stretch into dashes as it lifts); the plane glides to its position on `dataSpatial()`; destination code reveals as above | DECIDED |
+| Day strip following the two-pane rail (scrolled by hand) | the pill of the day the rail shows gets a short bar at its foot, swapped with no animation (rail scrolling is a 100+/day gesture; the day is read through a derived state, so the strip only recomposes at day boundaries); the strip scrolls only when that pill is out of sight, on `animateScrollToItem` (a jump under reduce motion). The bar and TalkBack's "In view on your plan" carry it; it never picks the day | DECIDED |
+| Header body sky on a day pick (a day strip pill, or a pick going live; the toolbar's day picker only scrolls the rail) | the new day's sky fades in over the old one on `colour()`, keyed by the picked day; the old sky stays put underneath, so the header never shows through, and the fade's alpha is read in the layer. Scrubbing and the minute tick repaint in place with no transition. Header text, icons, status-bar ink and the sun / moon follow the sky that is mostly showing: they switch once, at the fade's midpoint. A pick during a fade freezes the blend on screen and fades the new day in over it (no jump to the interrupted target) | DECIDED |
+| Two-pane rail following a dial scrub | the rail row under the dial's hand is highlighted (as before) and, when it is fully or partly off screen, the rail scrolls it into view on `dataSpatial()` (it is a time position: no bounce); a jump under reduce motion. Keyed by the row, so it moves once per block crossed, never per frame of the scrub; a row already in view (below the pinned day header) never moves the rail; a scrub into a day folded behind "earlier days" unfolds it first; never starts over a drag or fling of the user's own, and a grab mid-scroll takes the rail over. One pane: no scroll (the dial would scroll away) | DECIDED |
+| Light response curve sun (Why sheet of light advice, About) | follows a drag live (position read in draw; no recomposition per frame); a tap, TalkBack's Earlier / Later hour and Reset settle on `dataSpatial()` (where the sun sits is data); while held the sun grows 1.2× on `containerSpatial()` (a rare surface, so the Expressive container spring is allowed). The curve, lobes and band never move. Reduce motion: everything snaps; the readout text and the still sun carry the meaning | DECIDED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
