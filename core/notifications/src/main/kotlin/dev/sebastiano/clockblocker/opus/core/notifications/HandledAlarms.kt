@@ -42,14 +42,17 @@ class HandledAlarms(application: Application) {
     }
 
     /**
-     * Claims the delivered instant [at] and every armed instant up to [upTo] that no delivery claimed yet. Returns
-     * them in time order; empty when [at] was already handled and nothing else is due (a duplicate delivery).
+     * Claims the delivered instant [at] and every armed instant up to [upTo] (now) that no delivery claimed yet.
+     * Returns them in time order; empty when [at] was already handled and nothing else is due (a duplicate delivery),
+     * or when [at] is still in the future because the clock was set back after the alarm went off: it stays armed and
+     * the re-arm that follows the clock change schedules it again.
      */
     @Synchronized
     fun claimDue(at: Instant, upTo: Instant): List<Instant> {
+        if (at.isAfter(upTo)) return emptyList()
         val handled = read(KEY_HANDLED)
         val armed = read(KEY_ARMED)
-        val limit = maxOf(at, upTo).toEpochMilli()
+        val limit = upTo.toEpochMilli()
         val due = (armed.filter { it <= limit } + at.toEpochMilli()).filterNot { it in handled }.distinct().sorted()
         if (due.isEmpty()) return emptyList()
         prefs.edit(commit = true) {

@@ -228,6 +228,18 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `an alarm handled after the clock was set back below its instant claims nothing and reminds later`() = runTest {
+        val scheduler = scheduler()
+        clock.instant = utc("2026-10-10T13:00") // set back after the 13:45 alarm went off, before it was handled
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldBeNull()
+
+        clock.instant = utc("2026-10-10T13:45") // the re-armed alarm comes round
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull()
+    }
+
+    @Test
     fun `a duplicate delivery of an instant already handled does not remind again`() = runTest {
         capabilities.exact = false
         clock.instant = utc("2026-10-10T13:45")
