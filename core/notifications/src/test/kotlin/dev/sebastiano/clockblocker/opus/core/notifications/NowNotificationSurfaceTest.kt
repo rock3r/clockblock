@@ -146,7 +146,7 @@ class NowNotificationSurfaceTest {
         (n.flags and Notification.FLAG_ONLY_ALERT_ONCE) shouldBe Notification.FLAG_ONLY_ALERT_ONCE
         // setSilent(true): the child of a group only alerts via its (non-existent) summary, i.e. never.
         n.groupAlertBehavior shouldBe Notification.GROUP_ALERT_SUMMARY
-        n.smallIcon.resId shouldBe R.drawable.ic_notif_avoid_light
+        n.smallIcon.resId shouldBe R.drawable.ic_notif_app
         n.visibility shouldBe Notification.VISIBILITY_PUBLIC
     }
 
@@ -389,7 +389,7 @@ class NowNotificationSurfaceTest {
     }
 
     @Test
-    fun `a redacted melatonin reminder hides its name, dose and pill icon`() {
+    fun `a redacted melatonin reminder hides its name, dose and pill chip`() {
         val melatonin = advice(Melatonin, "2026-10-10T20:00", detail = "0.5 mg")
         val spec = ReminderSpec(ReminderKind.Moment, melatonin, expiresAt = melatonin.start.plusSeconds(7200))
 
@@ -397,7 +397,7 @@ class NowNotificationSurfaceTest {
 
         n.visibility shouldBe Notification.VISIBILITY_PRIVATE
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Melatonin now"
-        n.smallIcon.resId shouldBe R.drawable.ic_notif_clock
+        n.smallIcon.resId shouldBe R.drawable.ic_notif_app
         val public = n.publicVersion.shouldNotBeNull()
         public.extras.getString(Notification.EXTRA_TITLE) shouldBe "Plan step now"
         public.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "Unlock to see details"
@@ -523,7 +523,7 @@ class NowNotificationSurfaceTest {
         val n = posted.shouldNotBeNull()
         n.channelId shouldBe ClockblockChannel.Now.id
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "In flight · BA7"
-        n.smallIcon.resId shouldBe R.drawable.ic_notif_flight
+        n.smallIcon.resId shouldBe R.drawable.ic_notif_app
         (n.actions ?: emptyArray()).toList().shouldBeEmpty()
     }
 
@@ -533,6 +533,36 @@ class NowNotificationSurfaceTest {
             context.getDrawable(type.style.icon).shouldNotBeNull()
         }
         context.getDrawable(R.drawable.ic_notif_clock).shouldNotBeNull()
+    }
+
+    @Test
+    fun `every notification shows the app mark in the status bar, whatever the advice`() = runTest {
+        val factory = NotificationFactory(context, capabilities)
+        val app = R.drawable.ic_notif_app
+        context.getDrawable(app).shouldNotBeNull()
+
+        // Now (ongoing) and the Live Update on travel day.
+        surface.render() shouldBe NowRendering.Ongoing
+        posted.shouldNotBeNull().smallIcon.resId shouldBe app
+        plans.current.value = planOf(flight, avoid, sleep)
+        clock.instant = utc("2026-10-10T14:30")
+        surface.render() shouldBe NowRendering.LiveUpdate
+        posted.shouldNotBeNull().smallIcon.resId shouldBe app
+
+        // Reminders for every kind of advice, redacted or not, plus the test reminder and the group summary.
+        val now = utc("2026-10-10T15:00")
+        val melatonin = advice(Melatonin, "2026-10-10T20:00", detail = "0.5 mg")
+        val plan = planOf(flight, avoid, sleep, melatonin)
+        listOf(avoid, sleep, flight, melatonin).forEach { step ->
+            val spec = ReminderSpec(ReminderKind.Upcoming, step, expiresAt = step.start.plusSeconds(3600))
+            listOf(false, true).forEach { redact ->
+                val n = factory.reminder(spec, plan, now, redact = redact)
+                n.smallIcon.resId shouldBe app
+                n.publicVersion?.smallIcon?.resId?.let { it shouldBe app }
+            }
+        }
+        factory.test().smallIcon.resId shouldBe app
+        factory.summary(timeoutMillis = null).smallIcon.resId shouldBe app
     }
 
     @Test
