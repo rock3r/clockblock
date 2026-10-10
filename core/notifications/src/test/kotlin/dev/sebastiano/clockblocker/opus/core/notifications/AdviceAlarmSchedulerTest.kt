@@ -174,6 +174,23 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `a boundary the schedule dropped before it was due is not caught up later`() = runTest {
+        val scheduler = scheduler()
+        clock.instant = utc("2026-10-10T13:00")
+        scheduler.resync() // arms the 13:45 reminder for Avoid light
+        plans.current.value = planOf(light, sleep) // the block goes away...
+        scheduler.resync()
+        clock.instant = utc("2026-10-10T13:50")
+        plans.current.value = plan // ...and comes back after its reminder time
+        scheduler.resync()
+        clock.instant = utc("2026-10-10T14:00")
+
+        scheduler.onAlarm(utc("2026-10-10T14:00")) // the silent Start
+
+        reminder.shouldBeNull()
+    }
+
+    @Test
     fun `an earlier reminder delivered after a later instant is still sent, once`() = runTest {
         // Inexact alarms aren't ordered: the silent Start of See bright light (08:00) arrives before the reminder
         // due at 07:45. Handling 08:00 re-arms from now, which cancels 07:45, so 08:00 must remind for it.

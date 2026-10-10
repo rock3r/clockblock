@@ -24,13 +24,17 @@ class HandledAlarms(application: Application) {
     private val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
-     * Remembers [instants] as armed (until a delivery claims them). Handled instants later than [now] are forgotten:
-     * they were delivered under a wall clock that has since been set back, so they are due again.
+     * Records the schedule just armed: [instants] replace the future ones armed before, which the new schedule
+     * cancelled (a block deleted, reminders turned off). Instants that were already due and not yet delivered are
+     * kept, so the next delivery still catches up on them. Handled instants later than [now] are forgotten: they were
+     * delivered under a wall clock that has since been set back, so they are due again.
      */
     @Synchronized
     fun recordArmed(instants: Collection<Instant>, now: Instant) {
-        val handled = read(KEY_HANDLED).filter { it <= now.toEpochMilli() }
-        val armed = (read(KEY_ARMED) + instants.map { it.toEpochMilli() }).filterNot { it in handled }
+        val nowMillis = now.toEpochMilli()
+        val handled = read(KEY_HANDLED).filter { it <= nowMillis }
+        val stillDue = read(KEY_ARMED).filter { it <= nowMillis }
+        val armed = (stillDue + instants.map { it.toEpochMilli() }).filterNot { it in handled }
         prefs.edit(commit = true) {
             putString(KEY_ARMED, armed.joined())
             putString(KEY_HANDLED, handled.joined())
