@@ -45,7 +45,14 @@ internal class PlanBuilder(
     private val originZone: ZoneId = sortedLegs.first().origin.zone
     private val destZone: ZoneId = sortedLegs.last().destination.zone
     private val legs: List<LegHours> = sanitizedLegs()
-    private val homeOffset = legs.first().depOffset
+    /**
+     * Body clock at departure, as a UTC offset: the trip's [Trip.bodyClockStartZone] at the first departure. That is
+     * the first departure city unless the user said the body clock is still elsewhere (issue #9).
+     */
+    private val homeOffset = offsetHours(trip.bodyClockStartZone ?: originZone, sortedLegs.first().departure)
+
+    /** The journey as the validator sees it, starting from the same body clock as the plan. */
+    internal val itinerary = Itinerary(homeOffset, legs)
     private val dep = legs.first().dep
     private val arr = legs.last().arr
     private val habOnset = profile.sleep.bedtime.toSecondOfDay() / 3600.0
@@ -151,7 +158,7 @@ internal class PlanBuilder(
         if (cycles.isEmpty()) return null
         val all = planner.fillCaffeineAndNaps(cycles)
         val raw = adviceFromCycles(all) + flightMarkers()
-        val result = validator.validate(Itinerary(homeOffset, legs), LightPlan.of(all, rest), horizon)
+        val result = validator.validate(itinerary, LightPlan.of(all, rest), horizon)
         val main = segPlans.maxBy { abs(it.targetPhi) }
         val targets = segments.map { it.last().arrOffset }
         return assemble(
@@ -189,7 +196,7 @@ internal class PlanBuilder(
             }
         }
         raw += flightMarkers()
-        val noPlan = validator.validate(Itinerary(homeOffset, legs), null, horizon).noPlan.adaptDays ?: horizon.toDouble()
+        val noPlan = validator.validate(itinerary, null, horizon).noPlan.adaptDays ?: horizon.toDouble()
         return assemble(
             raw = raw,
             track = PhaseTrack.Constant(homeOffset, t0Clock),
@@ -218,7 +225,7 @@ internal class PlanBuilder(
             nights++
         }
         raw += flightMarkers()
-        val days = validator.validate(Itinerary(homeOffset, legs), null, horizon).noPlan.adaptDays ?: horizon.toDouble()
+        val days = validator.validate(itinerary, null, horizon).noPlan.adaptDays ?: horizon.toDouble()
         return assemble(
             raw = raw,
             track = PhaseTrack.Drift(homeOffset, delta, arr, config.naturalDriftPerDay, t0Clock),
