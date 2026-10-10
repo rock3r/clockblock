@@ -91,6 +91,22 @@ object TransitionPlanner {
     fun transitionsAt(plan: JetLagPlan, settings: AppSettings, at: Instant): List<Transition> =
         transitions(plan, settings).filter { it.at == at }
 
+    /**
+     * How long before a block starts the widget dial must have it: its 16 h of future, less an hour, because the dial
+     * measures the wall clock and a clock change on the way can stretch real time by one.
+     */
+    val DIAL_ENTRY_LEAD: Duration = Duration.ofHours(15)
+
+    /**
+     * The next instant strictly after [now] at which a block of [plan] comes into the widget dial's view
+     * ([DIAL_ENTRY_LEAD] before it starts). Widgets capture the dial's blocks and only move the hand, so without a
+     * refresh then a block further away than the dial's future would stay off it until it starts.
+     */
+    fun nextDialEntry(plan: JetLagPlan, now: Instant): Instant? = plan.allAdvice
+        .map { it.start.minus(DIAL_ENTRY_LEAD) }
+        .filter { it.isAfter(now) }
+        .minOrNull()
+
     private fun rawTransitions(advice: Advice, lead: Duration): List<Transition> = when {
         advice.type.isMoment -> listOf(Transition(advice.start, TransitionKind.Moment, advice))
         advice.type == AdviceType.Flight -> listOf(

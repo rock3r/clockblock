@@ -38,6 +38,9 @@ object DemoPlans {
     /** The demo trip's airport code per zone (see [WidgetStateMapper.placeCodes]). */
     val PLACE_CODES: Map<String, String> by lazy { WidgetStateMapper.placeCodes(trip()) }
 
+    /** The demo trip's place per zone, for the dial's sky (see [WidgetStateMapper.places]). */
+    val PLACES: Map<String, Place> by lazy { WidgetStateMapper.places(trip()) }
+
     /** The demo trip itself (Lisbon → Tokyo Haneda), for tests and the gallery. */
     fun trip(): Trip {
         val lis = Place("LIS", "Humberto Delgado", "Lisbon", "PT", ORIGIN, 38.77, -9.13)
@@ -73,12 +76,22 @@ object DemoPlans {
         )
         val tokyo = ZoneId.of(DESTINATION)
         val day = PlanDay(2, DayKind.Arrival, now.atZone(tokyo).toLocalDate(), DESTINATION, advice)
-        // Body clock: home (Lisbon, +1 h in summer) drifting east; about 7 h behind Tokyo today.
-        val phase = listOf(
-            PhasePoint(at(-24.0), 90, at(-24.0 + 9.0)),
-            PhasePoint(at(0.0), 120, at(9.5)),
-            PhasePoint(at(24.0), 180, at(24.0 + 8.0)),
-        )
+        // Body clock: home (Lisbon, +1 h in summer) drifting east; about 7 h behind Tokyo today. Adapted: it left
+        // Lisbon time days ago and has been on Tokyo time (+9 h) since, so the dial reads in sync like the texts and
+        // the adaptation bar is full.
+        val phase = if (scenario == Scenario.Adapted) {
+            listOf(
+                PhasePoint(at(-120.0), 60, at(-120.0 + 9.0)),
+                PhasePoint(at(-24.0), 540, at(-24.0 + 4.5)),
+                PhasePoint(at(24.0), 540, at(24.0 + 4.5)),
+            )
+        } else {
+            listOf(
+                PhasePoint(at(-24.0), 90, at(-24.0 + 9.0)),
+                PhasePoint(at(0.0), 120, at(9.5)),
+                PhasePoint(at(24.0), 180, at(24.0 + 8.0)),
+            )
+        }
         return JetLagPlan(
             tripId = TRIP_ID,
             generatedAt = now.minus(Duration.ofDays(3)),
