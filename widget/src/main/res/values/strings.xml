@@ -43,7 +43,6 @@
     <string name="widget_secondary_compact">%1$s %2$s</string>
     <!-- "until 16:30 · 08:30 LIS": the until line with the other zone's time, for the smallest cells. -->
     <string name="widget_until_compact">%1$s · %2$s</string>
-    <string name="widget_body_prefix">body</string>
     <string name="widget_in_sync">in sync</string>
     <!-- Fallback when the launcher cannot play the widget: tapping it opens the app. -->
     <string name="widget_placeholder">Open Clockblock</string>

@@ -16,7 +16,6 @@ import androidx.compose.remote.core.operations.utilities.AnimatedFloatExpression
 import androidx.compose.remote.creation.CreationDisplayInfo
 import androidx.compose.remote.creation.RemoteComposeWriterAndroid
 import androidx.compose.remote.creation.platform.AndroidxRcPlatformServices
-import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.widget.text.CountdownWords
 import java.lang.reflect.Constructor
 import java.text.DecimalFormat
@@ -55,27 +54,6 @@ internal object HostTime {
     /** Minutes elapsed since [capturedUtcMinute] (UTC minute of day at capture), wrapping after 24 h. */
     fun minutesSince(capturedUtcMinute: Int): RemoteFloat =
         (utcMinuteOfDay() - capturedUtcMinute.toFloat().rf + 1440f.rf) % 1440f.rf
-
-    /**
-     * 1 while [minuteOfDay] is between sunrise and sunset ([TwoClocksDial.SUNRISE_MINUTE]..[TwoClocksDial.SUNSET_MINUTE]),
-     * else (almost) 0: a scale factor that shows the sun head by day. Never exactly 0 so no draw gets a singular matrix.
-     */
-    fun dayFactor(minuteOfDay: RemoteFloat): RemoteFloat = selectIfLt(
-        minuteOfDay,
-        TwoClocksDial.SUNRISE_MINUTE.toFloat().rf,
-        HIDDEN.rf,
-        selectIfLt(minuteOfDay, TwoClocksDial.SUNSET_MINUTE.toFloat().rf, 1f.rf, HIDDEN.rf),
-    )
-
-    /** The opposite of [dayFactor]: shows the moon head at night. */
-    fun nightFactor(minuteOfDay: RemoteFloat): RemoteFloat = selectIfLt(
-        minuteOfDay,
-        TwoClocksDial.SUNRISE_MINUTE.toFloat().rf,
-        1f.rf,
-        selectIfLt(minuteOfDay, TwoClocksDial.SUNSET_MINUTE.toFloat().rf, HIDDEN.rf, 1f.rf),
-    )
-
-    private const val HIDDEN = 0.0001f
 }
 
 /** Host-evaluated text formatting. */
@@ -94,6 +72,12 @@ internal object HostText {
             h12.toRemoteString(oneDigit) + ":".rs + minutes
         }
     }
+
+    /** The 12-hour clock's marker for a minute-of-day expression: [am] before noon, [pm] after. */
+    fun marker(minuteOfDay: RemoteFloat, am: String, pm: String): RemoteString =
+        selectIfLt(minuteOfDay, NOON_MINUTE.rf, am.rs, pm.rs)
+
+    private const val NOON_MINUTE = 720f
 
     /**
      * Live countdown: "42m", "2h 10m" ("2h10m" when [compact]). [totalMinutes] is the distance from capture to the

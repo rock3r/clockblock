@@ -71,12 +71,19 @@ object WidgetSizes {
     )
 
     /**
-     * Two Clocks, smallest area first: the dial alone, the dial with a caption, and the dial with a now card. 2×2
-     * portrait (130×220) → Square, 2×3 portrait → Tall, 2×2 landscape (269×117) → Wide, 4×2 portrait and up → Large.
+     * Two Clocks, smallest area first: the strips alone (1×1, then the 2×1 / 4×1 rows), the dial with a caption, and
+     * the dial or strips with a now card. 2×1 portrait (130×102) → the taller narrow Strip, 2×1 landscape (269×51)
+     * and 4×1 landscape → the short wide Strip, 4×1 portrait (276×102) → the taller wide Strip, 2×2 portrait
+     * (130×220) → Square, 2×3 portrait → Tall, 2×2 landscape (269×117) → Wide, 4×2 portrait and up → Large. The
+     * short narrow Strip catches launchers whose 2×1 is narrower than the docs' landscape cell.
      */
     val TWO_CLOCKS: List<Bucket<TwoClocksLayout>> = listOf(
         Bucket(TwoClocksLayout.Compact, FLOOR),
+        Bucket(TwoClocksLayout.Strip, CellDp(117f, 51f)),
+        Bucket(TwoClocksLayout.Strip, CellDp(117f, 84f)),
         Bucket(TwoClocksLayout.Square, CellDp(101f, 121f)),
+        Bucket(TwoClocksLayout.Strip, CellDp(250f, 51f)),
+        Bucket(TwoClocksLayout.Strip, CellDp(250f, 84f)),
         Bucket(TwoClocksLayout.Wide, CellDp(269f, 108f)),
         Bucket(TwoClocksLayout.Tall, CellDp(123f, 248f)),
         Bucket(TwoClocksLayout.Large, CellDp(269f, 220f)),
