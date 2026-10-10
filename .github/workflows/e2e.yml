@@ -50,11 +50,12 @@ jobs:
           disk-size: 8G
           ram-size: 4096M
           disable-animations: true
-          # The API 37 image's gralloc mapper needs the host's ReadColorBufferDma feature, which the stable emulator
-          # (37.2.12) doesn't have: surfaceflinger aborts every half a minute or so and takes system_server with it (see
-          # run-e2e.sh). The canary channel's emulator is newer.
+          # The API 37 image's gralloc mapper aborts any CPU read of a host colour buffer unless the host offers
+          # ReadColorBufferDma, which no emulator with host-side software rendering does yet (stable 37.2.12, canary
+          # 37.3.3): surfaceflinger's region sampling and system_server's task snapshots read buffers back, so
+          # system_server keeps restarting. Guest-side rendering (-gpu guest) has no host colour buffers to read.
           channel: canary
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu guest -noaudio -no-boot-anim -camera-back none
           # The script waits for a steady system, retries a failed install once and keeps the Gradle log for the check
           # below.
           script: bash .github/scripts/run-e2e.sh
