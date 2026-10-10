@@ -23,7 +23,7 @@
 
     <!-- 2. Home time zone. -->
     <string name="home_headline">Where\'s home?</string>
-    <string name="home_body">Every plan starts from your home clock. We picked your phone\'s time zone; change it if that\'s not where your body lives.</string>
+    <string name="home_body">We picked your phone\'s time zone; change it if you live somewhere else. A trip that leaves from another city can then start on home time.</string>
     <string name="home_current_label">Home time zone</string>
     <string name="home_device_chip">Phone\'s time zone</string>
     <string name="home_use_device">Use phone\'s time zone</string>

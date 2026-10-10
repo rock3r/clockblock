@@ -73,6 +73,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.feature.trips.R
@@ -84,6 +85,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Stateful editor entry: collects the ViewModel, forwards saves to [onDone] and guards unsaved changes
@@ -433,28 +435,73 @@ private fun TripDetails(state: TripEditorUiState, actions: TripEditorActions, on
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
+
+            state.bodyClockStart?.let { choice -> BodyClockStart(choice, actions::onBodyClockStartChange) }
         }
     }
 }
 
+/**
+ * "Body clock when you leave" (issue #9): departure city or home. Only offered when the two are on different
+ * times at departure, so it never shows for the common case of flying out from home.
+ */
+@Composable
+private fun BodyClockStart(choice: BodyClockStartChoice, onSelect: (Boolean) -> Unit) {
+    val homeCity = remember(choice.homeZoneId) { ZoneId.of(choice.homeZoneId).cityName() }
+    val departureCity = choice.departure.cityLabel
+    Spacer(Modifier.height(20.dp))
+    Text(stringResource(R.string.editor_body_clock_start), style = MaterialTheme.typography.titleSmall)
+    Spacer(Modifier.height(8.dp))
+    ConnectedToggleGroup(
+        options = listOf(
+            ToggleOption(false, stringResource(R.string.editor_body_clock_start_departure), TripsTestTags.EditorBodyClockStartDeparture),
+            ToggleOption(true, stringResource(R.string.editor_body_clock_start_home, homeCity), TripsTestTags.EditorBodyClockStartHome),
+        ),
+        selected = choice.fromHome,
+        onSelect = onSelect,
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        if (choice.fromHome) {
+            stringResource(R.string.editor_body_clock_start_home_explanation, homeCity, departureCity)
+        } else {
+            stringResource(R.string.editor_body_clock_start_departure_explanation, departureCity)
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
 /** Auto / Adapt / Home time as a connected M3 Expressive button group. */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StrategyToggle(selected: AdaptationStrategy?, onSelect: (AdaptationStrategy?) -> Unit) {
-    val options = listOf(
-        Triple<AdaptationStrategy?, Int, String>(null, R.string.editor_strategy_auto, TripsTestTags.EditorStrategyAuto),
-        Triple(AdaptationStrategy.Adapt, R.string.editor_strategy_adapt, TripsTestTags.EditorStrategyAdapt),
-        Triple(AdaptationStrategy.StayOnHomeTime, R.string.editor_strategy_home, TripsTestTags.EditorStrategyHome),
+    ConnectedToggleGroup(
+        options = listOf(
+            ToggleOption(null, stringResource(R.string.editor_strategy_auto), TripsTestTags.EditorStrategyAuto),
+            ToggleOption(AdaptationStrategy.Adapt, stringResource(R.string.editor_strategy_adapt), TripsTestTags.EditorStrategyAdapt),
+            ToggleOption(AdaptationStrategy.StayOnHomeTime, stringResource(R.string.editor_strategy_home), TripsTestTags.EditorStrategyHome),
+        ),
+        selected = selected,
+        onSelect = onSelect,
     )
+}
+
+private data class ToggleOption<T>(val value: T, val label: String, val tag: String)
+
+/** One-of-n choice as a connected M3 Expressive button group: equal widths, labels wrap to two lines. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun <T> ConnectedToggleGroup(options: List<ToggleOption<T>>, selected: T, onSelect: (T) -> Unit) {
     Row(
         Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
     ) {
-        options.forEachIndexed { index, (value, label, tag) ->
+        options.forEachIndexed { index, option ->
             ToggleButton(
-                checked = selected == value,
-                onCheckedChange = { onSelect(value) },
-                modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp).testTag(tag),
+                checked = selected == option.value,
+                onCheckedChange = { onSelect(option.value) },
+                modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp).testTag(option.tag),
                 shapes = when (index) {
                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                     options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
@@ -462,7 +509,7 @@ private fun StrategyToggle(selected: AdaptationStrategy?, onSelect: (AdaptationS
                 },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                Text(stringResource(label), maxLines = 2, textAlign = TextAlign.Center)
+                Text(option.label, maxLines = 2, textAlign = TextAlign.Center)
             }
         }
     }

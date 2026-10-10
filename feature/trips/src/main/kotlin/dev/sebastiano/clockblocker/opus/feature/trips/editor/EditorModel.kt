@@ -96,6 +96,19 @@ data class EditorForm(
     val returnDate: LocalDate? = null,
     val returnTime: LocalTime? = null,
     val strategy: AdaptationStrategy? = null,
+    /** [dev.sebastiano.clockblocker.opus.core.model.Trip.bodyClockStartZoneId]: null = the departure city. */
+    val bodyClockStartZoneId: String? = null,
+)
+
+/**
+ * "Body clock when you leave": offered when home and the first departure city are on different UTC offsets at
+ * departure, so the choice changes the plan. [homeZoneId] is what the Home option stores: the trip's saved zone if
+ * it has one, else the profile's home zone.
+ */
+data class BodyClockStartChoice(
+    val departure: Place,
+    val homeZoneId: String,
+    val fromHome: Boolean,
 )
 
 enum class EditorMode { New, Edit, Return }
@@ -145,8 +158,15 @@ data class TripEditorUiState(
     val delayLegIndex: Int = 0,
     /** The planner's take on the draft, once every leg is complete and error-free (null until then). */
     val preview: ShiftPreview? = null,
+    /** The profile's home zone (null before onboarding). */
+    val homeZoneId: String? = null,
+    /** Where the body clock starts, when that choice matters for this draft (null: not offered). */
+    val bodyClockStart: BodyClockStartChoice? = null,
 ) {
     val legs: List<LegDraft> get() = form.legs
+
+    /** What Save stores as the body clock start: the Home zone when that's offered and picked, else null. */
+    val effectiveBodyClockStartZoneId: String? get() = bodyClockStart?.takeIf { it.fromHome }?.homeZoneId
 
     /** The title Save will use. */
     val effectiveTitle: String get() = if (form.titleEdited) form.title.ifBlank { suggestedTitle } else suggestedTitle

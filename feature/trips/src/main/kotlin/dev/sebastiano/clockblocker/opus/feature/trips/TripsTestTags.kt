@@ -29,6 +29,8 @@ object TripsTestTags {
     const val EditorStrategyAuto = "editor_strategy_auto"
     const val EditorStrategyAdapt = "editor_strategy_adapt"
     const val EditorStrategyHome = "editor_strategy_home"
+    const val EditorBodyClockStartDeparture = "editor_body_clock_start_departure"
+    const val EditorBodyClockStartHome = "editor_body_clock_start_home"
     const val EditorDelay = "editor_delay"
     const val EditorDelayCustom = "editor_delay_custom"
     const val DiscardConfirm = "editor_discard_confirm"

@@ -52,7 +52,7 @@ class NotificationFactory(
     fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val text = formatter(publicText).now(state, plan, now)
-            val builder = ongoingBuilder(ClockblockChannel.Now, state, text, redacted = redact)
+            val builder = ongoingBuilder(ClockblockChannel.Now, state, text)
             if (!publicText) {
                 builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
                     .setCustomContentView(NowNotificationViews.collapsed(context, state, text, now))
@@ -81,13 +81,13 @@ class NotificationFactory(
         route: TripRoute? = null,
         redact: Boolean = false,
     ): Notification {
-        // The private (full) version keeps every detail in its text; only icons follow the redaction setting.
+        // The private (full) version keeps every detail in its text.
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val formatter = formatter(publicText)
             val text = formatter.now(state, plan, now).copy(
                 subText = formatter.travelSubText(plan, now, route?.let { formatter.route(it.from, it.to) }),
             )
-            return liveBuilder(state, now, progress, text, formatter.localClock(plan, now), redacted = redact)
+            return liveBuilder(state, now, progress, text, formatter.localClock(plan, now))
         }
         return build(publicText = false).withPublicVersion(redact) { build(publicText = true).clearActions().build() }.build()
     }
@@ -98,7 +98,6 @@ class NotificationFactory(
         progress: TravelProgress,
         text: NotificationText,
         clock: ClockFormat,
-        redacted: Boolean,
     ): NotificationCompat.Builder {
         val style = NotificationCompat.ProgressStyle()
             .setStyledByProgress(true)
@@ -116,7 +115,7 @@ class NotificationFactory(
             .setProgress(progress.progressMinutes)
             .setProgressTrackerIcon(IconCompat.createWithResource(context, R.drawable.ic_notif_flight))
 
-        val builder = ongoingBuilder(ClockblockChannel.TravelLive, state, text, redacted)
+        val builder = ongoingBuilder(ClockblockChannel.TravelLive, state, text)
             .setStyle(style)
             .setLargeIcon(AdviceChip.bitmap(context, state.headline?.type))
             .setRequestPromotedOngoing(capabilities.canPostPromotedNotifications())
@@ -136,7 +135,7 @@ class NotificationFactory(
     /**
      * An alerting reminder on the advice's own channel; expires by itself once it would be untrue.
      *
-     * @param redact see [now]; a melatonin reminder also swaps its pill icon for the plain clock.
+     * @param redact see [now]; a melatonin reminder also swaps its pill chip for the plain clock.
      */
     fun reminder(
         spec: ReminderSpec,
@@ -162,7 +161,7 @@ class NotificationFactory(
         val advice = spec.advice
         val style = advice.type.style
         val builder = NotificationCompat.Builder(context, style.channel.id)
-            .setSmallIcon(iconOf(advice.type, redacted))
+            .setSmallIcon(R.drawable.ic_notif_app)
             .setLargeIcon(AdviceChip.bitmap(context, advice.type.takeUnless { redacted && it == AdviceType.Melatonin }))
             .setColor(style.color)
             .setContentTitle(text.title)
@@ -190,7 +189,7 @@ class NotificationFactory(
     fun test(): Notification {
         val text = formatter().test()
         return NotificationCompat.Builder(context, ClockblockChannel.Light.id)
-            .setSmallIcon(R.drawable.ic_notif_clock)
+            .setSmallIcon(R.drawable.ic_notif_app)
             .setColor(BRAND_COLOR)
             .setContentTitle(text.title)
             .setContentText(text.text)
@@ -212,7 +211,7 @@ class NotificationFactory(
      */
     fun summary(timeoutMillis: Long?): Notification {
         val builder = NotificationCompat.Builder(context, ClockblockChannel.Now.id)
-            .setSmallIcon(R.drawable.ic_notif_clock)
+            .setSmallIcon(R.drawable.ic_notif_app)
             .setColor(BRAND_COLOR)
             .setContentTitle(context.getString(R.string.notif_summary_title))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -231,11 +230,10 @@ class NotificationFactory(
         channel: ClockblockChannel,
         state: NowState,
         text: NotificationText,
-        redacted: Boolean,
     ): NotificationCompat.Builder {
         val headline = state.headline
         val builder = NotificationCompat.Builder(context, channel.id)
-            .setSmallIcon(headline?.type?.let { iconOf(it, redacted) } ?: R.drawable.ic_notif_clock)
+            .setSmallIcon(R.drawable.ic_notif_app)
             .setColor(headline?.type?.style?.color ?: BRAND_COLOR)
             .setContentTitle(text.title)
             .setContentText(text.line)
@@ -273,10 +271,6 @@ class NotificationFactory(
     ): NotificationCompat.Builder = apply {
         if (redact) setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public())
     }
-
-    /** The advice's glyph; melatonin's pill would name it in the status bar, so redaction shows the clock. */
-    private fun iconOf(type: AdviceType, redacted: Boolean): Int =
-        if (redacted && type == AdviceType.Melatonin) R.drawable.ic_notif_clock else type.style.icon
 
     private fun action(action: AdviceAction, source: ActionSource, tripId: String, adviceId: String) =
         NotificationCompat.Action.Builder(

@@ -28,12 +28,25 @@ reference scripts in `docs/research/reference/`.
 | Legs | `Trip.legs` | Local date-times + IANA zones; converted to UTC instants with the tz database (DST and historical offsets included). Sorted by departure. |
 | Return | `Trip.returnDeparture` | Optional. Detects short trips; advice is clipped at the return departure. |
 | Strategy override | `Trip.strategyOverride` | `StayOnHomeTime` forces home-time mode; `Adapt` disables the short-trip rule. |
+| Body clock start | `Trip.bodyClockStartZoneId` | Optional IANA zone the body clock is on at departure. Null (the default) = the first leg's origin. |
 | Habitual sleep | `UserProfile.sleep` | Home-clock bedtime and wake; duration coerced to 3–14 h. |
 | Chronotype | `UserProfile.chronotype` | Definite/Moderate morning → early, Intermediate → neutral, Moderate/Definite evening → late. |
 | Toggles | `useMelatonin`, `useCaffeine`, `canSleepOnPlanes`, `adjustBeforeDeparture`, `intensity` | See §6. |
 
-The **home body clock** is the UTC offset of the first leg's origin at departure (not `profile.homeZoneId`):
-a traveller starting from somewhere other than home is assumed to be entrained to where they start.
+The **home body clock** (the start phase) is the UTC offset at the first departure of `Trip.bodyClockStartZoneId`,
+or of the first leg's origin when that is null (or a zone the device's tzdata doesn't know). The planner never reads
+`profile.homeZoneId`. What matters is where the body clock is entrained when the trip starts, and the home zone
+alone doesn't say: someone who has spent three weeks in New York is on New York time whatever their profile says,
+and someone who landed there yesterday isn't. So the default assumes the traveller is entrained where they start,
+which is right for anyone flying out from home and for long stays. The trip editor offers "Body clock when you
+leave" (departure city or home) only when the home zone and the first departure city are on different UTC offsets
+at departure, and stores the home zone's IANA id when the user picks home.
+
+The same offset is the "home" of everything downstream: the per-segment Δ in §3 (so a trip within one zone still
+gets a plan when the body clock starts elsewhere), the cycle planner's starting body offset, home-time mode, the
+no-plan drift track, and the validator's `Itinerary` (§6). The validator then models the days before departure as
+habitual days on that offset: someone who has only just arrived is assumed not to have started adapting to the
+departure city yet. That slightly overstates the remaining shift if they have, which is the cautious side.
 
 All computation runs in *planner hours*: `Double` hours since the UTC midnight of the first departure. Every
 modern UTC offset is a multiple of 15 min, so rounding to 15 min on this grid is also exact on the local grid
@@ -56,7 +69,7 @@ else                                                  → ADAPT
 * **Home time** (`strategy = StayOnHomeTime`, `direction = None`, `shiftHours = 0`, `estimatedDaysToAdapt = 0`):
   sleep at the habitual home-clock time (minus airport-transit blocks), avoid light from CBTmin − 8 h to +3 h,
   see light from +3 h to +16 h, caffeine windows and cut-off on the home clock. The body clock stays on the
-  origin offset. `estimatedDaysWithoutPlan` is still simulated so the UI can explain the choice. Home-time mode
+  start offset (§2). `estimatedDaysWithoutPlan` is still simulated so the UI can explain the choice. Home-time mode
   never suggests melatonin (§9: a sleep-aid dose at destination bedtime would push the clock).
 * **Adapt**: the cycle planner below.
 
@@ -205,6 +218,8 @@ city, destination) with 100 lux in flight.
   return flight the final body clock is within 0.5 h of destination time. All extreme zone pairs are planned in
   both directions.
 * `BodyClockTest`: read-side helpers.
+* `BodyClockStartTest`: `Trip.bodyClockStartZoneId` (§2): null plans exactly as the departure city; the start
+  phase, home-time mode and the validator's itinerary follow the chosen zone; an unknown zone falls back.
 
 ## 7. Known limitations
 
@@ -219,6 +234,8 @@ city, destination) with 100 lux in flight.
 * Stored phase offsets may wrap from +12 h to −12 h for trips across the date line; always interpolate along the
   shortest arc.
 * Fixed commitments at the destination (§12.1 "optional") are not modelled.
+* Where the body clock starts is the user's call (departure city or home, §2). Partial adaptation from a recent
+  stay, or from an earlier trip, is not estimated.
 
 ## 8. References
 

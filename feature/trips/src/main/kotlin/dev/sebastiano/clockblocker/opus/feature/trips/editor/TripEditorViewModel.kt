@@ -41,6 +41,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -119,7 +120,8 @@ class TripEditorViewModel(
             else -> EditorMode.New to EditorForm(listOf(LegDraft(newId())))
         }
         baseline = form
-        _state.value = derive(TripEditorUiState(loading = false, mode = mode), form)
+        val home = profiles.profile.first()?.homeZoneId
+        _state.value = derive(TripEditorUiState(loading = false, mode = mode, homeZoneId = home), form)
         schedulePreview(_state.value)
     }
 
@@ -132,6 +134,7 @@ class TripEditorViewModel(
             returnDate = back?.toLocalDate(),
             returnTime = back?.toLocalTime()?.withSecond(0)?.withNano(0),
             strategy = trip.strategyOverride,
+            bodyClockStartZoneId = trip.bodyClockStartZoneId,
         )
     }
 
@@ -203,6 +206,12 @@ class TripEditorViewModel(
     override fun clearReturn() = editForm { it.copy(returnDate = null, returnTime = null) }
 
     override fun onStrategyChange(strategy: AdaptationStrategy?) = editForm { it.copy(strategy = strategy) }
+
+    /** "Body clock when you leave": Home stores the offered home zone, the departure city stores nothing. */
+    override fun onBodyClockStartChange(fromHome: Boolean) {
+        val home = _state.value.bodyClockStart?.homeZoneId ?: return
+        editForm { it.copy(bodyClockStartZoneId = if (fromHome) home else null) }
+    }
 
     /** Adds a connecting flight that leaves from where the last one lands, on the day it lands. */
     override fun addLeg() = editForm { form ->
@@ -368,6 +377,7 @@ class TripEditorViewModel(
                 createdAt = original?.createdAt ?: clock.instant(),
                 strategyOverride = current.form.strategy,
                 returnDeparture = returnDeparture,
+                bodyClockStartZoneId = current.effectiveBodyClockStartZoneId,
             )
             trips.upsert(trip)
             outbound?.let { out -> if (out.returnDeparture == null) trips.upsert(returnTrips.linkOutbound(out, trip)) }
@@ -392,7 +402,25 @@ class TripEditorViewModel(
             dirty = form != baseline,
             canReportDelay = canDelay,
             delayLegIndex = built.indexOfFirst { it != null && it.arrival.isAfter(now) }.coerceAtLeast(0),
+            bodyClockStart = bodyClockStartChoice(form, base.homeZoneId),
         )
+    }
+
+    /**
+     * Offers "Body clock when you leave" once the first departure (airport and date) is known and the Home option's
+     * zone is on a different UTC offset from it then; otherwise the choice can't change the plan. The Home option is
+     * the trip's saved zone if it has one (kept even if home has changed since), else the profile's home zone.
+     */
+    private fun bodyClockStartChoice(form: EditorForm, homeZoneId: String?): BodyClockStartChoice? {
+        val (departure, at) = form.legs.mapNotNull { leg ->
+            val place = leg.origin.place ?: return@mapNotNull null
+            val date = leg.departureDate ?: return@mapNotNull null
+            place to date.atTime(leg.departureTime ?: LocalTime.NOON).atZone(place.zone).toInstant()
+        }.minByOrNull { it.second } ?: return null
+        val homeId = form.bodyClockStartZoneId ?: homeZoneId ?: return null
+        val home = runCatching { ZoneId.of(homeId) }.getOrNull() ?: return null
+        if (home.rules.getOffset(at) == departure.zone.rules.getOffset(at)) return null
+        return BodyClockStartChoice(departure, homeId, fromHome = form.bodyClockStartZoneId != null)
     }
 
     /** Whole-trip validation when every leg is complete; otherwise each complete leg on its own. */
@@ -405,8 +433,8 @@ class TripEditorViewModel(
     }
 
     /**
-     * Re-plans the draft (debounced, off the main thread) when what the planner sees changed: legs, strategy or
-     * return. Titles and flight numbers don't move the plan, so typing them never re-runs it. The previous preview
+     * Re-plans the draft (debounced, off the main thread) when what the planner sees changed: legs, strategy,
+     * return or where the body clock starts. Titles and flight numbers don't move the plan, so typing them never re-runs it. The previous preview
      * stays up while a new one is computed, and goes away as soon as the draft can't be planned.
      */
     private fun schedulePreview(state: TripEditorUiState) {
@@ -447,6 +475,7 @@ class TripEditorViewModel(
             createdAt = original?.createdAt ?: PlaceholderInstant,
             strategyOverride = state.form.strategy,
             returnDeparture = returnDeparture,
+            bodyClockStartZoneId = state.effectiveBodyClockStartZoneId,
         )
     }
 
