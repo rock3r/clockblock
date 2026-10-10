@@ -26,6 +26,18 @@ enum class DetailLevel {
             minSideDp < FullMinDp -> Simple
             else -> Full
         }
+
+        /** Two strips' narrowest Simple box: below it there is only room for the bars between the two times. */
+        const val StripSimpleMinWidthDp = 150f
+        const val StripFullMinWidthDp = 280f
+        const val StripFullMinHeightDp = 128f
+
+        /** The level of a Two strips box: narrow is Glance, wide and tall is Full, the rest Simple. */
+        fun forStrip(widthDp: Float, heightDp: Float): DetailLevel = when {
+            widthDp < StripSimpleMinWidthDp -> Glance
+            widthDp >= StripFullMinWidthDp && heightDp >= StripFullMinHeightDp -> Full
+            else -> Simple
+        }
     }
 }
 

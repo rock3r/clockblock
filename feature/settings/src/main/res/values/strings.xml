@@ -83,7 +83,7 @@
 
     <string name="settings_section_widgets">Widgets</string>
     <string name="settings_widgets_intro">Your plan on the home screen, without opening the app.</string>
-    <string name="settings_widget_two_clocks">Two Clocks</string>
+    <string name="settings_widget_two_clocks">Two clocks</string>
     <string name="settings_widget_two_clocks_description">Local time and your body clock on one dial.</string>
     <string name="settings_widget_next_up">Next up</string>
     <string name="settings_widget_next_up_description">What to do now, with a countdown.</string>

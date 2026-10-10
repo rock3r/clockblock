@@ -140,7 +140,7 @@ Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet 
 
 **Reminders**: exact alarms per transition with lead time (0/15/30 min). Never notify inside a sleep block except to wake you. One ongoing "Now" notification (Live Update on Android 16 travel days). Per-advice channels.
 
-**Platform**: offline, Room, no account, no analytics, JSON export/import, ICS export. Glance widgets: *Next up* + *Two Clocks*. M3 Expressive theme + dynamic colour, TalkBack, font scaling. Science page + disclaimers.
+**Platform**: offline, Room, no account, no analytics, JSON export/import, ICS export. Glance widgets: *Next up* + *Two clocks*. M3 Expressive theme + dynamic colour, TalkBack, font scaling. Science page + disclaimers.
 
 ## 1.9 "Beyond Timeshifter" (v1.x → v2)
 
@@ -242,20 +242,35 @@ once you're adapted the two rings are identical.
   so Tromsø reads "TROMSØ" though it keeps Oslo's zone id. With no stop there, or a name too wide for the hub ("Qian
   Gorlos Mongol Autonomous County"), the dial uses the zone's city at every detail level.
 - **Detail levels** by the dial's smaller side: **Full** ≥ 250 dp (everything above), **Simple** 110–250 dp (ring
-  labels shortened to the city and "BODY", no narration, no numerals), **Glance** < 110 dp (the two skies, the needle
-  and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card carries the words.
+  labels shortened to the city and "BODY", no narration, no numerals; when the two would sit side by side, as once
+  adapted, "BODY" moves to the body's day, or goes, so they never read as one phrase), **Glance** < 110 dp (the two
+  skies, the needle and the two times). The in-app hero is 200–320 dp, so compact phones get Simple; the Now card
+  carries the words.
 - **Day change:** the body ring **turns** into place (`ClockblockMotion` slow spatial, no overshoot: the ring is
   data). Rings aligned → `HapticFeedbackConstants.CONFIRM`.
 - **Scrub:** drag the needle to preview any time; the cards below sync. `CLOCK_TICK` haptic each hour, `SEGMENT_TICK` at
   block boundaries, and a dot keeps the real now. Tap the centre to return.
 - **A11y:** TalkBack: "14:20 local. Your body clock is 09:56. Now: see bright light until 15:00. Next: …" Custom
   actions *Next block*, *Previous block*, *Back to now*.
-- **Spec and renderer:** `TwoSkies.spec()` in `dial/spec` is pure Kotlin (no Android UI types) and returns a list of
-  `DialOp`s in dp. `drawDialSpec()` paints them with Compose; a Remote Compose widget can paint the same list. Notes
-  for that port: the sky rings are `SweepRing`s with `segments()` (Remote Compose has no sweep shader from Kotlin),
-  curved text needs `drawTextOnCircle` (to verify), only the needle animates, and widgets use the system font. See
-  `dial_widget_fonts.png` in the designsystem goldens for the app font next to the system font. Small widgets get a
-  separate "Two strips" layout (Phase 2 of #46).
+- **Spec and renderers:** `TwoSkies.spec()` in `dial/spec` is pure Kotlin (no Android UI types) and returns a list of
+  `DialOp`s in dp. `drawDialSpec()` paints them with Compose in the app; the Two clocks widget replays the same list
+  into a Remote Compose canvas (`widget/…/rc/RemoteDialSpec.kt`). The widget port draws the sky rings and bars as
+  constant-colour segments (Remote Compose has no shader from Kotlin), sets curved and tracked text glyph by glyph
+  (`drawTextOnCircle` is still unverified on a real launcher), rounds weights to regular or bold (the system font's
+  four styles), and leaves out the wash behind the needle. Only the needle moves with the launcher's clock, and the
+  readouts are written from it. A host can set a text floor (`minText`, 7 dp on widgets): the AM/PM marker holds
+  it and the digits give way. It can also set a label floor (`labelText`, 10 sp at the font scale on widgets): ring
+  and bar labels and the smaller readouts are at least that big; labels are left out when their ring or bar can't
+  hold them, and readouts lose "in sync", then AM/PM, but never the body time. `liveReadouts` lays a
+  12-hour time out for its widest reading, for hosts that rewrite it between captures. `remote_dial_vs_app.png` in the widget goldens shows the two
+  renderers side by side.
+- **Two strips** (`TwoStrips.spec()`): the same two skies as two horizontal bars over a 24 h window round now (8 h back
+  to the hour, like the dial, so it never shows more than the dial's 16 h ahead), local on
+  top and body below, with a now line across both. Widgets use them where a round dial gets too small to read: the
+  1×1, the 2×1 and 4×1 rows and the 2×2 landscape card. The app keeps Two skies as its hero. Levels go by the box:
+  under 150 dp wide is Glance (local time, the bars, and body time where it fits), wide boxes are Simple (bar labels,
+  the jet lag in a pill and, on a tall enough box, the advice with its name beside its capsule), and 280×128 dp up is
+  Full (narration). A glyph never shows without its name.
 
 ### B. Day timeline ("Rail")
 Vertical rail (Structured-style). Each advice block is a capsule whose **height = duration**. A leading shape glyph sits in an advice-colour container. The rail background is a faint **body-clock sky gradient**, so you *see* that your body is at "night" while the local label says 14:00. The current block expands into the **Now card** with a `CircularWavyProgressIndicator` countdown ring around its glyph. A dual time column shows local time plus a muted secondary tz; tapping the column header cycles Local / Home / Destination / Body.
@@ -434,7 +449,7 @@ Never guilt; skipping shows the cost, then moves on.
 | Widget | Size (cells) | Content | Notes |
 |---|---|---|---|
 | **Next up** ⭐ | 2×1 → 4×1 (responsive) | Shape glyph in advice container · **"Avoid light"** (titleMediumEmphasized) · "until 18:00 · then Sleep" · ticking "42m" at 4×1 | Tap → Plan scrolled to Now. A 1×1 variant shows just the glyph + "42m" |
-| **Two Clocks** | 2×2 (square, shaped) | Mini dial bitmap: local ring, body ring, advice arcs, hand. "+5 h" centre chip | Render with Canvas to `Bitmap` in a worker; keep it small (≈ 2×2 cells at device density) to stay under RemoteViews bitmap memory limits |
+| **Two clocks** | 1×1 → 4×3 (responsive) | The Two skies dial (2×2, 2×3, 4×3) or the Two strips (1×1, 2×1, 4×1, 2×2 landscape) from the app's dial spec, with the now card and Done on larger sizes | Shipped as a Remote Compose document (see A); the needle and readouts follow the launcher's clock |
 | **Today ribbon** | 4×2 | Next 4 blocks as capsules on a horizontal rail (the current one filled and larger) + body-time chip + day label ("Arrival +1") | Each capsule deep-links to its card |
 | **Trip countdown** | 2×2 / 3×2 | Before: "Tokyo · in 3 days · adjustment starts tomorrow 07:00" + mini great-circle. After landing: "Day 2 · 60% adapted" + static wavy line whose amplitude shrinks daily | Becomes a "Clockblocked ✓" Flower state when adapted |
 | **Quick actions** (v1.x) | 2×1 toolbar | [I'm delayed] [Can't do this] [Light meter] | Toolbar canonical layout |

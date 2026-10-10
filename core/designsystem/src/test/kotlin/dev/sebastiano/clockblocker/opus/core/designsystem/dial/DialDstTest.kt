@@ -22,6 +22,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlin.math.abs
 
 /**
  * The dial is a 24 h wall-clock face: across a DST change its arcs are drawn, and the hand scrubs, in wall-clock
@@ -185,6 +186,112 @@ class DialDstTest {
     fun `inside the repeated hour the hand stays on the side of the change it is on`() {
         val state = fall(Instant.parse("2026-11-01T06:30:00Z")) // 01:30 EST, the second time
         state.instantAt(10f) shouldBe Instant.parse("2026-11-01T06:40:00Z")
+    }
+
+    private fun repeatedHour() = plan(
+        LocalDate.of(2026, 11, 1),
+        // 14:00 → 17:00 EDT the day before: starts before the window (16:30 EDT), so its drawn start is clipped.
+        advice("early", AdviceType.SeeBrightLight, "2026-10-31T18:00:00Z", "2026-10-31T21:00:00Z"),
+        // 00:30 EDT → 01:30 EST: ends in the second 01:30.
+        advice("late", AdviceType.Sleep, "2026-11-01T04:30:00Z", "2026-11-01T06:30:00Z"),
+        // 01:45 EST → 02:30 EST: starts in the second 01:45.
+        advice("second", AdviceType.AvoidLight, "2026-11-01T06:45:00Z", "2026-11-01T07:30:00Z"),
+    ).toDialState(fallNow, newYork)
+
+    @Test
+    fun `a boundary in the second run of the repeated hour reports the block's real instant (#94)`() {
+        val state = repeatedHour()
+        blockBoundaries(state) shouldBe listOf(-480f, -450f, 0f, 60f, 75f, 120f)
+        // The face alone can't tell the two 01:30s apart: the hand's own instant is the first one (EDT).
+        state.instantAt(60f) shouldBe Instant.parse("2026-11-01T05:30:00Z")
+
+        blockBoundaryInstant(state, 60f) shouldBe Instant.parse("2026-11-01T06:30:00Z") // late ends, 01:30 EST
+        blockBoundaryInstant(state, 75f) shouldBe Instant.parse("2026-11-01T06:45:00Z") // second starts, 01:45 EST
+        blockBoundaryInstant(state, 0f) shouldBe fallNow
+    }
+
+    @Test
+    fun `a boundary where the window clips a block is the window's edge, not the block's real start`() {
+        val state = repeatedHour()
+        blockBoundaryInstant(state, -480f) shouldBe state.instantAt(-480f) // 16:30 EDT, not 14:00
+        blockBoundaryInstant(state, -450f) shouldBe Instant.parse("2026-10-31T21:00:00Z")
+    }
+
+    @Test
+    fun `without two boundaries at one face time, the stops are the boundaries at their real instants (#106)`() {
+        val state = repeatedHour()
+        val stops = blockBoundaryStops(state)
+        stops.map { it.offset } shouldBe blockBoundaries(state)
+        stops.map { it.instant } shouldBe blockBoundaries(state).map { blockBoundaryInstant(state, it) }
+    }
+
+    @Test
+    fun `a clipped edge in the spring-forward gap doesn't hide a block that starts at the change`() {
+        // 10:30 EDT on 8 March 2026: the window starts at 02:30, a wall time the change skips, so the face's instant
+        // there is the change itself (07:00Z). A block clipped at that edge and one that really starts at the change
+        // (03:00 EDT, 7.5 hours of the face back) share that instant; the stop is the real start, drawn at 03:00.
+        val change = Instant.parse("2026-03-08T07:00:00Z")
+        val state = plan(
+            LocalDate.of(2026, 3, 8),
+            advice("clipped", AdviceType.Sleep, "2026-03-08T05:00:00Z", "2026-03-08T08:00:00Z"),
+            advice("atChange", AdviceType.SeeBrightLight, "2026-03-08T07:00:00Z", "2026-03-08T09:00:00Z"),
+        ).toDialState(Instant.parse("2026-03-08T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe change
+
+        blockBoundaryStops(state).single { it.instant == change }.offset shouldBe (-450f plusOrMinus 0.01f)
+    }
+
+    @Test
+    fun `a clipped edge in the second run of the repeated hour stays a stop beside a block starting in the first`() {
+        // 09:30 EST on 1 November 2026: the window starts at 01:30, and the face's instant there is the second 01:30
+        // (EST, 06:30Z). A block clipped at that edge and one that really starts at the first 01:30 (EDT, 05:30Z) are
+        // both drawn from there, but they're an hour apart: both are stops.
+        val firstRun = Instant.parse("2026-11-01T05:30:00Z")
+        val secondRun = Instant.parse("2026-11-01T06:30:00Z")
+        val state = plan(
+            LocalDate.of(2026, 11, 1),
+            advice("clipped", AdviceType.Sleep, "2026-11-01T04:00:00Z", "2026-11-01T08:00:00Z"),
+            advice("firstRun", AdviceType.SeeBrightLight, "2026-11-01T05:30:00Z", "2026-11-01T05:45:00Z"),
+        ).toDialState(Instant.parse("2026-11-01T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe secondRun
+
+        blockBoundaryStops(state).filter { abs(it.offset + 480f) < 0.01f }.map { it.instant } shouldBe listOf(firstRun, secondRun)
+    }
+
+    @Test
+    fun `a block drawn past its real end keeps the hand's instant at its drawn end`() {
+        // 01:50 EDT → 01:10 EST is drawn forward with its real 20 minutes, to 02:10 on the face: its real end, 01:10,
+        // isn't where the arc ends, so the boundary there stays 02:10 (EST), the time the hand shows.
+        val state = fall()
+        blockBoundaryInstant(state, 100f) shouldBe state.instantAt(100f)
+        blockBoundaryInstant(state, 80f) shouldBe Instant.parse("2026-11-01T05:50:00Z")
+    }
+
+    @Test
+    fun `seen from the second run of the repeated hour, a boundary in the first run is not ahead`() {
+        // From 01:30 EST, a block that ended at 01:45 EDT shows its end 15 minutes of the face ahead, but that 01:45
+        // is 45 real minutes past: Next lands on the face's 01:45 (EST), never backwards in real time.
+        val now = Instant.parse("2026-11-01T06:30:00Z")
+        val state = plan(
+            LocalDate.of(2026, 11, 1),
+            advice("first", AdviceType.Sleep, "2026-11-01T05:00:00Z", "2026-11-01T05:45:00Z"),
+        ).toDialState(now, newYork)
+        blockBoundaries(state).contains(15f) shouldBe true
+
+        blockBoundaryInstant(state, 15f) shouldBe Instant.parse("2026-11-01T06:45:00Z")
+    }
+
+    @Test
+    fun `scrubbed to the second run of the repeated hour, the readouts follow the real instant`() {
+        // The hand at +60 on the face (01:30) but the second 01:30 (EST): two real hours on, so the body clock,
+        // which runs on real time, reads an hour later than at the first 01:30.
+        val state = repeatedHour()
+        val first = state.scrubbedTo(60f)
+        val second = state.scrubbedTo(60f, at = Instant.parse("2026-11-01T06:30:00Z"))
+
+        second.instant shouldBe Instant.parse("2026-11-01T06:30:00Z")
+        second.localTime shouldBe LocalTime.of(1, 30)
+        second.bodyTime shouldBe first.bodyTime.plusHours(1)
     }
 
     // endregion

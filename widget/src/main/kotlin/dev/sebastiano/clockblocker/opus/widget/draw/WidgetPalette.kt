@@ -3,7 +3,6 @@ package dev.sebastiano.clockblocker.opus.widget.draw
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ColorMath
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 
 /** Which palette a widget render uses. */
@@ -24,8 +23,8 @@ enum class WidgetTheme {
 /**
  * Widget colours, consistent with docs/design.md §2.4 ("Dusk Instrument"): Twilight Indigo #4F46E5 chrome,
  * fixed semantic advice colours (Marigold, Ink Plum, Midnight…). Kept local to the widget module on purpose:
- * widgets render out-of-process and must not depend on Compose theme state. The sky ramp comes from the app's
- * [SkyPalette] (plain data), so the dial's outer ring matches the in-app dial.
+ * widgets render out-of-process and must not depend on Compose theme state. The dial itself takes the app's dial
+ * palettes (see `WidgetDial.palette`), with the face matched to [surface].
  *
  * Colours are ARGB ints so the same palette feeds Remote Compose (`Color(argb).rc`) and android.graphics.
  */
@@ -43,15 +42,6 @@ data class WidgetPalette(
     val onPrimary: Int,
     val primaryContainer: Int,
     val onPrimaryContainer: Int,
-    val wedge: Int,
-    val hand: Int,
-    val sun: Int,
-    val moon: Int,
-    val bodyRing: Int,
-    val bodyNight: Int,
-    val cbtMin: Int,
-    /** Sky colours for every hour 0..24 (the last repeats the first), for the dial's outer local-time ring. */
-    val sky: List<Int>,
     private val advice: Map<AdviceType, AdviceColors>,
 ) {
     val isDark: Boolean get() = theme.isDark
@@ -92,14 +82,6 @@ data class WidgetPalette(
             onPrimary = 0xFFFFFFFF.toInt(),
             primaryContainer = 0xFFE2DFFF.toInt(),
             onPrimaryContainer = 0xFF100069.toInt(),
-            wedge = 0x264F46E5,
-            hand = 0xFF1B1B21.toInt(),
-            sun = 0xFFFFB000.toInt(),
-            moon = 0xFF3B2F5C.toInt(),
-            bodyRing = 0xFFE2DFFF.toInt(),
-            bodyNight = 0xFF1E2A78.toInt(),
-            cbtMin = 0xFFB69DF8.toInt(),
-            sky = skyRamp(SkyPalette.Default),
             advice = mapOf(
                 AdviceType.SeeBrightLight to AdviceColors(0xFFFFB000, 0xFFFFDEA0, 0xFF261900),
                 AdviceType.SeeLight to AdviceColors(0xFFFFD27A, 0xFFFFEFD3, 0xFF261900),
@@ -127,14 +109,6 @@ data class WidgetPalette(
             onPrimary = 0xFF1F1A75.toInt(),
             primaryContainer = 0xFF3730A3.toInt(),
             onPrimaryContainer = 0xFFE2DFFF.toInt(),
-            wedge = 0x33C3C0FF,
-            hand = 0xFFE5E1EA.toInt(),
-            sun = 0xFFFFB000.toInt(),
-            moon = 0xFFF3EBD3.toInt(),
-            bodyRing = 0xFF2C2A4A.toInt(),
-            bodyNight = 0xFF7C8CFF.toInt(),
-            cbtMin = 0xFFD0BCFF.toInt(),
-            sky = skyRamp(SkyPalette.Default.forDarkTheme()),
             advice = DarkAdvice,
         )
 
@@ -151,14 +125,6 @@ data class WidgetPalette(
             onPrimary = 0xFF120A00.toInt(),
             primaryContainer = 0xFF2E1C06.toInt(),
             onPrimaryContainer = 0xFFD9B88C.toInt(),
-            wedge = 0x33A9640A,
-            hand = 0xFFB7A48D.toInt(),
-            sun = 0xFFA9640A.toInt(),
-            moon = 0xFFB7A48D.toInt(),
-            bodyRing = 0xFF18130E.toInt(),
-            bodyNight = 0xFF5A4630.toInt(),
-            cbtMin = dim(0xFFFFDEA0.toInt(), 0.6f),
-            sky = skyRamp(SkyPalette.Default.dimmed()),
             advice = DarkAdvice.mapValues { (_, c) ->
                 AdviceColors(
                     arc = dim(c.arc, 0.62f, 0.55f),
@@ -183,9 +149,6 @@ data class WidgetPalette(
                 AdviceType.PeakFatigue to AdviceColors(0xFFFF8A80, 0xFF8C1D18, 0xFFFFDAD5),
                 AdviceType.Flight to AdviceColors(0xFF4FD1D1, 0xFF004F4F, 0xFFB9F0EF),
             )
-
-        /** Zenith colour of [sky] at every hour 0..24 (the in-app dial's outer ring uses the same `top` colours). */
-        internal fun skyRamp(sky: SkyPalette): List<Int> = (0..24).map { h -> sky.gradientAt((h % 24).toFloat()).top.toArgb() }
 
         internal fun mix(a: Int, b: Int, t: Float): Int = ColorMath.mix(Color(a), Color(b), t).toArgb()
 

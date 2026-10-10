@@ -95,6 +95,14 @@ internal const val MIN_TALL_DIAL_DP = 84
 internal const val SQUARE_DIAL_PAD_DP = 8
 internal const val MIN_SQUARE_DIAL_DP = 64
 
+/** Two Clocks 1×1 and 2×1 / 4×1 rows: the strips fill the widget inside this padding. */
+internal const val STRIP_PAD_DP = 5
+
+/** Two Clocks without a plan: the glyph above "No trip" and "Plan one", inside this padding. */
+internal const val EMPTY_PAD_DP = 6
+internal const val EMPTY_GLYPH_DP = 24
+internal const val EMPTY_GAP_DP = 2
+
 /** Rows of "Up next" in the stacked layouts, at most (two lines each: time + label, then the other zone's time). */
 internal const val UP_NEXT_ROWS = 2
 
@@ -126,7 +134,13 @@ internal data class NowFit(
 internal data class SmallFit(val glyph: Boolean, val countdownSp: Int?, val label: Fitted, val fits: Boolean)
 
 /** The Two Clocks 2×2 caption under the dial; null parts don't show. */
-internal data class CaptionFit(val title: Fitted?, val detail: Fitted?)
+internal data class CaptionFit(val title: Fitted?, val detail: Fitted?) {
+    /** Height under the dial, with the gaps above each line. */
+    val heightDp: Float get() = listOfNotNull(title, detail).sumOf { (it.heightDp + LINE_GAP_DP).toDouble() }.toFloat()
+}
+
+/** Two Clocks without a plan: "No trip" (always) and "Plan one", with the glyph above when there is room. */
+internal data class EmptyFit(val glyph: Boolean, val title: Fitted, val action: Fitted?)
 
 /** One "Up next" entry: "18:30  Melatonin" (or "18:30 Melatonin" in a capsule) and the other zone's time. */
 internal data class UpNextRowFit(val item: UpcomingText, val line: Fitted, val secondary: Fitted?) {
@@ -158,6 +172,8 @@ internal data class WidgetFit(
     /** The Two Clocks 4×3 header strip ("Tokyo · Day 2") and whether the route shows beside it. */
     val headerStrip: Fitted? = null,
     val headerRoute: Boolean = false,
+    /** Two Clocks without a plan. */
+    val empty: EmptyFit? = null,
 )
 
 /**
@@ -290,10 +306,10 @@ internal object LabelFit {
 
     /** Two Clocks [layout] fitted for [cell], the smallest size the host draws it at: its text parts only. */
     fun twoClocks(context: Context, texts: WidgetTexts, layout: TwoClocksLayout, cell: CellDp): WidgetFit {
-        // Without a plan every size shows the dial alone: its centre says "No trip / Plan one".
-        if (texts.glyph == GlyphKind.NoTrip) return WidgetFit()
+        // Without a plan every size says "No trip / Plan one": there is no dial to draw.
+        if (texts.glyph == GlyphKind.NoTrip) return WidgetFit(empty = empty(context, texts, cell))
         return when (layout) {
-            TwoClocksLayout.Compact -> WidgetFit()
+            TwoClocksLayout.Compact, TwoClocksLayout.Strip -> WidgetFit()
             TwoClocksLayout.Square -> WidgetFit(caption = caption(context, texts, cell))
             TwoClocksLayout.Tall -> {
                 val budget = cell.height - 2 * CLOCKS_TALL_PAD_DP - doneDp(texts) - CARD_TOP_DP - MIN_TALL_DIAL_DP -
@@ -313,6 +329,62 @@ internal object LabelFit {
             TwoClocksLayout.Large -> twoClocksLarge(context, texts, cell)
         }
     }
+
+    /**
+     * The Two Clocks dial region of [layout] at [cell], given what [fit] shows around it: the size its spec is laid
+     * out for (the host scales it to the real region). Its level (Glance, Simple, Full) comes from this size.
+     */
+    fun dialBox(texts: WidgetTexts, layout: TwoClocksLayout, cell: CellDp, fit: WidgetFit): CellDp {
+        fun box(w: Float, h: Float) = CellDp(w.coerceAtLeast(MIN_DIAL_BOX_DP), h.coerceAtLeast(MIN_DIAL_BOX_DP))
+        val now = fit.now
+        return when {
+            layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Strip ->
+                box(cell.width - 2 * STRIP_PAD_DP, cell.height - 2 * STRIP_PAD_DP)
+            layout == TwoClocksLayout.Square || now == null -> box(
+                cell.width - 2 * SQUARE_DIAL_PAD_DP,
+                cell.height - 2 * SQUARE_DIAL_PAD_DP - (fit.caption?.heightDp ?: 0f),
+            )
+            layout == TwoClocksLayout.Tall -> box(
+                cell.width - 2 * CLOCKS_TALL_PAD_DP,
+                cell.height - 2 * CLOCKS_TALL_PAD_DP - doneDp(texts) - CARD_TOP_DP - now.heightDp - 2 * CARD_V_PAD_DP,
+            )
+            else -> {
+                val strip = if (layout == TwoClocksLayout.Large && (fit.headerStrip != null || fit.headerRoute)) {
+                    max(fit.headerStrip?.heightDp ?: 0f, if (fit.headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
+                } else {
+                    0f
+                }
+                val upNext = if (fit.upNext.heightDp > 0f) fit.upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
+                box(clocksMainWidth(texts, cell) / (1f + CARD_WEIGHT), cell.height - 2 * SURFACE_PAD_DP - strip - upNext)
+            }
+        }
+    }
+
+    /**
+     * "No trip" and "Plan one" in the widget, the glyph above them when there is room. "No trip" shrinks before
+     * "Plan one" has to go; only a 1×1 at a large font scale shows "No trip" alone (the tap still plans one).
+     */
+    private fun empty(context: Context, texts: WidgetTexts, cell: CellDp): EmptyFit {
+        val width = cell.width - 2 * EMPTY_PAD_DP
+        val height = cell.height - 2 * EMPTY_PAD_DP
+        for (sp in TITLE_SP downTo EMPTY_MIN_SP) {
+            val title = TextFit.fit(context, texts.title, width, sp, sp, maxLines = 2, semibold = true, fewerLinesFirst = true) ?: continue
+            val action = TextFit.fit(context, texts.subtitle, width, min(DETAIL_SP, sp), EMPTY_MIN_SP, semibold = true)
+                ?.takeIf { title.heightDp + EMPTY_GAP_DP + it.heightDp <= height }
+                ?: continue
+            val text = title.heightDp + EMPTY_GAP_DP + action.heightDp
+            return EmptyFit(glyph = text + EMPTY_GLYPH_DP + EMPTY_GAP_DP <= height, title = title, action = action)
+        }
+        val title = TextFit.fit(context, texts.title, width, TITLE_SP, EMPTY_MIN_SP, maxLines = 2, semibold = true, fewerLinesFirst = true)
+            ?: TextFit.measure(context, texts.title, width, EMPTY_MIN_SP, maxLines = 2, semibold = true)
+        return EmptyFit(glyph = title.heightDp + EMPTY_GLYPH_DP + EMPTY_GAP_DP <= height, title = title, action = null)
+    }
+
+    /** Floor of the "No trip" texts in a 1×1 at a large font scale. */
+    private const val EMPTY_MIN_SP = 8
+
+    /** The smallest dial region a spec is laid out for. */
+    private const val MIN_DIAL_BOX_DP = 24f
 
     /** Text width inside the Two Clocks now card of [layout] at [cell]. */
     fun cardWidthDp(layout: TwoClocksLayout, texts: WidgetTexts, cell: CellDp): Float {
@@ -463,12 +535,12 @@ internal object LabelFit {
         for ((glyph, sp, rowHeight) in rows) {
             val room = height - if (glyph) rowHeight + SMALL_GAP_DP else 0f
             for (lines in 1..3) {
-                val label = TextFit.fit(context, texts.title, width, SMALL_LABEL_SP, minSp, maxLines = lines, semibold = true)
+                val label = TextFit.fit(context, texts.smallLabel, width, SMALL_LABEL_SP, minSp, maxLines = lines, semibold = true)
                     ?: continue
                 if (label.heightDp <= room) return SmallFit(glyph, sp, label, fits = true)
             }
         }
-        val label = TextFit.measure(context, texts.title, width, minSp, maxLines = 2, semibold = true)
+        val label = TextFit.measure(context, texts.smallLabel, width, minSp, maxLines = 2, semibold = true)
         return SmallFit(glyph = false, countdownSp = null, label = label, fits = false)
     }
 

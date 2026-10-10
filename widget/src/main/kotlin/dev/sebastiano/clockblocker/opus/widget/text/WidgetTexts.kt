@@ -44,8 +44,6 @@ data class WidgetTexts(
     val deepLink: String,
     val contentDescription: String,
     val is24Hour: Boolean,
-    /** "body", prefix of the body-clock readout. */
-    val bodyPrefix: String = "body",
     /** "Tokyo · Day 2": where the dial's times are shown and which plan day it is. Null without a plan. */
     val header: String? = null,
     /** "Up next" rows for the larger sizes (label + start time, local). */
@@ -78,9 +76,17 @@ data class WidgetTexts(
      * cells where the other zone's time can't have its own line. Null without a secondary zone.
      */
     val untilCompact: String? = null,
+    /**
+     * A shorter [title] for the 1×1 tile, where one long word would have to shrink well below the other labels
+     * ("Adapted" for "Clockblocked"). Null: the tile shows [title]. Screen readers keep [title].
+     */
+    val smallTitle: String? = null,
 ) {
     /** [secondary], then [secondaryShort]: the forms a layout tries, in order. Empty without a secondary zone. */
     val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
+
+    /** The label the 1×1 tile shows: [smallTitle], else [title]. */
+    val smallLabel: String get() = smallTitle ?: title
 
     /**
      * "Up next: Melatonin at 20:30 (12:30 in Lisbon), Sleep at 22:00 (14:00 in Lisbon)": spoken for the queue region.
@@ -151,13 +157,12 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             secondary = null,
             countdownEnd = null,
             misalignment = null,
-            // The dial centre already reads "No trip / Plan one"; classic layouts show this single caption.
+            // Two Clocks shows "No trip" over "Plan one" (EmptyContent); classic layouts show this single caption.
             dialTitle = str(R.string.widget_no_trip_full),
             dialDetail = null,
             deepLink = DeepLinks.NEW_TRIP,
             contentDescription = str(R.string.widget_no_trip_full),
             is24Hour = is24Hour,
-            bodyPrefix = str(R.string.widget_body_prefix),
         )
         is WidgetState.Active -> active(state)
     }
@@ -177,6 +182,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         val subtitleLines: List<String>
         val secondaryAt: Instant?
         val dialDetail: String
+        var smallTitle: String? = null
         when {
             current != null -> {
                 glyph = glyph(current.type)
@@ -189,6 +195,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             s.stage == WidgetState.Stage.Done || next == null -> {
                 glyph = GlyphKind.Adapted
                 title = str(R.string.widget_adapted_title)
+                smallTitle = str(R.string.widget_adapted_short)
                 subtitleLines = listOf(
                     if (s.redacted) str(R.string.widget_adapted_subtitle_redacted) else str(R.string.widget_adapted_subtitle, s.destinationName),
                 )
@@ -263,6 +270,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             secondary = secondary,
             secondaryShort = secondaryForms.drop(1),
             untilCompact = untilCompact,
+            smallTitle = smallTitle,
             countdownEnd = countdownEnd,
             misalignment = misalignment,
             dialTitle = title,
@@ -270,7 +278,6 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             deepLink = DeepLinks.plan(s.tripId),
             contentDescription = str(R.string.widget_a11y_two_clocks, localNow, bodyNow, bodyPhrase, now),
             is24Hour = is24Hour,
-            bodyPrefix = str(R.string.widget_body_prefix),
             header = header(s),
             upcoming = upcoming,
             adaptation = s.adaptation,

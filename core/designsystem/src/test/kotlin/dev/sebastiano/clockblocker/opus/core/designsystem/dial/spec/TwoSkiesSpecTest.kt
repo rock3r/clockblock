@@ -173,6 +173,110 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a dial that names no place keeps the body's labels and drops the place's`() {
+        for (side in listOf(328f, 180f)) {
+            val texts = TwoSkies.spec(tokyo, palette, labels, side, side, namePlace = false).ops.mapNotNull {
+                when (it) {
+                    is DialOp.CurvedText -> it.text
+                    is DialOp.Text -> it.text
+                    else -> null
+                }
+            }
+            texts.none { it.contains("TOKYO", ignoreCase = true) } shouldBe true
+            texts.any { it.contains("BODY") } shouldBe true
+        }
+    }
+
+    @Test
+    fun `a host's text floor keeps the AM PM marker readable, the digits giving way`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(60f, 72f, 88f, 100f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, minText = 7f).ops.filterIsInstance<DialOp.Text>()
+            texts.forEach { (it.spec.size >= 7f) shouldBe true }
+            // Still one group: digits and marker side by side within the glance's width.
+            val marker = texts.single { it.text == twelve.marker(tokyo.localMinute) }
+            val digits = texts.single { it.text == twelve.time(tokyo.localMinute) }
+            (marker.x >= digits.x + ApproxTextMeasurer.width(digits.text, digits.spec) - 0.01f) shouldBe true
+        }
+        // Without a floor the app's own sizes stay as they were.
+        val app = TwoSkies.spec(tokyo, palette, twelve, 72f, 72f).ops.filterIsInstance<DialOp.Text>()
+        app.single { it.text == twelve.marker(tokyo.localMinute) }.spec.size shouldBe (6.5f * 72f / 88f plusOrMinus 0.5f)
+    }
+
+    @Test
+    fun `a host's label floor sets the ring labels, and a ring too thin for them drops them`() {
+        fun ringLabels(side: Float, floor: Float) =
+            TwoSkies.spec(tokyo, palette, labels, side, side, labelText = floor).ops.filterIsInstance<DialOp.CurvedText>()
+                .filter { it.part == DialPart.RingLabel }
+        for (side in listOf(160f, 328f)) {
+            val shown = ringLabels(side, 10f)
+            (shown.isNotEmpty()) shouldBe true
+            shown.forEach { (it.spec.size >= 10f) shouldBe true }
+        }
+        // 13 dp text (10 sp at 1.3×) can't sit inside the 9 dp rings of a 110 dp dial: no label rather than a tiny one.
+        ringLabels(110f, 13f).shouldBeEmpty()
+        // Without a floor the app keeps its own sizes.
+        ringLabels(160f, 0f).forEach { it.spec.size shouldBe (7.6f plusOrMinus 0.01f) }
+    }
+
+    @Test
+    fun `a host's label floor sets the centre readouts, dropping in sync, then AM PM, never the body time`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(68f, 88f, 120f, 160f)) for (floor in listOf(10f, 13f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, minText = 7f, labelText = floor)
+                .ops.filterIsInstance<DialOp.Text>().filter { it.part == DialPart.Readout }
+            texts.forEach { (it.spec.size >= floor - 0.01f) shouldBe true }
+            // The body time stays, with or without its AM/PM.
+            texts.any { it.live?.clock == LiveClock.Body && it.text.startsWith(twelve.time(tokyo.bodyMinute)) } shouldBe true
+        }
+        // In a 68 dp glance at 13 dp, "in sync" can't fit under the local time: it goes rather than shrinks.
+        val adapted = tokyo.copy(bodyAheadMinutes = 0f)
+        TwoSkies.spec(adapted, palette, twelve, 68f, 68f, minText = 7f, labelText = 13f).ops.filterIsInstance<DialOp.Text>()
+            .none { it.text == twelve.inSync() } shouldBe true
+    }
+
+    @Test
+    fun `a host that rewrites the time keeps room before the AM PM marker for the widest reading`() {
+        val twelve = DefaultDialLabels(is24Hour = false)
+        for (side in listOf(88f, 160f, 328f)) {
+            val texts = TwoSkies.spec(tokyo, palette, twelve, side, side, liveReadouts = true).ops.filterIsInstance<DialOp.Text>()
+            val digits = texts.single { it.text == twelve.time(tokyo.localMinute) }
+            val marker = texts.single { it.text == twelve.marker(tokyo.localMinute) }
+            // The digits end at the marker, so a longer reading grows away from it…
+            digits.h shouldBe HAlign.End
+            (marker.x >= digits.x) shouldBe true
+            // …and there's room for "10:00" before it, inside the group's width.
+            val widest = ApproxTextMeasurer.width(twelve.time(10 * 60f), digits.spec)
+            (digits.x - widest >= side / 2f - (marker.x + ApproxTextMeasurer.width(marker.text, marker.spec) - side / 2f) - 0.5f) shouldBe true
+        }
+    }
+
+    @Test
+    fun `the simple dial's two ring labels never share a sector, so they can't read as one phrase`() = runTest {
+        checkAll(
+            Arb.numericFloat(0f, 1439f),
+            Arb.element(0f, 0f, -60f, 45f, -420f, 300f),
+            Arb.element(110f, 140f, 160f, 200f, 249f),
+            Arb.element(0f, 10f, 13f),
+        ) { now, ahead, side, floor ->
+            val shown = TwoSkies.spec(tokyo.copy(localMinute = now, bodyAheadMinutes = ahead), palette, labels, side, side, labelText = floor)
+                .ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }
+            val spans = shown.map { label ->
+                val half = Math.toDegrees((ApproxTextMeasurer.width(label.text, label.spec) / label.r).toDouble()).toFloat() / 2f
+                label.centerDeg to half
+            }
+            spans.forEachIndexed { i, (a, ha) ->
+                spans.drop(i + 1).forEach { (b, hb) -> (kotlin.math.abs(DialGeometry.angleDelta(a, b)) >= ha + hb) shouldBe true }
+            }
+        }
+        // Adapted: the skies match, so the body's label would sit right under the place's. It goes to the other half.
+        val adapted = TwoSkies.spec(tokyo.copy(bodyAheadMinutes = 0f), palette, labels, 160f, 160f, labelText = 10f)
+            .ops.filterIsInstance<DialOp.CurvedText>().filter { it.part == DialPart.RingLabel }
+        val place = adapted.single { it.text == "TOKYO" }
+        adapted.forEach { if (it !== place) (kotlin.math.abs(DialGeometry.angleDelta(place.centerDeg, it.centerDeg)) > 90f) shouldBe true }
+    }
+
+    @Test
     fun `upcoming advice is narrated with its start when nothing is on`() {
         val texts = spec(scrub = 18 * 60f - tokyo.localMinute).ops.filterIsInstance<DialOp.CurvedText>().map { it.text }
         texts shouldContain "Sleep at 23:00"
@@ -383,6 +487,7 @@ class TwoSkiesSpecTest {
         is DialOp.SweepRing -> box(op.cx, op.cy, op.r + op.width / 2f)
         is DialOp.Line -> listOf(op.x0 to op.y0, op.x1 to op.y1)
         is DialOp.Rect -> listOf(op.left to op.top, op.right to op.bottom)
+        is DialOp.SkyBar -> listOf(op.left to op.top, op.right to op.bottom)
         is DialOp.Glyph -> box(op.cx, op.cy, maxOf(op.discRadius, op.size / 2f))
         is DialOp.Text -> {
             val half = ApproxTextMeasurer.width(op.text, op.spec) / 2f

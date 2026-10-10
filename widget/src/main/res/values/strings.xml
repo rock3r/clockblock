@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Widget picker -->
-    <string name="widget_two_clocks_label">Two Clocks</string>
+    <string name="widget_two_clocks_label">Two clocks</string>
     <string name="widget_two_clocks_description">Your local time and your body clock on one 24-hour dial, with today\'s light and sleep windows.</string>
     <string name="widget_next_up_label">Next up</string>
     <string name="widget_next_up_description">What to do now for your jet lag plan, until when, and what comes next.</string>
@@ -25,6 +25,8 @@
     <string name="widget_no_trip_action">Plan one</string>
     <string name="widget_no_trip_full">No trip — plan one</string>
     <string name="widget_adapted_title">Clockblocked</string>
+    <!-- The adapted state on the 1×1 tile, where "Clockblocked" (one long word) would shrink well below the other labels. -->
+    <string name="widget_adapted_short">Adapted</string>
     <string name="widget_adapted_subtitle">Your body is on %1$s time</string>
     <!-- Lock screen with details hidden: no city. -->
     <string name="widget_adapted_subtitle_redacted">Your body is on local time</string>
@@ -43,7 +45,6 @@
     <string name="widget_secondary_compact">%1$s %2$s</string>
     <!-- "until 16:30 · 08:30 LIS": the until line with the other zone's time, for the smallest cells. -->
     <string name="widget_until_compact">%1$s · %2$s</string>
-    <string name="widget_body_prefix">body</string>
     <string name="widget_in_sync">in sync</string>
     <!-- Fallback when the launcher cannot play the widget: tapping it opens the app. -->
     <string name="widget_placeholder">Open Clockblock</string>

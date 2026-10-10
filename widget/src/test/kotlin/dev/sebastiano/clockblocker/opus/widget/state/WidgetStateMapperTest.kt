@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
 import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -82,40 +83,22 @@ class WidgetStateMapperTest {
     }
 
     @Test
-    fun `arcs cover the next 24 hours in display wall-clock minutes`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T16:30")))
-
-        // The current block is clipped to start at "now".
-        state.arcs shouldContain DialArc(AdviceType.AvoidLight, 16 * 60 + 30, 90)
-        state.arcs shouldContain DialArc(AdviceType.Sleep, 22 * 60, 8 * 60)
-        state.arcs shouldContain DialArc(AdviceType.Melatonin, 20 * 60 + 30, 0)
-        // Overlapping blocks are all drawn; the dial layers them by priority.
-        state.arcs shouldContain DialArc(AdviceType.Caffeine, 16 * 60 + 30, 30)
-        // This morning's light (09:00–12:00) is in the past and must not be drawn.
-        state.arcs.none { it.type == AdviceType.SeeBrightLight } shouldBe true
+    fun `the dial is the app's Two skies state at the capture instant`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        val state = active(WidgetStateMapper.map(tokyoDay, now))
+        // The same projection as the plan screen's dial: the widget draws the shared spec from it.
+        state.dial shouldBe tokyoDay.toDialState(now, ZoneId.of(tokyo))
+        state.dial.localMinute shouldBe 16 * 60 + 30f
+        state.dial.arcs.map { it.type } shouldContain AdviceType.AvoidLight
     }
 
     @Test
-    fun `arcs longer than the window are capped at a full turn`() {
-        val p = plan {
-            day(0, "2026-10-05", tokyo) { advice(AdviceType.Flight, "2026-10-05T10:00", "2026-10-07T10:00") }
-        }
-        val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-05T12:00")))
-        state.arcs shouldBe listOf(DialArc(AdviceType.Flight, 12 * 60, 1440))
-    }
-
-    @Test
-    fun `sleep across spring-forward keeps its wall-clock span`() {
-        // Europe/Lisbon jumps 01:00 -> 02:00 on 2026-03-29.
-        val p = plan(origin = "Asia/Tokyo", destination = lisbon) {
-            day(1, "2026-03-28", lisbon) { advice(AdviceType.Sleep, "2026-03-28T22:00", "2026-03-29T06:00") }
-        }
-        val state = active(WidgetStateMapper.map(p, at(lisbon, "2026-03-28T20:00")))
-        val sleep = state.arcs.single()
-        sleep.startMinute shouldBe 22 * 60
-        sleep.sweepMinutes shouldBe 8 * 60 // 22:00 -> 06:00 on the wall, although only 7 h elapse
-        state.current.shouldBeNull()
-        state.next.shouldNotBeNull().endMinute shouldBe 6 * 60
+    fun `the dial names the trip's stop in the zone shown and lights it with that day's sun`() {
+        val now = at(tokyo, "2026-10-06T16:30")
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", tokyo, 35.5, 139.8)
+        val state = active(WidgetStateMapper.map(tokyoDay, now, places = mapOf(tokyo to hnd)))
+        state.dial shouldBe tokyoDay.toDialState(now, ZoneId.of(tokyo), hnd)
+        state.dial.placeName shouldBe "Tokyo"
     }
 
     @Test
@@ -161,13 +144,6 @@ class WidgetStateMapperTest {
     }
 
     @Test
-    fun `body night is anchored on the nearest CBTmin`() {
-        val state = active(WidgetStateMapper.map(tokyoDay, at(tokyo, "2026-10-06T05:00")))
-        state.cbtMinMinute shouldBe 4 * 60
-        state.bodyNight shouldBe DialArc(null, 22 * 60, 8 * 60)
-    }
-
-    @Test
     fun `without a phase trajectory the body clock stays on origin time`() {
         val p = plan {
             day(1, "2026-10-06", tokyo) { advice(AdviceType.SeeLight, "2026-10-06T08:00", "2026-10-06T10:00") }
@@ -175,9 +151,7 @@ class WidgetStateMapperTest {
         val state = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T09:00")))
         state.bodyOffsetMinutes shouldBe 60 // Lisbon summer time on 2026-10-06
         state.misalignmentMinutes shouldBe 480
-        state.cbtMinMinute.shouldBeNull()
-        // Body 23:00-07:00 shown on the local dial: 23:00 + 8 h = 07:00 local.
-        state.bodyNight shouldBe DialArc(null, 7 * 60, 8 * 60)
+        state.dial.bodyAheadMinutes shouldBe -480f
     }
 
     @Test
@@ -279,12 +253,14 @@ class WidgetStateMapperTest {
 
     @Test
     fun `redacting for the lock screen drops places, the route and the melatonin dot`() {
-        val now = at(tokyo, "2026-10-06T16:30")
+        val now = at(tokyo, "2026-10-06T19:30")
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", tokyo, 35.5, 139.8)
         val full = active(
             WidgetStateMapper.map(
                 tokyoDay,
                 now,
                 route = WidgetRoute("LIS", "HND"),
+                places = mapOf(tokyo to hnd),
                 placeNames = mapOf(tokyo to "Tokyo"),
                 placeCodes = mapOf(tokyo to "HND"),
             ),
@@ -296,11 +272,16 @@ class WidgetStateMapperTest {
         redacted.route.shouldBeNull()
         redacted.placeNames shouldBe emptyMap()
         redacted.placeCodes shouldBe emptyMap()
-        redacted.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
+        redacted.dial.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
+        redacted.dial.placeName.shouldBeNull()
+        // The narration doesn't name it either: up next is melatonin at 20:30.
+        full.dial.next.shouldNotBeNull().type shouldBe AdviceType.Melatonin
+        redacted.dial.next.shouldBeNull()
         // Times, block kinds and the dial stay.
         redacted.current shouldBe full.current
         redacted.upcoming shouldBe full.upcoming
-        redacted.arcs shouldBe full.arcs.filter { it.type != AdviceType.Melatonin }
+        redacted.dial.arcs shouldBe full.dial.arcs.filter { it.type != AdviceType.Melatonin }
+        redacted.dial.localMinute shouldBe full.dial.localMinute
         WidgetStateMapper.redact(WidgetState.NoTrip) shouldBe WidgetState.NoTrip
     }
 
@@ -336,9 +317,9 @@ class WidgetStateMapperTest {
         val start = at(tokyo, "2026-10-05T00:00").epochSecond
         checkAll(200, Arb.long(start, start + Duration.ofDays(3).seconds)) { epoch ->
             val state = WidgetStateMapper.map(tokyoDay, Instant.ofEpochSecond(epoch)) as WidgetState.Active
-            state.arcs.forEach { arc ->
-                (arc.startMinute in 0 until 1440) shouldBe true
-                (arc.sweepMinutes in 0..1440) shouldBe true
+            state.dial.arcs.forEach { arc ->
+                (arc.startMinute >= 0f && arc.startMinute < 1440f) shouldBe true
+                (arc.sweepMinutes in 0f..1440f) shouldBe true
             }
             state.current?.let { (it.startMinute in 0 until 1440) shouldBe true }
         }
@@ -346,9 +327,6 @@ class WidgetStateMapperTest {
 
     @Test
     fun `helpers`() {
-        DialMath.canvasDegrees(12 * 60) shouldBe 270f // noon at the top
-        DialMath.canvasDegrees(0) shouldBe 90f // midnight at the bottom
-        DialMath.canvasDegrees(18 * 60) shouldBe 0f // evening on the right
         DialMath.formatMisalignment(-180) shouldBe "\u22123 h"
         DialMath.formatMisalignment(10).shouldBeNull()
         DialMath.formatMisalignment(20) shouldBe "+\u00BD h"

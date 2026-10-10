@@ -43,11 +43,11 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs
 import dev.sebastiano.clockblocker.opus.widget.draw.RouteStrip
-import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.state.DialMath
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetRoute
@@ -60,14 +60,39 @@ import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import kotlin.math.ceil
 import java.time.Duration
 
-/** Everything one capture needs. */
-data class WidgetModel(val state: WidgetState, val texts: WidgetTexts, val palette: WidgetPalette)
-
 /**
- * Two Clocks size buckets (docs/surfaces.md): 1×1-ish dial only, 2×2 dial + caption, 2×3 dial + now card + Done,
- * 4×2 dial beside the now card + Done, 4×3 adds Up next and adaptation.
+ * Everything one capture needs.
+ *
+ * @property bodyRing how the dial draws the body ring: Simple for every widget for now; #52 makes it a per-widget
+ *   option.
  */
-enum class TwoClocksLayout { Compact, Square, Tall, Wide, Large }
+data class WidgetModel(
+    val state: WidgetState,
+    val texts: WidgetTexts,
+    val palette: WidgetPalette,
+    val bodyRing: BodyRingMode = BodyRingMode.Simple,
+)
+
+/** Two Clocks size buckets (docs/surfaces.md), each drawing one of the shared dial designs ([DialDesign]). */
+enum class TwoClocksLayout {
+    /** 1×1: the Two strips alone. */
+    Compact,
+
+    /** 2×1 and 4×1 rows: the Two strips, wider. */
+    Strip,
+
+    /** 2×2: the Two skies dial and a two-line caption. */
+    Square,
+
+    /** 2×3: the Two skies dial above the now card and Done. */
+    Tall,
+
+    /** 2×2 landscape and 3×2: the Two strips beside the now card, and Done. */
+    Wide,
+
+    /** 4×2 portrait and up: the Two skies dial beside the now card, with the header strip and Up next. */
+    Large,
+}
 
 /**
  * Next up size buckets: 1×1, 2×1, 4×1 (+ Done), 2×2 stacked (+ Done), 2×3 / 4×3 with the Up next queue, 4×2 ribbon
@@ -83,8 +108,9 @@ private const val CARD_TINT = 0.6f
 private const val NEXT_UP_TINT = 0.35f
 
 /**
- * Two Clocks widget: 24 h dial with host-driven hand, local/body time readouts and the next action. Its text is fitted
- * for [cell], the smallest size the host draws this document at (the bucket's minimum, see [WidgetSizes]).
+ * Two Clocks widget: the app's dial ([WidgetDialCanvas]: Two strips in the small and wide buckets, Two skies
+ * elsewhere) with the next action. Its text and dial are fitted for [cell], the smallest size the host draws this
+ * document at (the bucket's minimum, see [WidgetSizes]).
  */
 @RemoteComposable
 @Composable
@@ -95,32 +121,34 @@ fun TwoClocksRemote(
 ) {
     val p = model.palette
     val texts = model.texts
-    val active = model.state is WidgetState.Active
     // Sizes, line counts and the optional parts are decided at capture time, so no label clips on the host.
     val fit = LabelFit.twoClocks(LocalContext.current, texts, layout, cell)
     // The now card shows "Tokyo · Day 2" (Tall, Wide): speak it too. The 4×3 strip speaks for itself (HeaderStrip).
     val withCardHeader = listOfNotNull(texts.header, texts.contentDescription).joinToString(". ").rs
     val now = fit.now
+    val empty = fit.empty
+    val rounded = RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc)
+    if (model.state !is WidgetState.Active || empty != null) {
+        MainRegion(model, texts.contentDescription.rs, rounded) { empty?.let { EmptyContent(model, it) } }
+        return
+    }
+    // The region the dial is laid out for: its level (Glance, Simple, Full) follows from it.
+    val box = LabelFit.dialBox(texts, layout, cell, fit)
     when {
-        layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Square || !active || now == null -> MainRegion(
-            model,
-            texts.contentDescription.rs,
-            RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc),
-        ) {
-            if (layout == TwoClocksLayout.Compact) {
-                RemoteBox(modifier = RemoteModifier.fillMaxSize().padding(4.rdp), contentAlignment = RemoteAlignment.Center) {
-                    DialWithReadouts(model, DialSize.Tiny)
-                }
-            } else {
-                SquareDial(model, fit.caption)
+        layout == TwoClocksLayout.Compact || layout == TwoClocksLayout.Strip -> MainRegion(model, texts.contentDescription.rs, rounded) {
+            RemoteBox(modifier = RemoteModifier.fillMaxSize().padding(STRIP_PAD_DP.rdp), contentAlignment = RemoteAlignment.Center) {
+                WidgetDialCanvas(model, DialDesign.TwoStrips, box.width, box.height)
             }
+        }
+        layout == TwoClocksLayout.Square || now == null -> MainRegion(model, texts.contentDescription.rs, rounded) {
+            SquareDial(model, fit.caption, box)
         }
         layout == TwoClocksLayout.Tall -> Surface(p.surface) {
             RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(CLOCKS_TALL_PAD_DP.rdp)) {
                 MainRegion(model, withCardHeader, RemoteModifier.fillMaxWidth().weight(1f)) {
                     RemoteColumn(modifier = RemoteModifier.fillMaxSize()) {
                         RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
-                            DialWithReadouts(model, DialSize.Compact)
+                            WidgetDialCanvas(model, DialDesign.TwoSkies, box.width, box.height)
                         }
                         NowCard(model, now, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = CARD_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp))
                     }
@@ -152,7 +180,8 @@ fun TwoClocksRemote(
                     ) {
                         RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
                             RemoteBox(modifier = RemoteModifier.fillMaxHeight().weight(1f), contentAlignment = RemoteAlignment.Center) {
-                                DialWithReadouts(model, DialSize.Regular)
+                                // Wide is short: the strips read better there than a small round dial.
+                                WidgetDialCanvas(model, if (large) DialDesign.TwoSkies else DialDesign.TwoStrips, box.width, box.height)
                             }
                             // The card sits in a weighted full-height box: as a weighted Row child itself, the player
                             // gave it the height of one-line text, so a label that wraps at the card's width ellipsized.
@@ -193,10 +222,10 @@ fun TwoClocksRemote(
     }
 }
 
-/** The pre-bucket 2×2 layout: dial with readouts and a two-line caption. */
+/** 2×2: the Two skies dial laid out for [box], with a two-line caption under it. */
 @RemoteComposable
 @Composable
-private fun SquareDial(model: WidgetModel, caption: CaptionFit?) {
+private fun SquareDial(model: WidgetModel, caption: CaptionFit?, box: CellDp) {
     val p = model.palette
     RemoteColumn(
         modifier = RemoteModifier.fillMaxSize().padding(SQUARE_DIAL_PAD_DP.rdp),
@@ -206,16 +235,33 @@ private fun SquareDial(model: WidgetModel, caption: CaptionFit?) {
         RemoteBox(
             modifier = RemoteModifier.fillMaxWidth().weight(1f),
             contentAlignment = RemoteAlignment.Center,
-        ) { DialWithReadouts(model, DialSize.Compact) }
-        // Without a plan the dial centre already reads "No trip / Plan one": give the dial the room.
+        ) { WidgetDialCanvas(model, DialDesign.TwoSkies, box.width, box.height) }
         val title = caption?.title
-        if (model.state is WidgetState.Active && title != null) {
+        if (title != null) {
             // Two short lines rather than "Avoid light · until 18:00": that never fit a real 2×2 cell.
             // Width-constrained (fillMaxWidth): centred text needs it (see [Label]).
             FittedLabel(title, p.onSurface, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
             caption.detail?.let {
                 FittedLabel(it, p.onSurfaceVariant, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
             }
+        }
+    }
+}
+
+/** Without a plan, at every size: the no-trip glyph (when it fits), "No trip" and "Plan one", as [fit] decided. */
+@RemoteComposable
+@Composable
+private fun EmptyContent(model: WidgetModel, fit: EmptyFit) {
+    val p = model.palette
+    RemoteColumn(
+        modifier = RemoteModifier.fillMaxSize().padding(EMPTY_PAD_DP.rdp),
+        horizontalAlignment = RemoteAlignment.CenterHorizontally,
+        verticalArrangement = RemoteArrangement.spacedBy(EMPTY_GAP_DP.rdp, RemoteAlignment.CenterVertically),
+    ) {
+        if (fit.glyph) Glyph(model.texts.glyph, p, EMPTY_GLYPH_DP)
+        FittedLabel(fit.title, p.onSurface, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
+        fit.action?.let {
+            FittedLabel(it, p.primary, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
         }
     }
 }
@@ -289,60 +335,6 @@ private fun RouteDots(route: WidgetRoute, palette: WidgetPalette) {
     RemoteCanvas(modifier = RemoteModifier.width(RouteWidthDp.rdp).height(RouteHeightDp.rdp)) {
         val unit = (width / RouteStrip.WIDTH.toFloat().rf).min(height / RouteStrip.HEIGHT.toFloat().rf)
         drawOps(ops, width / 2f.rf, height / 2f.rf, unit)
-    }
-}
-
-private enum class DialSize { Tiny, Compact, Regular }
-
-@RemoteComposable
-@Composable
-private fun DialWithReadouts(model: WidgetModel, size: DialSize) {
-    val p = model.palette
-    val state = model.state
-    RemoteCanvas(modifier = RemoteModifier.fillMaxSize()) {
-        val unit = width.min(height) / 2f.rf
-        val cx = width / 2f.rf
-        val cy = height / 2f.rf
-        when (state) {
-            is WidgetState.Active -> {
-                drawOps(TwoClocksDial.build(state, p), cx, cy, unit)
-                drawHostHand(state.displayOffsetMinutes, p, cx, cy, unit)
-            }
-            WidgetState.NoTrip -> drawOps(TwoClocksDial.empty(p), cx, cy, unit)
-        }
-    }
-    val context = LocalContext.current
-    // Inside the ring: capped font scale, or the clock runs into the arcs (see TextFit.dialSp).
-    fun sp(tiny: Int, compact: Int, regular: Int) =
-        TextFit.dialSp(context, when (size) { DialSize.Tiny -> tiny; DialSize.Compact -> compact; DialSize.Regular -> regular })
-    RemoteColumn(horizontalAlignment = RemoteAlignment.CenterHorizontally) {
-        when (state) {
-            is WidgetState.Active -> {
-                val is24 = model.texts.is24Hour
-                Label(
-                    HostText.clock(HostTime.minuteOfDayAt(state.displayOffsetMinutes), is24),
-                    p.onSurface,
-                    sp(15, 20, 24),
-                    weight = FontWeight.Medium,
-                )
-                // The 1×1 dial keeps local time and the jet lag label; the body readout needs more room.
-                if (size != DialSize.Tiny) {
-                    Label(
-                        "${model.texts.bodyPrefix} ".rs + HostText.clock(HostTime.minuteOfDayAt(state.bodyOffsetMinutes), is24),
-                        p.onSurfaceVariant,
-                        sp(9, 10, 12),
-                        style = FontStyle.Italic,
-                    )
-                }
-                model.texts.misalignment?.let {
-                    Label(it.rs, p.primary, sp(9, 10, 12), weight = FontWeight.SemiBold)
-                }
-            }
-            WidgetState.NoTrip -> {
-                Label(model.texts.title.rs, p.onSurface, sp(11, 13, 16), weight = FontWeight.Medium)
-                Label(model.texts.subtitle.rs, p.primary, sp(10, 11, 13), weight = FontWeight.SemiBold)
-            }
-        }
     }
 }
 

@@ -1,6 +1,8 @@
 package dev.sebastiano.clockblocker.opus.widget.draw
 
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** What the leading glyph of a widget shows. */
 sealed interface GlyphKind {
@@ -119,11 +121,16 @@ object Glyphs {
         add(DrawOp.Circle(0f, 0f, core, on))
         repeat(rays) { i ->
             val deg = i * 360f / rays - 90f
-            val (x0, y0) = TwoClocksDial.polar(rayFrom, deg)
-            val (x1, y1) = TwoClocksDial.polar(rayTo, deg)
+            val (x0, y0) = polar(rayFrom, deg)
+            val (x1, y1) = polar(rayTo, deg)
             if (rayTo - rayFrom < 0.1f) add(DrawOp.Circle(x0, y0, 0.07f, on))
             else add(DrawOp.Line(x0, y0, x1, y1, on, 0.11f))
         }
+    }
+
+    private fun polar(r: Float, deg: Float): Pair<Float, Float> {
+        val rad = Math.toRadians(deg.toDouble())
+        return (r * cos(rad)).toFloat() to (r * sin(rad)).toFloat()
     }
 
     private fun crescent(on: Int, bg: Int) = listOf(

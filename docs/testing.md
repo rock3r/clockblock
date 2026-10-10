@@ -32,9 +32,9 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:onboarding` | 91 | 35 |
 | `:feature:plan` | 188 | 31 |
 | `:feature:settings` | 81 | 30 |
-| `:feature:trips` | 96 | 25 |
-| `:widget` | 126 | 16 |
-| **Total** | **1400** | **237** |
+| `:feature:trips` | 97 | 25 |
+| `:widget` | 134 | 17 |
+| **Total** | **1409** | **238** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 
@@ -90,7 +90,7 @@ They drive the real app, with real DataStore files and real notifications.
 | `PlanInteractionsTest` | 4 | A timeline block opens the Why sheet and the toolbar jumps back to now; a light block's Why sheet shows the light response curve, and its "Later hour" action moves the readout; a timeline check-off circle logs Done, and Undo or unticking clears it; calendar export opens the file picker |
 | `PlanTwoPaneTest` | 1 | In landscape, where the plan has two panes, the day strip marks the day the timeline is showing |
 | `DeepLinkTest` | 5 | Every `clockblock://` link, including one sent to an already running app |
-| `WidgetTest` | 2 | *Two Clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
+| `WidgetTest` | 2 | *Two clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
 | `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
 | `BackupImportTest` | 2 | Importing a backup: Merge is the dialog's main action and keeps the trips already on the phone; Replace swaps them for the backup's. The system file picker is replaced by a stub that returns a prepared file |
 
