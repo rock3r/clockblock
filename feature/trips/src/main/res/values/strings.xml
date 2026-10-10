@@ -149,6 +149,11 @@
     <string name="editor_strategy_auto_explanation">Adapts to your destination, unless you fly back within 72 hours: then you stay on home time.</string>
     <string name="editor_strategy_adapt_explanation">Moves your body clock to destination time, even for a short stay.</string>
     <string name="editor_strategy_home_explanation">Keeps your body clock at home. Best for quick trips.</string>
+    <string name="editor_body_clock_start">Body clock when you leave</string>
+    <string name="editor_body_clock_start_departure">Departure city</string>
+    <string name="editor_body_clock_start_home">Home (%1$s)</string>
+    <string name="editor_body_clock_start_departure_explanation">The plan starts on %1$s time. Right if you live there, or have been there long enough to get over jet lag.</string>
+    <string name="editor_body_clock_start_home_explanation">The plan starts on %1$s time. Right if you only just got to %2$s and your body is still on home time.</string>
 
     <!-- Shift preview. -->
     <string name="editor_preview_title">Your shift preview</string>

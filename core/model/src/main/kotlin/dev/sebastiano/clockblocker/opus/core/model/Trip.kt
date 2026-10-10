@@ -55,6 +55,12 @@ data class Trip(
     val strategyOverride: AdaptationStrategy? = null,
     /** Optional: when the user flies back. Used to detect short trips. */
     @Serializable(with = InstantIsoSerializer::class) val returnDeparture: Instant? = null,
+    /**
+     * IANA zone the body clock is on when the trip starts (e.g. home, for someone who has only just arrived where
+     * the trip departs from). Null = the first departure city's zone, which is right for anyone who lives there or
+     * has been there a while.
+     */
+    val bodyClockStartZoneId: String? = null,
 ) {
     init {
         require(legs.isNotEmpty()) { "A trip needs at least one flight" }
@@ -64,6 +70,13 @@ data class Trip(
     val destination: Place get() = legs.last().destination
     val departure: Instant get() = legs.first().departure
     val arrival: Instant get() = legs.last().arrival
+
+    /**
+     * [bodyClockStartZoneId] as a zone, or null when the body clock starts in the first departure city (not set, or
+     * a zone this device's tzdata doesn't know).
+     */
+    val bodyClockStartZone: ZoneId?
+        get() = bodyClockStartZoneId?.let { runCatching { ZoneId.of(it) }.getOrNull() }
 
     /**
      * The trip's place in [zone] at [at], e.g. to find where the plan's local time is: where the traveller is then

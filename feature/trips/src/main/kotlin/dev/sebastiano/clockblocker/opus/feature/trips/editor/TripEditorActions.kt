@@ -22,6 +22,9 @@ interface TripEditorActions {
     fun onReturnTimeChange(time: LocalTime)
     fun clearReturn()
     fun onStrategyChange(strategy: AdaptationStrategy?)
+
+    /** "Body clock when you leave": [fromHome] true = still on home time, false = on the departure city's. */
+    fun onBodyClockStartChange(fromHome: Boolean)
     fun addLeg()
     fun removeLeg(legIndex: Int)
     fun applySuggestedArrival(legIndex: Int, arrival: LocalDateTime)
@@ -51,6 +54,7 @@ interface TripEditorActions {
         override fun onReturnTimeChange(time: LocalTime) = Unit
         override fun clearReturn() = Unit
         override fun onStrategyChange(strategy: AdaptationStrategy?) = Unit
+        override fun onBodyClockStartChange(fromHome: Boolean) = Unit
         override fun addLeg() = Unit
         override fun removeLeg(legIndex: Int) = Unit
         override fun applySuggestedArrival(legIndex: Int, arrival: LocalDateTime) = Unit

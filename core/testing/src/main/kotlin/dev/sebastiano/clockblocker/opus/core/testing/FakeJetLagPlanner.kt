@@ -40,7 +40,7 @@ class FakeJetLagPlanner(
         counter.incrementAndGet()
         val home = ZoneId.of(trip.origin.zoneId)
         val dest = ZoneId.of(trip.destination.zoneId)
-        val homeOffset = home.rules.getOffset(trip.departure).totalSeconds / 60
+        val homeOffset = (trip.bodyClockStartZone ?: home).rules.getOffset(trip.departure).totalSeconds / 60
         val destOffset = dest.rules.getOffset(trip.arrival).totalSeconds / 60
         val shiftHours = wrap(destOffset - homeOffset) / 60.0
         val direction = when {
@@ -80,6 +80,7 @@ class FakeJetLagPlanner(
             phase = phase,
             estimatedDaysToAdapt = kotlin.math.abs(shiftHours) / 1.5,
             estimatedDaysWithoutPlan = kotlin.math.abs(shiftHours),
+            bodyClockStartZoneId = trip.bodyClockStartZone?.id?.takeIf { it != home.id },
         )
     }
 

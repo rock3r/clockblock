@@ -469,4 +469,88 @@ class TripEditorViewModelTest {
     }
 
     // endregion
+
+    // region Body clock start (issue #9)
+
+    @Test
+    fun `the body clock start choice shows only when home and the departure city are on different times`() = runTest(main.dispatcher) {
+        val vm = viewModel() // Home: Los Angeles.
+        vm.state.value.bodyClockStart.shouldBeNull()
+        vm.fillLisbonTokyo()
+        val choice = vm.state.value.bodyClockStart.shouldNotBeNull()
+        choice.departure shouldBe DemoData.LIS
+        choice.homeZoneId shouldBe "America/Los_Angeles"
+        choice.fromHome shouldBe false
+
+        vm.onPlaceSelected(from0, DemoData.LAX)
+        vm.state.value.bodyClockStart.shouldBeNull()
+    }
+
+    @Test
+    fun `no home zone, no choice`() = runTest(main.dispatcher) {
+        profiles.set(null)
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.state.value.bodyClockStart.shouldBeNull()
+    }
+
+    @Test
+    fun `choosing home saves the home zone, and the departure city saves nothing`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.onBodyClockStartChange(fromHome = true)
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe true
+        vm.state.value.dirty shouldBe true
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId shouldBe "America/Los_Angeles"
+        }
+
+        val other = viewModel()
+        other.fillLisbonTokyo()
+        other.onBodyClockStartChange(fromHome = true)
+        other.onBodyClockStartChange(fromHome = false)
+        other.eventFlow.test {
+            other.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId.shouldBeNull()
+        }
+    }
+
+    @Test
+    fun `the preview plans from where the body clock starts`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyoDeparture()
+        advanceUntilIdle()
+        vm.state.value.preview.shouldNotBeNull().shiftHours shouldBe 8.0 // Lisbon → Tokyo
+        vm.onBodyClockStartChange(fromHome = true)
+        advanceUntilIdle()
+        vm.state.value.preview.shouldNotBeNull().shiftHours shouldBe -8.0 // Los Angeles → Tokyo, the short way
+    }
+
+    @Test
+    fun `editing keeps a trip's body clock start, a moot one is saved as the departure city`() = runTest(main.dispatcher) {
+        val fromRome = trips.current.single { it.id == DemoData.SfoLhrId }.copy(bodyClockStartZoneId = "Europe/Rome")
+        trips.upsert(fromRome)
+        val vm = viewModel(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        val choice = vm.state.value.bodyClockStart.shouldNotBeNull()
+        choice.fromHome shouldBe true
+        choice.homeZoneId shouldBe "Europe/Rome" // What the trip says, even if home has changed since.
+        vm.state.value.dirty shouldBe false
+
+        // London has the same offset as the departure city (London): the choice can't change the plan.
+        val moot = trips.current.single { it.id == DemoData.LhrSydId }.copy(bodyClockStartZoneId = "Europe/London")
+        trips.upsert(moot)
+        val edit = viewModel(TripEditorArgs(tripId = DemoData.LhrSydId))
+        edit.state.value.bodyClockStart.shouldBeNull()
+        edit.onTitleChange("Edited")
+        edit.eventFlow.test {
+            edit.save()
+            awaitItem()
+        }
+        trips.current.single { it.id == DemoData.LhrSydId }.bodyClockStartZoneId.shouldBeNull()
+    }
+
+    // endregion
 }

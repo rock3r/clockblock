@@ -332,7 +332,7 @@ internal fun NoShiftCard(plan: JetLagPlan, sleep: SleepWindow, modifier: Modifie
         title = stringResource(R.string.plan_no_shift_title),
         body = stringResource(
             R.string.plan_no_shift_body,
-            ZoneId.of(plan.originZoneId).cityName(),
+            ZoneId.of(plan.startZoneId).cityName(),
             ZoneId.of(plan.destinationZoneId).cityName(),
             formatter.formatFull(sleep.bedtime),
             formatter.formatFull(sleep.wake),
@@ -347,7 +347,7 @@ internal fun NoShiftCard(plan: JetLagPlan, sleep: SleepWindow, modifier: Modifie
 internal fun StayOnHomeCard(plan: JetLagPlan, modifier: Modifier = Modifier) {
     StoryCard(
         title = stringResource(R.string.plan_stay_home_title),
-        body = stringResource(R.string.plan_stay_home_body, ZoneId.of(plan.originZoneId).cityName()),
+        body = stringResource(R.string.plan_stay_home_body, ZoneId.of(plan.startZoneId).cityName()),
         art = { TwoClocksArt(Modifier.size(88.dp), animated = false) },
         modifier = modifier,
     )
