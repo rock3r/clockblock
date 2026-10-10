@@ -6,7 +6,7 @@ how to back it up.
 
 ## Your profile and tools
 
-<img src="images/settings-profile.png" alt="Settings: Your profile with Home time zone Los Angeles GMT−7, Usual sleep 23:00 to 07:00, 8 h, and Chronotype Somewhere in between. Below, Tools: Caffeine, I can sleep on planes and Adjust before I leave are on; Melatonin is off." width="300" />
+<img src="images/settings-profile.png" alt="Settings, scrolled a little: Home time zone Los Angeles GMT−7, Usual sleep 23:00 to 07:00, 8 h, and Chronotype Somewhere in between. Below, Tools: Caffeine, I can sleep on planes and Adjust before I leave are on; Melatonin is off." width="300" />
 
 | Setting | What it does |
 |---|---|

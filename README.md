@@ -19,9 +19,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo on pre-trip day −1: a strip of day pills, the Two Clocks dial showing 14:52 local and 17:25 body time, and the Now card saying Avoid caffeine until 20:00" width="19%" />
+  <img src="docs/screenshots/device/plan-now.png" alt="Plan screen for Lisbon to Tokyo on pre-trip day −1: a strip of day pills, the Two skies dial showing 18:06 in Lisbon and 20:48 body time, and the Now card saying Avoid light until 20:00" width="19%" />
   <img src="docs/screenshots/device/plan-timeline.png" alt="The plan timeline: the end of the travel day with in-flight Avoid light and a Peak fatigue chip, a Switching to Tokyo time divider, then Day 1 in Tokyo with Sleep and See bright light, each also shown in Lisbon time" width="19%" />
-  <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo under a boarding-pass card, departing Wed 7 Oct at 09:00 Lisbon time, with the arrival, Thu 8 Oct at 07:25 Tokyo time, estimated from the flight distance" width="19%" />
+  <img src="docs/screenshots/device/trip-editor.png" alt="The New trip editor: Flight 1 from Lisbon to Tokyo under a boarding-pass card, departing Wed 14 Oct at 09:00 Lisbon time, with the arrival, Thu 15 Oct at 07:25 Tokyo time, estimated from the flight distance" width="19%" />
   <img src="docs/screenshots/device/trips-dark.png" alt="The Trips list in dark theme with a Lisbon to Tokyo trip that leaves tomorrow: LIS and HND joined by an arc, 34% adapted" width="19%" />
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
