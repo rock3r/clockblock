@@ -1,8 +1,5 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.list
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -17,7 +14,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,16 +29,14 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.SkyStatusBarIcons
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.celestialPosition
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -199,30 +193,6 @@ private fun androidx.graphics.shapes.RoundedPolygon.toPath(): Path {
         }
         close()
     }
-}
-
-/**
- * Light or dark status bar icons to match the sky under them, while this bar owns the status bar (it sits at the
- * window's top-start corner; in list-detail the plan pane's header decides for itself). Restores on dispose.
- */
-@Composable
-private fun SkyStatusBarIcons(ink: Color, ownsStatusBar: Boolean) {
-    val view = LocalView.current
-    if (view.isInEditMode) return
-    val window = view.context.findActivity()?.window ?: return
-    val darkIcons = ink.luminance() < 0.5f
-    DisposableEffect(window, darkIcons, ownsStatusBar) {
-        val controller = WindowCompat.getInsetsController(window, view)
-        val previous = controller.isAppearanceLightStatusBars
-        if (ownsStatusBar) controller.isAppearanceLightStatusBars = darkIcons
-        onDispose { controller.isAppearanceLightStatusBars = previous }
-    }
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
 private val Moonlight = Color(0xFFF4F1FF)
