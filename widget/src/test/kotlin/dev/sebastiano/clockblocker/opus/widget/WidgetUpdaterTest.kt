@@ -534,6 +534,24 @@ class WidgetUpdaterTest {
     }
 
     @Test
+    fun `with several sizes per orientation the preview takes the tallest or the widest`() {
+        // A foldable reports a size per posture: the bigger one wins, not the most extreme aspect ratio.
+        val id = place(WidgetKind.TwoClocks, 56)
+        manager.updateAppWidgetOptions(
+            id,
+            Bundle().apply {
+                putParcelableArrayList(
+                    AppWidgetManager.OPTION_APPWIDGET_SIZES,
+                    arrayListOf(SizeF(100f, 300f), SizeF(250f, 500f), SizeF(500f, 200f), SizeF(800f, 400f)),
+                )
+            },
+        )
+
+        updater.sizeDp(id, landscape = false) shouldBe SizeF(250f, 500f)
+        updater.sizeDp(id, landscape = true) shouldBe SizeF(800f, 400f)
+    }
+
+    @Test
     fun `without reported sizes the preview uses the portrait or landscape bounds`() {
         val id = place(WidgetKind.TwoClocks, 55)
         manager.updateAppWidgetOptions(

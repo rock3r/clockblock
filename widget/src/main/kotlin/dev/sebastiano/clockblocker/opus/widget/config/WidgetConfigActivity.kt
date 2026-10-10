@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.util.SizeF
@@ -63,9 +64,13 @@ class WidgetConfigActivity(
         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
 
         val factory = viewModelFactory {
-            initializer { WidgetConfigViewModel(appWidgetId, kind, updater, configs, settingsRepository) }
+            initializer {
+                WidgetConfigViewModel(appWidgetId, kind, updater, configs, settingsRepository, landscape = isLandscape())
+            }
         }
         val viewModel = ViewModelProvider(this, factory)[WidgetConfigViewModel::class.java]
+        // The ViewModel survives a rotation; the recreated activity tells it the new orientation.
+        viewModel.setLandscape(isLandscape())
 
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -107,6 +112,8 @@ class WidgetConfigActivity(
         }
     }
 }
+
+private fun Activity.isLandscape(): Boolean = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
 /**
  * The preview's host view. It plays the widget's real RemoteViews, whose buttons fire real actions (Done would log

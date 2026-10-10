@@ -118,6 +118,25 @@ class WidgetConfigViewModelTest {
     }
 
     @Test
+    fun `the preview size follows a rotation`() {
+        manager.updateAppWidgetOptions(
+            id,
+            Bundle().apply {
+                putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, arrayListOf(SizeF(300f, 150f), SizeF(180f, 240f)))
+            },
+        )
+        val vm = viewModel()
+        vm.setLandscape(false)
+        settle()
+        vm.state.value.shouldNotBeNull().let { (it.widthDp to it.heightDp) shouldBe (180f to 240f) }
+
+        // The ViewModel outlives the rotated activity, which reports the new orientation.
+        vm.setLandscape(true)
+        settle()
+        vm.state.value.shouldNotBeNull().let { (it.widthDp to it.heightDp) shouldBe (300f to 150f) }
+    }
+
+    @Test
     fun `without a trip the preview shows the sample trip`() {
         val vm = viewModel()
         settle()

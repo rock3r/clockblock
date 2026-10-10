@@ -222,7 +222,8 @@ class WidgetUpdater(
     /**
      * The size [appWidgetId] is drawn at on the home screen in the current orientation, in dp (#125). The host's
      * reported sizes come in no guaranteed order (usually portrait and landscape, more on a foldable), so this takes
-     * the tallest one in portrait and the widest one in landscape. Without them it falls back to the platform's
+     * the tallest portrait size in portrait and the widest landscape size in landscape (else the one whose aspect
+     * ratio is closest to that orientation). Without them it falls back to the platform's
      * bounds: min width × max height in portrait, max width × min height in landscape.
      */
     internal fun sizeDp(appWidgetId: Int, landscape: Boolean = isLandscape()): SizeF {
@@ -231,8 +232,12 @@ class WidgetUpdater(
         val sizes = options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
             ?.filter { it.width > 0f && it.height > 0f }
             .orEmpty()
+        // Prefer the sizes in this orientation, the biggest of them (a foldable reports one per posture); else the
+        // size closest to it.
+        val inOrientation = sizes.filter { if (landscape) it.width > it.height else it.height >= it.width }
+        val pick = if (landscape) inOrientation.maxByOrNull { it.width } else inOrientation.maxByOrNull { it.height }
         val aspect = { size: SizeF -> size.width / size.height }
-        (if (landscape) sizes.maxByOrNull(aspect) else sizes.minByOrNull(aspect))?.let { return it }
+        (pick ?: if (landscape) sizes.maxByOrNull(aspect) else sizes.minByOrNull(aspect))?.let { return it }
         fun option(key: String) = options?.getInt(key) ?: 0
         val width = option(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
         val height = option(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
