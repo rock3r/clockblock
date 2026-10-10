@@ -2,7 +2,9 @@ package dev.sebastiano.clockblocker.opus.debug
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -52,7 +54,17 @@ class DebugActivity : ComponentActivity() {
                         probe.cancelAll()
                         if (state is ProbeState.Done) state = ProbeState.Idle
                     },
-                    onAllowNotifications = { permission.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                    onAllowNotifications = {
+                        // Once granted, a request is a no-op: notifications turned off in system settings are
+                        // turned back on there.
+                        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                            startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+                            )
+                        } else {
+                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    },
                     onOpenGallery = { page ->
                         startActivity(Intent(this, WidgetGalleryActivity::class.java).putExtra("page", page.extra))
                     },

@@ -71,17 +71,31 @@ class RemoteComposeNotificationProbe(private val context: Context) {
         if (!manager.areNotificationsEnabled()) {
             return Variant.entries.map { Result(it, Verdict.Unsupported, "notifications are off for this app") }
         }
+        // A blocked channel would swallow every post and read as "dropped by SystemUI".
+        if (manager.getNotificationChannel(ClockblockChannel.Now.id)?.importance == NotificationManager.IMPORTANCE_NONE) {
+            return Variant.entries.map { Result(it, Verdict.Unsupported, "the Now notification channel is turned off") }
+        }
         val profile = RemoteComposeSupport.profileOrNull()
             ?: return Variant.entries.map { Result(it, Verdict.Unsupported, "no Remote Compose profile on this device") }
         val renderer = WidgetRenderer(context)
         val model = renderer.model(state, theme)
         val collapsedBucket = WidgetSizes.NEXT_UP.first { it.layout == NextUpLayout.Wide }
         val expandedBucket = WidgetSizes.TWO_CLOCKS.first { it.layout == TwoClocksLayout.Wide }
-        val collapsedDoc = RemoteComposeRenderer.capture(context, profile) {
-            NextUpRemote(model, collapsedBucket.layout, collapsedBucket.fitAt)
-        }
-        val expandedDoc = RemoteComposeRenderer.capture(context, profile) {
-            TwoClocksRemote(model, expandedBucket.layout, expandedBucket.fitAt)
+        // Capture can fail on a device that reports a profile (the widgets fall back to a placeholder then): report
+        // it for every variant instead of failing the run.
+        val (collapsedDoc, expandedDoc) = try {
+            RemoteComposeRenderer.capture(context, profile) {
+                NextUpRemote(model, collapsedBucket.layout, collapsedBucket.fitAt)
+            } to RemoteComposeRenderer.capture(context, profile) {
+                TwoClocksRemote(model, expandedBucket.layout, expandedBucket.fitAt)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "capturing the documents threw", e)
+            return Variant.entries.map {
+                Result(it, Verdict.Threw, "capturing the documents threw ${e.javaClass.simpleName}: ${e.message}")
+            }
         }
         Log.i(TAG, "documents: collapsed ${collapsedDoc.bytes.size} B, expanded ${expandedDoc.bytes.size} B")
 
