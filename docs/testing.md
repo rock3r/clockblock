@@ -1,8 +1,8 @@
 # Testing and CI
 
-The project is built test-first. There are about 1,100 JVM tests (plain JUnit and Robolectric), 193 committed
-screenshot goldens and 22 end-to-end tests that run on an emulator. Every pull request runs them in GitHub
-Actions, and Codex reviews the change.
+The project is built test-first, with JVM tests (plain JUnit and Robolectric), committed screenshot goldens and
+end-to-end tests that run on an emulator. Every pull request runs them in GitHub Actions, and Codex reviews the
+change.
 
 This page explains what each kind of test covers, how to run it, and how a pull request gets from "opened" to
 "ready to merge".
@@ -18,25 +18,6 @@ This page explains what each kind of test covers, how to run it, and how a pull 
 
 The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`, without comparing images.
 `verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
-
-### Tests per module
-
-| Module | JVM tests | Screenshot goldens |
-|---|---|---|
-| `:app` | 90 | 12 |
-| `:core:circadian` | 76 | 0 |
-| `:core:data` | 190 | 0 |
-| `:core:designsystem` | 296 | 79 |
-| `:core:model` | 29 | 0 |
-| `:core:notifications` | 201 | 9 |
-| `:feature:onboarding` | 91 | 35 |
-| `:feature:plan` | 191 | 31 |
-| `:feature:settings` | 81 | 30 |
-| `:feature:trips` | 97 | 25 |
-| `:widget` | 161 | 21 |
-| **Total** | **1503** | **242** |
-
-The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 
 ## Conventions
 
