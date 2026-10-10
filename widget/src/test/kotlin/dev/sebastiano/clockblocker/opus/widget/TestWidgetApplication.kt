@@ -23,9 +23,17 @@ import kotlin.reflect.KClass
 class TestWidgetApplication : Application(), MetroApplication {
     val updater: WidgetUpdater by lazy { WidgetUpdater(this) }
 
+    /**
+     * The configuration screen's updater renders the placeholder layout: Robolectric's `AppWidgetHostView` shadow
+     * inflates `RemoteViews.layoutId`, which a Remote Compose (`DrawInstructions`) widget doesn't have.
+     */
+    private val configUpdater: WidgetUpdater by lazy {
+        WidgetUpdater(this).apply { rendererFactory = { WidgetRenderer(it, profileProvider = { null }) } }
+    }
+
     override val appComponentProviders: MetroAppComponentProviders = object : MetroAppComponentProviders {
         override val activityProviders: Map<KClass<out Activity>, () -> Activity> = mapOf(
-            WidgetConfigActivity::class to { WidgetConfigActivity(updater, FakeWidgetConfigRepository(), FakeSettingsRepository()) },
+            WidgetConfigActivity::class to { WidgetConfigActivity(configUpdater, FakeWidgetConfigRepository(), FakeSettingsRepository()) },
         )
         override val providerProviders: Map<KClass<out ContentProvider>, () -> ContentProvider> = emptyMap()
         override val receiverProviders: Map<KClass<out BroadcastReceiver>, () -> BroadcastReceiver> = mapOf(

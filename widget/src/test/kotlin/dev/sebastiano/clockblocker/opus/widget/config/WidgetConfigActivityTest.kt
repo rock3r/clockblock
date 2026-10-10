@@ -2,8 +2,12 @@ package dev.sebastiano.clockblocker.opus.widget.config
 
 import android.app.Activity
 import android.app.Application
+import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.widget.WidgetKind
@@ -27,6 +31,24 @@ class WidgetConfigActivityTest {
         if (appWidgetId != null) putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
     }
 
+    private fun awaitPreview(scenario: ActivityScenario<WidgetConfigActivity>) {
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (true) {
+            shadowOf(Looper.getMainLooper()).idle()
+            var shown = false
+            scenario.onActivity { shown = (it.window.decorView.findHostView()?.childCount ?: 0) > 0 }
+            if (shown) return
+            check(System.nanoTime() < deadline) { "The preview never reached the host view" }
+            Thread.sleep(10)
+        }
+    }
+
+    private fun View.findHostView(): AppWidgetHostView? = when (this) {
+        is AppWidgetHostView -> this
+        is ViewGroup -> (0 until childCount).firstNotNullOfOrNull { getChildAt(it).findHostView() }
+        else -> null
+    }
+
     @Test
     fun `refuses an id that isn't one of our widgets`() {
         ActivityScenario.launchActivityForResult<WidgetConfigActivity>(intent(42)).use { scenario ->
@@ -48,6 +70,9 @@ class WidgetConfigActivityTest {
         manager.bindAppWidgetIdIfAllowed(7, WidgetUpdater.componentName(app, WidgetKind.TwoClocks))
 
         ActivityScenario.launchActivityForResult<WidgetConfigActivity>(intent(7)).use { scenario ->
+            // The preview is built off the main thread; wait until the host view shows it, so the test always
+            // covers the screen with its preview rather than whichever state it happened to reach.
+            awaitPreview(scenario)
             scenario.onActivity { it.isFinishing shouldBe false }
             scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
             scenario.result.resultCode shouldBe Activity.RESULT_OK
