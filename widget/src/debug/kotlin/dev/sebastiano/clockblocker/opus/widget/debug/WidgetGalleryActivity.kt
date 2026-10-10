@@ -39,7 +39,8 @@ import java.time.Instant
  *   `adb shell appwidget grantbind --package <applicationId>`), updated by the real provider/updater path.
  *
  * Extras: `scenario` (a [DemoPlans.Scenario], NoTrip, or any [AdviceType] name: the demo's current block becomes
- * that type), `label` (replaces the advice label, to try long ones), `page` (twoclocks|nextup|live|all).
+ * that type), `label` (replaces the advice label, to try long ones), `page` (twoclocks|nextup|live|all, or
+ * notification for [RemoteComposeNotificationProbe]).
  *
  * `adb shell am start -n <applicationId>/dev.sebastiano.clockblocker.opus.widget.debug.WidgetGalleryActivity --es page nextup`
  */
@@ -108,6 +109,13 @@ class WidgetGalleryActivity : Activity() {
         }
 
         scope.launch {
+            if (page == "notification") {
+                column.addView(label("Remote Compose notification probe (#49): posting…"))
+                RemoteComposeNotificationProbe(this@WidgetGalleryActivity).run(state, WidgetTheme.Light).forEach {
+                    column.addView(label("${it.variant}: ${it.outcome}"))
+                }
+                return@launch
+            }
             for ((kind, buckets) in listOf(WidgetKind.TwoClocks to TWO_CLOCKS_CELLS, WidgetKind.NextUp to NEXT_UP_CELLS)) {
                 val pageName = if (kind == WidgetKind.TwoClocks) "twoclocks" else "nextup"
                 if (page != "all" && page != pageName) continue
