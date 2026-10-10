@@ -55,9 +55,9 @@ you to it before the next flight.
 
 ### When something looks wrong
 
-<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Wed, Oct 7 and the arrival fields outlined in red. An error says: Lands before it takes off, once both local times are in their own time zones. A button offers Arrives next day?" width="280" />
+<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Wed, Oct 7 and the arrival fields outlined in red. A card headed Fix this says: Lands before it takes off. Each time is local to its airport, so check the arrival date and time. A button offers Arrives next day?" width="280" />
 
-The editor checks your flights as you type. Problems are marked **Error** (you can't save until you fix it),
+The editor checks your flights as you type. Problems are marked **Fix this** (you can't save until you fix it),
 **Check this** (probably a mistake) or **Note** (just information). Many come with a one-tap fix. For example, an
 overnight flight entered with the same arrival date shows "Lands before it takes off" and offers **Arrives next
 day?**.
