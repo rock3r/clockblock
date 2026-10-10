@@ -132,9 +132,10 @@ In a gap, the title is "Nothing right now" and the line says what's next; the ex
 chip and neither view has a bar. The collapsed view shows local times only; in the expanded one every time
 (until, also, next) is followed by the other zone as a short tail, kept on one line with no-break spaces.
 
-Newer shades show the app icon where the small icon used to be, so in the shade the expanded chip is what names
-the advice; the small icon (status bar, AOD) is still the advice glyph. Chips and bars use the design system's advice
-colours, light and dark (copied into
+The small icon (status bar, AOD, the header on older shades) is always the app's Horizon mark, so you can tell
+it's Clockblock at a glance; newer shades show the app icon there instead. The advice glyph lives in the body: the
+chip in the custom view, or the large icon on the lock-screen version, reminders and the Live Update. Chips and
+bars use the design system's advice colours, light and dark (copied into
 [`NotificationPalette`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationPalette.kt),
 kept in step by `NotificationPaletteTest`), and the shade picks the pair for its theme. Text uses the shade's own
 notification text appearances, so it follows dark mode and the font size. Every glyph sits next to its text

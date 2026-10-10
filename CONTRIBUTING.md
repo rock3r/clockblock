@@ -111,16 +111,19 @@ Then commit the new `places.tsv`. The pipeline, the format and the size budget a
 [`tools/places/README.md`](tools/places/README.md); attribution requirements are in
 [`licenses/DATA_ATTRIBUTION.md`](licenses/DATA_ATTRIBUTION.md). Don't add OpenFlights data (AGPL/ODbL).
 
-## Launcher icon
+## App icon
 
-The adaptive icon's foreground and monochrome layers are generated:
+The icon family is generated from one geometry: the adaptive icon's background, foreground and monochrome
+(themed) layers, and the notification small icon that every notification uses.
 
 ```sh
-python3 tools/icon/gen_launcher_icon.py app/src/main/res/drawable
-./gradlew :app:recordRoborazziPlayDebug --tests '*LauncherIconScreenshotTest*'
+python3 tools/icon/gen_icon.py
+./gradlew :app:recordRoborazziPlayDebug --tests '*LauncherIconScreenshotTest*' --tests '*IconFamilyScreenshotTest*'
 ```
 
-Edit the script, not the XML, and check `app/src/test/screenshots/launcher_icon*.png` afterwards.
+Edit the script, not the XML. It fails if the art leaves the 66 dp safe zone or the small icon's live area. Check
+`app/src/test/screenshots/launcher_icon*.png` and the contact sheet `app/src/test/screenshots/icon_family.png`
+afterwards.
 
 ## Pull requests
 

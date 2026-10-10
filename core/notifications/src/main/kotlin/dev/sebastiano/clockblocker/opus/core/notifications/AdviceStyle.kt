@@ -4,7 +4,7 @@ import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 
-/** Monochrome small icon (AOD-legible), accent colour and channel for each kind of advice. */
+/** Monochrome glyph (the chip in the notification body), accent colour and channel for each kind of advice. */
 internal data class AdviceStyle(
     @param:DrawableRes val icon: Int,
     /** Semantic advice seed colour from `docs/design.md` §2.4; used for progress segments and the accent. */
