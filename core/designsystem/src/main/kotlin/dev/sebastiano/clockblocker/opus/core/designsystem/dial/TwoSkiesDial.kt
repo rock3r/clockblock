@@ -121,6 +121,7 @@ fun TwoSkiesDial(
     }
 
     val boundaries = remember(state) { blockBoundaries(state) }
+    val stops = remember(state) { blockBoundaryStops(state) }
 
     // The real instant the hand last landed on, when it isn't the face's own (a block boundary in a fall-back night's
     // repeated hour, see blockBoundaryInstant). The drawn body clock and the description follow it, as the host's
@@ -169,10 +170,12 @@ fun TwoSkiesDial(
      * boundary is resolved against now as it is here; if the minute ticks over during the move, the landing moves on
      * with it rather than being measured against the new now.
      */
-    fun animateScrubToBoundary(offset: Float) {
-        val from = currentState
-        animateScrubTo(offset, blockBoundaryInstant(from, offset), from.instant)
+    fun animateScrubToBoundary(stop: BoundaryStop) {
+        animateScrubTo(stop.offset, stop.instant, currentState.instant)
     }
+
+    // Next/Previous block step through the boundaries in real time from the instant under the hand (#106).
+    fun handInstant(): Instant = landing?.atFor(currentState) ?: currentState.instantAt(scrub.value)
 
     // Semantics (composition): coarse scrub so TalkBack text doesn't recompose every frame.
     val coarseScrub by remember { derivedStateOf { (scrub.value / 5f).toInt() * 5f } }
@@ -191,10 +194,12 @@ fun TwoSkiesDial(
                 contentDescription = description
                 customActions = listOf(
                     CustomAccessibilityAction(nextLabel) {
-                        boundaries.firstOrNull { it > scrub.value + 1f }?.let { animateScrubToBoundary(it); true } ?: false
+                        val after = handInstant().plus(StopTolerance)
+                        stops.firstOrNull { it.instant > after }?.let { animateScrubToBoundary(it); true } ?: false
                     },
                     CustomAccessibilityAction(previousLabel) {
-                        boundaries.lastOrNull { it < scrub.value - 1f }?.let { animateScrubToBoundary(it); true } ?: false
+                        val before = handInstant().minus(StopTolerance)
+                        stops.lastOrNull { it.instant < before }?.let { animateScrubToBoundary(it); true } ?: false
                     },
                     CustomAccessibilityAction(nowLabel) { animateScrubTo(0f); true },
                 )
@@ -391,30 +396,66 @@ internal fun blockBoundaries(state: DialState): List<Float> = state.arcs
 internal fun blockBoundaryInstant(state: DialState, offset: Float): Instant {
     val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull() ?: return state.instantAt(offset)
     fun at(minutes: Float) = abs(minutes - offset) < BoundaryToleranceMinutes
-    // Only an instant whose wall-clock time is the boundary's: not a start the window clips, nor the real end of a
-    // block drawn forward past it (one that ends earlier on the face than it starts). And only one on the same side
-    // of now in real time as on the face: from the second run of the repeated hour, a first-run 01:45 sits ahead on
-    // the face but is already past. At the hand's own face time (offset 0) either run will do: the other one is an
-    // hour away in real time, but at now on the face.
-    fun Instant.isHere(): Boolean {
-        val real = Duration.between(state.instant, this)
-        val sameSide = when {
-            offset > 0f -> real > Duration.ZERO
-            offset < 0f -> real < Duration.ZERO
-            else -> true
-        }
-        return sameSide && at(faceMinutesFrom(state.instant, this, zone))
-    }
     for (arc in state.arcs) {
         val start = DialGeometry.relativeMinute(state.localMinute, arc.startMinute)
         val end = start + arc.sweepMinutes
-        arc.startInstant?.takeIf { at(start) && it.isHere() }?.let { return it }
-        arc.endInstant?.takeIf { at(end) && it.isHere() }?.let { return it }
+        arc.startInstant?.takeIf { at(start) && state.isBoundaryHere(it, offset, zone) }?.let { return it }
+        arc.endInstant?.takeIf { at(end) && state.isBoundaryHere(it, offset, zone) }?.let { return it }
     }
     return state.instantAt(offset)
 }
 
+/**
+ * Whether [candidate] is a block boundary drawn [offset] minutes of the face from now. Only an instant whose
+ * wall-clock time is the boundary's: not a start the window clips, nor the real end of a block drawn forward past it
+ * (one that ends earlier on the face than it starts). And only one on the same side of now in real time as on the
+ * face: from the second run of the repeated hour, a first-run 01:45 sits ahead on the face but is already past. At
+ * the hand's own face time (offset 0) either run will do: the other one is an hour away in real time, but at now on
+ * the face.
+ */
+private fun DialState.isBoundaryHere(candidate: Instant, offset: Float, zone: ZoneId): Boolean {
+    val real = Duration.between(instant, candidate)
+    val sameSide = when {
+        offset > 0f -> real > Duration.ZERO
+        offset < 0f -> real < Duration.ZERO
+        else -> true
+    }
+    return sameSide && abs(faceMinutesFrom(instant, candidate, zone) - offset) < BoundaryToleranceMinutes
+}
+
+/** A block boundary the hand can land on: [offset] minutes of the face from now, at the real [instant]. */
+internal data class BoundaryStop(val offset: Float, val instant: Instant)
+
+/**
+ * The block boundaries ([blockBoundaries]) in real-time order, each at its own block's real instant when that is the
+ * one drawn there (see [blockBoundaryInstant]), for Next/Previous block. Two boundaries can share one face time in a
+ * fall-back night (a block ending at the first 01:30, another starting at the second): listed by face offset only one
+ * of them could ever be visited (#106); listed by instant, both are stops.
+ */
+internal fun blockBoundaryStops(state: DialState): List<BoundaryStop> {
+    val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull()
+    return state.arcs
+        .flatMap { arc ->
+            val start = DialGeometry.relativeMinute(state.localMinute, arc.startMinute)
+            if (arc.sweepMinutes == 0f) {
+                listOf(start to arc.startInstant)
+            } else {
+                listOf(start to arc.startInstant, start + arc.sweepMinutes to arc.endInstant)
+            }
+        }
+        .filter { (offset, _) -> offset >= -DialState.PastWindowMinutes && offset < DialGeometry.MinutesPerDay - DialState.PastWindowMinutes }
+        .map { (offset, own) ->
+            val here = own?.takeIf { zone != null && state.isBoundaryHere(it, offset, zone) }
+            BoundaryStop(offset, here ?: blockBoundaryInstant(state, offset))
+        }
+        .distinctBy { it.instant }
+        .sortedBy { it.instant }
+}
+
 private const val BoundaryToleranceMinutes = 0.01f
+
+// Next/Previous block skip a boundary closer than this to the hand, as the face-offset version skipped one within a minute.
+private val StopTolerance: Duration = Duration.ofMinutes(1)
 
 /**
  * The hand at [offset] on the face, at the real instant [at] (see blockBoundaryInstant), landed when the dial was

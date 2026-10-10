@@ -217,6 +217,14 @@ class DialDstTest {
     }
 
     @Test
+    fun `without two boundaries at one face time, the stops are the boundaries at their real instants (#106)`() {
+        val state = repeatedHour()
+        val stops = blockBoundaryStops(state)
+        stops.map { it.offset } shouldBe blockBoundaries(state)
+        stops.map { it.instant } shouldBe blockBoundaries(state).map { blockBoundaryInstant(state, it) }
+    }
+
+    @Test
     fun `a block drawn past its real end keeps the hand's instant at its drawn end`() {
         // 01:50 EDT → 01:10 EST is drawn forward with its real 20 minutes, to 02:10 on the face: its real end, 01:10,
         // isn't where the arc ends, so the boundary there stays 02:10 (EST), the time the hand shows.

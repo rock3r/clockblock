@@ -197,4 +197,47 @@ class TwoSkiesDialActionsTest {
 
         compose.onNodeWithTag("dial").assertContentDescriptionContains("2:00 AM local. Your body clock is 3:00 AM", substring = true)
     }
+
+    // From 00:30 EDT: sleep ends at the first 01:30 (05:30Z) and a light block starts at the second 01:30 (06:30Z),
+    // both an hour of the face ahead; the light block ends at 02:00 EST (07:00Z).
+    private val firstRunEnd = Instant.parse("2026-11-01T05:30:00Z")
+    private val secondRunStart = Instant.parse("2026-11-01T06:30:00Z")
+    private val lightEnd = Instant.parse("2026-11-01T07:00:00Z")
+    private val twoBoundariesAtOneFaceTime = fallBack.copy(
+        arcs = persistentListOf(
+            DialArc("sleep", AdviceType.Sleep, startMinute = 30f, sweepMinutes = 60f, startInstant = now, endInstant = firstRunEnd),
+            DialArc(
+                "light",
+                AdviceType.SeeBrightLight,
+                startMinute = 90f,
+                sweepMinutes = 30f,
+                startInstant = secondRunStart,
+                endInstant = lightEnd,
+            ),
+        ),
+    )
+
+    @Test
+    fun `Next and Previous block visit both boundaries that share one face time in a fall-back night (#106)`() {
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme {
+                TwoSkiesDial(twoBoundariesAtOneFaceTime, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it })
+            }
+        }
+        val visited = mutableListOf<Instant>()
+        fun perform(action: Int) {
+            compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(action))
+            compose.waitForIdle()
+            visited += reported.last()
+        }
+
+        perform(R.string.dial_action_next_block)
+        perform(R.string.dial_action_next_block)
+        perform(R.string.dial_action_next_block)
+        perform(R.string.dial_action_previous_block)
+        perform(R.string.dial_action_previous_block)
+
+        visited shouldBe listOf(firstRunEnd, secondRunStart, lightEnd, secondRunStart, firstRunEnd)
+    }
 }
