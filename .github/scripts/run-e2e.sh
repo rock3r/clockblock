@@ -37,8 +37,13 @@ adb wait-for-device
 for attempt in 1 2; do
   wait_for_package_service
   diagnostics
+  # The device log is the only trace of an instrumentation run that ends without running anything.
+  adb logcat -c 2>/dev/null
+  adb logcat -v threadtime > "emulator-logcat-$attempt.txt" 2>&1 &
+  logcat_pid=$!
   ./gradlew :app:connectedDebugAndroidTest 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
+  kill "$logcat_pid" 2>/dev/null
   if ! grep -qE "Failed to install|AndroidTestRunner failed|INSTALL_FAILED" "$log"; then
     exit "$status"
   fi

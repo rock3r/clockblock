@@ -50,7 +50,10 @@ jobs:
           disk-size: 8G
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # Not swiftshader_indirect: on the API 37 image its surfaceflinger aborts soon after boot
+          # ("Assertion failed: !rcEnc->featureInfo()->hasReadColorBufferDma" in the goldfish mapper), which restarts
+          # system_server and takes the package service down mid-install.
+          emulator-options: -no-window -gpu swangle_indirect -noaudio -no-boot-anim -camera-back none
           # The package service can come and go after boot_completed; the script waits for it to settle, retries a
           # failed install once and keeps the Gradle log for the check below.
           script: bash .github/scripts/run-e2e.sh
@@ -66,4 +69,5 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
             connected-tests.log
+            emulator-logcat-*.txt
           retention-days: 7
