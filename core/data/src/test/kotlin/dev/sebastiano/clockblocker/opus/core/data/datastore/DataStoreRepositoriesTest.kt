@@ -13,6 +13,7 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -102,6 +103,27 @@ class DataStoreRepositoriesTest {
         advanceUntilIdle()
 
         trips(file).trips.first() shouldBe listOf(sfoLhr, lhrSyd)
+    }
+
+    @Test
+    fun bodyClockStartSurvivesARestart() = runTest {
+        val file = File(tmp.root, "trips.json")
+        val first = storeScope()
+        val fromRome = sfoLhr.copy(bodyClockStartZoneId = "Europe/Rome")
+        trips(file, first).upsert(fromRome)
+        first.coroutineContext[Job]!!.cancelAndJoin()
+        advanceUntilIdle()
+
+        trips(file).trips.first() shouldBe listOf(fromRome)
+    }
+
+    @Test
+    fun tripsSavedBeforeTheBodyClockStartChoiceLoad() = runTest {
+        // A document from an older version: the trip has no bodyClockStartZoneId at all.
+        val legacy = ClockblockJson.encodeToString(dev.sebastiano.clockblocker.opus.core.model.Trip.serializer(), sfoLhr)
+        legacy shouldNotContain "bodyClockStartZoneId"
+        val file = File(tmp.root, "trips.json").apply { writeText("""{"schemaVersion":1,"trips":[$legacy]}""") }
+        trips(file).trips.first().single().bodyClockStartZoneId shouldBe null
     }
 
     @Test

@@ -31,8 +31,9 @@ body. Tap **Get started**.
 The app picks your phone's time zone and marks it "Phone's time zone". If home is somewhere else, search for a
 city or a three-letter airport code and pick the right place. You can change it later in Settings.
 
-Plans don't use this setting yet: each plan assumes your body clock starts in the time zone of the trip's first
-departure airport. If you're already away from home, enter the trip from where your body clock is now.
+Each plan assumes your body clock starts in the time zone of the trip's first departure airport. When a trip
+leaves from a city on a different time from home, the trip editor asks where your body clock is when you leave:
+that city, or still on home time. See [Starting away from home](planning-a-trip.md#starting-away-from-home).
 
 ### 3. When do you usually sleep?
 

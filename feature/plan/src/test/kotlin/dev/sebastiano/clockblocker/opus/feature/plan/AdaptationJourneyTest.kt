@@ -123,6 +123,19 @@ class AdaptationJourneyTest {
     }
 
     @Test
+    fun `the shift starts from where the body clock starts`() {
+        // Still on Los Angeles time (−7) when leaving New York for London (GMT on 1 Nov): 7 h east, not 4.
+        val departure = Instant.parse("2026-11-01T02:00:00Z")
+        val landing = Instant.parse("2026-11-01T09:00:00Z")
+        val flight = Advice("flight-1", AdviceType.Flight, departure, landing, AdviceReason.TravelMarker)
+        val day = PlanDay(0, DayKind.Travel, LocalDate.of(2026, 10, 31), "America/New_York", listOf(flight))
+        val plan = plan("America/New_York", "Europe/London", ShiftDirection.Advance, 7.0)
+            .copy(days = listOf(day), bodyClockStartZoneId = "America/Los_Angeles")
+        plan.startZoneId shouldBe "America/Los_Angeles"
+        plan.geographicShiftHours() shouldBe 7f
+    }
+
+    @Test
     fun `zone deltas take the short way across the date line`() {
         val june = Instant.parse("2026-06-15T12:00:00Z")
         // Kiritimati (+14) → Honolulu (−10): same clock time, a day apart.

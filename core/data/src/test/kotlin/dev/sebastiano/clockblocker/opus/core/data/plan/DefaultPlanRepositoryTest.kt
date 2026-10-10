@@ -117,6 +117,19 @@ class DefaultPlanRepositoryTest {
     }
 
     @Test
+    fun `changing where the body clock starts re-plans the trip`() = runTest {
+        val e = env()
+        e.repo.plan(sfoLhr.id).test {
+            awaitItem()!!.phase.first().bodyUtcOffsetMinutes shouldBe -7 * 60 // San Francisco, PDT
+            e.trips.upsert(sfoLhr.copy(bodyClockStartZoneId = "America/New_York"))
+            awaitItem()!!.phase.first().bodyUtcOffsetMinutes shouldBe -4 * 60
+            e.trips.upsert(sfoLhr)
+            awaitItem()!!.phase.first().bodyUtcOffsetMinutes shouldBe -7 * 60
+        }
+        e.planner.calls shouldBe 2 // The revert is served from the cache.
+    }
+
+    @Test
     fun `concurrent requests for the same inputs share one computation`() = runTest {
         val e = env()
         (1..8).map { async { e.repo.planFor(sfoLhr, DemoData.profile) } }.awaitAll().toSet().size shouldBe 1

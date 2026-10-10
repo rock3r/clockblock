@@ -16,6 +16,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -92,6 +93,22 @@ class BackupCodecTest {
         b.profile shouldBe null
         b.trips shouldBe emptyList()
         b.settings shouldBe AppSettings()
+    }
+
+    @Test
+    fun `round trips where a trip's body clock starts`() {
+        val trips = DemoData.trips()
+        val withStart = full.copy(trips = listOf(trips.first().copy(bodyClockStartZoneId = "Europe/Rome")) + trips.drop(1))
+        val text = codec.encode(withStart)
+        text shouldContain "\"bodyClockStartZoneId\": \"Europe/Rome\""
+        codec.decode(text) shouldBe withStart
+    }
+
+    @Test
+    fun `backups from before the body clock start choice import as departure city`() {
+        val text = codec.encode(full)
+        text shouldNotContain "bodyClockStartZoneId" // Older app versions never wrote it.
+        codec.decode(text).trips.forEach { it.bodyClockStartZoneId shouldBe null }
     }
 
     @Test

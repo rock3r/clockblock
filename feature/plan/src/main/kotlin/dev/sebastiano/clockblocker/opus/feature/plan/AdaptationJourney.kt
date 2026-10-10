@@ -95,15 +95,16 @@ internal fun JetLagPlan.dayOfJourney(instant: Instant): Float? =
     landing?.let { Duration.between(it, instant).toMinutes() / MinutesPerDay }
 
 /**
- * Destination minus origin clock offset, in hours normalised to (−12, 12] (+ = east). The origin is read at the
- * first departure and the destination at landing, like the planner's home offset: the body clock doesn't follow
- * a DST change at home while airborne.
+ * Destination minus starting clock offset, in hours normalised to (−12, 12] (+ = east). The start is the plan's
+ * [JetLagPlan.startZoneId] (the origin, unless the body clock starts on home time elsewhere), read at the first
+ * departure; the destination at landing, like the planner's home offset: the body clock doesn't follow a DST
+ * change at home while airborne.
  */
 internal fun JetLagPlan.geographicShiftHours(): Float {
     val flights = allAdvice.filter { it.type == AdviceType.Flight }
     val departed = flights.minOfOrNull { it.start } ?: generatedAt
     val landed = flights.maxOfOrNull { it.end } ?: generatedAt
-    val origin = ZoneId.of(originZoneId).rules.getOffset(departed).totalSeconds
+    val origin = ZoneId.of(startZoneId).rules.getOffset(departed).totalSeconds
     val destination = ZoneId.of(destinationZoneId).rules.getOffset(landed).totalSeconds
     return normalisedOffsetHours(destination - origin)
 }

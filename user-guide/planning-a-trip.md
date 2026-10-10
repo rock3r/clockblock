@@ -64,11 +64,13 @@ day?**.
 
 ## Trip details
 
-Below the flights, **Trip details** has three more settings:
+Below the flights, **Trip details** has these settings:
 
 - **Title**: suggested from your route. Change it if you like.
 - **Flying back (optional)**: the date and time of your return flight. This lets the app spot short trips.
 - **Body clock**: how the plan treats your body clock.
+- **Body clock when you leave**: only shown when the trip leaves from a city on a different time from home. See
+  [Starting away from home](#starting-away-from-home).
 
 <img src="images/body-clock-choice.png" alt="The Trip details card: the title London to San Francisco, an empty Flying back (optional) date and time, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Below, Your shift preview: 8 h west, shift later, about 5 days to adapt with the plan, about 8 days without one." width="320" />
 
@@ -76,15 +78,29 @@ Below the flights, **Trip details** has three more settings:
 |---|---|
 | Auto | Adapts you to your destination, unless you fly back within 72 hours. Then you stay on home time. |
 | Adapt | Moves your body clock to destination time, even for a short stay. |
-| Home time | Keeps your body clock on the time of your first departure airport. Best for quick trips. |
+| Home time | Keeps your body clock on the time it starts on. Best for quick trips. |
 
-In the plan, "home time" means the time zone of the trip's first departure airport, not the home time zone in
-Settings. For a trip that starts where you live, they're the same.
+In the plan, "home time" means the time your body clock is on when you leave: the first departure airport's time,
+unless you pick **Home** under **Body clock when you leave**.
 
 If every time zone change on the trip is under two hours, Auto and Adapt don't make a body clock plan: you only
 get flight advice and a few nights of sleep times.
 
 For a short trip, staying on home time is usually easier: you're back before your body could settle anyway.
+
+### Starting away from home
+
+Plans start from where your body clock is when you leave. Usually that's the city you fly out of. If you're
+leaving from a city on a different time from your home time zone (Settings → Home time zone), **Trip details** adds
+**Body clock when you leave** with two choices:
+
+| Choice | When to pick it |
+|---|---|
+| Departure city (the default) | You live there, or you've been there long enough to get over jet lag. |
+| Home (your home city) | You only just got to the departure city, and your body is still on home time. |
+
+For example, if you live in Los Angeles, flew to New York two days ago and fly on to Paris tomorrow, pick **Home**:
+the plan then shifts you from Los Angeles time to Paris time.
 
 ## Return trips
 
