@@ -497,7 +497,15 @@ object TwoSkies {
                 ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
                 return y + digitsSpec.size / 2f
             }
+            fun digitsAloneFit(): Float {
+                val alone = measurer.width(wide, spec)
+                return if (alone > maxWidth && alone > 0f) maxWidth / alone else 1f
+            }
             if (marker == null || wideMarker == null) return digitsAlone(fit)
+            if (measurer.width(wideMarker, markerSpec) > measurer.width(wide, spec) * MaxMarkerToDigits) {
+                // A locale whose marker is a phrase (Kölsch's "Uhr vörmiddaachs") would crowd out the time: it goes alone.
+                return digitsAlone(digitsAloneFit())
+            }
             val smallSpec = markerSpec.copy(size = maxOf(markerSize * fit, minText, labelText))
             if (smallSpec.size > markerSize * fit) {
                 // The marker is held at the host's floor: the digits take what is left of the width.
@@ -507,8 +515,7 @@ object TwoSkies {
             val digitsSpec = spec.copy(size = spec.size * fit)
             if (labelText > 0f && digitsSpec.size < smallSpec.size * MinDigitsToMarker) {
                 // The marker at the label floor would dwarf the digits: the time goes without it.
-                val alone = measurer.width(wide, spec)
-                return digitsAlone(if (alone > maxWidth && alone > 0f) maxWidth / alone else 1f)
+                return digitsAlone(digitsAloneFit())
             }
             val w = measurer.width(wide, digitsSpec)
             val total = w + gap * fit + measurer.width(wideMarker, smallSpec)
@@ -555,6 +562,12 @@ internal const val MaxFill = 0.85f
 
 /** The local time's digits stay at least this many times the size of its AM/PM marker, or the marker goes. */
 private const val MinDigitsToMarker = 1.15f
+
+/**
+ * The widest an AM/PM marker may be, at its own size, next to the widest digits at theirs, or it goes. "PM" is about
+ * 0.14 of "10:00", Spanish "p. m." about 0.35. A phrase like Kölsch's "Uhr vörmiddaachs" is wider than the digits.
+ */
+private const val MaxMarkerToDigits = 0.5f
 
 /** A morning and an evening minute, to read a locale's two AM/PM markers. */
 private const val MorningMinute = 9 * 60f
