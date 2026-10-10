@@ -10,6 +10,20 @@ android {
         versionCode = 1
         versionName = "1.0.0"
     }
+    // Two distributions of the same app. `play` (the default) asks for exact alarms with SCHEDULE_EXACT_ALARM, which
+    // the user grants in "Alarms & reminders". `oss` (builds outside Google Play) adds USE_EXACT_ALARM in
+    // src/oss/AndroidManifest.xml: granted at install, so reminders are always on the minute, but Play only allows it
+    // for alarm and calendar apps, so it must never reach the play flavour (DistributionManifestTest).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            isDefault = true
+        }
+        create("oss") {
+            dimension = "distribution"
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -18,6 +32,31 @@ android {
             // Signed with the debug key so the release build is installable for local perf checks.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+androidComponents {
+    // Unit and screenshot tests don't depend on the distribution: run them once, on play. DistributionManifestTest
+    // checks the oss manifest from its source file.
+    beforeVariants(selector().withFlavor("distribution" to "oss")) { variant ->
+        variant.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
+    }
+}
+
+// Every other module names these tasks without a flavour, and the root-level selectors (`./gradlew
+// verifyRoborazziDebug`, `testDebugUnitTest`) only match tasks of that exact name. These aliases keep :app covered
+// by them. CI and the docs name the play tasks directly.
+mapOf(
+    "testDebugUnitTest" to "testPlayDebugUnitTest",
+    "recordRoborazziDebug" to "recordRoborazziPlayDebug",
+    "verifyRoborazziDebug" to "verifyRoborazziPlayDebug",
+    "compareRoborazziDebug" to "compareRoborazziPlayDebug",
+    "compileDebugAndroidTestKotlin" to "compilePlayDebugAndroidTestKotlin",
+).forEach { (alias, task) ->
+    tasks.register(alias) {
+        group = "verification"
+        description = "Alias of $task (the play flavour)."
+        dependsOn(task)
     }
 }
 

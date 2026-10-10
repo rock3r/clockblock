@@ -4,7 +4,7 @@
 # AGP's connected test runner can fail to install the APKs (a full emulator /data partition, or a package manager
 # that isn't up yet) and still end the Gradle task successfully, with zero tests run. That kept the e2e job green
 # without running a single test from 7 October 2026, when it moved to the API 37 emulator. So, after
-# `connectedDebugAndroidTest`:
+# `connectedPlayDebugAndroidTest`:
 #   1. the Gradle log must not mention a failed install or a failed test runner;
 #   2. at least one test case must have run, counted from the JUnit XML when the runner writes it, otherwise from
 #      the HTML report's "tests" counter.
@@ -14,7 +14,7 @@ set -euo pipefail
 
 log="${1:?gradle log}"
 results="${2:-app/build/outputs/androidTest-results/connected}"
-report="${3:-app/build/reports/androidTests/connected/debug/index.html}"
+report="${3:-app/build/reports/androidTests/connected/debug/flavors/play/index.html}"
 
 if grep -niE "failed to install|AndroidTestRunner failed|INSTALL_FAILED" "$log"; then
   echo "::error::The e2e APKs failed to install, so no tests ran (see the lines above)."

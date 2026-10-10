@@ -63,7 +63,7 @@ for attempt in 1 2; do
   adb logcat -c 2>/dev/null
   adb logcat -v threadtime > "emulator-logcat-$attempt.txt" 2>&1 &
   logcat_pid=$!
-  ./gradlew :app:connectedDebugAndroidTest 2>&1 | tee "$log"
+  ./gradlew :app:connectedPlayDebugAndroidTest 2>&1 | tee "$log"
   status=${PIPESTATUS[0]}
   kill "$logcat_pid" 2>/dev/null
   echo "system_server starts after the run=$(adb shell getprop sys.system_server.start_count 2>&1)"
