@@ -11,7 +11,8 @@ class ClockblockApplication : Application(), MetroApplication {
 
     override fun onCreate() {
         super.onCreate()
-        // Single source of truth for reminders, the Now notification and widget refreshes (idempotent).
+        // Single source of truth for reminders, the Now notification and widget refreshes (idempotent). Also what
+        // re-arms reminders after Android backup or phone-to-phone transfer restores the data: no broadcast follows.
         graph.adviceAlarmScheduler.start(graph.applicationScope)
     }
 }
