@@ -16,7 +16,7 @@ log="${1:?gradle log}"
 results="${2:-app/build/outputs/androidTest-results/connected}"
 report="${3:-app/build/reports/androidTests/connected/debug/index.html}"
 
-if grep -nE "Failed to install|AndroidTestRunner failed|INSTALL_FAILED" "$log"; then
+if grep -niE "failed to install|AndroidTestRunner failed|INSTALL_FAILED" "$log"; then
   echo "::error::The e2e APKs failed to install, so no tests ran (see the lines above)."
   exit 1
 fi

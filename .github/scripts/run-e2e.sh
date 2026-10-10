@@ -46,10 +46,16 @@ diagnostics() {
 }
 
 adb wait-for-device
+# Best effort: it avoids one source of the aborts (the navigation handle's sampling), not all of them (#122).
+three_button=false
 for _ in 1 2 3 4 5; do
   wait_for_steady_system
-  if adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton; then break; fi
+  if adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton; then
+    three_button=true
+    break
+  fi
 done
+if [ "$three_button" != true ]; then echo "::warning::Couldn't switch to three-button navigation; running with gestures."; fi
 for attempt in 1 2; do
   wait_for_steady_system
   diagnostics
@@ -61,7 +67,7 @@ for attempt in 1 2; do
   status=${PIPESTATUS[0]}
   kill "$logcat_pid" 2>/dev/null
   echo "system_server starts after the run=$(adb shell getprop sys.system_server.start_count 2>&1)"
-  if ! grep -qE "Failed to install|AndroidTestRunner failed|INSTALL_FAILED" "$log"; then
+  if ! grep -qiE "failed to install|AndroidTestRunner failed|INSTALL_FAILED|Can't find service: package" "$log"; then
     exit "$status"
   fi
   echo "::warning::The e2e APKs didn't install (attempt $attempt of 2)."

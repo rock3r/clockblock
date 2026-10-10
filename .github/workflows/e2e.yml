@@ -53,7 +53,7 @@ jobs:
           # internal only, but not enough space". The AVD is created fresh on every run (no AVD cache), so this
           # always applies.
           disk-size: 8G
-          ram-size: 4096M
+          ram-size: 4096 # MB, a bare number (hw.ramSize)
           disable-animations: true
           # The API 37 image's gralloc mapper aborts any CPU read of a host colour buffer unless the host offers
           # ReadColorBufferDma, which no emulator with host-side software rendering does yet (stable 37.2.12, canary
