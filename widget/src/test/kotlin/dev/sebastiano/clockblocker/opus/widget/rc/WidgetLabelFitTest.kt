@@ -124,11 +124,11 @@ class WidgetLabelFitTest {
     /** Android's smallest text setting, the default, and the largest scale the widgets promise to fit. */
     private val scales = listOf(0.85f, 1f, 1.3f)
 
-    /** The widest text the 1×1 countdown shows: what [NextUpRemote] sizes it for. */
-    private val smallCountdown = HostText.countdownWidest(23 * 60 + 59, compact = true)
+    /** The longest countdown a block can show ("23h 59m"): the matrix fits the widest text on purpose. */
+    private val longestCountdown = 23 * 60 + 59
 
-    private fun nextUp(texts: WidgetTexts, bucket: Bucket<NextUpLayout>) =
-        LabelFit.nextUp(context, texts, bucket.layout, bucket.fitAt, smallCountdown.takeIf { texts.countdownEnd != null })
+    private fun nextUp(texts: WidgetTexts, bucket: Bucket<NextUpLayout>, countdownMinutes: Int = longestCountdown) =
+        LabelFit.nextUp(context, texts, bucket.layout, bucket.fitAt, countdownMinutes.takeIf { texts.countdownEnd != null })
 
     private fun twoClocks(texts: WidgetTexts, bucket: Bucket<TwoClocksLayout>) =
         LabelFit.twoClocks(context, texts, bucket.layout, bucket.fitAt)
@@ -355,6 +355,58 @@ class WidgetLabelFitTest {
         // The tile says "Adapted": "Clockblocked" is one long word that had to shrink well below the other labels.
         tile.label.text shouldBe "Adapted"
         tile.label.sp shouldBe small.label.sp
+    }
+
+    /** The stacked Next up buckets (2×2 and 2×3 / 4×3), where the countdown sits beside the glyph. */
+    private val stackBuckets = WidgetSizes.NEXT_UP.filter { it.layout == NextUpLayout.Square || it.layout == NextUpLayout.Tall }
+
+    @Test
+    fun `the stacks show the countdown wherever they show the glyph, and 2x3 always does at the default font scale`() {
+        // #133: the stacks sized the countdown for "23h 59m" at 18 sp, which never fits a 2-cell-wide widget. (A
+        // 10-hour block's "10h59m" still doesn't, even compact at the floor size: the glyph shows alone there.)
+        val texts = base(is24 = true, DemoPlans.Scenario.AvoidLight)
+        for (minutes in listOf(45, 2 * 60 + 52, 9 * 60 + 5)) {
+            for (bucket in stackBuckets) {
+                withClue("$minutes min, ${bucket.layout} ${bucket.min}") {
+                    val now = nextUp(texts, bucket, countdownMinutes = minutes).now!!
+                    // At the 2×2 minimum the glyph row itself gives way to the label's lines; 2×3 and up keep it.
+                    if (bucket.layout == NextUpLayout.Tall) now.glyph shouldBe true
+                    now.countdown shouldBe now.glyph
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the stack countdown always fits beside the glyph, at its widest until the next refresh`() {
+        val failures = mutableListOf<String>()
+        val texts = cases(is24 = false, place = SAN_FRANCISCO).first { it.name == "See bright light" }.texts
+        everyDisplay { display ->
+            for (minutes in listOf(45, 2 * 60 + 52, 10 * 60 + 5, longestCountdown)) {
+                for (bucket in stackBuckets) {
+                    val now = nextUp(texts, bucket, countdownMinutes = minutes).now!!
+                    if (!now.countdown) continue
+                    val where = "$display $minutes min ${bucket.layout} ${bucket.min}"
+                    val text = HostText.countdownWidest(minutes, compact = now.countdownCompact)
+                    val drawn = TextFit.widthDp(context, text, now.countdownSp, TextFit.MEDIUM) + TextFit.SAFETY_DP
+                    val room = bucket.fitAt.width - 2 * SURFACE_PAD_DP - STACK_GLYPH_DP - STACK_COUNTDOWN_GAP_DP
+                    if (drawn > room) failures += "$where: \"$text\" at ${now.countdownSp} sp is $drawn dp, room $room dp"
+                    if (now.countdownSp < LabelFit.STACK_COUNTDOWN_MIN_SP) failures += "$where: countdown at ${now.countdownSp} sp"
+                }
+            }
+        }
+        withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
+    }
+
+    @Test
+    fun `the 4x3 stack keeps the full countdown at its full size`() {
+        val texts = base(is24 = true, DemoPlans.Scenario.AvoidLight)
+        val large = stackBuckets.maxBy { it.min.width * it.min.height }
+        nextUp(texts, large, countdownMinutes = longestCountdown).now!!.let { now ->
+            now.countdown shouldBe true
+            now.countdownCompact shouldBe false
+            now.countdownSp shouldBe LabelFit.COUNTDOWN_SP
+        }
     }
 
     private fun check(fit: WidgetFit, texts: WidgetTexts, where: String): List<String> = buildList {

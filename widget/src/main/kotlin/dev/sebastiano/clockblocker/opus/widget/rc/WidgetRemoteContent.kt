@@ -354,7 +354,7 @@ fun NextUpRemote(
     val type = model.state.tintType
     val bg = p.tinted(type, NEXT_UP_TINT)
     // Sizes, line counts and the optional parts are decided at capture time, so no label clips on the host.
-    val fit = LabelFit.nextUp(LocalContext.current, texts, layout, cell, smallCountdown(model)?.second)
+    val fit = LabelFit.nextUp(LocalContext.current, texts, layout, cell, countdownMinutes(model))
     val now = fit.now
     val end = LabelFit.rowEndDp(layout, texts)
     // Spoken: the visible text plus the other zone's time and the live countdown (words, host-evaluated).
@@ -434,7 +434,7 @@ fun NextUpRemote(
 private fun SmallNextUp(model: WidgetModel, fit: SmallFit) {
     val p = model.palette
     val texts = model.texts
-    val countdown = smallCountdown(model)?.first?.takeIf { fit.countdownSp != null }
+    val countdown = countdownText(model, compact = true)?.takeIf { fit.countdownSp != null }
     RemoteColumn(
         modifier = RemoteModifier.fillMaxSize().padding(horizontal = SMALL_PAD_DP.rdp, vertical = SMALL_PAD_DP.rdp),
         horizontalAlignment = RemoteAlignment.CenterHorizontally,
@@ -514,9 +514,10 @@ private fun NowStack(model: WidgetModel, now: NowFit) {
         if (now.glyph) {
             RemoteRow(verticalAlignment = RemoteAlignment.CenterVertically) {
                 Glyph(texts.glyph, p, STACK_GLYPH_DP)
-                countdownText(model)?.takeIf { now.countdown }?.let { countdown ->
+                countdownText(model, compact = now.countdownCompact)?.takeIf { now.countdown }?.let { countdown ->
                     RemoteBox(modifier = RemoteModifier.padding(start = STACK_COUNTDOWN_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp)) {
-                        Label(countdown, p.primary, LabelFit.COUNTDOWN_SP, weight = FontWeight.Medium)
+                        // Sized at capture for the widest text it shows before the next refresh (see LabelFit).
+                        Label(countdown, p.primary, now.countdownSp, weight = FontWeight.Medium)
                     }
                 }
             }
@@ -748,10 +749,10 @@ private fun countdownMinutes(model: WidgetModel): Int? {
     return Duration.between(state.capturedAt, end).toMinutes().toInt()
 }
 
-private fun countdownText(model: WidgetModel): RemoteString? {
+private fun countdownText(model: WidgetModel, compact: Boolean = false): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
-    return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0))
+    return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0), compact)
 }
 
 /** The live countdown in words for the spoken description ("1 hour 10 minutes left"); null without one. */
@@ -759,14 +760,6 @@ private fun spokenCountdown(model: WidgetModel): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
     return HostText.countdownSpoken(total, DialMath.minuteOfDay(state.capturedAt, 0), model.texts.countdownWords)
-}
-
-/** Compact 1×1 countdown plus the widest text it shows before the next refresh (to size it). */
-private fun smallCountdown(model: WidgetModel): Pair<RemoteString, String>? {
-    val total = countdownMinutes(model) ?: return null
-    val state = model.state as WidgetState.Active
-    return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0), compact = true) to
-        HostText.countdownWidest(total, compact = true)
 }
 
 /**
