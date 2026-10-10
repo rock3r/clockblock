@@ -1,7 +1,7 @@
 # Surfaces: notifications and widgets
 
 Outside the app, the plan appears in three places: one ongoing "Now" notification, short reminders before advice
-starts, and two home-screen widgets (*Two Clocks* and *Next up*). One scheduler controls all of them. It wakes up
+starts, and two home-screen widgets (*Two clocks* and *Next up*). One scheduler controls all of them. It wakes up
 at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface from the
 same plan at the same moment, so right after each refresh they all agree. Between
 refreshes they can drift: a delayed scheduler wake-up (see [The scheduler](#the-scheduler)) leaves them behind
@@ -249,9 +249,9 @@ The `:widget` module provides two widgets. Both can be placed on the home screen
 category too, which matters on tablets and in hub mode. On phones, the lock-screen view of the plan is the Now
 notification.
 
-![Two Clocks widgets: the 2×2 Two skies dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 2×2 landscape layout with the Two strips beside the now card and Done](screenshots/widgets/remote_two_clocks.png)
+![Two clocks widgets: the 2×2 Two skies dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 2×2 landscape layout with the Two strips beside the now card and Done](screenshots/widgets/remote_two_clocks.png)
 
-The *Two Clocks* widget draws the app's own dial from the shared spec
+The *Two clocks* widget draws the app's own dial from the shared spec
 ([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)): the *Two skies* dial in the
 2×2, 2×3 and 4×3 layouts, and the *Two strips* in the 1×1, the 2×1 and 4×1 rows and the 2×2 landscape layout,
 where a round dial would get too small to read. Both show local time on the outer sky (or the top strip) and the
@@ -291,7 +291,7 @@ Remote Compose has a few gaps, and the widget falls back:
 ![Next up widgets: 4×1 rows with a countdown and Done, 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
 The *Next up* widget shows the current advice with a countdown. The 1×1 tile shows only the countdown and a
-short label. When the plan has no advice left, it shows "Clockblocked".
+short label. When the plan has no advice left, it shows "Clockblocked" (the 1×1 tile says "Adapted").
 
 ### Sizes
 
@@ -299,7 +299,7 @@ Each widget picks a layout for the space it gets: the launcher picks from the si
 user resizes. Every "Up next" entry shows its start time in the other zone too, like every other time on the
 widgets. The table shows the layout on a typical portrait home screen.
 
-| Cells | Two Clocks | Next up |
+| Cells | Two clocks | Next up |
 |---|---|---|
 | 1×1 | Two strips with local time | Glyph, countdown and label |
 | 2×1 | Two strips with local and body time | Glyph, label, "until" line and the other zone's time |
@@ -310,8 +310,8 @@ widgets. The table shows the layout on a typical portrait home screen.
 | 4×3 | A header strip with the route, Two skies, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
 
 Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row next to Done: the label, and the
-"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 1×1 and a 2×1 Two Clocks
-get the short, wide Two strips with the bars' labels. A 2×2 Two Clocks gets the Two strips, the now card and Done
+"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 1×1 and a 2×1 Two clocks
+get the short, wide Two strips with the bars' labels. A 2×2 Two clocks gets the Two strips, the now card and Done
 side by side, and a 2×2 Next up gets the 4×2 capsules.
 
 [`WidgetSizes`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetSizes.kt) lists every
@@ -319,7 +319,7 @@ layout with its minimum size in dp. The launcher plays the layout whose minimum 
 among those that fit. A layout can have a short and a taller entry: the taller one has room for the "until" line or
 a second "Up next" row.
 
-| Layout | Next up minimums | Two Clocks minimums |
+| Layout | Next up minimums | Two clocks minimums |
 |---|---|---|
 | 1×1 | 57×51 | 57×51 |
 | 2×1 row | 117×80, 117×100 | 117×51, 117×84 |
@@ -369,7 +369,8 @@ so if the app isn't running at the time, the next widget update or advice bounda
 - The 4×2 Next up shows only the capsules whose label fits whole: two at most font sizes. Like the rows, they go
   before the now row loses anything else.
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
-  screen (6 sp at 1.3×), so "Clockblocked" fits a 57 dp cell.
+  screen (6 sp at 1.3×), so long labels fit a 57 dp cell. The adapted state says "Adapted" there: "Clockblocked" is
+  one long word that would shrink well below the other labels. Screen readers still hear "Clockblocked".
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
 checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times, the four longest
@@ -381,7 +382,7 @@ each layout at its minimum size with the longest texts.
 
 Text on the dial follows the same rule.
 [`WidgetDialFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialFitTest.kt)
-lays out the dial of every Two Clocks layout at its minimum and checks that each piece of text stays inside its
+lays out the dial of every Two clocks layout at its minimum and checks that each piece of text stays inside its
 region, overlaps no other text and is at least 7 dp tall, that every label and readout is at least 10 sp, that
 ring and bar labels sit inside their ring or bar, and that the body time is always there (unless in sync). It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
 12 h and 24 h, at several hours of the day, for each demo plan, on the home screen and redacted. It also checks the
@@ -404,15 +405,15 @@ falls back to the zone's city.
 What a screen reader hears matches what the widget shows:
 
 - The current block includes its end time in the other zone: "Avoid light. until 16:30 (08:30 in Lisbon) · then
-  Melatonin". Two Clocks says this after both clocks and the jet lag phrase.
+  Melatonin". Two clocks says this after both clocks and the jet lag phrase.
 - Next up adds the live countdown in words, worked out by the launcher like the visible one:
   "1 hour 10 minutes left".
-- Two Clocks layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3 header strip is
+- Two clocks layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3 header strip is
   its own tap target, so its place, day and route ("L I S to H N D") reach the screen reader.
   [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
   plays the documents in the View player and reads back its accessibility nodes.
 
-![Two Clocks in every layout: the Two strips at 1×1, in the 1×1 landscape, 2×1 and 4×1 rows (the wide ones with sky labels and "7 h behind") and beside the now card at 2×2 landscape; the Two skies dial at 2×3 and 4×3; including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
+![Two clocks in every layout: the Two strips at 1×1, in the 1×1 landscape, 2×1 and 4×1 rows (the wide ones with sky labels and "7 h behind") and beside the now card at 2×2 landscape; the Two skies dial at 2×3 and 4×3; including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
 
@@ -429,7 +430,7 @@ widget id from the host category (a bit mask, so keyguard may come with other bi
 redacted. The scheduler refreshes every `PlanSurface` when settings change, so flipping the setting re-renders
 widgets straight away.
 
-![Redacted lock-screen widgets: Two Clocks 4×3 and Next up 2×3 in light and dark, with "Day 2" and no route](screenshots/widgets/remote_keyguard.png)
+![Redacted lock-screen widgets: Two clocks 4×3 and Next up 2×3 in light and dark, with "Day 2" and no route](screenshots/widgets/remote_keyguard.png)
 
 ### Done
 
