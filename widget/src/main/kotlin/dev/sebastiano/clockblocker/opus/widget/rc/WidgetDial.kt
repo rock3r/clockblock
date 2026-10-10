@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialPalettes
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.ResourceDialLabels
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.Argb
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialLabels
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialSpec
@@ -58,7 +58,7 @@ internal object WidgetDial {
     /**
      * [design] for [state] laid out in a [widthDp] × [heightDp] region (its size at the bucket's minimum).
      *
-     * @param bodyRing the body ring's mode: Simple for now; #52 makes Precise a per-widget option.
+     * @param bodyRing the body ring's mode, the widget's own option (#52).
      */
     fun spec(
         context: Context,

@@ -37,7 +37,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TwoSkies
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion

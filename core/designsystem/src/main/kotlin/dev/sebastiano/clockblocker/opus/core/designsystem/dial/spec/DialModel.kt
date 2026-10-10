@@ -4,6 +4,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.Daylight
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialArc
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 
 /** How much the dial shows, picked from its actual size in dp (not the widget bucket it sits in). */
 enum class DetailLevel {
@@ -39,15 +40,6 @@ enum class DetailLevel {
             else -> Simple
         }
     }
-}
-
-/** What the inner (body) ring shows. */
-enum class BodyRingMode {
-    /** The local sky turned by the jet lag: the sky your body thinks it is under. The default everywhere. */
-    Simple,
-
-    /** The planner's biological night (≈ melatonin onset → habitual wake) as the body's night. */
-    Precise,
 }
 
 /**

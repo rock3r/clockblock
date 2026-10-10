@@ -35,5 +35,22 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_next_up_info" />
         </receiver>
+
+        <!--
+            Per-widget options (#52). Exported because the launcher starts it (Reconfigure); it checks that the widget
+            id is one of ours before showing anything. Instantiated by metrox-android's MetroAppComponentFactory.
+        -->
+        <activity
+            android:name=".config.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/widget_config_title"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Clockblock.WidgetConfig"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

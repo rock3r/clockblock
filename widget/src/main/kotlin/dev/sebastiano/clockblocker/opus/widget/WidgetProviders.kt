@@ -39,6 +39,16 @@ abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private va
         goAsync { updater.update(kind, intArrayOf(appWidgetId)) }
     }
 
+    /** Removed widgets take their own options (#52) with them. */
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        goAsync { updater.forget(appWidgetIds) }
+    }
+
+    /** A backup restore gives the widgets new ids: their options move along. */
+    override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+        goAsync { updater.restored(kind, oldWidgetIds, newWidgetIds) }
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             // Clock/zone/locale changes alter every time label and the dial's zone offsets.

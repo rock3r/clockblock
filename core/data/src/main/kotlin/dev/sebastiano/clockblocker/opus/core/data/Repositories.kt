@@ -7,6 +7,7 @@ import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -68,4 +69,21 @@ interface PlaceSearch {
 interface SettingsRepository {
     val settings: Flow<AppSettings>
     suspend fun update(transform: (AppSettings) -> AppSettings)
+}
+
+/**
+ * Each placed widget's own options, keyed by its `appWidgetId` (#52). A widget with no entry uses the defaults.
+ * Widget ids only mean something on this device, so this store is not part of backups.
+ */
+interface WidgetConfigRepository {
+    val configs: Flow<Map<Int, WidgetConfig>>
+
+    /** Atomic read-modify-write of one widget's options (the defaults when it has none yet). */
+    suspend fun update(appWidgetId: Int, transform: (WidgetConfig) -> WidgetConfig)
+
+    /** Forgets removed widgets. */
+    suspend fun remove(appWidgetIds: Collection<Int>)
+
+    /** Moves options to the new ids after a backup restore gave the widgets new ids ([oldIds] and [newIds] pair up). */
+    suspend fun remap(oldIds: IntArray, newIds: IntArray)
 }

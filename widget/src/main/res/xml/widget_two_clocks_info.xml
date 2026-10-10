@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="dev.sebastiano.clockblocker.opus.widget.config.WidgetConfigActivity"
     android:description="@string/widget_two_clocks_description"
     android:initialKeyguardLayout="@layout/widget_placeholder"
     android:initialLayout="@layout/widget_placeholder"
@@ -13,4 +14,5 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
-    android:widgetCategory="home_screen|keyguard" />
+    android:widgetCategory="home_screen|keyguard"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

@@ -228,8 +228,9 @@ once you're adapted the two rings are identical.
   falls back to 06:30/19:00.
 - **Inner ring = body sky**, labelled "YOUR BODY'S DAY" / "YOUR BODY'S NIGHT". `BodyRingMode.Simple` (the default)
   paints the same sky as the outer ring, polar days and nights included, and turns it by the jet lag.
-  `BodyRingMode.Precise` paints the body's night from the model (habitual sleep moved by the offset); there is no
-  setting for it yet (#52).
+  `BodyRingMode.Precise` paints the body's night from the model (habitual sleep moved by the offset). The app's dial
+  is always Simple; each *Two clocks* widget can switch to Precise in its own options
+  ([surfaces](surfaces.md#widget-options), #52).
 - **Three encodings only:** the day/night colour of the two rings, **one needle** across both, and **one advice arc**
   outside the rings: the block under the needle (or the next one when nothing is on) with its glyph at the start,
   narrated along the rim ("See bright light until 15:00", then "then see some light" in a muted tone; advice that

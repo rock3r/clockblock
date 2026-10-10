@@ -5,6 +5,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialArc
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 import kotlin.math.floor
 import kotlin.math.max

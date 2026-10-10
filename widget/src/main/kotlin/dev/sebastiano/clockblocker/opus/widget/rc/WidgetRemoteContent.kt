@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs
@@ -63,8 +63,8 @@ import java.time.Duration
 /**
  * Everything one capture needs.
  *
- * @property bodyRing how the dial draws the body ring: Simple for every widget for now; #52 makes it a per-widget
- *   option.
+ * @property bodyRing how the dial draws the body ring: the widget's own option (`WidgetConfig`, #52), Simple by
+ *   default.
  */
 data class WidgetModel(
     val state: WidgetState,

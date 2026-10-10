@@ -5,7 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.StaticTwoSkiesDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoSkiesDial
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.preview.SamplePlan
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.EightBitMode
 import org.junit.Test
