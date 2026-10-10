@@ -326,6 +326,20 @@ class TransitionPlannerTest {
         }
 
         @Test
+        fun `the widget dial's own refreshes never fire inside sleep, where the wake-up covers them`() {
+            val plan = planOf(
+                advice(Sleep, "2026-10-10T22:00", "2026-10-11T06:00"),
+                // Melatonin while asleep: its start is suppressed, so no widget features it.
+                advice(Melatonin, "2026-10-10T23:30"),
+                // Comes into view at 23:00, mid-sleep: the 06:00 wake-up re-captures it.
+                advice(AvoidLight, "2026-10-11T14:00", "2026-10-11T16:00"),
+            )
+
+            TransitionPlanner.nextMomentEnd(plan, utc("2026-10-10T12:00")) shouldBe null
+            TransitionPlanner.nextDialEntry(plan, utc("2026-10-10T12:00")) shouldBe null
+        }
+
+        @Test
         fun `a moment's refresh is when the dial stops featuring it`() {
             TransitionPlanner.MOMENT_DUE.toMinutes() shouldBe MomentDueMinutes.toLong()
         }
