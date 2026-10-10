@@ -67,7 +67,7 @@ object TripsSamples {
      * NYC → CDG for a Los Angeles resident who only just got to New York: the body clock still starts on home time
      * (issue #9). Not in [trips], so the list goldens don't change.
      */
-    fun newYorkParisFromHome(): Trip = newYorkParis.copy(id = "jfk-cdg-from-home", bodyClockStartZoneId = "America/Los_Angeles")
+    fun newYorkParisFromHome(): Trip = newYorkParis.copy(id = "jfk-cdg-from-home", title = "New York → Paris", bodyClockStartZoneId = "America/Los_Angeles")
 
     private fun trip(id: String, from: dev.sebastiano.clockblocker.opus.core.model.Place, to: dev.sebastiano.clockblocker.opus.core.model.Place, departure: LocalDateTime, block: Duration, title: String): Trip {
         val arrival = departure.atZone(from.zone).toInstant().plus(block).atZone(to.zone).toLocalDateTime()
