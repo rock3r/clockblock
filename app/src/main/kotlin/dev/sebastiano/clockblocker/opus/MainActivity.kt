@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.StatusBarIconsOwner
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkParser
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkTarget
 import dev.sebastiano.clockblocker.opus.shell.DeviceZoneClock
@@ -98,5 +99,8 @@ class MainActivity(
             SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme }
         }
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        // A sky header may hold the status bar icons right now: it keeps them, and this theme's value is the one
+        // to come back to when it leaves (see SkyStatusBarIcons).
+        if (darkTheme != null) StatusBarIconsOwner.of(window).baseChanged()
     }
 }

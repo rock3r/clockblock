@@ -80,6 +80,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.SkyStatusBarIcons
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
