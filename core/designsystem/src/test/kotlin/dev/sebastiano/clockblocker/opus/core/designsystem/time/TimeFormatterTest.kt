@@ -36,4 +36,10 @@ class TimeFormatterTest {
     fun `24-hour clocks have no marker`() {
         TimeFormatter(is24Hour = true, Locale.KOREA).marker(evening).shouldBeNull()
     }
+
+    @Test
+    fun `formatters for different locales differ, so remembered layouts follow a locale change`() {
+        TimeFormatter(is24Hour = false, Locale.US) shouldBe TimeFormatter(is24Hour = false, Locale.US)
+        TimeFormatter(is24Hour = false, Locale.US) shouldNotBe TimeFormatter(is24Hour = false, Locale.KOREA)
+    }
 }

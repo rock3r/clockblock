@@ -14,7 +14,7 @@ import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 
 /** Formats clock times honouring the user's 12/24-hour preference. */
 @Immutable
-class TimeFormatter(val is24Hour: Boolean, locale: Locale) {
+class TimeFormatter(val is24Hour: Boolean, val locale: Locale) {
     private val formatter: DateTimeFormatter =
         DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm", locale)
     private val withMarker: DateTimeFormatter =
@@ -30,8 +30,9 @@ class TimeFormatter(val is24Hour: Boolean, locale: Locale) {
     /** The locale's AM/PM marker ("PM", "pm", "오후"…), the same as in [formatFull]; null in 24-hour mode. */
     fun marker(time: LocalTime): String? = if (is24Hour) null else markerOnly.format(time)
 
-    override fun equals(other: Any?): Boolean = other is TimeFormatter && other.is24Hour == is24Hour
-    override fun hashCode(): Int = is24Hour.hashCode()
+    // The locale is part of equality: markers (and remember() keys on a formatter) change with it.
+    override fun equals(other: Any?): Boolean = other is TimeFormatter && other.is24Hour == is24Hour && other.locale == locale
+    override fun hashCode(): Int = 31 * is24Hour.hashCode() + locale.hashCode()
 }
 
 @Composable
