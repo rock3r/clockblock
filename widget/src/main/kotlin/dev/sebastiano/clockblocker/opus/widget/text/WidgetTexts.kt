@@ -76,9 +76,17 @@ data class WidgetTexts(
      * cells where the other zone's time can't have its own line. Null without a secondary zone.
      */
     val untilCompact: String? = null,
+    /**
+     * A shorter [title] for the 1×1 tile, where one long word would have to shrink well below the other labels
+     * ("Adapted" for "Clockblocked"). Null: the tile shows [title]. Screen readers keep [title].
+     */
+    val smallTitle: String? = null,
 ) {
     /** [secondary], then [secondaryShort]: the forms a layout tries, in order. Empty without a secondary zone. */
     val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
+
+    /** The label the 1×1 tile shows: [smallTitle], else [title]. */
+    val smallLabel: String get() = smallTitle ?: title
 
     /**
      * "Up next: Melatonin at 20:30 (12:30 in Lisbon), Sleep at 22:00 (14:00 in Lisbon)": spoken for the queue region.
@@ -174,6 +182,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
         val subtitleLines: List<String>
         val secondaryAt: Instant?
         val dialDetail: String
+        var smallTitle: String? = null
         when {
             current != null -> {
                 glyph = glyph(current.type)
@@ -186,6 +195,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             s.stage == WidgetState.Stage.Done || next == null -> {
                 glyph = GlyphKind.Adapted
                 title = str(R.string.widget_adapted_title)
+                smallTitle = str(R.string.widget_adapted_short)
                 subtitleLines = listOf(
                     if (s.redacted) str(R.string.widget_adapted_subtitle_redacted) else str(R.string.widget_adapted_subtitle, s.destinationName),
                 )
@@ -260,6 +270,7 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
             secondary = secondary,
             secondaryShort = secondaryForms.drop(1),
             untilCompact = untilCompact,
+            smallTitle = smallTitle,
             countdownEnd = countdownEnd,
             misalignment = misalignment,
             dialTitle = title,

@@ -33,8 +33,8 @@ The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`
 | `:feature:plan` | 188 | 31 |
 | `:feature:settings` | 81 | 30 |
 | `:feature:trips` | 97 | 25 |
-| `:widget` | 126 | 16 |
-| **Total** | **1401** | **237** |
+| `:widget` | 134 | 17 |
+| **Total** | **1409** | **238** |
 
 The counts come from the JUnit reports of a full `./gradlew test` run at the time of writing. They will grow.
 
@@ -89,7 +89,7 @@ They drive the real app, with real DataStore files and real notifications.
 | `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |
 | `PlanInteractionsTest` | 2 | A timeline block opens the Why sheet and the toolbar jumps back to now; calendar export opens the file picker |
 | `DeepLinkTest` | 5 | Every `clockblock://` link, including one sent to an already running app |
-| `WidgetTest` | 2 | *Two Clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
+| `WidgetTest` | 2 | *Two clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
 | `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
 
 [`ClockblockE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/ClockblockE2eTest.kt) is the base

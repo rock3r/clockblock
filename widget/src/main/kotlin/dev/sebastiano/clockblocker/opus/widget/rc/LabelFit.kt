@@ -535,12 +535,12 @@ internal object LabelFit {
         for ((glyph, sp, rowHeight) in rows) {
             val room = height - if (glyph) rowHeight + SMALL_GAP_DP else 0f
             for (lines in 1..3) {
-                val label = TextFit.fit(context, texts.title, width, SMALL_LABEL_SP, minSp, maxLines = lines, semibold = true)
+                val label = TextFit.fit(context, texts.smallLabel, width, SMALL_LABEL_SP, minSp, maxLines = lines, semibold = true)
                     ?: continue
                 if (label.heightDp <= room) return SmallFit(glyph, sp, label, fits = true)
             }
         }
-        val label = TextFit.measure(context, texts.title, width, minSp, maxLines = 2, semibold = true)
+        val label = TextFit.measure(context, texts.smallLabel, width, minSp, maxLines = 2, semibold = true)
         return SmallFit(glyph = false, countdownSp = null, label = label, fits = false)
     }
 

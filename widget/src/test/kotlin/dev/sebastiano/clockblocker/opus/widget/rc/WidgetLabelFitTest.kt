@@ -352,12 +352,15 @@ class WidgetLabelFitTest {
         val tile = nextUp(long, WidgetSizes.smallest(WidgetSizes.NEXT_UP, NextUpLayout.Small)).small!!
         tile.label.fits shouldBe true
         tile.label.lines shouldBe 1
+        // The tile says "Adapted": "Clockblocked" is one long word that had to shrink well below the other labels.
+        tile.label.text shouldBe "Adapted"
+        tile.label.sp shouldBe small.label.sp
     }
 
     private fun check(fit: WidgetFit, texts: WidgetTexts, where: String): List<String> = buildList {
         fit.small?.let { small ->
-            if (!small.fits || !small.label.fits) add("$where: 1×1 label \"${texts.title}\" does not fit (${small.label.sp} sp × ${small.label.lines})")
-            if (small.label.text != texts.title) add("$where: 1×1 label replaced by \"${small.label.text}\"")
+            if (!small.fits || !small.label.fits) add("$where: 1×1 label \"${texts.smallLabel}\" does not fit (${small.label.sp} sp × ${small.label.lines})")
+            if (small.label.text != texts.smallLabel) add("$where: 1×1 label replaced by \"${small.label.text}\"")
             val drawnDp = TextFit.pxForSp(context, small.label.sp) / context.resources.displayMetrics.density
             if (drawnDp < LabelFit.SMALL_LABEL_MIN_DP - 0.01f) add("$where: 1×1 label drawn at $drawnDp dp")
         }
