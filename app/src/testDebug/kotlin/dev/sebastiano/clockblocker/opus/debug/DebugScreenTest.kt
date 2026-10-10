@@ -79,9 +79,10 @@ class DebugScreenTest {
     }
 
     @Test
-    fun `running disables the button`() {
+    fun `running disables running again and clearing`() {
         show(ProbeState.Running)
         compose.onNodeWithText("Running…").assertIsNotEnabled()
+        compose.onNodeWithTag(DebugTags.ClearProbe).assertIsNotEnabled()
     }
 
     @Test

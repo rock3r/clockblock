@@ -143,7 +143,12 @@ private fun ProbeSection(
                 enabled = probe != ProbeState.Running && notificationsAllowed,
                 modifier = Modifier.testTag(DebugTags.RunProbe),
             ) { Text(if (probe == ProbeState.Running) "Running…" else "Run the probe") }
-            OutlinedButton(onClick = onClearProbe, modifier = Modifier.testTag(DebugTags.ClearProbe)) {
+            // Clearing mid-run would cancel the probe's own posts and read as "dropped".
+            OutlinedButton(
+                onClick = onClearProbe,
+                enabled = probe != ProbeState.Running,
+                modifier = Modifier.testTag(DebugTags.ClearProbe),
+            ) {
                 Text("Clear its notifications")
             }
         }
