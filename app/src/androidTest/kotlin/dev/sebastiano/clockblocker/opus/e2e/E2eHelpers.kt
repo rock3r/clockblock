@@ -13,6 +13,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -178,6 +180,18 @@ fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean 
     clickWhenFound(timeoutMillis) { findObject(selector) }
 
 private const val ShadePollMillis = 250L
+
+/**
+ * Types [query] into the search field [fieldTag] and waits for the result [resultTag]. If it doesn't show up in time,
+ * sets the query again once and waits again: on a loaded emulator the search can come back late, or a keystroke can
+ * be lost while the field takes focus and the keyboard comes up (issue #54).
+ */
+fun ClockblockE2eTest.searchUntilResult(fieldTag: String, query: String, resultTag: String) {
+    awaitTag(fieldTag).scrollToIfScrollable().performTextInput(query)
+    if (runCatching { awaitTag(resultTag) }.isSuccess) return
+    awaitTag(fieldTag).scrollToIfScrollable().performTextReplacement(query)
+    awaitTag(resultTag)
+}
 
 /**
  * Taps the search result [resultTag] once the keyboard and the layout have settled, then waits until [picked]

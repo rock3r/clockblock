@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import java.time.LocalDate
 import java.time.ZoneId
@@ -35,7 +34,7 @@ fun ClockblockE2eTest.openNewTrip() {
 
 /** Types [query] into a place field and picks the result with IATA [code]. */
 fun ClockblockE2eTest.pickPlace(fieldTag: String, query: String, code: String) {
-    awaitTag(fieldTag).scrollToIfScrollable().performTextInput(query)
+    searchUntilResult(fieldTag, query, TripsTestTags.placeResult(code))
     awaitTag(TripsTestTags.placeResult(code)).scrollIntoViewAndClick()
     awaitGone(TripsTestTags.placeResult(code))
 }
