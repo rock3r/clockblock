@@ -342,7 +342,11 @@ class WidgetUpdater(
 
     companion object {
         private const val TAG = "ClockblockWidget"
-        private const val PREFS = "opus_widgets"
+        /**
+         * SharedPreferences file name (pre-rename prefix). Left out of Android backup: it records this device's
+         * render configuration and published previews, which a new phone must work out again.
+         */
+        const val PREFS = "opus_widgets"
         private const val KEY_PREVIEW = "generated_previews_key"
         private const val KEY_RENDERED_CONFIG = "rendered_config_key"
         private const val READ_TIMEOUT_MS = 3_000L
