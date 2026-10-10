@@ -92,7 +92,7 @@ asleep, except the one that wakes you.
 
 - **Notifications** lets the app show reminders at all.
 - **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them up to 10 minutes
-  late, and up to about an hour late while the phone is idle (Doze).
+  late, and while the phone is idle (Doze) usually up to about an hour late. Android doesn't promise a limit.
 
 Tap **Allow and finish**, or **Maybe later** to finish without allowing notifications. If notifications are
 already allowed, the buttons are **Back** and **Finish**. You can grant the permissions any time from Settings →

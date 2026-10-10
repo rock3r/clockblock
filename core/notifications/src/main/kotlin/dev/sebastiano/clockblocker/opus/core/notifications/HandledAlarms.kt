@@ -9,34 +9,59 @@ import dev.zacsweers.metro.SingleIn
 import java.time.Instant
 
 /**
- * The alarm instants [AdviceAlarmScheduler] already handled. Without exact-alarm access each instant is armed twice
- * (a 10-minute window plus an allow-while-idle backstop), and both can be delivered: the second delivery must not
- * remind again. Persisted, so a duplicate that arrives in a new process is still recognised. Keeps only the last
- * [CAPACITY] instants, which covers every alarm the scheduler holds at once.
+ * Which alarm instants [AdviceAlarmScheduler] armed, and which it already handled. Persisted, so it holds across
+ * processes.
+ *
+ * Without exact-alarm access each instant is armed twice (a 10-minute window plus an allow-while-idle backstop).
+ * Inexact alarms can arrive late and out of order: an instant's Start can come before the reminder due 15 minutes
+ * earlier, and handling it re-arms the chain from now, which would cancel the earlier one. So each delivery claims
+ * every armed instant that is due ([claimDue]), and the scheduler reminds from all of them. A later delivery of an
+ * instant already claimed gets nothing back, so it never reminds twice.
  */
 @SingleIn(AppScope::class)
 @Inject
 class HandledAlarms(application: Application) {
     private val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Marks [at] handled. Returns `false` if it already was, so the caller skips the duplicate. */
+    /** Remembers [instants] as armed (until a delivery claims them). */
     @Synchronized
-    fun claim(at: Instant): Boolean {
-        val millis = at.toEpochMilli()
-        val handled = read()
-        if (millis in handled) return false
-        val updated = (handled + millis).sorted().takeLast(CAPACITY)
-        prefs.edit(commit = true) { putString(KEY, updated.joinToString(",")) }
-        return true
+    fun recordArmed(instants: Collection<Instant>) {
+        val handled = read(KEY_HANDLED)
+        val armed = (read(KEY_ARMED) + instants.map { it.toEpochMilli() }).filterNot { it in handled }
+        write(KEY_ARMED, armed)
     }
 
-    private fun read(): List<Long> =
-        prefs.getString(KEY, null).orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+    /**
+     * Claims the delivered instant [at] and every armed instant up to [upTo] that no delivery claimed yet. Returns
+     * them in time order; empty when [at] was already handled and nothing else is due (a duplicate delivery).
+     */
+    @Synchronized
+    fun claimDue(at: Instant, upTo: Instant): List<Instant> {
+        val handled = read(KEY_HANDLED)
+        val armed = read(KEY_ARMED)
+        val limit = maxOf(at, upTo).toEpochMilli()
+        val due = (armed.filter { it <= limit } + at.toEpochMilli()).filterNot { it in handled }.distinct().sorted()
+        if (due.isEmpty()) return emptyList()
+        prefs.edit(commit = true) {
+            putString(KEY_ARMED, (armed - due.toSet()).joined())
+            putString(KEY_HANDLED, (handled + due).joined())
+        }
+        return due.map(Instant::ofEpochMilli)
+    }
+
+    private fun read(key: String): List<Long> =
+        prefs.getString(key, null).orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+
+    private fun write(key: String, values: List<Long>) = prefs.edit(commit = true) { putString(key, values.joined()) }
+
+    /** Keeps the latest [CAPACITY] instants: more than the scheduler ever holds at once. */
+    private fun List<Long>.joined(): String = distinct().sorted().takeLast(CAPACITY).joinToString(",")
 
     companion object {
         /** SharedPreferences file name. Left out of Android backup: it describes this device's alarms. */
         const val PREFS = "notifications_handled_alarms"
-        private const val KEY = "instants"
-        internal const val CAPACITY = 2 * AdviceAlarmScheduler.MAX_ALARMS
+        private const val KEY_ARMED = "armed"
+        private const val KEY_HANDLED = "instants"
+        internal const val CAPACITY = 4 * AdviceAlarmScheduler.MAX_ALARMS
     }
 }

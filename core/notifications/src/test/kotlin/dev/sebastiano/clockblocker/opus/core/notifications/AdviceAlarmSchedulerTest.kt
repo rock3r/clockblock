@@ -174,6 +174,28 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `an earlier reminder delivered after a later instant is still sent, once`() = runTest {
+        // Inexact alarms aren't ordered: the silent Start of See bright light (08:00) arrives before the reminder
+        // due at 07:45. Handling 08:00 re-arms from now, which cancels 07:45, so 08:00 must remind for it.
+        capabilities.exact = false
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+        val scheduler = scheduler()
+        scheduler.resync()
+        clock.instant = utc("2026-10-10T08:10")
+
+        scheduler.onAlarm(utc("2026-10-10T08:00"))
+
+        reminder.shouldNotBeNull().extras.getString(Notification.EXTRA_TITLE) shouldBe "See bright light now" // the window started 10 minutes ago
+        scheduled.none { it.triggerAtMs <= ScheduledAlarm("2026-10-10T08:10") } shouldBe true
+
+        // The 07:45 alarm, if it still arrives, was handled with 08:00.
+        reminders.cancel()
+        clock.instant = utc("2026-10-10T08:12")
+        scheduler.onAlarm(utc("2026-10-10T07:45"))
+        reminder.shouldBeNull()
+    }
+
+    @Test
     fun `a duplicate delivery of an instant already handled does not remind again`() = runTest {
         capabilities.exact = false
         clock.instant = utc("2026-10-10T13:45")

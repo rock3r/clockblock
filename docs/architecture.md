@@ -83,7 +83,7 @@ backup file:
 | Store | What it keeps |
 |---|---|
 | [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt) | The running "Snooze 15 min" (end time and advice id), so it survives process death |
-| [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt) | The alarm instants already handled, so an alarm and its Doze backstop never remind twice |
+| [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt) | The alarm instants armed and handled, so a late or out-of-order alarm still reminds, and an alarm and its Doze backstop never remind twice |
 | [`PreferencesCelebrationStore`](../feature/plan/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/plan/PlanStores.kt) | Ids of trips whose plan celebration has already played, so it plays once |
 | [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) | The configuration the widgets were last drawn at, and the app version that last published the widget-picker previews |
 
@@ -111,7 +111,7 @@ flowchart LR
 In words: the profile and trip repositories feed the plan repository, which asks the planner for a plan. The
 ViewModels and the alarm scheduler both read the plan from that repository. The scheduler then refreshes every
 `PlanSurface`, so the notification and the widgets show the same advice as the app. They lag only when the
-scheduler's alarm is delayed (no exact-alarm access: up to 10 minutes while awake, about an hour in Doze; see
+scheduler's alarm is delayed (no exact-alarm access: up to 10 minutes while awake, usually about an hour in Doze; see
 [surfaces](surfaces.md#the-scheduler)).
 
 ### Android backup

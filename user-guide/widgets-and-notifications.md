@@ -3,7 +3,7 @@
 You don't have to open the app to follow your plan. A quiet notification shows what to do right now, a short
 reminder arrives just before each change, and two home-screen widgets show your plan at a glance. They update at
 each change in your plan, so they normally show the same thing as the app. If you haven't allowed exact alarms,
-Android can delay an update by up to about an hour while your phone is idle, and the widgets and notification may
+Android can delay an update, usually by up to about an hour, while your phone is idle, and the widgets and notification may
 lag until then.
 
 ## Reminders
@@ -146,7 +146,7 @@ Settings either, since they belong to the widgets on this phone.
 1. Open **Settings** and look at **What Android allows**. If everything needed is allowed, it shows a one-line
    summary; tap it to see each permission.
 2. Make sure **Notifications** says "Allowed". If not, tap **Allow**.
-3. Make sure **Exact timing** says "Allowed". Without it, reminders may arrive up to 10 minutes late, or up to about an hour late while the phone is idle.
+3. Make sure **Exact timing** says "Allowed". Without it, reminders may arrive up to 10 minutes late, and while the phone is idle usually up to about an hour late (Android doesn't promise a limit).
 4. On some phones, turning off **Battery optimisation** for the app helps too.
 5. Tap **Send a test reminder** to check.
 
