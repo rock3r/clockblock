@@ -22,6 +22,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlin.math.abs
 
 /**
  * The dial is a 24 h wall-clock face: across a DST change its arcs are drawn, and the hand scrubs, in wall-clock
@@ -238,6 +239,23 @@ class DialDstTest {
         state.instantAt(-480f) shouldBe change
 
         blockBoundaryStops(state).single { it.instant == change }.offset shouldBe (-450f plusOrMinus 0.01f)
+    }
+
+    @Test
+    fun `a clipped edge in the second run of the repeated hour stays a stop beside a block starting in the first`() {
+        // 09:30 EST on 1 November 2026: the window starts at 01:30, and the face's instant there is the second 01:30
+        // (EST, 06:30Z). A block clipped at that edge and one that really starts at the first 01:30 (EDT, 05:30Z) are
+        // both drawn from there, but they're an hour apart: both are stops.
+        val firstRun = Instant.parse("2026-11-01T05:30:00Z")
+        val secondRun = Instant.parse("2026-11-01T06:30:00Z")
+        val state = plan(
+            LocalDate.of(2026, 11, 1),
+            advice("clipped", AdviceType.Sleep, "2026-11-01T04:00:00Z", "2026-11-01T08:00:00Z"),
+            advice("firstRun", AdviceType.SeeBrightLight, "2026-11-01T05:30:00Z", "2026-11-01T05:45:00Z"),
+        ).toDialState(Instant.parse("2026-11-01T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe secondRun
+
+        blockBoundaryStops(state).filter { abs(it.offset + 480f) < 0.01f }.map { it.instant } shouldBe listOf(firstRun, secondRun)
     }
 
     @Test

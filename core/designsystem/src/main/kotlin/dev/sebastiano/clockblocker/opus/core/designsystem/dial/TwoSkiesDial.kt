@@ -435,10 +435,11 @@ private fun DialState.isBoundaryHere(candidate: Instant, offset: Float, zone: Zo
 internal data class BoundaryStop(val offset: Float, val instant: Instant)
 
 /**
- * The block boundaries ([blockBoundaries]) in real-time order, each at its own block's real instant when that is the
- * one drawn there (see [blockBoundaryInstant]), for Next/Previous block. Two boundaries can share one face time in a
- * fall-back night (a block ending at the first 01:30, another starting at the second): listed by face offset only one
- * of them could ever be visited (#106); listed by instant, both are stops.
+ * The block boundaries ([blockBoundaries]) in real-time order, for Next/Previous block. Each is at its own block's
+ * real instant when that is the one drawn there (see [blockBoundaryInstant]), otherwise at the face's instant
+ * ([DialState.instantAt]: a clipped window edge, say), never at another block's boundary that shares its face time.
+ * Two boundaries can share one face time in a fall-back night (a block ending at the first 01:30, another starting at
+ * the second): listed by face offset only one of them could ever be visited (#106); listed by instant, both are stops.
  */
 internal fun blockBoundaryStops(state: DialState): List<BoundaryStop> {
     val zone = runCatching { ZoneId.of(state.displayZoneId) }.getOrNull()
@@ -454,7 +455,7 @@ internal fun blockBoundaryStops(state: DialState): List<BoundaryStop> {
         .filter { (offset, _) -> offset >= -DialState.PastWindowMinutes && offset < DialGeometry.MinutesPerDay - DialState.PastWindowMinutes }
         .map { (offset, own) ->
             val here = own?.takeIf { zone != null && state.isBoundaryHere(it, offset, zone) }
-            (here != null) to BoundaryStop(offset, here ?: blockBoundaryInstant(state, offset))
+            (here != null) to BoundaryStop(offset, here ?: state.instantAt(offset))
         }
         // Two stops at one instant: keep a block's own boundary over a fallback. A window edge clipped inside a
         // spring-forward gap falls back to the change itself, the instant a block starting at the change really has.
