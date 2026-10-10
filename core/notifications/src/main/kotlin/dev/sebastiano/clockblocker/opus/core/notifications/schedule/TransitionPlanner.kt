@@ -114,12 +114,19 @@ object TransitionPlanner {
      * The next instant strictly after [now] at which a moment of [plan] (melatonin, or any advice with no length)
      * stops being due ([MOMENT_DUE] after it). A widget captured at the moment features it, and its only
      * [TransitionKind.Moment] is at the start, so without a refresh then it would stay featured until a later alarm.
-     * None inside a Sleep or Nap window, where the moment's own start is suppressed and the wake-up refreshes anyway.
+     * Only for moments whose start isn't strictly inside a Sleep or Nap window: those are suppressed, so no widget
+     * features them, and the wake-up refreshes anyway. A moment right at bedtime does fire and get featured, so its
+     * end refresh stays even though it lands just inside the sleep (a silent widget update, not a reminder).
      */
-    fun nextMomentEnd(plan: JetLagPlan, now: Instant): Instant? = plan.allAdvice
-        .filter { it.type.isMoment || it.start == it.end }
-        .map { it.start.plus(MOMENT_DUE) }
-        .nextAwake(plan, now)
+    fun nextMomentEnd(plan: JetLagPlan, now: Instant): Instant? {
+        val sleepers = plan.allAdvice.filter { it.type.isSleeper }
+        return plan.allAdvice
+            .filter { it.type.isMoment || it.start == it.end }
+            .filter { moment -> sleepers.none { moment.start.isStrictlyInside(it) } }
+            .map { it.start.plus(MOMENT_DUE) }
+            .filter { it.isAfter(now) }
+            .minOrNull()
+    }
 
     /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */
     fun nextDialRefresh(plan: JetLagPlan, now: Instant): Instant? =

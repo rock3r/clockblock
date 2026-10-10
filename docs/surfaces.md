@@ -53,7 +53,9 @@ A few details matter:
   - when a moment stops being due (`nextMomentEnd`, a minute after melatonin). A widget captured at the moment
     features it, and nothing else happens at its end, so it would stay featured until a later alarm.
 
-  Like the plan's transitions, neither fires inside a Sleep or Nap window: the wake-up refreshes everything.
+  Like the plan's transitions, neither fires inside a Sleep or Nap window: the wake-up refreshes everything. The
+  one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features it, so its end
+  refresh still fires, a minute into the sleep.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
   next maintenance window, well past 10 minutes.

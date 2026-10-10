@@ -340,6 +340,17 @@ class TransitionPlannerTest {
         }
 
         @Test
+        fun `a moment right at bedtime still stops being featured, since its start isn't suppressed`() {
+            val plan = planOf(
+                advice(Sleep, "2026-10-10T22:00", "2026-10-11T06:00"),
+                // Starts exactly when the sleep does: its alarm fires and the widget features it.
+                advice(Melatonin, "2026-10-10T22:00"),
+            )
+
+            TransitionPlanner.nextMomentEnd(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T22:01")
+        }
+
+        @Test
         fun `a moment's refresh is when the dial stops featuring it`() {
             TransitionPlanner.MOMENT_DUE.toMinutes() shouldBe MomentDueMinutes.toLong()
         }
