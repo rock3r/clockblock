@@ -252,6 +252,62 @@ class TwoSkiesSpecTest {
     }
 
     @Test
+    fun `a host that rewrites the time keeps room for the wider of the locale's AM PM markers`() {
+        val morning = tokyo.copy(localMinute = 9 * 60f + 20f, bodyAheadMinutes = 0f)
+        for (side in listOf(88f, 160f, 328f)) {
+            val texts = TwoSkies.spec(morning, palette, Uneven, side, side, liveReadouts = true).ops.filterIsInstance<DialOp.Text>()
+            val digits = texts.single { it.text == Uneven.time(morning.localMinute) }
+            val marker = texts.single { it.text == Uneven.marker(morning.localMinute) }
+            // The group is centred for its widest form: "10:00" and the longer evening marker.
+            val left = digits.x - ApproxTextMeasurer.width(Uneven.time(10 * 60f), digits.spec)
+            val right = marker.x + ApproxTextMeasurer.width(Uneven.marker(20 * 60f)!!, marker.spec)
+            ((left + right) / 2f) shouldBe (side / 2f plusOrMinus 0.5f)
+        }
+    }
+
+    @Test
+    fun `a host that rewrites the body time shows its AM PM only if every reading fits the hub`() {
+        var withMarker = 0
+        for (side in listOf(68f, 88f, 120f, 160f, 200f, 249f)) for (floor in listOf(10f, 13f)) {
+            val s = TwoSkies.spec(tokyo, palette, Uneven, side, side, minText = 7f, labelText = floor, liveReadouts = true)
+            val body = s.ops.filterIsInstance<DialOp.Text>().single { it.live?.clock == LiveClock.Body }
+            // Without its marker the body time stays whatever its width (it is never dropped).
+            if (body.live?.marker != true) continue
+            withMarker++
+            val widest = listOf(Uneven.fullTime(10 * 60f), Uneven.fullTime(22 * 60f)).maxOf { ApproxTextMeasurer.width(it, body.spec) }
+            val edge = kotlin.math.abs(body.y - side / 2f) + body.spec.size / 2f
+            (widest <= 2f * kotlin.math.sqrt(s.hubRadius * s.hubRadius - edge * edge)) shouldBe true
+        }
+        (withMarker > 0) shouldBe true
+    }
+
+    /** 12-hour labels whose evening marker is much longer than the morning one, like some locales'. */
+    private object Uneven : DialLabels by DefaultDialLabels(is24Hour = false) {
+        override fun marker(minuteOfDay: Float): String = if (minuteOfDay.mod(1440f) < 720f) "a" else "p.m."
+        override fun fullTime(minuteOfDay: Float): String = "${time(minuteOfDay)} ${marker(minuteOfDay)}"
+    }
+
+    @Test
+    fun `a locale whose AM PM marker is a phrase shows the time without it rather than shrinking it`() {
+        for (side in listOf(200f, 328f, 420f)) for (live in listOf(false, true)) {
+            val texts = TwoSkies.spec(tokyo, palette, Phrase, side, side, liveReadouts = live).ops.filterIsInstance<DialOp.Text>()
+            texts.none { it.text == Phrase.marker(tokyo.localMinute) } shouldBe true
+            val digits = texts.first { it.part == DialPart.Readout && it.text == Phrase.time(tokyo.localMinute) }
+            // The same size the English dial gives its digits.
+            val english = TwoSkies.spec(tokyo, palette, labels, side, side, liveReadouts = live).ops.filterIsInstance<DialOp.Text>()
+                .first { it.part == DialPart.Readout && it.text == labels.time(tokyo.localMinute) }
+            (digits.spec.size >= english.spec.size) shouldBe true
+        }
+    }
+
+    /** 12-hour labels with a marker as long as a phrase, like Kölsch's "Uhr vörmiddaachs". */
+    private object Phrase : DialLabels by DefaultDialLabels(is24Hour = false) {
+        override fun marker(minuteOfDay: Float): String =
+            if (minuteOfDay.mod(1440f) < 720f) "Uhr vörmiddaachs" else "Uhr nommendaachs"
+        override fun fullTime(minuteOfDay: Float): String = "${time(minuteOfDay)} ${marker(minuteOfDay)}"
+    }
+
+    @Test
     fun `the simple dial's two ring labels never share a sector, so they can't read as one phrase`() = runTest {
         checkAll(
             Arb.numericFloat(0f, 1439f),

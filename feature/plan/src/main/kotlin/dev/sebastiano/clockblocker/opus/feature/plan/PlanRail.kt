@@ -293,18 +293,38 @@ internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer,
     }
 }
 
-/** Width of the leading time column: the widest "00:00" in the time style, so all rows align. */
+/**
+ * Width of the leading time column: the widest "00:00" in the time style, so all rows align, or the locale's wider
+ * AM/PM marker under it (see [timeColumnWidth]).
+ */
 @Composable
 internal fun rememberTimeColumnWidth(): Dp {
     val measurer = rememberTextMeasurer()
     val style = ClockblockTheme.textStyles.timeTitle
+    val markerStyle = MaterialTheme.typography.labelSmall
     val density = LocalDensity.current
     val formatter = rememberTimeFormatter()
-    return remember(style, density, formatter) {
-        val sample = formatter.format(java.time.LocalTime.of(22, 58))
-        with(density) { measurer.measure(sample, style).size.width.toDp() } + 12.dp
+    return remember(style, markerStyle, density, formatter) {
+        with(density) {
+            val digits = measurer.measure(formatter.format(java.time.LocalTime.of(22, 58)), style).size.width.toDp()
+            val marker = listOf(java.time.LocalTime.of(10, 0), java.time.LocalTime.of(22, 0))
+                .mapNotNull { formatter.marker(it) }
+                .maxOfOrNull { measurer.measure(it, markerStyle).size.width.toDp() } ?: 0.dp
+            timeColumnWidth(digits, marker)
+        }
     }
 }
+
+/**
+ * The time column for [digits] wide times with an AM/PM marker up to [widestMarker] wide under them: room for the
+ * wider of the two, but a marker gets at most [MaxMarkerToDigits] times the digits' width. A phrase-sized one (Kölsch's
+ * "Uhr vörmiddaachs") is cut short on one line, rather than wrapping and growing every row.
+ */
+internal fun timeColumnWidth(digits: Dp, widestMarker: Dp): Dp =
+    maxOf(digits, minOf(widestMarker, digits * MaxMarkerToDigits)) + TimeColumnGap
+
+private const val MaxMarkerToDigits = 1.5f
+private val TimeColumnGap = 12.dp
 
 private val CapsuleWidth = 44.dp
 private val RowGap = 6.dp
@@ -559,7 +579,14 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                     color = if (emphasised) scheme.onSurface else scheme.onSurfaceVariant,
                 )
                 formatter.marker(advice.start.atZone(day.zone).toLocalTime())?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+                    // One line whatever the locale: a marker wider than the column is cut short, the row never grows.
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
