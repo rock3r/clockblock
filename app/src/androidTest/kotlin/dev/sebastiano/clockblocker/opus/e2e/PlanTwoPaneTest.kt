@@ -5,6 +5,8 @@ import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sebastiano.clockblocker.opus.core.model.DeepLinks
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanTags
@@ -56,15 +58,24 @@ class PlanTwoPaneTest : ClockblockE2eTest() {
         }
         awaitTag(PlanTags.DayStrip, LongTimeoutMillis)
 
-        // Scrolling the rail to the last day marks that day's pill (one pane never marks one), and only that one.
+        // Scrolling the rail to its end marks the last day's pill (one pane never marks one), and only that one.
+        // Bringing the last day's header into view isn't enough: it can land below the rail's reading line, and how
+        // far depends on how many rows the seeded plan has left at the time of day the test runs. At the end of the
+        // rail the last day is always the one in view.
         val inView = hasStateDescription(context.getString(PlanR.string.plan_strip_pill_in_view))
         awaitTag(PlanTags.Rail)
-        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(last)))
+        val rail = compose.onNodeWithTag(PlanTags.Rail)
+        rail.performScrollToNode(hasTestTag(PlanTags.day(last)))
+        repeat(RailEndFlings) {
+            rail.performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
         await(hasTestTag(PlanTags.dayPill(last)) and inView, LongTimeoutMillis)
         compose.onAllNodes(inView).assertCountEquals(1)
     }
 
     private companion object {
         val SystemSettings = listOf("accelerometer_rotation", "user_rotation")
+        const val RailEndFlings = 4
     }
 }
