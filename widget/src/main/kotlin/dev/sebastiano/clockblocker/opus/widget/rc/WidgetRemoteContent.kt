@@ -63,8 +63,8 @@ import java.time.Duration
 /**
  * Everything one capture needs.
  *
- * @property bodyRing how the dial draws the body ring: Simple for every widget for now; #52 makes it a per-widget
- *   option.
+ * @property bodyRing how the dial draws the body ring: the widget's own option (`WidgetConfig`, #52), Simple by
+ *   default.
  */
 data class WidgetModel(
     val state: WidgetState,

@@ -272,8 +272,8 @@ its widest reading ("10:00"), so the digits the launcher writes never run into A
 The launcher's clock keeps the dial live between captures: the needle turns (or the now line slides), and both
 times are written from the launcher's clock. Labels that stepped aside for the needle stay put until the next
 capture, at the next advice boundary. The wash over the part of the current block that has passed is left out,
-since it can't follow the needle. The body ring is the simple one; the precise one becomes a per-widget option
-in #52.
+since it can't follow the needle. The body ring is the simple one unless the widget's options ask for the precise
+one (see [Widget options](#widget-options)).
 
 ![The widget dial next to the app dial at the same state: Two skies at 96, 176 and 290 dp and Two strips at 110×80 and 250×56, app first in each pair, light then dark](screenshots/widgets/remote_dial_vs_app.png)
 
@@ -446,6 +446,35 @@ button is a second host action in the Remote Compose document.
 Widgets follow the app's theme setting (light, dark or system). When "Night-safe automatically" is on and the
 current advice is avoid light or sleep, they switch to night-safe: true black, dim amber text and buttons, no
 tinted cards, and dimmed advice colours and sky.
+
+### Widget options
+
+Each placed *Two clocks* widget has its own options (#52). For now there is one: the body ring, Simple (the default)
+or Precise ([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)). The widget declares
+`android:configure` with `reconfigurable|configuration_optional`, so the launcher doesn't open the screen when the
+widget is placed, and offers it later (touch and hold the widget, then Reconfigure or the pencil, depending on the
+launcher). *Next up* has no options yet, so it declares no configuration screen.
+
+![The Customise widget screen on a phone: the Two clocks widget previewed at its home-screen size, then the Body ring choice as two cards, Simple (selected) and Precise, each drawing the dial that way with a radio button, its name and what it shows](screenshots/widgets/widget_config.png)
+
+[`WidgetConfigActivity`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/config/WidgetConfigActivity.kt)
+is exported for the launcher, so it opens only for an id that belongs to one of our widgets, and otherwise finishes
+with `RESULT_CANCELED`. For our own widgets it always returns `RESULT_OK`: a choice is saved and drawn on the widget
+the moment it is made, so Done and Back both keep it.
+
+- **Store.** `WidgetConfigRepository` (`widget_configs.json`) maps each `appWidgetId` to a `WidgetConfig`. Widget ids
+  belong to the launcher on this device, so the file isn't part of backups. `onDeleted` drops a widget's options,
+  `onRestored` moves them to the new ids, and every full update keeps only the ids that are still placed.
+- **Rendering.** `WidgetUpdater.render` reads the options once per update and applies each widget's own
+  (`WidgetModel.bodyRing`). The scheduler doesn't watch the options; `WidgetUpdater.configure` saves a change and
+  redraws that one widget.
+- **Preview.** The screen shows the widget at its home-screen size (the host's reported size, else its minimum),
+  scaled down to fit. It hosts the same `RemoteViews` the launcher gets in an `AppWidgetHostView`, which takes no
+  touches (its Done button would log the advice) and is hidden from TalkBack in favour of the widget's own
+  description. With no trip it previews the sample trip the widget picker uses, and says so.
+- **Layout.** On a phone the preview stays pinned above the options and takes at most 45% of the height; from 600 dp
+  wide the preview and the options sit side by side. The choices are a radio group of cards, each with a name and a
+  description, never a picture alone.
 
 ### How widgets render
 

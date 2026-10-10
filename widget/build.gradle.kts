@@ -22,6 +22,10 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.metrox.android)
+    // The configuration screen (#52): a Compose activity with a ViewModel.
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.compose.remote.creation.compose)
     implementation(libs.androidx.compose.remote.creation)
     implementation(libs.androidx.compose.remote.core)

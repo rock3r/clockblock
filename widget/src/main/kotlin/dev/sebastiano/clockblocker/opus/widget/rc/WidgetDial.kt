@@ -58,7 +58,7 @@ internal object WidgetDial {
     /**
      * [design] for [state] laid out in a [widthDp] × [heightDp] region (its size at the bucket's minimum).
      *
-     * @param bodyRing the body ring's mode: Simple for now; #52 makes Precise a per-widget option.
+     * @param bodyRing the body ring's mode, the widget's own option (#52).
      */
     fun spec(
         context: Context,

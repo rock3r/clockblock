@@ -80,4 +80,17 @@
     <string name="widget_a11y_hours">hours</string>
     <string name="widget_a11y_minute">minute</string>
     <string name="widget_a11y_minutes">minutes</string>
+
+    <!-- Configuration screen (#52): long-press a widget, then Reconfigure. -->
+    <string name="widget_config_title">Customise widget</string>
+    <string name="widget_config_done">Done</string>
+    <string name="widget_config_preview">Preview</string>
+    <string name="widget_config_sample">Sample trip</string>
+    <string name="widget_config_sample_description">No trip yet, so the preview shows a sample trip.</string>
+    <string name="widget_config_body_ring">Body ring</string>
+    <string name="widget_config_body_ring_intro">The inner ring is your body clock. Choose what its night shows. Only this widget changes.</string>
+    <string name="widget_config_body_ring_simple">Simple</string>
+    <string name="widget_config_body_ring_simple_description">The sky outside, turned by your jet lag.</string>
+    <string name="widget_config_body_ring_precise">Precise</string>
+    <string name="widget_config_body_ring_precise_description">Your biological night, as the plan works it out.</string>
 </resources>

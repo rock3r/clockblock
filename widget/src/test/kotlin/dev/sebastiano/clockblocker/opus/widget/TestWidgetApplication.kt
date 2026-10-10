@@ -10,6 +10,7 @@ import android.content.Intent
 import dev.sebastiano.clockblocker.opus.core.notifications.receiver.AdviceActionReceiver
 import dev.sebastiano.clockblocker.opus.core.notifications.receiver.AdviceAlarmReceiver
 import dev.sebastiano.clockblocker.opus.core.notifications.receiver.ScheduleResetReceiver
+import dev.sebastiano.clockblocker.opus.widget.config.WidgetConfigActivity
 import dev.zacsweers.metrox.android.MetroAppComponentProviders
 import dev.zacsweers.metrox.android.MetroApplication
 import kotlin.reflect.KClass
@@ -17,13 +18,15 @@ import kotlin.reflect.KClass
 /**
  * metrox-android merges `MetroAppComponentFactory` into this module's manifest, which requires the
  * application to be a [MetroApplication]. Robolectric uses this one (see `robolectric.properties`) and
- * instantiates the manifest widget receivers through it.
+ * instantiates the manifest widget receivers (and the configuration activity) through it.
  */
 class TestWidgetApplication : Application(), MetroApplication {
     val updater: WidgetUpdater by lazy { WidgetUpdater(this) }
 
     override val appComponentProviders: MetroAppComponentProviders = object : MetroAppComponentProviders {
-        override val activityProviders: Map<KClass<out Activity>, () -> Activity> = emptyMap()
+        override val activityProviders: Map<KClass<out Activity>, () -> Activity> = mapOf(
+            WidgetConfigActivity::class to { WidgetConfigActivity(updater, FakeWidgetConfigRepository(), FakeSettingsRepository()) },
+        )
         override val providerProviders: Map<KClass<out ContentProvider>, () -> ContentProvider> = emptyMap()
         override val receiverProviders: Map<KClass<out BroadcastReceiver>, () -> BroadcastReceiver> = mapOf(
             TwoClocksWidgetProvider::class to { TwoClocksWidgetProvider(updater) },

@@ -107,6 +107,21 @@ short label. Bigger sizes add the time in your other zone and a **Done** button,
 list what's up next, next to your route ("LIS → HND"). It says "Free time" when there's nothing to do, and
 "Clockblocked" when your plan is finished ("Adapted" on the smallest size).
 
+### Customise a widget
+
+Each *Two clocks* widget has its own options. Touch and hold the widget, then tap **Reconfigure** (on some home
+screens it's a pencil or **Customise**). The **Customise widget** screen shows your widget as it is now, and
+changes it as you choose:
+
+- **Body ring**: what the inner ring's night shows. **Simple** (the default) is the sky outside, turned by your jet
+  lag. **Precise** is your biological night, as the plan works it out.
+
+Only that widget changes, so you can have one of each. Your choice is saved straight away; tap **Done** or go back
+when you're finished. Removing the widget forgets its options. They aren't part of a backup either, since they
+belong to widgets on this phone.
+
+<img src="images/widget-config.png" alt="The Customise widget screen for Two clocks. At the top, a preview of the widget: the dial with 15:20 local time and 08:20 body time, and Avoid light until 16:30. Below, Body ring: The inner ring is your body clock. Choose what its night shows. Only this widget changes. Two cards follow, each with a dial: Simple, selected, The sky outside, turned by your jet lag; and Precise, Your biological night, as the plan works it out." width="360" />
+
 ### Good to know
 
 - Tap a widget to open the plan. With no trip planned, the widgets say "No trip · Plan one", and a tap opens the
