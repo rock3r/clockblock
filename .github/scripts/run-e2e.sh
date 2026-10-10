@@ -46,8 +46,10 @@ diagnostics() {
 }
 
 adb wait-for-device
-wait_for_steady_system
-adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton
+for _ in 1 2 3 4 5; do
+  wait_for_steady_system
+  if adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton; then break; fi
+done
 for attempt in 1 2; do
   wait_for_steady_system
   diagnostics

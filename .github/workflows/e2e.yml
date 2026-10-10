@@ -50,7 +50,10 @@ jobs:
           disk-size: 8G
           ram-size: 4096M
           disable-animations: true
-          # run-e2e.sh works around the API 37 image's surfaceflinger abort on this emulator (see the script).
+          # The API 37 image's gralloc mapper needs the host's ReadColorBufferDma feature, which the stable emulator
+          # (37.2.12) doesn't have: surfaceflinger aborts every half a minute or so and takes system_server with it (see
+          # run-e2e.sh). The canary channel's emulator is newer.
+          channel: canary
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           # The script waits for a steady system, retries a failed install once and keeps the Gradle log for the check
           # below.
