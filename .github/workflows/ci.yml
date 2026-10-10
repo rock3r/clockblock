@@ -69,13 +69,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-android-build
+      # play is the Google Play build; oss (outside Play) adds USE_EXACT_ALARM. Both must assemble.
       - name: Build debug, release and test APKs
-        run: ./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest
+        run: ./gradlew :app:assemblePlayDebug :app:assemblePlayRelease :app:assembleOssDebug :app:assembleOssRelease :app:assemblePlayDebugAndroidTest
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: clockblock-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/play/debug/*.apk
+          retention-days: 14
+      - name: Upload oss debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: clockblock-oss-debug
+          path: app/build/outputs/apk/oss/debug/*.apk
           retention-days: 14
 
   babysit-skill:

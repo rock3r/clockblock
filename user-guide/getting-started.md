@@ -99,6 +99,9 @@ Tap **Allow and finish**, or **Maybe later** to finish without allowing notifica
 already allowed, the buttons are **Back** and **Finish**. You can grant the permissions any time from Settings →
 **What Android allows**.
 
+If you installed the app from outside Google Play, exact timing is allowed when you install it, so **Exact timing**
+already says "Allowed" and reminders arrive on the minute.
+
 ## What's next
 
 After setup, the app opens the Trips screen. [Plan your first trip](planning-a-trip.md), or tap **Try a demo

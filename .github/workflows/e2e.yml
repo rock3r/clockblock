@@ -34,7 +34,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: ./.github/actions/setup-android-build
       - name: Build APKs
-        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+        run: ./gradlew :app:assemblePlayDebug :app:assemblePlayDebugAndroidTest
       # Stop-gap (#122): CI's API 37 emulator keeps restarting system_server (see below), so the suite can't run to
       # the end. Until it can, a failed or empty run is a warning on the job, not a failure, so the job isn't green
       # without saying so and doesn't block every pull request. Remove the stop-gap with #122: both continue-on-error lines and the warning step.

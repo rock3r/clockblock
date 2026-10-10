@@ -14,12 +14,20 @@ not have `build-brief` installed.
 
 | What | Command |
 |---|---|
-| Debug APK | `build-brief ./gradlew :app:assembleDebug` |
-| All unit tests (JVM + Robolectric) | `build-brief ./gradlew test` (Android modules: `testDebugUnitTest`) |
+| Debug APK (Play / outside Play) | `build-brief ./gradlew :app:assemblePlayDebug` / `:app:assembleOssDebug` |
+| All unit tests (JVM + Robolectric) | `build-brief ./gradlew test` (Android modules: `testDebugUnitTest`; `:app`: `testPlayDebugUnitTest`) |
 | One module | `build-brief ./gradlew :core:circadian:test` |
 | Record screenshots | `build-brief ./gradlew <module>:recordRoborazziDebug` |
 | Verify screenshots | `build-brief ./gradlew <module>:verifyRoborazziDebug` |
-| e2e on emulator | `build-brief ./gradlew :app:connectedDebugAndroidTest` (AVD `Opus_API37`) |
+| e2e on emulator | `build-brief ./gradlew :app:connectedPlayDebugAndroidTest` (AVD `Opus_API37`) |
+
+`:app` has a `distribution` flavour dimension: `play` (default, `SCHEDULE_EXACT_ALARM`) and `oss` (builds outside
+Google Play, adds `USE_EXACT_ALARM` in `app/src/oss/AndroidManifest.xml`). Library modules have no flavours. Unit
+and screenshot tests run on `play` only. `:app` aliases `testDebugUnitTest`, `recordRoborazziDebug`,
+`verifyRoborazziDebug`, `compareRoborazziDebug` and `compileDebugAndroidTestKotlin` to their play tasks, so
+root-level commands still cover it, but aliases don't take `--tests`: filter on the play task
+(`:app:recordRoborazziPlayDebug --tests …`). `USE_EXACT_ALARM` must never reach the play manifest
+(`DistributionManifestTest`).
 
 `local.properties` must contain `sdk.dir=<path to your Android SDK>` (gitignored).
 
