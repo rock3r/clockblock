@@ -100,12 +100,37 @@ object TransitionPlanner {
     /**
      * The next instant strictly after [now] at which a block of [plan] comes into the widget dial's view
      * ([DIAL_ENTRY_LEAD] before it starts). Widgets capture the dial's blocks and only move the hand, so without a
-     * refresh then a block further away than the dial's future would stay off it until it starts.
+     * refresh then a block further away than the dial's future would stay off it until it starts. None inside a
+     * Sleep or Nap window: the wake-up re-captures everything.
      */
     fun nextDialEntry(plan: JetLagPlan, now: Instant): Instant? = plan.allAdvice
         .map { it.start.minus(DIAL_ENTRY_LEAD) }
-        .filter { it.isAfter(now) }
-        .minOrNull()
+        .nextAwake(plan, now)
+
+    /** How long a moment stays due on the widget dial (the design system's `MomentDueMinutes`). */
+    val MOMENT_DUE: Duration = Duration.ofMinutes(1)
+
+    /**
+     * The next instant strictly after [now] at which a moment of [plan] (melatonin, or any advice with no length)
+     * stops being due ([MOMENT_DUE] after it). A widget captured at the moment features it, and its only
+     * [TransitionKind.Moment] is at the start, so without a refresh then it would stay featured until a later alarm.
+     * Only for moments whose start isn't strictly inside a Sleep or Nap window: those are suppressed, so no widget
+     * features them, and the wake-up refreshes anyway. A moment right at bedtime does fire and get featured, so its
+     * end refresh stays even though it lands just inside the sleep (a silent widget update, not a reminder).
+     */
+    fun nextMomentEnd(plan: JetLagPlan, now: Instant): Instant? {
+        val sleepers = plan.allAdvice.filter { it.type.isSleeper }
+        return plan.allAdvice
+            .filter { it.type.isMoment || it.start == it.end }
+            .filter { moment -> sleepers.none { moment.start.isStrictlyInside(it) } }
+            .map { it.start.plus(MOMENT_DUE) }
+            .filter { it.isAfter(now) }
+            .minOrNull()
+    }
+
+    /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */
+    fun nextDialRefresh(plan: JetLagPlan, now: Instant): Instant? =
+        listOfNotNull(nextDialEntry(plan, now), nextMomentEnd(plan, now)).minOrNull()
 
     private fun rawTransitions(advice: Advice, lead: Duration): List<Transition> = when {
         advice.type.isMoment -> listOf(Transition(advice.start, TransitionKind.Moment, advice))
@@ -137,6 +162,12 @@ object TransitionPlanner {
         TransitionKind.Upcoming, TransitionKind.Moment -> null
         TransitionKind.WakeUp -> copy(kind = TransitionKind.End)
         TransitionKind.Start, TransitionKind.End -> this
+    }
+
+    /** The earliest of these instants strictly after [now] that isn't strictly inside a Sleep or Nap of [plan]. */
+    private fun List<Instant>.nextAwake(plan: JetLagPlan, now: Instant): Instant? {
+        val sleepers = plan.allAdvice.filter { it.type.isSleeper }
+        return filter { at -> at.isAfter(now) && sleepers.none { at.isStrictlyInside(it) } }.minOrNull()
     }
 
     private fun Instant.isStrictlyInside(window: Advice): Boolean = isAfter(window.start) && isBefore(window.end)
