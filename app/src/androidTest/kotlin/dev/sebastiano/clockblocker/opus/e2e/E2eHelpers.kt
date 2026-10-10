@@ -7,8 +7,14 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -33,6 +39,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.abs
 
 /** Matches nodes whose test tag starts with [prefix] (e.g. `trip_card_`, `plan_block_`). */
 fun hasTestTagPrefix(prefix: String): SemanticsMatcher = SemanticsMatcher("TestTag starts with '$prefix'") { node ->
@@ -122,6 +129,27 @@ fun SemanticsNodeInteraction.scrollIntoViewAndClick(): SemanticsNodeInteraction 
     scrollToIfScrollable().assertIsDisplayed().performClick()
 
 /**
+ * Scrolls the lazy list tagged [listTag] until the node tagged [tag] is in the middle of its viewport, and returns
+ * that node.
+ *
+ * `performScrollToNode` scrolls a lazy item to the very top of the list, where a sticky day header on the plan's
+ * rail is pinned over it, so a tap on the row's top edge (a check-off circle) can land on the header instead. The
+ * middle is clear of that header and of the floating toolbar and snackbars at the bottom.
+ */
+fun ClockblockE2eTest.scrollToMiddle(listTag: String, tag: String): SemanticsNodeInteraction {
+    val list = compose.onNodeWithTag(listTag)
+    list.performScrollToNode(hasTestTag(tag))
+    compose.waitForIdle()
+    val viewport = list.fetchSemanticsNode().boundsInRoot
+    val dy = awaitTag(tag).fetchSemanticsNode().boundsInRoot.center.y - viewport.center.y
+    if (abs(dy) > 1f) {
+        list.performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy -> scrollBy(0f, dy) }
+        compose.waitForIdle()
+    }
+    return awaitTag(tag)
+}
+
+/**
  * Finds an object with [find] and clicks it, retrying for up to [timeoutMillis] while nothing is found or the
  * found object goes stale before the click lands. Returns whether a click was delivered.
  *
@@ -152,6 +180,18 @@ fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean 
     clickWhenFound(timeoutMillis) { findObject(selector) }
 
 private const val ShadePollMillis = 250L
+
+/**
+ * Types [query] into the search field [fieldTag] and waits for the result [resultTag]. If it doesn't show up in time,
+ * sets the query again once and waits again: on a loaded emulator the search can come back late, or a keystroke can
+ * be lost while the field takes focus and the keyboard comes up (issue #54).
+ */
+fun ClockblockE2eTest.searchUntilResult(fieldTag: String, query: String, resultTag: String) {
+    awaitTag(fieldTag).scrollToIfScrollable().performTextInput(query)
+    if (runCatching { awaitTag(resultTag) }.isSuccess) return
+    awaitTag(fieldTag).scrollToIfScrollable().performTextReplacement(query)
+    awaitTag(resultTag)
+}
 
 /**
  * Taps the search result [resultTag] once the keyboard and the layout have settled, then waits until [picked]

@@ -12,7 +12,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
@@ -102,7 +101,7 @@ fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
 
     // Home zone.
     awaitTag(OnboardingTags.step(OnboardingStep.HomeZone))
-    awaitTag(HomeZoneTags.Search).performTextInput("lis")
+    searchUntilResult(HomeZoneTags.Search, "lis", "home_zone_result_LIS")
     // With the keyboard up the results start below the fold (see docs/qa/device-qa-1.md), and they move while the
     // keyboard animates in: pickSearchResult waits for both to settle, scrolls, taps and retries once (issue #54).
     pickSearchResult("home_zone_result_LIS", hasTestTag(HomeZoneTags.Current) and hasAnyDescendant(hasText("Lisbon", substring = true)))
