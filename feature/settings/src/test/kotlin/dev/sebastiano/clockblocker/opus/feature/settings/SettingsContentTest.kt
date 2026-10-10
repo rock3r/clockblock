@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.settings
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -80,7 +81,7 @@ class SettingsContentTest {
 
     private val actions = RecordingSettingsActions()
 
-    private fun show(state: SettingsUiState = settingsState(), onOpenDebug: (() -> Unit)? = null) {
+    private fun show(state: SettingsUiState = settingsState(), extraSection: (@Composable () -> Unit)? = null) {
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 SettingsContent(
@@ -89,7 +90,7 @@ class SettingsContentTest {
                     onBack = null,
                     modifier = Modifier.fillMaxSize(),
                     now = DemoData.Now,
-                    onOpenDebug = onOpenDebug,
+                    extraSection = extraSection,
                 )
             }
         }
@@ -218,18 +219,17 @@ class SettingsContentTest {
     }
 
     @Test
-    fun `without a Debug action (release builds) there is no Debug section`() {
-        show()
-        compose.onNodeWithTag(SettingsTags.Debug).assertDoesNotExist()
-        compose.onNodeWithText("Debug tools").assertDoesNotExist()
-    }
-
-    @Test
-    fun `with a Debug action (debug builds) the Debug section opens it`() {
+    fun `an extra section from the app closes the list and its row opens`() {
         var opened = 0
-        show(onOpenDebug = { opened++ })
-        compose.onNodeWithText("Debug tools").performScrollTo().assertIsDisplayed()
-        click(SettingsTags.Debug)
+        show(
+            extraSection = {
+                SettingsLinkSection(header = "Extra", title = "Extra row", supporting = "Opens something", tag = "extra") {
+                    opened++
+                }
+            },
+        )
+        compose.onNodeWithText("Extra row").performScrollTo().assertIsDisplayed()
+        click("extra")
         opened shouldBe 1
     }
 

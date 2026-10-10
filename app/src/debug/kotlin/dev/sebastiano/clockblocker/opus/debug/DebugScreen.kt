@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.debug
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,7 +33,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.R
 import dev.sebastiano.clockblocker.opus.widget.debug.RemoteComposeNotificationProbe
@@ -52,7 +55,7 @@ enum class GalleryPage(val extra: String, val title: String, val description: St
     Live(
         "live",
         "Live providers",
-        "The real widgets through AppWidgetHost. Binding needs a one-time `adb shell appwidget grantbind`.",
+        "The real widgets through AppWidgetHost. Binding them needs a one-time adb shell appwidget grantbind.",
     ),
     All("all", "Everything", "All of the above on one long page."),
 }
@@ -134,7 +137,7 @@ private fun ProbeSection(
             )
             OutlinedButton(onClick = onAllowNotifications) { Text("Allow notifications") }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = onRunProbe,
                 enabled = probe != ProbeState.Running && notificationsAllowed,
@@ -173,8 +176,14 @@ private fun ResultRow(result: Result) {
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-        Surface(color = container, contentColor = content, shape = RoundedCornerShape(8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        // A fixed width keeps the variants' names in one column whatever the verdict.
+        Surface(color = container, contentColor = content, shape = RoundedCornerShape(8.dp), modifier = Modifier.width(76.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
         }
         Column(Modifier.weight(1f)) {
             Text(result.variant.description, style = MaterialTheme.typography.titleSmall)

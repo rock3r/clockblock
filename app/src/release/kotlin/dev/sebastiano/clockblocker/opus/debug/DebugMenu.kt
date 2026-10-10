@@ -1,9 +1,8 @@
 package dev.sebastiano.clockblocker.opus.debug
 
-import android.content.Context
+import androidx.compose.runtime.Composable
 
 /** Release builds have no debug tools: Settings gets no Debug section. See the debug source set's `DebugMenu`. */
 object DebugMenu {
-    @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant")
-    fun opener(context: Context): (() -> Unit)? = null
+    val settingsSection: (@Composable () -> Unit)? = null
 }

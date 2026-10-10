@@ -164,7 +164,6 @@ object SettingsTags {
     const val ImportMerge = "settings_import_merge"
     const val ReplayOnboarding = "settings_replay_onboarding"
     const val About = "settings_about"
-    const val Debug = "settings_debug"
 
     /** `settings_theme_System`, `settings_theme_Light`, `settings_theme_Dark`. */
     fun theme(mode: ThemeMode): String = "settings_theme_${mode.name}"
@@ -241,8 +240,8 @@ interface SettingsActions {
 
 /**
  * Settings (navigation contract used by `:app`; keep these signatures, additive defaulted params OK).
- * [onBack] null when shown as a top-level destination. [onOpenDebug] opens the debug tools: debug builds pass it,
- * release builds pass null and get no Debug section.
+ * [onBack] null when shown as a top-level destination. [extraSection] closes the list with a section the app adds
+ * (debug builds add Debug; release builds add nothing).
  */
 @Composable
 fun SettingsScreen(
@@ -250,7 +249,7 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
     onReplayOnboarding: () -> Unit,
     modifier: Modifier = Modifier,
-    onOpenDebug: (() -> Unit)? = null,
+    extraSection: (@Composable () -> Unit)? = null,
 ) {
     val viewModel = metroViewModel<SettingsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -318,7 +317,7 @@ fun SettingsScreen(
         onBack = onBack,
         snackbarHostState = snackbars,
         modifier = modifier,
-        onOpenDebug = onOpenDebug,
+        extraSection = extraSection,
     )
 }
 
@@ -377,7 +376,7 @@ private enum class ProfileEditor { None, Home, Sleep, Chronotype }
  * and data on the right.
  *
  * @param now the instant used for GMT offset labels (fixed in screenshot tests; offsets move with DST).
- * @param onOpenDebug when set (debug builds), a Debug section closes the list with a row that calls it.
+ * @param extraSection a section the app adds after More (debug builds: Debug), usually a [SettingsLinkSection].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -388,7 +387,7 @@ fun SettingsContent(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     now: Instant = remember { Instant.now() },
-    onOpenDebug: (() -> Unit)? = null,
+    extraSection: (@Composable () -> Unit)? = null,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var editor by rememberSaveable { mutableStateOf(ProfileEditor.None) }
@@ -430,7 +429,7 @@ fun SettingsContent(
             }
             val more: @Composable ColumnScope.() -> Unit = {
                 MoreSection(actions)
-                if (onOpenDebug != null) DebugSection(onOpenDebug)
+                extraSection?.invoke()
             }
             val end: @Composable ColumnScope.() -> Unit = {
                 Spacer(Modifier.size(24.dp))
@@ -532,18 +531,15 @@ private fun MoreSection(actions: SettingsActions) {
     }
 }
 
-/** Debug builds only: the way into the debug tools. */
+/**
+ * A section with one row that opens something, styled like the rest of Settings: for sections the app adds through
+ * `extraSection` (the debug build's Debug section).
+ */
 @Composable
-private fun DebugSection(onOpenDebug: () -> Unit) {
-    SectionHeader(stringResource(R.string.settings_section_debug))
+fun SettingsLinkSection(header: String, title: String, supporting: String, tag: String, onClick: () -> Unit) {
+    SectionHeader(header)
     SettingsGroup {
-        SettingsRow(
-            title = stringResource(R.string.settings_debug),
-            supporting = stringResource(R.string.settings_debug_description),
-            onClick = onOpenDebug,
-            shape = segmentedShape(0, 1),
-            tag = SettingsTags.Debug,
-        )
+        SettingsRow(title = title, supporting = supporting, onClick = onClick, shape = segmentedShape(0, 1), tag = tag)
     }
 }
 

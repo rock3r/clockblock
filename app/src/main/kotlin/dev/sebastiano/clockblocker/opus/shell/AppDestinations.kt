@@ -2,8 +2,6 @@ package dev.sebastiano.clockblocker.opus.shell
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import dev.sebastiano.clockblocker.opus.debug.DebugMenu
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingScreen
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanEmptyPane
@@ -125,13 +123,12 @@ object FeatureDestinations : AppDestinations {
 
     @Composable
     override fun Settings(onOpenAbout: () -> Unit, onReplayOnboarding: () -> Unit) {
-        val context = LocalContext.current
         SettingsScreen(
             onBack = null,
             onOpenAbout = onOpenAbout,
             onReplayOnboarding = onReplayOnboarding,
-            // Debug builds only: the release DebugMenu returns null, so release Settings has no Debug section.
-            onOpenDebug = remember(context) { DebugMenu.opener(context) },
+            // Debug builds only: the release DebugMenu has no section, so release Settings has no Debug section.
+            extraSection = DebugMenu.settingsSection,
         )
     }
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds only (see DebugMenu); not translated. -->
+    <string name="debug_settings_section" translatable="false">Debug</string>
+    <string name="debug_settings_row" translatable="false">Debug tools</string>
+    <string name="debug_settings_row_description" translatable="false">Notification probe and widget gallery. Debug builds only.</string>
+</resources>
