@@ -64,7 +64,8 @@ def p(x, y):
 def half(c, radius, shift, gap, fillet, turn):
     """The day half (upper, slid left), or with `turn` the night half: the same outline turned 180 degrees.
 
-    Returns the path data, the outline's extreme points (for the checks) and the half's top and bottom y (for its
+    Returns the path data, points sampled along the whole outline (for the checks: the fillets bulge past their
+    tangent points, so the end points alone would understate the reach) and the half's top and bottom y (for its
     gradient). A 180 degree turn keeps the winding, so the arc sweep flags stay the same.
     """
     ox, oy = c - shift, c - gap / 2  # centre of the full disc the day half was cut from
@@ -83,9 +84,24 @@ def half(c, radius, shift, gap, fillet, turn):
         f"A{fmt(radius)},{fmt(radius)} 0,0 1,{p(*t(right_rim))}"
         f"A{fmt(fillet)},{fmt(fillet)} 0,0 1,{p(*t(right_flat))}Z"
     )
-    extremes = [t(q) for q in (top, left_rim, right_rim, left_flat, right_flat)]
+    outline = (
+        arc_points((ox - xf, oy - fillet), fillet, left_flat, left_rim)
+        + arc_points((ox, oy), radius, left_rim, right_rim)
+        + arc_points((ox + xf, oy - fillet), fillet, right_rim, right_flat)
+    )
     ys = sorted((t(top)[1], t(left_flat)[1]))
-    return d, extremes, ys
+    return d, [t(q) for q in outline], ys
+
+
+def arc_points(centre, r, start, end, steps=720):
+    """Points along the arc from [start] to [end] around [centre], clockwise on screen (y down), like sweep-flag 1."""
+    a0 = math.atan2(start[1] - centre[1], start[0] - centre[0])
+    a1 = math.atan2(end[1] - centre[1], end[0] - centre[0])
+    span = (a1 - a0) % (2 * math.pi)
+    return [
+        (centre[0] + r * math.cos(a0 + span * i / steps), centre[1] + r * math.sin(a0 + span * i / steps))
+        for i in range(steps + 1)
+    ]
 
 
 def mark(c, radius, shift, gap, fillet):
@@ -139,9 +155,6 @@ def main():
         c, L_RADIUS, L_SHIFT, L_GAP, L_FILLET
     )
     reach = max(math.hypot(x - c, y - c) for x, y in points)
-    # The rim between the tangent points can reach further than its ends: check the far corner's whole arc too.
-    far = math.hypot(L_SHIFT, L_GAP / 2) + L_RADIUS
-    reach = max(reach, far)
     if reach > SAFE_RADIUS:
         sys.exit(f"launcher art reaches {reach:.2f} from the centre, outside the safe zone ({SAFE_RADIUS})")
 
