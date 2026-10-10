@@ -74,7 +74,8 @@ Repositories expose that state as `Flow`s. The plan is never stored:
 computes it from the trip and the profile when something asks for it, and keeps recent results in memory.
 
 A fifth DataStore file, `widget_configs.json`, holds each placed widget's options (see
-[surfaces](surfaces.md#widget-options)). Widget ids belong to the launcher on this device, so it isn't part of backups.
+[surfaces](surfaces.md#widget-options)). Widget ids belong to the launcher on this device, so it isn't in the app's
+backup file. Android's own device backup restores it along with the widgets.
 
 Three small SharedPreferences files hold bookkeeping state. They aren't user data and aren't part of backups:
 
@@ -121,7 +122,7 @@ Features depend on these interfaces only.
 | `TripRepository` | `trips.json` | Trips with one or more flight legs |
 | `SettingsRepository` | `settings.json` | Theme, reminders, lead time, Night-safe |
 | `AdviceLogRepository` | `advice_logs.json` | What the user marked as Done, Skipped or "Can't do this" |
-| `WidgetConfigRepository` | `widget_configs.json` | Each placed widget's options, by widget id. Not backed up |
+| `WidgetConfigRepository` | `widget_configs.json` | Each placed widget's options, by widget id. Not in the backup file |
 | `PlanRepository` | in memory | `plan(tripId)` and `currentPlan`, computed on demand |
 | `PlaceSearch` | bundled `places.tsv` asset | Offline airport and city search, see [the places tool](#offline-airport-data) |
 

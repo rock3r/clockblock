@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.widget.config
 
+import android.util.Log
 import android.widget.RemoteViews
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,7 +13,10 @@ import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
 import dev.sebastiano.clockblocker.opus.widget.WidgetKind
 import dev.sebastiano.clockblocker.opus.widget.WidgetUpdater
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,6 +28,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * What the configuration screen shows for one widget.
@@ -59,6 +65,7 @@ internal class WidgetConfigViewModel(
     configs: WidgetConfigRepository,
     settingsRepository: SettingsRepository,
     background: CoroutineDispatcher = Dispatchers.Default,
+    private val saveScope: CoroutineScope = updater.scope,
 ) : ViewModel() {
 
     /** The app's appearance settings, which the screen's theme follows; null until read. */
@@ -74,9 +81,27 @@ internal class WidgetConfigViewModel(
         .flowOn(background)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    /** Saves [mode] as this widget's body ring and redraws the widget with it. */
+    /** Serialises the saves so quick taps land in the order they were made. */
+    private val saves = Mutex()
+
+    /**
+     * Saves [mode] as this widget's body ring and redraws the widget with it. The save runs in [saveScope], which
+     * outlives the screen: Done or Back right after a tap must not cancel it.
+     */
     fun setBodyRing(mode: BodyRingMode) {
-        viewModelScope.launch { updater.configure(appWidgetId) { it.copy(bodyRing = mode) } }
+        // Undispatched, so the lock is queued for in tap order before anything suspends.
+        saveScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            saves.withLock {
+                try {
+                    updater.configure(appWidgetId) { it.copy(bodyRing = mode) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The app-wide scope has no handler: a failed write must not take the process down.
+                    Log.e(TAG, "Couldn't save widget $appWidgetId's body ring", e)
+                }
+            }
+        }
     }
 
     private suspend fun build(config: WidgetConfig): WidgetConfigUiState {
@@ -94,3 +119,5 @@ internal class WidgetConfigViewModel(
         )
     }
 }
+
+private const val TAG = "ClockblockWidgetConfig"

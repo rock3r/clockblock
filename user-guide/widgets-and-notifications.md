@@ -117,8 +117,8 @@ changes it as you choose:
   lag. **Precise** is your biological night, as the plan works it out.
 
 Only that widget changes, so you can have one of each. Your choice is saved straight away; tap **Done** or go back
-when you're finished. Removing the widget forgets its options. They aren't part of a backup either, since they
-belong to widgets on this phone.
+when you're finished. Removing the widget forgets its options. They aren't in the backup file you export from
+Settings either, since they belong to the widgets on this phone.
 
 <img src="images/widget-config.png" alt="The Customise widget screen for Two clocks. At the top, a preview of the widget: the dial with 15:20 local time and 08:20 body time, and Avoid light until 16:30. Below, Body ring: The inner ring is your body clock. Choose what its night shows. Only this widget changes. Two cards follow, each with a dial: Simple, selected, The sky outside, turned by your jet lag; and Precise, Your biological night, as the plan works it out." width="360" />
 

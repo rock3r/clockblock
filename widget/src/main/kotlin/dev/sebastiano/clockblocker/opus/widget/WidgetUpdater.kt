@@ -76,7 +76,7 @@ class WidgetUpdater(
 
     private val mutex = Mutex()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var lastRenderConfig = RenderConfig.of(application.resources.configuration)
 
     init {
@@ -137,8 +137,6 @@ class WidgetUpdater(
         val placed = WidgetKind.entries.associateWith { ids(it) }
         placed.forEach { (kind, ids) -> render(kind, ids) }
         prefs.edit().putString(KEY_RENDERED_CONFIG, config.key).apply()
-        // A removal whose broadcast never arrived (the app was being updated, say) leaves options behind: drop them.
-        widgetConfigs.retainOnly(placed.values.flatMap { it.toList() })
         publishPreviewsIfNeeded()
     }
 
@@ -299,8 +297,21 @@ class WidgetUpdater(
     /** The widgets were removed: forget their options. */
     suspend fun forget(appWidgetIds: IntArray) = widgetConfigs.remove(appWidgetIds.toList())
 
-    /** A backup restore gave the widgets new ids: keep their options ([oldIds] and [newIds] pair up). */
-    suspend fun restored(oldIds: IntArray, newIds: IntArray) = widgetConfigs.remap(oldIds, newIds)
+    /**
+     * A backup restore gave [kind]'s widgets new ids ([oldIds] and [newIds] pair up): move their options, tell the
+     * host the restore is done, then draw them. The platform's own update can race the remap and draw the defaults;
+     * this redraw comes after the remap ([render] is serialised), so it wins. Full updates never drop options of ids
+     * that aren't placed, so the old ids are still there when this runs.
+     */
+    suspend fun restored(kind: WidgetKind, oldIds: IntArray, newIds: IntArray) {
+        widgetConfigs.remap(oldIds, newIds)
+        newIds.forEach { id ->
+            val options = Bundle(manager.getAppWidgetOptions(id) ?: Bundle())
+            options.putBoolean(AppWidgetManager.OPTION_APPWIDGET_RESTORE_COMPLETED, true)
+            manager.updateAppWidgetOptions(id, options)
+        }
+        update(kind, newIds)
+    }
 
     /** The host category is a bit mask, so a lock-screen host may report keyguard together with another category. */
     private fun isKeyguard(options: Bundle?): Boolean {
@@ -401,5 +412,4 @@ internal object NoWidgetConfigRepository : WidgetConfigRepository {
     override suspend fun update(appWidgetId: Int, transform: (WidgetConfig) -> WidgetConfig) = Unit
     override suspend fun remove(appWidgetIds: Collection<Int>) = Unit
     override suspend fun remap(oldIds: IntArray, newIds: IntArray) = Unit
-    override suspend fun retainOnly(appWidgetIds: Collection<Int>) = Unit
 }

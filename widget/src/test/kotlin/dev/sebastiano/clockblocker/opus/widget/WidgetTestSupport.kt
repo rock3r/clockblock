@@ -9,6 +9,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -42,7 +43,11 @@ class FakeWidgetConfigRepository(configs: Map<Int, WidgetConfig> = emptyMap()) :
     val current = MutableStateFlow(configs)
     override val configs: Flow<Map<Int, WidgetConfig>> = current
 
+    /** When set, [update] waits for it: a write still in flight. */
+    var writeGate: CompletableDeferred<Unit>? = null
+
     override suspend fun update(appWidgetId: Int, transform: (WidgetConfig) -> WidgetConfig) {
+        writeGate?.await()
         current.value += appWidgetId to transform(current.value[appWidgetId] ?: WidgetConfig())
     }
 
@@ -53,9 +58,5 @@ class FakeWidgetConfigRepository(configs: Map<Int, WidgetConfig> = emptyMap()) :
     override suspend fun remap(oldIds: IntArray, newIds: IntArray) {
         val moved = oldIds.zip(newIds).mapNotNull { (old, new) -> current.value[old]?.let { new to it } }
         current.value = current.value - oldIds.toSet() + moved
-    }
-
-    override suspend fun retainOnly(appWidgetIds: Collection<Int>) {
-        current.value = current.value.filterKeys { it in appWidgetIds }
     }
 }

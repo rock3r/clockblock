@@ -454,25 +454,39 @@ class WidgetUpdaterTest {
     }
 
     @Test
-    fun `removed widgets forget their options and restored ones keep them`() = runBlocking<Unit> {
+    fun `removed widgets forget their options`() = runBlocking<Unit> {
         val precise = WidgetConfig(bodyRing = BodyRingMode.Precise)
-        configs.current.value = mapOf(1 to precise, 2 to precise, 3 to precise)
+        configs.current.value = mapOf(1 to precise, 3 to precise)
 
         updater.forget(intArrayOf(1))
-        updater.restored(oldIds = intArrayOf(2), newIds = intArrayOf(20))
 
-        configs.current.value shouldBe mapOf(20 to precise, 3 to precise)
+        configs.current.value shouldBe mapOf(3 to precise)
     }
 
     @Test
-    fun `a full update drops the options of widgets that are no longer placed`() = runBlocking<Unit> {
+    fun `a restored widget keeps its options, is drawn with them and is marked restored`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val precise = WidgetConfig(bodyRing = BodyRingMode.Precise)
+        configs.current.value = mapOf(2 to precise)
+        val restored = place(WidgetKind.TwoClocks, 48)
+
+        updater.restored(WidgetKind.TwoClocks, oldIds = intArrayOf(2), newIds = intArrayOf(restored))
+
+        configs.current.value shouldBe mapOf(restored to precise)
+        rendered[restored].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Precise
+        manager.getAppWidgetOptions(restored).getBoolean(AppWidgetManager.OPTION_APPWIDGET_RESTORE_COMPLETED) shouldBe true
+    }
+
+    @Test
+    fun `a full update leaves the options of ids that aren't placed, so a restore can still move them`() = runBlocking<Unit> {
+        // During a restore the options arrive under the old ids before the launcher reports the new ones.
         val placed = place(WidgetKind.TwoClocks, 47)
         val precise = WidgetConfig(bodyRing = BodyRingMode.Precise)
         configs.current.value = mapOf(placed to precise, 999 to precise)
 
         updater.updateAll()
 
-        configs.current.value shouldBe mapOf(placed to precise)
+        configs.current.value shouldBe mapOf(placed to precise, 999 to precise)
     }
 
     // endregion

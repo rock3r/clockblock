@@ -463,8 +463,12 @@ with `RESULT_CANCELED`. For our own widgets it always returns `RESULT_OK`: a cho
 the moment it is made, so Done and Back both keep it.
 
 - **Store.** `WidgetConfigRepository` (`widget_configs.json`) maps each `appWidgetId` to a `WidgetConfig`. Widget ids
-  belong to the launcher on this device, so the file isn't part of backups. `onDeleted` drops a widget's options,
-  `onRestored` moves them to the new ids, and every full update keeps only the ids that are still placed.
+  belong to the launcher on this device, so the file isn't in the app's backup file. Android's own device backup
+  does carry it along with the widgets. `onDeleted` drops a widget's options. `onRestored` moves them to the new
+  ids, marks the restore complete (`OPTION_APPWIDGET_RESTORE_COMPLETED`) and draws the widgets. The platform's own
+  update can race the move, but renders are serialised, so the later one wins. Nothing sweeps the options of ids
+  that aren't placed: during a restore the old ids are exactly that. The launcher never reuses widget ids, so a
+  missed `onDeleted` only leaves a few stray bytes.
 - **Rendering.** `WidgetUpdater.render` reads the options once per update and applies each widget's own
   (`WidgetModel.bodyRing`). The scheduler doesn't watch the options; `WidgetUpdater.configure` saves a change and
   redraws that one widget.

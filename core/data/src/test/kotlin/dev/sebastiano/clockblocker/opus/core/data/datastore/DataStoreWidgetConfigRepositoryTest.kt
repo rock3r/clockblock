@@ -94,16 +94,6 @@ class DataStoreWidgetConfigRepositoryTest {
     }
 
     @Test
-    fun retainOnlyDropsWidgetsThatAreGone() = runTest {
-        val repo = repo(file())
-        listOf(1, 2, 3).forEach { id -> repo.update(id) { precise } }
-
-        repo.retainOnly(listOf(2, 9))
-
-        repo.configs.first() shouldBe mapOf(2 to precise)
-    }
-
-    @Test
     fun aFileFromANewerVersionStillReadsTheOptionsItKnows() = runTest {
         val file = file()
         file.writeText("""{"schemaVersion":1,"configs":{"5":{"bodyRing":"Precise","theme":"Dark"}}}""")

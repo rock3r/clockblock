@@ -46,7 +46,7 @@ abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private va
 
     /** A backup restore gives the widgets new ids: their options move along. */
     override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
-        goAsync { updater.restored(oldWidgetIds, newWidgetIds) }
+        goAsync { updater.restored(kind, oldWidgetIds, newWidgetIds) }
     }
 
     override fun onReceive(context: Context, intent: Intent) {

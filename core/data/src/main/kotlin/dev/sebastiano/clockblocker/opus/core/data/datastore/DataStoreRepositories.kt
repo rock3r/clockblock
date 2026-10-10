@@ -182,7 +182,8 @@ class DataStoreAdviceLogRepository internal constructor(
 }
 
 /**
- * [WidgetConfigRepository] persisted as `widget_configs.json`. Kept out of backups: widget ids are device-local.
+ * [WidgetConfigRepository] persisted as `widget_configs.json`. Not in the app's backup file: widget ids are
+ * device-local (Android's device backup carries it with the widgets, and `onRestored` moves it to the new ids).
  */
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
@@ -222,13 +223,6 @@ class DataStoreWidgetConfigRepository internal constructor(
             val moved = oldIds.zip(newIds).mapNotNull { (old, new) -> doc.configs[old]?.let { new to it } }
             if (moved.isEmpty()) return@updateData doc
             doc.copy(configs = doc.configs - oldIds.toSet() + moved)
-        }
-    }
-
-    override suspend fun retainOnly(appWidgetIds: Collection<Int>) {
-        store.updateData { doc ->
-            val kept = doc.configs.filterKeys { it in appWidgetIds }
-            if (kept.size == doc.configs.size) doc else doc.copy(configs = kept)
         }
     }
 }

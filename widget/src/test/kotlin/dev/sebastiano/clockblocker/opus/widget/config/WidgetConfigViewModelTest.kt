@@ -4,6 +4,10 @@ import android.app.Application
 import android.appwidget.AppWidgetManager
 import android.os.Bundle
 import android.util.SizeF
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
@@ -22,6 +26,8 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -61,7 +67,8 @@ class WidgetConfigViewModelTest {
         manager.bindAppWidgetIdIfAllowed(id, WidgetUpdater.componentName(app, WidgetKind.TwoClocks))
     }
 
-    private fun viewModel() = WidgetConfigViewModel(id, WidgetKind.TwoClocks, updater, configs, FakeSettingsRepository(), main.dispatcher)
+    private fun viewModel() =
+        WidgetConfigViewModel(id, WidgetKind.TwoClocks, updater, configs, FakeSettingsRepository(), main.dispatcher, CoroutineScope(main.dispatcher))
 
     private fun settle() = main.dispatcher.scheduler.advanceUntilIdle()
 
@@ -78,6 +85,36 @@ class WidgetConfigViewModelTest {
         configs.current.value[id] shouldBe WidgetConfig(bodyRing = BodyRingMode.Simple)
         vm.state.value.shouldNotBeNull().bodyRing shouldBe BodyRingMode.Simple
         rendered[id].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Simple
+    }
+
+    @Test
+    fun `a choice made just as the screen closes is still saved and drawn`() {
+        val store = ViewModelStore()
+        val vm = ViewModelProvider.create(store, viewModelFactory { initializer { viewModel() } })[WidgetConfigViewModel::class]
+        settle()
+        configs.writeGate = CompletableDeferred()
+
+        vm.setBodyRing(BodyRingMode.Precise)
+        store.clear() // Done: the activity finishes while the write is still in flight.
+        configs.writeGate?.complete(Unit)
+        settle()
+
+        configs.current.value[id] shouldBe WidgetConfig(bodyRing = BodyRingMode.Precise)
+        rendered[id].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Precise
+    }
+
+    @Test
+    fun `quick taps are saved in the order they were made`() {
+        val vm = viewModel()
+        settle()
+        configs.writeGate = CompletableDeferred()
+
+        vm.setBodyRing(BodyRingMode.Precise)
+        vm.setBodyRing(BodyRingMode.Simple)
+        configs.writeGate?.complete(Unit)
+        settle()
+
+        configs.current.value[id] shouldBe WidgetConfig(bodyRing = BodyRingMode.Simple)
     }
 
     @Test

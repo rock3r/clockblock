@@ -86,7 +86,4 @@ interface WidgetConfigRepository {
 
     /** Moves options to the new ids after a backup restore gave the widgets new ids ([oldIds] and [newIds] pair up). */
     suspend fun remap(oldIds: IntArray, newIds: IntArray)
-
-    /** Forgets every widget not in [appWidgetIds]: catches removals whose broadcast never arrived. */
-    suspend fun retainOnly(appWidgetIds: Collection<Int>)
 }
