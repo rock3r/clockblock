@@ -80,10 +80,17 @@ class SettingsContentTest {
 
     private val actions = RecordingSettingsActions()
 
-    private fun show(state: SettingsUiState = settingsState()) {
+    private fun show(state: SettingsUiState = settingsState(), onOpenDebug: (() -> Unit)? = null) {
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = true) {
-                SettingsContent(state, actions, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
+                SettingsContent(
+                    state,
+                    actions,
+                    onBack = null,
+                    modifier = Modifier.fillMaxSize(),
+                    now = DemoData.Now,
+                    onOpenDebug = onOpenDebug,
+                )
             }
         }
     }
@@ -208,6 +215,22 @@ class SettingsContentTest {
         click(SettingsTags.ReplayOnboarding)
         click(SettingsTags.About)
         actions.calls shouldContainExactly listOf("export", "import", "replay", "about")
+    }
+
+    @Test
+    fun `without a Debug action (release builds) there is no Debug section`() {
+        show()
+        compose.onNodeWithTag(SettingsTags.Debug).assertDoesNotExist()
+        compose.onNodeWithText("Debug tools").assertDoesNotExist()
+    }
+
+    @Test
+    fun `with a Debug action (debug builds) the Debug section opens it`() {
+        var opened = 0
+        show(onOpenDebug = { opened++ })
+        compose.onNodeWithText("Debug tools").performScrollTo().assertIsDisplayed()
+        click(SettingsTags.Debug)
+        opened shouldBe 1
     }
 
     @Test

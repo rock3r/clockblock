@@ -89,6 +89,13 @@ notifications. Runtime permissions stay granted between tests.
 ./gradlew :app:connectedDebugAndroidTest   # needs a running emulator or a connected device
 ```
 
+## Debug tools
+
+Debug builds add **Settings → Debug → Debug tools**
+([`DebugActivity`](../app/src/debug/kotlin/dev/sebastiano/clockblocker/opus/debug/DebugActivity.kt)). It runs the
+Remote Compose notification probe (#49) and opens the widget gallery's pages, so you can try them on a phone
+without adb. Release builds don't include it.
+
 ## CI
 
 There are two workflows. `.github/workflows/ci.yml` (CI) has six jobs, and `.github/workflows/e2e.yml` (e2e)

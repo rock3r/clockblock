@@ -108,6 +108,10 @@
     <string name="settings_replay_description">Walk through the first-run questions again.</string>
     <string name="settings_about">About Clockblock</string>
     <string name="settings_about_description">How it works, the science, licences.</string>
+    <!-- Debug builds only (the app passes no Debug action in release); not translated. -->
+    <string name="settings_section_debug" translatable="false">Debug</string>
+    <string name="settings_debug" translatable="false">Debug tools</string>
+    <string name="settings_debug_description" translatable="false">Notification probe and widget gallery. Debug builds only.</string>
 
     <string name="settings_event_exported">Backup saved.</string>
     <string name="settings_event_export_failed">Couldn\'t save the backup. Try another location.</string>
