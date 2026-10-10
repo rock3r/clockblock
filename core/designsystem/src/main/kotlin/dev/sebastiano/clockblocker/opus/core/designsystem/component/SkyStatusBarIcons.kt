@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import java.util.WeakHashMap
+import dev.sebastiano.clockblocker.opus.core.designsystem.R
 
 /**
  * While a sky header sits under the status bar's start (single pane, nothing to its left), the status bar icons
@@ -78,10 +78,13 @@ class StatusBarIconsOwner(
             apply(darkIcons)
         }
 
-        /** New ink for this claim. Shows only while it's the newest active claim. */
+        /**
+         * New ink for this claim. Shows only while it's the newest active claim; it also takes the icons back if
+         * another writer (the activity reapplying the theme's bars) changed them meanwhile.
+         */
         fun update(darkIcons: Boolean) {
             this.darkIcons = darkIcons
-            if (active.lastOrNull() === this && applied != darkIcons) apply(darkIcons)
+            if (active.lastOrNull() === this && (applied != darkIcons || read() != darkIcons)) apply(darkIcons)
         }
 
         /** Gives the icons back: to the newest claim left, or to the window's own appearance. */
@@ -97,15 +100,18 @@ class StatusBarIconsOwner(
     }
 
     companion object {
-        private val owners = WeakHashMap<Window, StatusBarIconsOwner>()
-
-        /** The owner for [window], shared by every header in it. */
-        fun of(window: Window): StatusBarIconsOwner = owners.getOrPut(window) {
-            val controller = WindowCompat.getInsetsController(window, window.decorView)
-            StatusBarIconsOwner(
+        /**
+         * The owner for [window], shared by every header in it. It's kept in a tag on the window's decor view, so it
+         * lives exactly as long as the window: nothing static holds on to a finished activity.
+         */
+        fun of(window: Window): StatusBarIconsOwner {
+            val decor = window.decorView
+            (decor.getTag(R.id.status_bar_icons_owner) as? StatusBarIconsOwner)?.let { return it }
+            val controller = WindowCompat.getInsetsController(window, decor)
+            return StatusBarIconsOwner(
                 read = { controller.isAppearanceLightStatusBars },
                 write = { controller.isAppearanceLightStatusBars = it },
-            )
+            ).also { decor.setTag(R.id.status_bar_icons_owner, it) }
         }
     }
 }

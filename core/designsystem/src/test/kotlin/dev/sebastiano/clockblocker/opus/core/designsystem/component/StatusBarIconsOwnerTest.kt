@@ -67,6 +67,18 @@ class StatusBarIconsOwnerTest {
     }
 
     @Test
+    fun `the top claim takes the icons back after another writer changes them`() {
+        val claim = owner.newClaim().apply { acquire(darkIcons = false) }
+
+        lightStatusBars = true // the activity reapplies the theme's bars while the header is still composed
+        claim.update(darkIcons = false)
+        lightStatusBars shouldBe false
+
+        claim.release()
+        lightStatusBars shouldBe true
+    }
+
+    @Test
     fun `releasing twice or without acquiring does nothing`() {
         val idle = owner.newClaim()
         idle.release()

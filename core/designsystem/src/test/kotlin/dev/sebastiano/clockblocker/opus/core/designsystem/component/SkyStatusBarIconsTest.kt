@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
@@ -134,6 +135,16 @@ class SkyStatusBarIconsTest {
         screen = Screen.Editor
         compose.waitForIdle()
         lightStatusBars shouldBe true
+    }
+
+    @Test
+    fun `the window's decor view holds its one owner`() {
+        val window = compose.activity.window
+
+        val owner = StatusBarIconsOwner.of(window)
+
+        StatusBarIconsOwner.of(window) shouldBe owner
+        window.decorView.getTag(R.id.status_bar_icons_owner) shouldBe owner
     }
 
     private companion object {
