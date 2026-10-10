@@ -68,7 +68,9 @@ A few details matter:
   earlier). [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt)
   persists the instants the scheduler armed and the ones it handled. Each delivery claims every armed instant that
   is due, reminds from all of them, then re-arms the chain, which replaces the rest. A delivery of an instant
-  already claimed (the other half of the pair) refreshes and re-arms without reminding again. In Doze, reminders
+  already claimed (the other half of the pair) refreshes and re-arms without reminding again. Handled instants later than
+  the current time are forgotten at the next re-arm, so a clock that was set ahead and then corrected doesn't swallow
+  reminders. In Doze, reminders
   usually arrive within about an hour instead of waiting for the next maintenance window. Granting exact access
   cancels the backstops on the next re-arm.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.

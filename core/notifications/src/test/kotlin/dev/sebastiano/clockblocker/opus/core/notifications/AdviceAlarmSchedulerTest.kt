@@ -196,6 +196,21 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `an instant handled under a clock that was then set back reminds again when it comes round`() = runTest {
+        val scheduler = scheduler()
+        clock.instant = utc("2026-10-10T13:45") // the wall clock was set ahead by mistake...
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+        reminders.cancel()
+
+        clock.instant = utc("2026-10-10T12:00") // ...then corrected: TIME_SET re-arms
+        scheduler.resync()
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler.onAlarm(utc("2026-10-10T13:45"))
+
+        reminder.shouldNotBeNull()
+    }
+
+    @Test
     fun `a duplicate delivery of an instant already handled does not remind again`() = runTest {
         capabilities.exact = false
         clock.instant = utc("2026-10-10T13:45")

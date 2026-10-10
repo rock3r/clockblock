@@ -171,7 +171,7 @@ class AdviceAlarmScheduler(
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()
         val manager = alarmManager ?: return@withLock ScheduledAlarms(emptyList(), exact)
-        handledAlarms.recordArmed(instants)
+        handledAlarms.recordArmed(instants, now)
         var allExact = exact
         instants.forEachIndexed { slot, at ->
             val armedExact = set(manager, at, NotificationIntents.alarm(application, slot, at), exact)

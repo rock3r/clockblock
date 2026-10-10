@@ -23,12 +23,18 @@ import java.time.Instant
 class HandledAlarms(application: Application) {
     private val prefs = application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Remembers [instants] as armed (until a delivery claims them). */
+    /**
+     * Remembers [instants] as armed (until a delivery claims them). Handled instants later than [now] are forgotten:
+     * they were delivered under a wall clock that has since been set back, so they are due again.
+     */
     @Synchronized
-    fun recordArmed(instants: Collection<Instant>) {
-        val handled = read(KEY_HANDLED)
+    fun recordArmed(instants: Collection<Instant>, now: Instant) {
+        val handled = read(KEY_HANDLED).filter { it <= now.toEpochMilli() }
         val armed = (read(KEY_ARMED) + instants.map { it.toEpochMilli() }).filterNot { it in handled }
-        write(KEY_ARMED, armed)
+        prefs.edit(commit = true) {
+            putString(KEY_ARMED, armed.joined())
+            putString(KEY_HANDLED, handled.joined())
+        }
     }
 
     /**
@@ -51,8 +57,6 @@ class HandledAlarms(application: Application) {
 
     private fun read(key: String): List<Long> =
         prefs.getString(key, null).orEmpty().split(',').mapNotNull { it.toLongOrNull() }
-
-    private fun write(key: String, values: List<Long>) = prefs.edit(commit = true) { putString(key, values.joined()) }
 
     /** Keeps the latest [CAPACITY] instants: more than the scheduler ever holds at once. */
     private fun List<Long>.joined(): String = distinct().sorted().takeLast(CAPACITY).joinToString(",")
