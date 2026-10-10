@@ -177,6 +177,12 @@ fun TwoSkiesDial(
     // Next/Previous block step through the boundaries in real time from the instant under the hand (#106).
     fun handInstant(): Instant = landing?.atFor(currentState) ?: currentState.instantAt(scrub.value)
 
+    // The stop the hand is on: within a minute of it both on the face and in real time. Either alone isn't enough:
+    // two boundaries can share one face time in a fall-back night, or sit a real minute apart across a spring-forward
+    // gap while an hour apart on the face.
+    fun BoundaryStop.isUnderHand(hand: Instant): Boolean =
+        abs(offset - scrub.value) < 1f && Duration.between(hand, instant).abs() < StopTolerance
+
     // Semantics (composition): coarse scrub so TalkBack text doesn't recompose every frame.
     val coarseScrub by remember { derivedStateOf { (scrub.value / 5f).toInt() * 5f } }
     val shown = landing?.let { state.scrubbedTo(it.offset, it.atFor(state)) } ?: if (coarseScrub == 0f) state else state.scrubbedTo(coarseScrub)
@@ -194,12 +200,12 @@ fun TwoSkiesDial(
                 contentDescription = description
                 customActions = listOf(
                     CustomAccessibilityAction(nextLabel) {
-                        val after = handInstant().plus(StopTolerance)
-                        stops.firstOrNull { it.instant > after }?.let { animateScrubToBoundary(it); true } ?: false
+                        val hand = handInstant()
+                        stops.firstOrNull { it.instant > hand && !it.isUnderHand(hand) }?.let { animateScrubToBoundary(it); true } ?: false
                     },
                     CustomAccessibilityAction(previousLabel) {
-                        val before = handInstant().minus(StopTolerance)
-                        stops.lastOrNull { it.instant < before }?.let { animateScrubToBoundary(it); true } ?: false
+                        val hand = handInstant()
+                        stops.lastOrNull { it.instant < hand && !it.isUnderHand(hand) }?.let { animateScrubToBoundary(it); true } ?: false
                     },
                     CustomAccessibilityAction(nowLabel) { animateScrubTo(0f); true },
                 )
@@ -457,7 +463,7 @@ internal fun blockBoundaryStops(state: DialState): List<BoundaryStop> {
 
 private const val BoundaryToleranceMinutes = 0.01f
 
-// Next/Previous block skip a boundary closer than this to the hand, as the face-offset version skipped one within a minute.
+// How close in real time a stop must be, as well as on the face, to count as the one under the hand (isUnderHand).
 private val StopTolerance: Duration = Duration.ofMinutes(1)
 
 /**
