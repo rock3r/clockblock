@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "local_gate": "./gradlew test :app:assembleDebug verifyRoborazziDebug",
+  "local_gate": "./gradlew test :app:assemblePlayDebug :app:assembleOssDebug verifyRoborazziDebug",
   "expected_skipped_checks": [],
   "required_checks": [
     "Gradle wrapper",
