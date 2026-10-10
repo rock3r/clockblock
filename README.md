@@ -50,7 +50,7 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
   the plan.
 - Reminders arrive just before each change, never while you should be asleep except to wake you. One quiet
   ongoing notification shows the current advice, and becomes a Live Update on travel days.
-- Two home-screen widgets, *Two Clocks* and *Next up*, built with Remote Compose.
+- Two home-screen widgets, *Two clocks* and *Next up*, built with Remote Compose.
 - Night-safe mode, so checking your plan doesn't work against it: the plan screen turns dark and dim when the
   plan says avoid light or sleep, or during your body's night when no light is planned. The widgets switch to
   dark while the plan says avoid light or sleep.
@@ -59,11 +59,11 @@ To use the app, read the [user guide](user-guide/README.md). To understand or ch
 - JSON backup and restore, and calendar (ICS) export of any plan.
 
 <p align="center">
-  <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two Clocks widgets: the Two skies dial in light, dark and night-safe shows 15:20 local and 08:20 body time, with Avoid light until 16:30, next to the empty state, No trip, Plan one; below, the wide version shows the two skies as two bars beside a Tokyo · Day 2 card and a Done button" width="48%" />
+  <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two clocks widgets: the Two skies dial in light, dark and night-safe shows 15:20 local and 08:20 body time, with Avoid light until 16:30, next to the empty state, No trip, Plan one; below, the wide version shows the two skies as two bars beside a Tokyo · Day 2 card and a Done button" width="48%" />
   <img src="docs/screenshots/plan-tablet.png" alt="The plan on a tablet in landscape: the header and day strip, the dial and a See bright light Now card on the left, the Day 2 timeline on the right" width="48%" />
 </p>
 
-The *Two Clocks* widget (left) draws the app's dial on your home screen. On a tablet (right), the plan
+The *Two clocks* widget (left) draws the app's dial on your home screen. On a tablet (right), the plan
 uses two columns: the day strip, the dial and the Now card beside the day's timeline.
 
 ## The science
