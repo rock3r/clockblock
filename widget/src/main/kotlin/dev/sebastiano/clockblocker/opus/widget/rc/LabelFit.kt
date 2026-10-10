@@ -125,6 +125,9 @@ internal data class NowFit(
     val fits: Boolean,
     /** True when the other zone's time didn't fit in any form, even joined to the until line (tightest minimums). */
     val secondaryDropped: Boolean = false,
+    /** The countdown's size and whether it is compact ("2h13m"); the stacks may shrink it to fit beside the glyph. */
+    val countdownSp: Int = LabelFit.COUNTDOWN_SP,
+    val countdownCompact: Boolean = false,
 ) {
     /** Fits with its until line and the other zone's time, in some form: what Up next entries give way to. */
     val whole: Boolean get() = fits && details.isNotEmpty() && !secondaryDropped
@@ -234,6 +237,12 @@ internal object LabelFit {
     const val CAPSULE_SECONDARY_SP = 10
     const val CAPSULE_SECONDARY_MIN_SP = 9
     const val COUNTDOWN_SP = 18
+
+    /**
+     * Floor of the countdown beside the 2×2 / 2×3 stack's glyph, the until line's size: it shrinks (and goes compact)
+     * before it goes. A 2×3 minimum leaves 44 dp beside the glyph, and "2h59m" is 45 dp at 14 sp.
+     */
+    const val STACK_COUNTDOWN_MIN_SP = 12
     const val SMALL_LABEL_SP = 11
 
     /**
@@ -261,11 +270,17 @@ internal object LabelFit {
      * Width of the widest countdown at [COUNTDOWN_SP], at the current font scale: the fixed estimate, or the widest
      * countdown measured at the Medium weight it is drawn in when that is wider (Bold text adds to the weight).
      */
-    fun countdownWidthDp(context: Context): Int {
-        val estimate = (COUNTDOWN_TEXT_DP * spScale(context, COUNTDOWN_SP)).roundToInt()
+    fun countdownWidthDp(context: Context): Int = countdownTextDp(context, HostText.countdownWidest(WIDEST_COUNTDOWN_MINUTES), COUNTDOWN_SP)
+
+    /**
+     * Width of the countdown [text] at [sp]: measured at the Medium weight it is drawn in, but never less than the
+     * fixed estimate ([COUNTDOWN_TEXT_DP] for "23h 59m" at 18 sp) scaled to its length, size and the font scale.
+     */
+    private fun countdownTextDp(context: Context, text: String, sp: Int): Int {
         val widest = HostText.countdownWidest(WIDEST_COUNTDOWN_MINUTES)
-        val measured = TextFit.widthDp(context, widest, COUNTDOWN_SP, TextFit.MEDIUM) + TextFit.SAFETY_DP
-        return max(estimate, ceil(measured).toInt())
+        val estimate = COUNTDOWN_TEXT_DP * text.length.toFloat() / widest.length * sp / COUNTDOWN_SP * spScale(context, sp)
+        val measured = TextFit.widthDp(context, text, sp, TextFit.MEDIUM) + TextFit.SAFETY_DP
+        return max(estimate.roundToInt(), ceil(measured).toInt())
     }
 
     /** "23h 59m": the longest countdown a block can show. */
@@ -276,11 +291,14 @@ internal object LabelFit {
 
     /**
      * Next up [layout] fitted for [cell], the smallest size the host draws it at (its bucket's minimum).
-     * [smallCountdown] is the widest text the 1×1 countdown can show ([HostText.countdownWidest], compact).
+     * [countdownMinutes] is what the block has left at capture time (null without a countdown): the 1×1 and the
+     * stacks size the countdown for the widest text it shows before the next refresh ([HostText.countdownWidest]).
      */
-    fun nextUp(context: Context, texts: WidgetTexts, layout: NextUpLayout, cell: CellDp, smallCountdown: String? = null): WidgetFit =
+    fun nextUp(context: Context, texts: WidgetTexts, layout: NextUpLayout, cell: CellDp, countdownMinutes: Int? = null): WidgetFit =
         when (layout) {
-            NextUpLayout.Small -> WidgetFit(small = small(context, texts, cell, smallCountdown))
+            NextUpLayout.Small -> WidgetFit(
+                small = small(context, texts, cell, countdownMinutes?.let { HostText.countdownWidest(it, compact = true) }),
+            )
             NextUpLayout.Medium, NextUpLayout.Wide -> WidgetFit(
                 now = nowRow(context, texts, layout, cell, capsules = false),
                 done = rowDone(context, texts, layout, cell, cell.height),
@@ -298,10 +316,10 @@ internal object LabelFit {
                 )
             }
             NextUpLayout.Square -> WidgetFit(
-                now = nowStack(context, texts, cell, cell.height - 2 * SURFACE_PAD_DP - doneDp(texts), withThen = true),
+                now = nowStack(context, texts, cell, cell.height - 2 * SURFACE_PAD_DP - doneDp(texts), withThen = true, countdownMinutes),
                 done = stackDone(context, texts, cell.width - 2 * SURFACE_PAD_DP),
             )
-            NextUpLayout.Tall -> nextUpTall(context, texts, cell)
+            NextUpLayout.Tall -> nextUpTall(context, texts, cell, countdownMinutes)
         }
 
     /** Two Clocks [layout] fitted for [cell], the smallest size the host draws it at: its text parts only. */
@@ -408,6 +426,8 @@ internal object LabelFit {
         val header: Fitted? = null,
         val fixedDp: Float = 0f,
         val secondaryMinSp: Int = SECONDARY_MIN_SP,
+        val countdownSp: Int = COUNTDOWN_SP,
+        val countdownCompact: Boolean = false,
     )
 
     /** One way to show the now block's lines under the label: each of [options] in turn, plus [secondary] below. */
@@ -486,6 +506,7 @@ internal object LabelFit {
                                 return NowFit(
                                     slot.glyph, slot.countdown, slot.header, title, details.filterNotNull(), arrangement.secondary, height,
                                     fits = true, secondaryDropped = arrangement.secondaryDropped,
+                                    countdownSp = slot.countdownSp, countdownCompact = slot.countdownCompact,
                                 )
                             }
                         }
@@ -499,6 +520,7 @@ internal object LabelFit {
         return NowFit(
             slot.glyph, slot.countdown, slot.header, title, emptyList(), null, slot.fixedDp + title.heightDp,
             fits = false, secondaryDropped = texts.secondary != null,
+            countdownSp = slot.countdownSp, countdownCompact = slot.countdownCompact,
         )
     }
 
@@ -585,19 +607,47 @@ internal object LabelFit {
         return fitNow(context, texts, slots, options.distinct())
     }
 
-    private fun nowStack(context: Context, texts: WidgetTexts, cell: CellDp, budgetDp: Float, withThen: Boolean, glyphOptional: Boolean = true): NowFit {
+    private fun nowStack(
+        context: Context,
+        texts: WidgetTexts,
+        cell: CellDp,
+        budgetDp: Float,
+        withThen: Boolean,
+        countdownMinutes: Int?,
+        glyphOptional: Boolean = true,
+    ): NowFit {
         val width = cell.width - 2 * SURFACE_PAD_DP
-        // The countdown sits beside the glyph: only where the widest one fits there.
-        val countdown = texts.countdownEnd != null && STACK_GLYPH_DP + STACK_COUNTDOWN_GAP_DP + countdownWidthDp(context) <= width
-        val countdownHeight = if (countdown) TextFit.measure(context, "0", 1000f, COUNTDOWN_SP).heightDp else 0f
+        val countdown = texts.countdownEnd?.let { stackCountdown(context, width, countdownMinutes ?: WIDEST_COUNTDOWN_MINUTES) }
+        val countdownHeight = countdown?.let { TextFit.measure(context, "0", 1000f, it.first).heightDp } ?: 0f
         val glyphRow = max(STACK_GLYPH_DP.toFloat(), countdownHeight) + LINE_GAP_DP
         val slots = buildList {
-            add(NowSlot(width, budgetDp, glyph = true, countdown = countdown, fixedDp = glyphRow))
+            add(
+                NowSlot(
+                    width, budgetDp, glyph = true, countdown = countdown != null, fixedDp = glyphRow,
+                    countdownSp = countdown?.first ?: COUNTDOWN_SP, countdownCompact = countdown?.second ?: false,
+                ),
+            )
             if (glyphOptional) add(NowSlot(width, budgetDp, secondaryMinSp = SECONDARY_LAST_RESORT_SP))
         }
         val until = until(texts)
         val options = if (withThen) listOf(texts.subtitleLines, listOf(until)) else listOf(listOf(until))
         return fitNow(context, texts, slots, options.distinct())
+    }
+
+    /**
+     * The countdown beside the stack's glyph, as its size and whether it is compact, or null when it cannot fit: the
+     * widest text it shows before the next refresh ([HostText.countdownWidest]) at the largest size from
+     * [COUNTDOWN_SP] down to [STACK_COUNTDOWN_MIN_SP], "2h 13m" before "2h13m" at each size. A 2-cell-wide stack has
+     * room for neither "23h 59m" at 18 sp nor, at the default font scale, a 10-hour block's "10h59m".
+     */
+    private fun stackCountdown(context: Context, width: Float, minutes: Int): Pair<Int, Boolean>? {
+        val room = width - STACK_GLYPH_DP - STACK_COUNTDOWN_GAP_DP
+        for (sp in COUNTDOWN_SP downTo STACK_COUNTDOWN_MIN_SP) {
+            for (compact in listOf(false, true)) {
+                if (countdownTextDp(context, HostText.countdownWidest(minutes, compact), sp) <= room) return sp to compact
+            }
+        }
+        return null
     }
 
     private fun nowCard(context: Context, texts: WidgetTexts, widthDp: Float, budgetDp: Float, withHeader: Boolean): NowFit {
@@ -611,7 +661,7 @@ internal object LabelFit {
     }
 
     /** 2×3 / 4×3 Next up: the now stack first, then as many "Up next" rows as still fit whole. */
-    private fun nextUpTall(context: Context, texts: WidgetTexts, cell: CellDp): WidgetFit {
+    private fun nextUpTall(context: Context, texts: WidgetTexts, cell: CellDp, countdownMinutes: Int?): WidgetFit {
         val total = cell.height - 2 * SURFACE_PAD_DP - doneDp(texts)
         val width = cell.width - 2 * SURFACE_PAD_DP
         val done = stackDone(context, texts, width)
@@ -622,11 +672,11 @@ internal object LabelFit {
             for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
                 val upNext = upNextRows(context, texts, width, rows, barWithRows = false, withRoute = true) ?: continue
                 val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_STACK_DP else 0f
-                val now = nowStack(context, texts, cell, total - upNextHeight, withThen, glyphOptional)
+                val now = nowStack(context, texts, cell, total - upNextHeight, withThen, countdownMinutes, glyphOptional)
                 if (now.whole) return WidgetFit(now = now, upNext = upNext, done = done)
             }
         }
-        return WidgetFit(now = nowStack(context, texts, cell, total, withThen), done = done)
+        return WidgetFit(now = nowStack(context, texts, cell, total, withThen, countdownMinutes), done = done)
     }
 
     /** 4×3 Two Clocks: header strip, the dial beside the now card, then as many "Up next" rows as still fit. */

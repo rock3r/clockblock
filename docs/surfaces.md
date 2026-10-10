@@ -374,6 +374,11 @@ so if the app isn't running at the time, the next widget update or advice bounda
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
   screen (6 sp at 1.3×), so long labels fit a 57 dp cell. The adapted state says "Adapted" there: "Clockblocked" is
   one long word that would shrink well below the other labels. Screen readers still hear "Clockblocked".
+- In the 2×2 and 2×3 stacks and the 1×1, the countdown is sized for the widest text it shows before the next
+  refresh: "2h 59m" with 2 hours left, not "23h 59m" (the rows keep room for "23h 59m"). Beside the stack's glyph it
+  shrinks to 12 sp and drops its space ("2h59m") before it goes, so at the default font size a 2×3 shows it for any
+  block under 10 hours. The 1×1 shows "2h59m" only where it fits at 8 sp; at the 57 dp minimum that is the block's
+  last hour ("59m").
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
 checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times, the four longest
