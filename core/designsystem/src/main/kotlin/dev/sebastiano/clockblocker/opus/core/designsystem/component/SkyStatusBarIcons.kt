@@ -52,6 +52,18 @@ class StatusBarIconsOwner(
 
     fun newClaim(): Claim = Claim()
 
+    /**
+     * The window's own appearance was just rewritten (the activity applied a new theme's bars). Called by that writer,
+     * because a new value equal to the top claim's can't be told apart by reading it back: it becomes the value to
+     * come back to, and the top claim, if any, keeps the icons.
+     */
+    fun baseChanged() {
+        val top = active.lastOrNull() ?: return
+        base = read()
+        write(top.darkIcons)
+        applied = top.darkIcons
+    }
+
     private fun apply(lightStatusBars: Boolean) {
         if (applied != null && read() != applied) base = read()
         write(lightStatusBars)
@@ -67,7 +79,8 @@ class StatusBarIconsOwner(
     }
 
     inner class Claim internal constructor() {
-        private var darkIcons = false
+        internal var darkIcons = false
+            private set
 
         /** Takes the icons, ahead of any older claim. */
         fun acquire(darkIcons: Boolean) {

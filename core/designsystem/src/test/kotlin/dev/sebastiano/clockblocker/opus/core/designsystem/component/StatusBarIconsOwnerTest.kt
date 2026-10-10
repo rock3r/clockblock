@@ -79,6 +79,27 @@ class StatusBarIconsOwnerTest {
     }
 
     @Test
+    fun `a theme switch that matches the claim still becomes the value to go back to`() {
+        val claim = owner.newClaim().apply { acquire(darkIcons = false) }
+
+        lightStatusBars = false // dark theme: the same light icons the night sky already asked for
+        owner.baseChanged()
+        claim.release()
+
+        lightStatusBars shouldBe false
+    }
+
+    @Test
+    fun `a theme switch keeps the top claim's icons`() {
+        owner.newClaim().apply { acquire(darkIcons = false) }
+
+        lightStatusBars = true
+        owner.baseChanged()
+
+        lightStatusBars shouldBe false
+    }
+
+    @Test
     fun `releasing twice or without acquiring does nothing`() {
         val idle = owner.newClaim()
         idle.release()
