@@ -42,7 +42,11 @@ class SnoozeStore(application: Application) {
 
     companion object {
         val DEFAULT_DURATION: Duration = Duration.ofMinutes(15)
-        private const val PREFS = "opus_notifications_snooze"
+        /**
+         * SharedPreferences file name (pre-rename prefix kept so snoozes survive). Left out of Android backup: a
+         * snooze is tied to this device's alarms and expires in minutes.
+         */
+        const val PREFS = "opus_notifications_snooze"
         private const val KEY_UNTIL = "until"
         private const val KEY_ADVICE = "advice_id"
     }
