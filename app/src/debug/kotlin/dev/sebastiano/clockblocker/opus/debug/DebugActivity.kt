@@ -1,15 +1,11 @@
 package dev.sebastiano.clockblocker.opus.debug
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,9 +36,6 @@ class DebugActivity : ComponentActivity() {
                     allowed = notificationsAllowed()
                     onPauseOrDispose { }
                 }
-                val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-                    allowed = notificationsAllowed()
-                }
                 DebugScreen(
                     probe = state,
                     notificationsAllowed = allowed,
@@ -54,16 +47,12 @@ class DebugActivity : ComponentActivity() {
                         probe.cancelAll()
                         if (state is ProbeState.Done) state = ProbeState.Idle
                     },
+                    // Always the app's notification settings: they work whether notifications were never granted,
+                    // denied for good (no more prompts) or turned off later, and the resume effect picks up the change.
                     onAllowNotifications = {
-                        // Once granted, a request is a no-op: notifications turned off in system settings are
-                        // turned back on there.
-                        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                            startActivity(
-                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
-                            )
-                        } else {
-                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
+                        startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+                        )
                     },
                     onOpenGallery = { page ->
                         startActivity(Intent(this, WidgetGalleryActivity::class.java).putExtra("page", page.extra))
