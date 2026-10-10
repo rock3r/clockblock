@@ -13,8 +13,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTextReplacement
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -182,15 +182,30 @@ fun UiDevice.clickWhenFound(selector: BySelector, timeoutMillis: Long): Boolean 
 private const val ShadePollMillis = 250L
 
 /**
- * Types [query] into the search field [fieldTag] and waits for the result [resultTag]. If it doesn't show up in time,
- * sets the query again once and waits again: on a loaded emulator the search can come back late, or a keystroke can
- * be lost while the field takes focus and the keyboard comes up (issue #54).
+ * Types [query] into the search field [fieldTag], then waits for the result [resultTag] to show up and for the
+ * results to stop moving. Retries once, clearing the field and typing the query again, if the result never shows.
+ *
+ * Typing focuses the field and raises the keyboard. On a loaded emulator, the search can come back while the IME
+ * insets animation is still moving the results, or a keystroke can be lost as the field takes focus, so the query
+ * never matches (issue #54). Retyping a cleared field starts a new search; re-setting the same text wouldn't, as the
+ * field's value wouldn't change. So: type, wait for the keyboard, wait for the result, wait for its bounds to
+ * settle. The second attempt waits twice as long for the result before giving up.
  */
 fun ClockblockE2eTest.searchUntilResult(fieldTag: String, query: String, resultTag: String) {
-    awaitTag(fieldTag).scrollToIfScrollable().performTextInput(query)
-    if (runCatching { awaitTag(resultTag) }.isSuccess) return
-    awaitTag(fieldTag).scrollToIfScrollable().performTextReplacement(query)
-    awaitTag(resultTag)
+    repeat(SearchAttempts) { attempt ->
+        val field = awaitTag(fieldTag).scrollToIfScrollable()
+        if (attempt > 0) field.performTextClearance()
+        field.performTextInput(query)
+        awaitImeShown()
+        val last = attempt == SearchAttempts - 1
+        val timeout = if (last) 2 * ClockblockE2eTest.DefaultTimeoutMillis else ClockblockE2eTest.DefaultTimeoutMillis
+        val shown = runCatching { awaitTag(resultTag, timeout) }
+        if (shown.isSuccess) {
+            awaitSettledBounds(resultTag)
+            return
+        }
+        if (last) shown.getOrThrow()
+    }
 }
 
 /**
@@ -256,6 +271,7 @@ fun ClockblockE2eTest.awaitSettledBounds(tag: String, timeoutMillis: Long = Cloc
     }
 }
 
+private const val SearchAttempts = 2
 private const val PickAttempts = 2
 private const val PickRetryAfterMillis = 3_000L
 private const val ImeShowTimeoutMillis = 5_000L
