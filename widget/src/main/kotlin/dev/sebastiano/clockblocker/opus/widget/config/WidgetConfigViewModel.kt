@@ -105,7 +105,7 @@ internal class WidgetConfigViewModel(
     }
 
     private suspend fun build(config: WidgetConfig): WidgetConfigUiState {
-        val preview = updater.previewModel(config)
+        val preview = updater.previewModel(appWidgetId, config)
         val size = updater.sizeDp(appWidgetId)
         return WidgetConfigUiState(
             kind = kind,

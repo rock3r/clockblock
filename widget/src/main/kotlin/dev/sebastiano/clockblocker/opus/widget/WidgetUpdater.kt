@@ -198,16 +198,20 @@ class WidgetUpdater(
     }
 
     /**
-     * What the configuration screen previews (#52): the widget as it would show now, drawn with [config]. Without a
-     * plan it shows the sample trip the picker previews use, flagged by [ConfigPreview.sample].
+     * What the configuration screen previews (#52): [appWidgetId] as it would show now, drawn with [config]. Without a
+     * plan it shows the sample trip the picker previews use, flagged by [ConfigPreview.sample]. A lock-screen widget
+     * is redacted as [render] redacts it (#124), failing closed when the settings can't be read.
      */
-    internal suspend fun previewModel(config: WidgetConfig): ConfigPreview {
+    internal suspend fun previewModel(appWidgetId: Int, config: WidgetConfig): ConfigPreview {
         val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
-        val settings = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() } ?: AppSettings()
+        val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
+        val settings = read ?: AppSettings()
         val logs = plan?.let { withTimeoutOrNull(readTimeoutMs) { adviceLogRepository.logs(it.tripId).first() } }
         val live = state(plan, settings, keyguard = false, logs = logs)
         val sample = live is WidgetState.NoTrip
-        val state = if (sample) sampleState() else live
+        val shown = if (sample) sampleState() else live
+        val redact = (read?.hideLockScreenDetails ?: true) && isKeyguard(manager.getAppWidgetOptions(appWidgetId))
+        val state = if (redact) WidgetStateMapper.redact(shown) else shown
         val model = rendererFactory(application).model(state, theme(settings, state, application.resources.configuration))
         return ConfigPreview(model.with(config), sample)
     }
@@ -215,15 +219,27 @@ class WidgetUpdater(
     /** [model] rendered as [kind] would draw it, for the configuration screen's preview. */
     internal suspend fun renderPreview(kind: WidgetKind, model: WidgetModel): RemoteViews = rendererFactory(application).render(kind, model)
 
-    /** The size [appWidgetId] is drawn at on the home screen, in dp: the host's first reported size, else its minimum. */
-    internal fun sizeDp(appWidgetId: Int): SizeF {
+    /**
+     * The size [appWidgetId] is drawn at on the home screen in the current orientation, in dp (#125). The host's
+     * reported sizes come in no guaranteed order (usually portrait and landscape, more on a foldable), so this takes
+     * the tallest one in portrait and the widest one in landscape. Without them it falls back to the platform's
+     * bounds: min width × max height in portrait, max width × min height in landscape.
+     */
+    internal fun sizeDp(appWidgetId: Int, landscape: Boolean = isLandscape()): SizeF {
         val options = manager.getAppWidgetOptions(appWidgetId)
         @Suppress("DEPRECATION") // getParcelableArrayList(key, Class) needs the SizeF class token; this is equivalent.
-        options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)?.firstOrNull()?.let { return it }
-        val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 0
-        val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT) ?: 0
+        val sizes = options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+            ?.filter { it.width > 0f && it.height > 0f }
+            .orEmpty()
+        val aspect = { size: SizeF -> size.width / size.height }
+        (if (landscape) sizes.maxByOrNull(aspect) else sizes.minByOrNull(aspect))?.let { return it }
+        fun option(key: String) = options?.getInt(key) ?: 0
+        val width = option(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+        val height = option(if (landscape) AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
         return if (width > 0 && height > 0) SizeF(width.toFloat(), height.toFloat()) else DefaultPreviewSize
     }
+
+    private fun isLandscape(): Boolean = application.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     private fun sampleState(): WidgetState {
         val now = clock.instant()

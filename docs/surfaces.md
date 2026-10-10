@@ -479,10 +479,14 @@ the moment it is made, so Done and Back both keep it.
 - **Rendering.** `WidgetUpdater.render` reads the options once per update and applies each widget's own
   (`WidgetModel.bodyRing`). The scheduler doesn't watch the options; `WidgetUpdater.configure` saves a change and
   redraws that one widget.
-- **Preview.** The screen shows the widget at its home-screen size (the host's reported size, else its minimum),
-  scaled down to fit. It hosts the same `RemoteViews` the launcher gets in an `AppWidgetHostView`, which takes no
-  touches (its Done button would log the advice) and is hidden from TalkBack in favour of the widget's own
-  description. With no trip it previews the sample trip the widget picker uses, and says so.
+- **Preview.** The screen shows the widget at its home-screen size in the current orientation, scaled down to fit.
+  The host reports its sizes in no guaranteed order, so the preview takes the tallest in portrait and the widest in
+  landscape. Without reported sizes it falls back to min width × max height (portrait) or max width × min height
+  (landscape). It hosts the same `RemoteViews` the launcher gets in an `AppWidgetHostView`, which takes no touches
+  (its Done button would log the advice) and is hidden from TalkBack in favour of the widget's own description. With
+  no trip it previews the sample trip the widget picker uses, and says so. A lock-screen widget's preview is
+  redacted just like the widget when **Hide details on the lock screen** is on, and stays redacted if the settings
+  can't be read.
 - **Layout.** On a phone the preview stays pinned above the options and takes at most 45% of the height; from 600 dp
   wide the preview and the options sit side by side. The choices are a radio group of cards, each with a name and a
   description, never a picture alone.
