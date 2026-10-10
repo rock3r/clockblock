@@ -35,7 +35,12 @@ jobs:
       - uses: ./.github/actions/setup-android-build
       - name: Build APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+      # Stop-gap (#122): CI's API 37 emulator keeps restarting system_server (see below), so the suite can't run to
+      # the end. Until it can, a failed or empty run is a warning on the job, not a failure, so the job isn't green
+      # without saying so and doesn't block every pull request. Remove the stop-gap with #122: both continue-on-error lines and the warning step.
       - name: Connected tests
+        id: connected
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           # minSdk is 37. The SDK names API 37 packages with a minor version (platforms;android-37.0,
@@ -52,16 +57,23 @@ jobs:
           disable-animations: true
           # The API 37 image's gralloc mapper aborts any CPU read of a host colour buffer unless the host offers
           # ReadColorBufferDma, which no emulator with host-side software rendering does yet (stable 37.2.12, canary
-          # 37.3.3): surfaceflinger's region sampling and system_server's task snapshots read buffers back, so
-          # system_server keeps restarting. Guest-side rendering (-gpu guest) has no host colour buffers to read.
+          # 37.3.3; -gpu guest and swangle_indirect too): surfaceflinger's region sampling and system_server's task
+          # snapshots read buffers back, so system_server keeps restarting (#122). The canary emulator gets furthest.
           channel: canary
-          emulator-options: -no-window -gpu guest -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           # The script waits for a steady system, retries a failed install once and keeps the Gradle log for the check
           # below.
           script: bash .github/scripts/run-e2e.sh
       # The runner can end successfully without running anything (an APK that didn't install); make that a failure.
       - name: Check that the e2e tests ran
+        id: verify
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: bash .github/scripts/verify-e2e-ran.sh connected-tests.log
+      - name: Warn that the e2e tests didn't pass
+        if: ${{ !cancelled() && (steps.connected.outcome == 'failure' || steps.verify.outcome == 'failure') }}
+        run: |
+          echo "::warning title=e2e didn't pass::The e2e suite failed or didn't run (connected: ${{ steps.connected.outcome }}, check: ${{ steps.verify.outcome }}). It is non-blocking until #122 is fixed; see the e2e-reports artifact."
       - name: Upload e2e reports
         if: always()
         uses: actions/upload-artifact@v4
