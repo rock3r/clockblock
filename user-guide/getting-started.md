@@ -26,7 +26,7 @@ body. Tap **Get started**.
 
 ### 2. Where's home?
 
-<img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and lists Lisbon Humberto Delgado first, then Lismore, Budapest Liszt Ferenc and more, each with its local time and UTC offset." width="280" />
+<img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and lists Lisbon Humberto Delgado first, then Lismore, Budapest Liszt Ferenc and more, each with its local time and GMT offset." width="280" />
 
 The app picks your phone's time zone and marks it "Phone's time zone". If home is somewhere else, search for a
 city or a three-letter airport code and pick the right place. You can change it later in Settings.
@@ -55,7 +55,7 @@ The app asks when you fall asleep and wake up with no alarm, and suggests an ans
 
 ### 5. Your tools
 
-<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
+<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max, and the note: The research-backed pace. A good default for most trips." width="280" />
 
 Pick what you're happy to use. Each switch has the symbol of the advice it adds to your plan. When a switch is
 on, its row takes that advice's colour.

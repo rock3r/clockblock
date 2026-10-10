@@ -29,7 +29,7 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Wed 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Sun 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It shows what to do now,
 with its symbol and colour, until when, and a bar that fills up as the block goes by, for example "See some
