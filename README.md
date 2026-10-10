@@ -105,13 +105,18 @@ You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties
 (`sdk.dir=/path/to/Android/sdk`), then:
 
 ```sh
-./gradlew :app:assembleDebug                 # debug APK
-./gradlew test                               # all JVM and Robolectric unit tests
-./gradlew :core:circadian:test               # one module
-./gradlew verifyRoborazziDebug               # compare screenshots with the committed goldens
-./gradlew :feature:plan:recordRoborazziDebug # re-record goldens after an intended UI change
-./gradlew :app:connectedDebugAndroidTest     # end-to-end tests on a device or emulator
+./gradlew :app:assemblePlayDebug               # debug APK (the Google Play build)
+./gradlew :app:assembleOssDebug                # debug APK of the build for outside Google Play
+./gradlew test                                 # all JVM and Robolectric unit tests
+./gradlew :core:circadian:test                 # one module
+./gradlew verifyRoborazziDebug                 # compare screenshots with the committed goldens
+./gradlew :feature:plan:recordRoborazziDebug   # re-record goldens after an intended UI change
+./gradlew :app:connectedPlayDebugAndroidTest   # end-to-end tests on a device or emulator
 ```
+
+The app comes in two flavours. `play` is the Google Play build: reminders are on the minute once you allow exact
+alarms. `oss`, for distribution outside Google Play, gets exact alarms at install (`USE_EXACT_ALARM`), which Google
+Play only allows for alarm and calendar apps.
 
 The debug build needs no API keys, no backend and no signing setup. The app runs on Android 17 (API 37) and later.
 

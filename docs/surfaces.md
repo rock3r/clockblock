@@ -547,11 +547,20 @@ fix it. The summary starts (and re-opens) expanded whenever `NotificationPermiss
 Live Updates and battery optimisation are optional extras and never force it open. Everything still works
 without them, with fewer or less punctual reminders.
 
+Exact alarms depend on the build's `distribution` flavour. The `play` build (Google Play) declares
+`SCHEDULE_EXACT_ALARM`, which starts denied on new installs, so the user grants it in "Alarms & reminders". The
+`oss` build (outside Google Play) declares `USE_EXACT_ALARM` instead
+([`app/src/oss/AndroidManifest.xml`](../app/src/oss/AndroidManifest.xml)). It is granted at install and
+`AlarmManager.canScheduleExactAlarms()` returns true, so the scheduler always arms exact alarms and the exact
+timing row shows "Allowed". Google Play only accepts `USE_EXACT_ALARM` from alarm and calendar apps, so
+`DistributionManifestTest` checks that it never reaches the play manifest.
+
 | Permission | Why | Who controls it | Without it |
 |---|---|---|---|
 | `POST_NOTIFICATIONS` | Reminders and the Now notification | The user, at runtime | No notifications; widgets still work |
 | `SCHEDULE_EXACT_ALARM` | Reminders on the minute | The user, in "Alarms & reminders" | Reminders use a 10-minute window, and Doze can defer them further |
 | `POST_PROMOTED_NOTIFICATIONS` | The travel-day Live Update | Granted at install; the user can turn Live Updates off | A normal ongoing notification |
+| `USE_EXACT_ALARM` (oss build only, instead of `SCHEDULE_EXACT_ALARM`) | Reminders on the minute | Granted at install | (always available) |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm alarms after a reboot | Granted at install | (always available) |
 
 Settings also shows whether the app is exempt from battery optimisation, because some devices delay alarms for

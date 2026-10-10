@@ -14,10 +14,16 @@ This page explains what each kind of test covers, how to run it, and how a pull 
 | Pure logic: planner, models, mappers, schedulers | JUnit 6 Jupiter, Kotest assertions, kotest-property | JVM | `./gradlew test` |
 | Android and Compose: UI tests, ViewModels, repositories | JUnit 4 on Robolectric (run through the Vintage engine) | JVM | `./gradlew test` |
 | Screenshots | Roborazzi on Robolectric | JVM | `./gradlew verifyRoborazziDebug` |
-| End to end | Compose test and UiAutomator 2.4 | Emulator or device | `./gradlew :app:connectedDebugAndroidTest` |
+| End to end | Compose test and UiAutomator 2.4 | Emulator or device | `./gradlew :app:connectedPlayDebugAndroidTest` |
 
 The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`, without comparing images.
 `verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
+
+`:app` has two flavours, `play` and `oss` (see [README](../README.md#build-and-test)). Its unit and screenshot tests run
+on `play` only; `DistributionManifestTest` checks that `USE_EXACT_ALARM` never reaches the play manifest and that
+the oss manifest adds it. `:app`'s flavourless `testDebugUnitTest`, `recordRoborazziDebug`, `verifyRoborazziDebug`
+and `compareRoborazziDebug` are aliases of the play tasks, so the root-level commands cover it. Aliases don't take
+`--tests`: filter on the play task, for example `:app:recordRoborazziPlayDebug --tests '*ShellScreenshotTest*'`.
 
 ## Conventions
 
@@ -86,7 +92,7 @@ DataStore to its default document through the `AppGraph`, clears all SharedPrefe
 notifications. Runtime permissions stay granted between tests.
 
 ```sh
-./gradlew :app:connectedDebugAndroidTest   # needs a running emulator or a connected device
+./gradlew :app:connectedPlayDebugAndroidTest   # needs a running emulator or a connected device
 ```
 
 ## CI
@@ -116,10 +122,10 @@ All seven jobs run in parallel. Each one reports its own check on the pull reque
 | Gradle wrapper | CI | Validates `gradle-wrapper.jar` against the official checksums | none |
 | Unit tests | CI | `./gradlew test --continue` | `unit-test-reports`, on failure |
 | Screenshots | CI | `./gradlew verifyRoborazziDebug --continue` | `screenshot-diffs`, on failure |
-| Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
+| Assemble | CI | `./gradlew :app:assemblePlayDebug :app:assemblePlayRelease :app:assembleOssDebug :app:assembleOssRelease :app:assemblePlayDebugAndroidTest` | The play and oss debug APKs (`clockblock-debug`, `clockblock-oss-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
 | Places generator tests | CI | Python 3.12 `unittest` over `tools/places`: the city-name rules and the committed `places.tsv` | none |
-| e2e (emulator) | e2e | [`run-e2e.sh`](../.github/scripts/run-e2e.sh) runs `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (canary emulator channel, Pixel 7 profile, 4 GB RAM, 8 GB disk, animations off, KVM), with three-button navigation, once the package manager answers and the user is unlocked steadily, and retries once if the APKs fail to install. Then [`verify-e2e-ran.sh`](../.github/scripts/verify-e2e-ran.sh) fails the job if an APK didn't install or no test ran, because the test runner can end successfully without running anything. **For now both are non-blocking** ([#122](https://github.com/rock3r/clockblock/issues/122): the emulator keeps restarting system_server): a failed or empty run adds a warning to the job instead of failing it | `e2e-reports` with the Gradle log and the device logcat, always |
+| e2e (emulator) | e2e | [`run-e2e.sh`](../.github/scripts/run-e2e.sh) runs `./gradlew :app:connectedPlayDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (canary emulator channel, Pixel 7 profile, 4 GB RAM, 8 GB disk, animations off, KVM), with three-button navigation, once the package manager answers and the user is unlocked steadily, and retries once if the APKs fail to install. Then [`verify-e2e-ran.sh`](../.github/scripts/verify-e2e-ran.sh) fails the job if an APK didn't install or no test ran, because the test runner can end successfully without running anything. **For now both are non-blocking** ([#122](https://github.com/rock3r/clockblock/issues/122): the emulator keeps restarting system_server): a failed or empty run adds a warning to the job instead of failing it | `e2e-reports` with the Gradle log and the device logcat, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
@@ -135,7 +141,7 @@ All changes reach `main` through pull requests. Before you push, run the same lo
 expects:
 
 ```sh
-./gradlew test :app:assembleDebug verifyRoborazziDebug
+./gradlew test :app:assemblePlayDebug :app:assembleOssDebug verifyRoborazziDebug
 ```
 
 ```mermaid
@@ -163,7 +169,7 @@ project settings are in its `config.json`:
 
 | Setting | Value | Meaning |
 |---|---|---|
-| `local_gate` | `./gradlew test :app:assembleDebug verifyRoborazziDebug` | Run this before every push |
+| `local_gate` | `./gradlew test :app:assemblePlayDebug :app:assembleOssDebug verifyRoborazziDebug` | Run this before every push |
 | `required_checks` | Gradle wrapper, Unit tests, Screenshots, Assemble, babysit-pr watcher tests | These must pass before the PR counts as ready |
 | `retry_eligible_workflow_keywords` | `e2e` | A failed run of the e2e workflow may be retried without a diagnosis, because emulators can be flaky. Any other failure needs a diagnosis first. |
 | `review_bot_login_keywords` | `codex` | Comments from the Codex bot count as review items |

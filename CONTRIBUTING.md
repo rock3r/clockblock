@@ -18,12 +18,17 @@ all welcome. For anything bigger than a small fix, please open an issue first so
 4. Build and run the tests:
 
    ```sh
-   ./gradlew :app:assembleDebug
+   ./gradlew :app:assemblePlayDebug
    ./gradlew test
    ```
 
 5. For the end-to-end suite, start an emulator with an Android 17 (API 37) image and run
-   `./gradlew :app:connectedDebugAndroidTest`.
+   `./gradlew :app:connectedPlayDebugAndroidTest`.
+
+The app has two flavours: `play` (the Google Play build, the default) and `oss` (for outside Google Play, with
+`USE_EXACT_ALARM`). Library modules have none. In `:app`, the flavourless task names (`testDebugUnitTest`,
+`recordRoborazziDebug`, `verifyRoborazziDebug`) are aliases of the play tasks. Aliases don't accept `--tests`, so use
+the play task name to filter.
 
 There's no backend, no API key and no signing config to set up: the debug build is all you need.
 
@@ -113,7 +118,7 @@ The icon family is generated from one geometry: the adaptive icon's background, 
 
 ```sh
 python3 tools/icon/gen_icon.py
-./gradlew :app:recordRoborazziDebug --tests '*LauncherIconScreenshotTest*' --tests '*IconFamilyScreenshotTest*'
+./gradlew :app:recordRoborazziPlayDebug --tests '*LauncherIconScreenshotTest*' --tests '*IconFamilyScreenshotTest*'
 ```
 
 Edit the script, not the XML. It fails if the art leaves the 66 dp safe zone or the small icon's live area. Check
@@ -123,7 +128,7 @@ afterwards.
 ## Pull requests
 
 - Keep them focused, with a clear description and screenshots for UI changes.
-- Before you push, run `./gradlew test :app:assembleDebug verifyRoborazziDebug`.
+- Before you push, run `./gradlew test :app:assemblePlayDebug :app:assembleOssDebug verifyRoborazziDebug`.
 - On every pull request, the CI workflow validates the Gradle wrapper, runs the unit tests, verifies the
   screenshots, assembles the APKs and tests the babysit-pr watcher. A separate e2e workflow runs the emulator
   tests. Codex reviews the change. [docs/testing.md](docs/testing.md#pull-requests-and-review) describes the
