@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import kotlin.math.roundToInt
 
@@ -52,7 +53,11 @@ enum class DialPart {
     RingLabel,
     Numeral,
     Advice,
+
+    /** The part of the advice in focus already behind the hand, washed back. Hosts that can't keep it live drop it. */
+    AdvicePast,
     Narration,
+    /** Now: the needle (or the strips' now line) and whatever rides on it. Live hosts move it with their clock. */
     Needle,
     NowMark,
     Readout,
@@ -126,7 +131,10 @@ sealed interface DialOp {
         override val part: DialPart = DialPart.Advice,
     ) : DialOp
 
-    /** Straight text anchored at ([x], [y]). RC: drawAnchoredText. */
+    /**
+     * Straight text anchored at ([x], [y]). RC: drawAnchoredText. [live] says the text is a clock reading: a host
+     * with its own clock (a Remote Compose widget) writes the time from it instead of [text], the reading at capture.
+     */
     data class Text(
         val text: String,
         val x: Float,
@@ -136,6 +144,7 @@ sealed interface DialOp {
         val h: HAlign = HAlign.Center,
         val v: VAlign = VAlign.Center,
         override val part: DialPart,
+        val live: LiveTime? = null,
     ) : DialOp
 
     /**
@@ -161,6 +170,29 @@ sealed interface DialOp {
         companion object {
             /** Lower half of the dial (with a little hysteresis round 3 and 9 o'clock). */
             fun readsInwardAt(centerDeg: Float): Boolean = kotlin.math.sin(Math.toRadians(centerDeg.toDouble())) > 0.05
+        }
+    }
+
+    /**
+     * A horizontal bar filled with a left-to-right gradient: [colors] are evenly spaced stops, stop `i` centred at
+     * `left + (i + ½) × width / n`. Compose: `Brush.horizontalGradient` in a rounded rectangle. Remote Compose:
+     * [segments], clipped to the rounded rectangle.
+     */
+    data class SkyBar(
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val radius: Float,
+        val colors: List<Argb>,
+        override val part: DialPart,
+    ) : DialOp {
+        /** The bar as constant-colour rectangles, one per stop (slightly overlapping, so no seams show). */
+        fun segments(): List<Rect> {
+            val step = (right - left) / colors.size
+            return colors.mapIndexed { i, c ->
+                Rect(left + i * step, top, minOf(right, left + (i + 1) * step + 0.35f), bottom, 0f, c, part = part)
+            }
         }
     }
 
@@ -195,9 +227,39 @@ sealed interface DialOp {
     }
 }
 
+/** Which clock a [LiveTime] reads. */
+enum class LiveClock { Local, Body }
+
+/**
+ * A clock reading a live host keeps current. [clock] at the needle's minute, written as its digits ("15:20", or
+ * "3:20" on a 12-hour clock), followed by the AM/PM marker when [marker] is set (on 12-hour clocks only), or the
+ * marker alone when [digits] is off. [prefix] and [suffix] wrap it ("08:20 body").
+ */
+data class LiveTime(
+    val clock: LiveClock,
+    val digits: Boolean = true,
+    val marker: Boolean = false,
+    val prefix: String = "",
+    val suffix: String = "",
+)
+
+/**
+ * A horizontal time axis (the strips): local minute [startMinute] sits at x = [left], and [spanMinutes] later at
+ * x = [right]. Live hosts slide the now line ([DialPart.Needle]) along it.
+ */
+data class TimeAxis(val left: Float, val right: Float, val startMinute: Float, val spanMinutes: Float) {
+    val dpPerMinute: Float get() = (right - left) / spanMinutes
+
+    /** The x of local [minute], measured forwards from [startMinute] (so a window across midnight stays in order). */
+    fun x(minute: Float): Float = left + (minute - startMinute).mod(DialGeometry.MinutesPerDay) * dpPerMinute
+}
+
 /**
  * A laid-out dial: [ops] in paint order inside a [width] × [height] dp box, the [level] they were built for, and
  * the hit-test geometry hosts need (the hub, where a tap returns to now, has radius [hubRadius] round the centre).
+ *
+ * [nowMinute] is the local minute the needle shows. A live host moves the [DialPart.Needle] ops from there with its
+ * own clock: round ([cx], [cy]) on a dial, or along [axis] on the strips.
  */
 data class DialSpec(
     val level: DetailLevel,
@@ -208,4 +270,6 @@ data class DialSpec(
     val radius: Float,
     val hubRadius: Float,
     val ops: List<DialOp>,
+    val nowMinute: Float = 0f,
+    val axis: TimeAxis? = null,
 )

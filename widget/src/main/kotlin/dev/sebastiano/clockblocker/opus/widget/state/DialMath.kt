@@ -6,7 +6,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 
-/** Geometry and formatting shared by the dial renderers and the state mapper. */
+/** Clock maths and formatting shared by the widget texts and the state mapper. */
 object DialMath {
     const val MINUTES_PER_DAY = 1440
 
@@ -17,19 +17,6 @@ object DialMath {
     /** Wall-clock minute of the day in [zone] (honours DST at that instant). */
     fun minuteOfDay(instant: Instant, zone: ZoneId): Int =
         minuteOfDay(instant, zone.rules.getOffset(instant).totalSeconds / 60)
-
-    fun wrap(minute: Int): Int = Math.floorMod(minute, MINUTES_PER_DAY)
-
-    /**
-     * android.graphics.Canvas angle (degrees, 0 = 3 o'clock, clockwise) of a dial minute on a 24 h dial with
-     * **noon at the top** and midnight at the bottom.
-     */
-    fun canvasDegrees(minute: Float): Float {
-        val deg = minute / 4f + 90f
-        return ((deg % 360f) + 360f) % 360f
-    }
-
-    fun canvasDegrees(minute: Int): Float = canvasDegrees(minute.toFloat())
 
     /**
      * "+5 h", "−3 h", "+5½ h" for a body-relative offset ("−3 h" = body 3 h behind local time). Rounded to the

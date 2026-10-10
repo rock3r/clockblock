@@ -45,8 +45,11 @@ current plan again, decides whether a reminder is still correct, redraws everyth
 A few details matter:
 
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
-  15-minute progress tick while a Live Update is showing, and (with reminders on) the next change of the Now
-  notification's body-clock header.
+  15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
+  notification's body-clock header, and the next time a block comes into the widget dial's view
+  (`TransitionPlanner.nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an hour for a
+  clock change). Widgets capture the dial's blocks and only move the hand, so without it a block more than 16 hours
+  away would stay off the dial until it starts.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
   next maintenance window, well past 10 minutes.
@@ -242,18 +245,44 @@ The `:widget` module provides two widgets. Both can be placed on the home screen
 category too, which matters on tablets and in hub mode. On phones, the lock-screen view of the plan is the Now
 notification.
 
-![Two Clocks widgets: the 2×2 dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 4×2 layout with its now card and Done button](screenshots/widgets/remote_two_clocks.png)
+![Two Clocks widgets: the 2×2 Two skies dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 2×2 landscape layout with the Two strips beside the now card and Done](screenshots/widgets/remote_two_clocks.png)
 
-The *Two Clocks* widget shows local time and the body clock on one dial ("body 08:20, −7 h"). The outer ring
-follows the sky over the local day. Inside it, two lanes show light advice and rest advice. The body ring marks
-biological night and the body-temperature minimum. With no trip, the dial says "No trip" and "Plan one".
+The *Two Clocks* widget draws the app's own dial from the shared spec
+([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)): the *Two skies* dial in the
+2×2, 2×3 and 4×3 layouts, and the *Two strips* in the 1×1, the 2×1 and 4×1 rows and the 2×2 landscape layout,
+where a round dial would get too small to read. Both show local time on the outer sky (or the top strip) and the
+body clock on the inner one, with the needle (or the now line) at local time. With no trip, every size says "No
+trip" and "Plan one".
 
-The app now draws the *Two skies* dial (see [design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)).
-The widget keeps this layout until it moves to the same spec (phase 2 of #46). The spec is pure Kotlin and returns
-draw ops in dp, so a widget can paint the same dial. The widget only has the system font. This sheet shows the app
-font next to the system font at full, simple and glance sizes:
+[`WidgetDial`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDial.kt) lays the spec out
+at capture time for the dial's region at the layout's minimum size, and
+[`drawDialSpec`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/RemoteDialSpec.kt) replays it
+into the Remote Compose canvas, scaled to the real size. The level of detail (glance, simple, full) follows that
+region in dp, the same rule the app uses: most widget dials are glances (the two skies, the needle and both
+times), and the wide rows are simple (with the bars' labels and the jet lag). The dial uses the widget's face
+colour and the system font, since Remote Compose can't load the app's font. Text on the dial is never smaller than
+7 dp: the AM/PM marker holds that size and the digits give way. Labels (the ring and bar labels, the advice's name,
+the jet lag) are at least 10 sp and grow with the font scale. A label its ring or bar can't hold at that size is
+left out rather than shrunk; the strips still pair the local time with the top bar and the body time with the
+bottom one, and the jet lag pill goes before the body time does. The smaller readouts (the body time, "in sync",
+AM/PM) keep the same floor. When they don't fit at it, "in sync" goes first, then the body time's AM/PM, then the
+local time's; the body time itself always stays. In 12-hour time the local time is laid out for
+its widest reading ("10:00"), so the digits the launcher writes never run into AM/PM.
 
-![The Two skies dial at 280, 160 and 96 dp, drawn with the app font in one row and the system font in the other](screenshots/dial-widget-fonts.png)
+The launcher's clock keeps the dial live between captures: the needle turns (or the now line slides), and both
+times are written from the launcher's clock. Labels that stepped aside for the needle stay put until the next
+capture, at the next advice boundary. The wash over the part of the current block that has passed is left out,
+since it can't follow the needle. The body ring is the simple one; the precise one becomes a per-widget option
+in #52.
+
+![The widget dial next to the app dial at the same state: Two skies at 96, 176 and 290 dp and Two strips at 110×80 and 250×56, app first in each pair, light then dark](screenshots/widgets/remote_dial_vs_app.png)
+
+Remote Compose has a few gaps, and the widget falls back:
+
+- No shaders from Kotlin: the sky gradients are drawn as short segments of constant colour.
+- No letter spacing: tracked and curved text is set glyph by glyph (curved text turns per glyph rather than using
+  `drawTextOnCircle`, which can't be checked on a real launcher yet).
+- Four typeface styles only: weights round to regular or bold, so the body time is regular italic.
 
 ![Next up widgets: 4×1 rows with a countdown and Done, 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
@@ -268,17 +297,18 @@ widgets. The table shows the layout on a typical portrait home screen.
 
 | Cells | Two Clocks | Next up |
 |---|---|---|
-| 1×1 | Dial with local time and the jet lag offset | Glyph, countdown and label |
-| 2×1 | The 1×1 dial | Glyph, label, "until" line and the other zone's time |
-| 4×1 | The 1×1 dial | Row with the countdown, the other zone's time and Done |
-| 2×2 | Dial and a two-line caption | Countdown, label, "until / then", the other zone and Done |
+| 1×1 | Two strips with local time | Glyph, countdown and label |
+| 2×1 | Two strips with local and body time | Glyph, label, "until" line and the other zone's time |
+| 4×1 | Two strips with both times, the bars' labels and the jet lag | Row with the countdown, the other zone's time and Done |
+| 2×2 | Two skies and a two-line caption | Countdown, label, "until / then", the other zone and Done |
 | 4×2 | The 4×3 layout | The 4×1 row plus up to three "Up next" capsules |
-| 2×3 | Dial, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route |
-| 4×3 | A header strip with the route, the dial, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+| 2×3 | Two skies, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route |
+| 4×3 | A header strip with the route, Two skies, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
 
 Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row next to Done: the label, and the
-"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 2×2 Two Clocks gets the
-dial, the now card and Done side by side, and a 2×2 Next up gets the 4×2 capsules.
+"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 1×1 and a 2×1 Two Clocks
+get the short, wide Two strips with the bars' labels. A 2×2 Two Clocks gets the Two strips, the now card and Done
+side by side, and a 2×2 Next up gets the 4×2 capsules.
 
 [`WidgetSizes`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetSizes.kt) lists every
 layout with its minimum size in dp. The launcher plays the layout whose minimum is closest to the widget's size
@@ -288,10 +318,10 @@ a second "Up next" row.
 | Layout | Next up minimums | Two Clocks minimums |
 |---|---|---|
 | 1×1 | 57×51 | 57×51 |
-| 2×1 row | 117×80, 117×100 | — |
-| 4×1 row | 250×46, 250×84 | — |
+| 2×1 row | 117×80, 117×100 | 117×51, 117×84 |
+| 4×1 row | 250×46, 250×84 | 250×51, 250×84 |
 | 2×2 | 111×146 | 101×121 |
-| Dial and card side by side | 250×110 (capsules) | 269×108 |
+| Dial (or strips) and card side by side | 250×110 (capsules) | 269×108 |
 | 2×3 | 111×240, 120×330, 250×240 | 123×248 |
 | 4×3 | — | 269×220 |
 
@@ -345,6 +375,16 @@ drops only at 1.3×, that "Up next" never keeps a row the now block needs, and t
 larger than itself. The `remote_labels_*` goldens show every real label, and the `remote_minimums_*` goldens show
 each layout at its minimum size with the longest texts.
 
+Text on the dial follows the same rule.
+[`WidgetDialFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialFitTest.kt)
+lays out the dial of every Two Clocks layout at its minimum and checks that each piece of text stays inside its
+region, overlaps no other text and is at least 7 dp tall, that every label and readout is at least 10 sp, that
+ring and bar labels sit inside their ring or bar, and that the body time is always there (unless in sync). It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
+12 h and 24 h, at several hours of the day, for each demo plan, on the home screen and redacted. It also checks the
+level each layout gets, that the needle and both clocks are always there, and that a redacted dial names no place.
+[`WidgetDialContrastTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialContrastTest.kt)
+checks the dial's ink against its face and skies in every widget palette.
+
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
 designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
@@ -368,7 +408,7 @@ What a screen reader hears matches what the widget shows:
   [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
   plays the documents in the View player and reads back its accessibility nodes.
 
-![Two Clocks at 1×1, 2×3, 4×2 and 4×3, including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
+![Two Clocks in every layout: the Two strips at 1×1, in the 1×1 landscape, 2×1 and 4×1 rows (the wide ones with sky labels and "7 h behind") and beside the now card at 2×2 landscape; the Two skies dial at 2×3 and 4×3; including night-safe, a logged Done and the adaptation bar](screenshots/widgets/remote_two_clocks_buckets.png)
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
 

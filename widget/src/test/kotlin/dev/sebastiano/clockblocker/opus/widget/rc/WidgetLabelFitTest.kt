@@ -252,7 +252,12 @@ class WidgetLabelFitTest {
         ).forEach { (name, layout) -> withClue("Next up $name") { nextUp(name) shouldBe layout } }
         mapOf(
             "1×1 portrait" to TwoClocksLayout.Compact,
-            "1×1 landscape" to TwoClocksLayout.Compact,
+            // A landscape 1×1 is already wide enough for the strips' wider layout.
+            "1×1 landscape" to TwoClocksLayout.Strip,
+            "2×1 portrait" to TwoClocksLayout.Strip,
+            "2×1 landscape" to TwoClocksLayout.Strip,
+            "4×1 portrait" to TwoClocksLayout.Strip,
+            "4×1 landscape" to TwoClocksLayout.Strip,
             "2×2 portrait" to TwoClocksLayout.Square,
             "2×3 portrait" to TwoClocksLayout.Tall,
             "2×2 landscape" to TwoClocksLayout.Wide,
@@ -389,6 +394,12 @@ class WidgetLabelFitTest {
         fit.upNext.bar?.takeUnless { it.fits }?.let { add("$where: adaptation \"${it.text}\" clipped") }
         fit.done?.takeUnless { it.fits }?.let { add("$where: Done \"${it.text}\" clipped at ${it.sp} sp") }
         fit.headerStrip?.takeUnless { it.fits }?.let { add("$where: header \"${it.text}\" clipped") }
+        fit.empty?.let { empty ->
+            if (!empty.title.fits || empty.title.text != texts.title) add("$where: \"${texts.title}\" clipped (${empty.title.sp} sp × ${empty.title.lines})")
+            empty.action?.takeUnless { it.fits }?.let { add("$where: \"${it.text}\" clipped") }
+            // "Plan one" may only give way in the 1×1.
+            if (empty.action == null && !where.contains(" Compact ")) add("$where: \"${texts.subtitle}\" dropped")
+        }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
@@ -10,8 +11,7 @@ import java.time.Instant
  * mapping is unit-testable on the JVM and both render backends (Remote Compose and classic RemoteViews) draw
  * exactly the same thing.
  *
- * "Dial minutes" are wall-clock minutes of the day (0..1439) in [Active.displayZoneId]. The dial puts noon at
- * the top and runs clockwise (see [DialMath]).
+ * "Dial minutes" are wall-clock minutes of the day (0..1439) in [Active.displayZoneId].
  */
 sealed interface WidgetState {
 
@@ -32,12 +32,11 @@ sealed interface WidgetState {
         val bodyOffsetMinutes: Int,
         val current: AdviceSlot?,
         val next: AdviceSlot?,
-        /** Advice in the 24 h ahead of [capturedAt], clipped to that window, in dial minutes. */
-        val arcs: List<DialArc>,
-        /** Biological night on the body ring, in dial minutes. */
-        val bodyNight: DialArc?,
-        /** Estimated core-body-temperature minimum nearest to now, in dial minutes. */
-        val cbtMinMinute: Int?,
+        /**
+         * The Two skies state at [capturedAt], the same projection the plan screen's dial draws (`toDialState`): the
+         * widgets lay out the shared dial spec (Two skies, Two strips) from it.
+         */
+        val dial: DialState,
         val stage: Stage,
         /** Name of the destination: the trip's city there (see [placeNames]), else its zone's city, e.g. "Tokyo". */
         val destinationName: String,
@@ -125,11 +124,4 @@ data class AdviceSlot(
     val startMinute: Int,
     /** Dial minute of [end] in the display zone. */
     val endMinute: Int,
-)
-
-/** An arc on the dial. [sweepMinutes] is 0 for moments (melatonin), drawn as a dot. */
-data class DialArc(
-    val type: AdviceType?,
-    val startMinute: Int,
-    val sweepMinutes: Int,
 )

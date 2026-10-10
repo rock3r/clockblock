@@ -313,6 +313,17 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `a refresh is armed for when the next block comes into the widget dial's view`() = runTest {
+        // Tomorrow's 23:00 sleep is beyond the dial's 16 h of future at 07:00, and no transition falls between
+        // tonight's wake-up and it: the widget re-captures 15 h before, so the block is drawn once it's in view.
+        plans.current.value = planOf(advice(Sleep, "2026-10-11T23:00", "2026-10-12T07:00"))
+
+        val alarms = scheduler().resync().instants
+
+        alarms shouldContain utc("2026-10-11T08:00")
+    }
+
+    @Test
     fun `alarm at a lead time posts one reminder, refreshes surfaces and re-arms`() = runTest {
         val scheduler = scheduler()
         clock.instant = utc("2026-10-10T13:45")
