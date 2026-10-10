@@ -158,6 +158,12 @@ private fun DrawScope.render(op: DialOp, measurer: TextMeasurer, fonts: DialFont
         is DialOp.Glyph -> glyph(op, pixelGlyphs)
         is DialOp.Text -> text(op, measurer, fonts)
         is DialOp.CurvedText -> curved(op, measurer, fonts)
+        is DialOp.SkyBar -> drawRoundRect(
+            Brush.horizontalGradient(op.colors.map { it.color }, startX = op.left * d, endX = op.right * d),
+            topLeft = Offset(op.left * d, op.top * d),
+            size = Size((op.right - op.left) * d, (op.bottom - op.top) * d),
+            cornerRadius = CornerRadius(op.radius * d),
+        )
         is DialOp.SweepRing -> {
             val c = Offset(op.cx * d, op.cy * d)
             val colors = op.colors.map { it.color }

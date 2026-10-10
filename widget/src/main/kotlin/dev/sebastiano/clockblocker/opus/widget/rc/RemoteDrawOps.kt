@@ -6,20 +6,15 @@ import androidx.compose.remote.creation.compose.layout.RemoteOffset
 import androidx.compose.remote.creation.compose.layout.RemoteSize
 import androidx.compose.remote.creation.compose.state.RemoteFloat
 import androidx.compose.remote.creation.compose.state.RemotePaint
-import androidx.compose.remote.creation.compose.state.cos
 import androidx.compose.remote.creation.compose.state.rc
 import androidx.compose.remote.creation.compose.state.rf
-import androidx.compose.remote.creation.compose.state.sin
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import dev.sebastiano.clockblocker.opus.widget.draw.DrawOp
 import dev.sebastiano.clockblocker.opus.widget.draw.PathSegment
-import dev.sebastiano.clockblocker.opus.widget.draw.TwoClocksDial
-import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.segments
-import kotlin.math.PI
 
 /**
  * Replays a [DrawOp] list into a Remote Compose canvas, centred on ([cx], [cy]) and scaled by [unit] (both
@@ -97,40 +92,6 @@ private fun DrawOp.Path.toRemotePath(): RemotePath = RemotePath().apply {
             is PathSegment.LineTo -> lineTo(s.x, s.y)
             is PathSegment.CubicTo -> cubicTo(s.x1, s.y1, s.x2, s.y2, s.x, s.y)
             PathSegment.Close -> close()
-        }
-    }
-}
-
-/**
- * The dial hand, positioned by the host clock: it keeps moving with the launcher's clock between app updates
- * (no process wake-ups, survives Doze). Geometry: [TwoClocksDial.Hand].
- */
-internal fun RemoteDrawScope.drawHostHand(
-    displayOffsetMinutes: Int,
-    p: WidgetPalette,
-    cx: RemoteFloat,
-    cy: RemoteFloat,
-    unit: RemoteFloat,
-) {
-    val minute = HostTime.minuteOfDayAt(displayOffsetMinutes)
-    // Noon at the top, clockwise: canvas angle = minute / 4 + 90°.
-    val radians = (minute / 4f.rf + 90f.rf) * (PI.toFloat() / 180f).rf
-    val c = cos(radians)
-    val s = sin(radians)
-    fun at(r: Float) = RemoteOffset(r.rf * c, r.rf * s)
-    val hand = TwoClocksDial.Hand
-    inUnitSpace(cx, cy, unit) {
-        drawLine(
-            paint = paint(p.hand, hand.STROKE, StrokeCap.Round),
-            start = at(hand.INNER_R),
-            end = at(hand.OUTER_R),
-        )
-        val r = TwoClocksDial.LOCAL_RING_R
-        translate(r.rf * c, r.rf * s) {
-            TwoClocksDial.headHalo(p).forEach { drawOp(it) }
-            // Both heads are written; the host shows one: sun between sunrise and sunset, moon otherwise.
-            scale(HostTime.dayFactor(minute)) { TwoClocksDial.sunHead(p).forEach { drawOp(it) } }
-            scale(HostTime.nightFactor(minute)) { TwoClocksDial.moonHead(p).forEach { drawOp(it) } }
         }
     }
 }

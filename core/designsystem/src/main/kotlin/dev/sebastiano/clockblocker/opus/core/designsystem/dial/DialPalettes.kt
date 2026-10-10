@@ -16,6 +16,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockLightC
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockThemeVariant
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ColorMath
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.NightSafeColors
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 
 /**
@@ -51,6 +52,11 @@ object DialPalettes {
 
     /** The dark theme's dial (static colour). */
     val Dark: DialPalette by lazy { of(ClockblockDarkColors, AdviceColors.Dark, ClockblockThemeVariant.Standard, dark = true) }
+
+    /** The night-safe dial (true black, dim amber, sunk skies): what widgets use under "Night-safe automatically". */
+    val NightSafe: DialPalette by lazy {
+        of(NightSafeColors, AdviceColors.Dark.dimmed(), ClockblockThemeVariant.NightSafe, dark = true)
+    }
 
     /** The dial for a resolved theme. Night-safe sinks the skies and their inks so the dial respects "avoid light". */
     fun of(scheme: ColorScheme, advice: AdviceColors, variant: ClockblockThemeVariant, dark: Boolean): DialPalette {
