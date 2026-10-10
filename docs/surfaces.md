@@ -267,7 +267,8 @@ left out rather than shrunk; the strips still pair the local time with the top b
 bottom one, and the jet lag pill goes before the body time does. The smaller readouts (the body time, "in sync",
 AM/PM) keep the same floor. When they don't fit at it, "in sync" goes first, then the body time's AM/PM, then the
 local time's; the body time itself always stays. In 12-hour time the local time is laid out for
-its widest reading ("10:00"), so the digits the launcher writes never run into AM/PM.
+its widest reading ("10:00", and the wider of the locale's two markers), so the digits and marker the launcher writes
+never run into anything. The markers are the locale's own ("PM", "pm", "p. m.", "오후"), the same as in the app.
 
 The launcher's clock keeps the dial live between captures: the needle turns (or the now line slides), and both
 times are written from the launcher's clock. Labels that stepped aside for the needle stay put until the next
