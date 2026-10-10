@@ -3,7 +3,8 @@
 #
 # AGP's connected test runner can fail to install the APKs (a full emulator /data partition, or a package manager
 # that isn't up yet) and still end the Gradle task successfully, with zero tests run. That kept the e2e job green
-# without running a single test from 9 October 2026 onwards. So, after `connectedDebugAndroidTest`:
+# without running a single test from 7 October 2026, when it moved to the API 37 emulator. So, after
+# `connectedDebugAndroidTest`:
 #   1. the Gradle log must not mention a failed install or a failed test runner;
 #   2. at least one test case must have run, counted from the JUnit XML when the runner writes it, otherwise from
 #      the HTML report's "tests" counter.
