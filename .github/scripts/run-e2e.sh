@@ -67,7 +67,7 @@ for attempt in 1 2; do
   status=${PIPESTATUS[0]}
   kill "$logcat_pid" 2>/dev/null
   echo "system_server starts after the run=$(adb shell getprop sys.system_server.start_count 2>&1)"
-  if ! grep -qiE "failed to install|AndroidTestRunner failed|INSTALL_FAILED|Can't find service: package" "$log"; then
+  if ! grep -qiE "failed to install|AndroidTestRunner failed|INSTALL_FAILED|Can't find service: package|Failure calling service package" "$log"; then
     exit "$status"
   fi
   echo "::warning::The e2e APKs didn't install (attempt $attempt of 2)."
