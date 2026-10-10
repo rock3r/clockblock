@@ -186,11 +186,11 @@
     <string name="editor_discard_keep">Keep editing</string>
 
     <!-- Validation. -->
-    <string name="issue_error">Error</string>
+    <string name="issue_error">Fix this</string>
     <string name="issue_warning">Check this</string>
     <string name="issue_info">Note</string>
     <string name="issue_same_place">Departs and lands at the same airport.</string>
-    <string name="issue_arrival_before_departure">Lands before it takes off, once both local times are in their own time zones.</string>
+    <string name="issue_arrival_before_departure">Lands before it takes off. Each time is local to its airport, so check the arrival date and time.</string>
     <string name="issue_too_short">%1$s for %2$s km is faster than any airliner.</string>
     <string name="issue_too_long">%1$s for %2$s km is unusually long. A stopover? Add it as a connecting flight.</string>
     <string name="issue_overlap">Departs %1$s before the previous flight lands.</string>
