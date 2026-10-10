@@ -100,12 +100,13 @@ you've adapted.
 
 ### Next up
 
-<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time until 16:00, 08:00 in Lisbon, in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
+<img src="images/widget-next-up.png" alt="Next up widgets in light, dark and night-safe. Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a Done button (and Skipped once skipped); taller sizes add a 1h10m countdown beside the icon and an Up next list (18:30 Melatonin); a wide size lists the next blocks as chips beside a tall Done button; the largest adds the LIS → HND route; and Clockblocked, Your body is on Tokyo time, 100% adapted." width="480" />
 
-The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
-short label. Bigger sizes add the time in your other zone and a **Done** button, and the tallest and widest ones
-list what's up next, next to your route ("LIS → HND"). It says "Free time" when there's nothing to do, and
-"Clockblocked" when your plan is finished ("Adapted" on the smallest size).
+The *Next up* widget shows the current block, with a live countdown beside its icon on the taller sizes. Bigger
+sizes add the time in your other zone and a **Done** button, and the tallest and widest ones list what's up next,
+next to your route ("LIS → HND"). The smallest size shows a short label, and the countdown in a block's last hour.
+It says "Free time" when there's nothing to do, and "Clockblocked" when your plan is finished ("Adapted" on the
+smallest size).
 
 ### Customise a widget
 

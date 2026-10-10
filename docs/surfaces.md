@@ -291,10 +291,11 @@ Remote Compose has a few gaps, and the widget falls back:
   `drawTextOnCircle`, which can't be checked on a real launcher yet).
 - Four typeface styles only: weights round to regular or bold, so the body time is regular italic.
 
-![Next up widgets: 4×1 rows with Done (the launcher-drawn countdown isn't in test renders), 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
+![Next up widgets: 4×1 rows with Done (the label leaves no room for the countdown at the row's minimum size), 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
-The *Next up* widget shows the current advice with a countdown. The 1×1 tile shows only the countdown and a
-short label. When the plan has no advice left, it shows "Clockblocked" (the 1×1 tile says "Adapted").
+The *Next up* widget shows the current advice with a countdown where it fits. The 2×3 and larger stacks show it
+beside the glyph (see `remote_next_up_buckets.png`). The 1×1 tile shows a short label, and the countdown only in a
+block's last hour. When the plan has no advice left, it shows "Clockblocked" (the 1×1 tile says "Adapted").
 
 ### Sizes
 
@@ -304,7 +305,7 @@ widgets. The table shows the layout on a typical portrait home screen.
 
 | Cells | Two clocks | Next up |
 |---|---|---|
-| 1×1 | Two strips with local time | Glyph, countdown and label |
+| 1×1 | Two strips with local time | Glyph and label (the countdown in a block's last hour) |
 | 2×1 | Two strips with local and body time | Glyph, label, "until" line and the other zone's time |
 | 4×1 | Two strips with both times, the bars' labels and the jet lag | Row with the countdown, the other zone's time and Done |
 | 2×2 | Two skies and a two-line caption | Countdown, label, "until / then", the other zone and Done |
