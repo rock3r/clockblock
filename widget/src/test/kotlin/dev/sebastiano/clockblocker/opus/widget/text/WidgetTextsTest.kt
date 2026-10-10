@@ -125,6 +125,16 @@ class WidgetTextsTest {
     }
 
     @Test
+    fun `the 1x1 tile says Adapted, everything else keeps Clockblocked`() {
+        val t = texts(DemoPlans.Scenario.Adapted)
+        t.title shouldBe "Clockblocked"
+        t.smallLabel shouldBe "Adapted"
+        t.spokenNow shouldStartWith "Clockblocked"
+        // Advice labels are short enough already: the tile shows them as they are.
+        texts(DemoPlans.Scenario.AvoidLight).smallLabel shouldBe "Avoid light"
+    }
+
+    @Test
     fun `12 hour clock respected`() {
         texts(DemoPlans.Scenario.AvoidLight, is24 = false).subtitle.uppercase().let {
             (it.contains("AM") || it.contains("PM")) shouldBe true

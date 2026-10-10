@@ -140,7 +140,7 @@ Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet 
 
 **Reminders**: exact alarms per transition with lead time (0/15/30 min). Never notify inside a sleep block except to wake you. One ongoing "Now" notification (Live Update on Android 16 travel days). Per-advice channels.
 
-**Platform**: offline, Room, no account, no analytics, JSON export/import, ICS export. Glance widgets: *Next up* + *Two Clocks*. M3 Expressive theme + dynamic colour, TalkBack, font scaling. Science page + disclaimers.
+**Platform**: offline, Room, no account, no analytics, JSON export/import, ICS export. Glance widgets: *Next up* + *Two clocks*. M3 Expressive theme + dynamic colour, TalkBack, font scaling. Science page + disclaimers.
 
 ## 1.9 "Beyond Timeshifter" (v1.x → v2)
 
@@ -253,7 +253,7 @@ once you're adapted the two rings are identical.
 - **A11y:** TalkBack: "14:20 local. Your body clock is 09:56. Now: see bright light until 15:00. Next: …" Custom
   actions *Next block*, *Previous block*, *Back to now*.
 - **Spec and renderers:** `TwoSkies.spec()` in `dial/spec` is pure Kotlin (no Android UI types) and returns a list of
-  `DialOp`s in dp. `drawDialSpec()` paints them with Compose in the app; the Two Clocks widget replays the same list
+  `DialOp`s in dp. `drawDialSpec()` paints them with Compose in the app; the Two clocks widget replays the same list
   into a Remote Compose canvas (`widget/…/rc/RemoteDialSpec.kt`). The widget port draws the sky rings and bars as
   constant-colour segments (Remote Compose has no shader from Kotlin), sets curved and tracked text glyph by glyph
   (`drawTextOnCircle` is still unverified on a real launcher), rounds weights to regular or bold (the system font's
@@ -449,7 +449,7 @@ Never guilt; skipping shows the cost, then moves on.
 | Widget | Size (cells) | Content | Notes |
 |---|---|---|---|
 | **Next up** ⭐ | 2×1 → 4×1 (responsive) | Shape glyph in advice container · **"Avoid light"** (titleMediumEmphasized) · "until 18:00 · then Sleep" · ticking "42m" at 4×1 | Tap → Plan scrolled to Now. A 1×1 variant shows just the glyph + "42m" |
-| **Two Clocks** | 1×1 → 4×3 (responsive) | The Two skies dial (2×2, 2×3, 4×3) or the Two strips (1×1, 2×1, 4×1, 2×2 landscape) from the app's dial spec, with the now card and Done on larger sizes | Shipped as a Remote Compose document (see A); the needle and readouts follow the launcher's clock |
+| **Two clocks** | 1×1 → 4×3 (responsive) | The Two skies dial (2×2, 2×3, 4×3) or the Two strips (1×1, 2×1, 4×1, 2×2 landscape) from the app's dial spec, with the now card and Done on larger sizes | Shipped as a Remote Compose document (see A); the needle and readouts follow the launcher's clock |
 | **Today ribbon** | 4×2 | Next 4 blocks as capsules on a horizontal rail (the current one filled and larger) + body-time chip + day label ("Arrival +1") | Each capsule deep-links to its card |
 | **Trip countdown** | 2×2 / 3×2 | Before: "Tokyo · in 3 days · adjustment starts tomorrow 07:00" + mini great-circle. After landing: "Day 2 · 60% adapted" + static wavy line whose amplitude shrinks daily | Becomes a "Clockblocked ✓" Flower state when adapted |
 | **Quick actions** (v1.x) | 2×1 toolbar | [I'm delayed] [Can't do this] [Light meter] | Toolbar canonical layout |

@@ -63,7 +63,7 @@ features.
 | `:feature:trips` | Android + Compose | The trips list and the trip editor |
 | `:feature:plan` | Android + Compose | The plan screen, the Now card, the timeline and the Why sheet |
 | `:feature:settings` | Android + Compose | Settings, About and the licences screen |
-| `:widget` | Android + Compose | The *Two Clocks* and *Next up* widgets |
+| `:widget` | Android + Compose | The *Two clocks* and *Next up* widgets |
 | `:app` | Application | The navigation shell, adaptive layouts and the dependency graph |
 
 ## How data flows
