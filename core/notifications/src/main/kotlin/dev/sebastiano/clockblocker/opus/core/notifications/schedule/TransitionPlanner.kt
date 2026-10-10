@@ -107,6 +107,24 @@ object TransitionPlanner {
         .filter { it.isAfter(now) }
         .minOrNull()
 
+    /** How long a moment stays due on the widget dial (the design system's `MomentDueMinutes`). */
+    val MOMENT_DUE: Duration = Duration.ofMinutes(1)
+
+    /**
+     * The next instant strictly after [now] at which a moment of [plan] (melatonin, or any advice with no length)
+     * stops being due ([MOMENT_DUE] after it). A widget captured at the moment features it, and its only
+     * [TransitionKind.Moment] is at the start, so without a refresh then it would stay featured until a later alarm.
+     */
+    fun nextMomentEnd(plan: JetLagPlan, now: Instant): Instant? = plan.allAdvice
+        .filter { it.type.isMoment || it.start == it.end }
+        .map { it.start.plus(MOMENT_DUE) }
+        .filter { it.isAfter(now) }
+        .minOrNull()
+
+    /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */
+    fun nextDialRefresh(plan: JetLagPlan, now: Instant): Instant? =
+        listOfNotNull(nextDialEntry(plan, now), nextMomentEnd(plan, now)).minOrNull()
+
     private fun rawTransitions(advice: Advice, lead: Duration): List<Transition> = when {
         advice.type.isMoment -> listOf(Transition(advice.start, TransitionKind.Moment, advice))
         advice.type == AdviceType.Flight -> listOf(

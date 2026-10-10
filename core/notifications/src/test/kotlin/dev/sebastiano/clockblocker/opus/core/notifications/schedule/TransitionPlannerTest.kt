@@ -10,6 +10,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceType.SeeBrightLight
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType.Sleep
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.MomentDueMinutes
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.notifications.advice
 import dev.sebastiano.clockblocker.opus.core.notifications.planOf
@@ -309,6 +310,35 @@ class TransitionPlannerTest {
         fun `the lookahead is the dial's future, less an hour for a clock change on the way`() {
             val future = DialGeometry.MinutesPerDay - DialState.PastWindowMinutes
             TransitionPlanner.DIAL_ENTRY_LEAD.plusHours(1).toMinutes() shouldBe future.toLong()
+        }
+
+        @Test
+        fun `a moment gets a refresh when it stops being due, so the widget stops featuring it`() {
+            val plan = planOf(
+                advice(Melatonin, "2026-10-10T19:00"),
+                advice(AvoidLight, "2026-10-10T18:00", "2026-10-10T20:00"),
+            )
+
+            TransitionPlanner.nextMomentEnd(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T19:01")
+            TransitionPlanner.nextMomentEnd(plan, utc("2026-10-10T19:00")) shouldBe utc("2026-10-10T19:01")
+            // Windows never get one: their end is already a transition.
+            TransitionPlanner.nextMomentEnd(plan, utc("2026-10-10T19:01")) shouldBe null
+        }
+
+        @Test
+        fun `a moment's refresh is when the dial stops featuring it`() {
+            TransitionPlanner.MOMENT_DUE.toMinutes() shouldBe MomentDueMinutes.toLong()
+        }
+
+        @Test
+        fun `the widget dial's next refresh is the earlier of a block coming into view and a moment ending`() {
+            val plan = planOf(
+                advice(Melatonin, "2026-10-10T19:00"),
+                advice(Sleep, "2026-10-11T23:00", "2026-10-12T07:00"),
+            )
+
+            TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T19:01")
+            TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T19:01")) shouldBe utc("2026-10-11T08:00")
         }
     }
 }
