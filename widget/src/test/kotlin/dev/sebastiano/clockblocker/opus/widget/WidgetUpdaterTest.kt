@@ -8,6 +8,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.SizeF
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
@@ -102,8 +103,10 @@ class WidgetUpdaterTest {
     }
 
     /** Every text widget [id] was rendered with: what its layouts show and what TalkBack reads. */
-    private fun texts(id: Int): String {
-        val t = rendered[id].shouldNotBeNull().texts
+    private fun texts(id: Int): String = rendered[id].shouldNotBeNull().allText()
+
+    private fun WidgetModel.allText(): String {
+        val t = texts
         return (
             listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.spokenNow) +
                 t.subtitleLines + t.upcoming.flatMap { listOf(it.label, it.spoken) } + listOfNotNull(t.done?.label, t.done?.contentDescription)
@@ -487,6 +490,83 @@ class WidgetUpdaterTest {
         updater.updateAll()
 
         configs.current.value shouldBe mapOf(placed to precise, 999 to precise)
+    }
+
+    @Test
+    fun `the preview of a lock-screen widget is redacted like the widget when the setting is on`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val updater = updater(FakeSettingsRepository(AppSettings(hideLockScreenDetails = true)))
+        val lock = place(WidgetKind.TwoClocks, 51, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
+        val home = place(WidgetKind.TwoClocks, 52)
+
+        val locked = updater.previewModel(lock, WidgetConfig()).model.allText()
+        locked shouldNotContain "Lisbon"
+        locked shouldNotContain "Tokyo"
+        locked shouldContainText app.getString(R.string.widget_advice_redacted)
+        updater.previewModel(home, WidgetConfig()).model.allText() shouldContainText "in Lisbon"
+    }
+
+    @Test
+    fun `the preview of a lock-screen widget stays redacted when the settings can't be read in time`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val stuck = object : SettingsRepository {
+            override val settings: Flow<AppSettings> = flow { awaitCancellation() }
+            override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
+        }
+        val updater = updater(stuck).apply { readTimeoutMs = 1_000 }
+        val lock = place(WidgetKind.NextUp, 53, category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD)
+
+        updater.previewModel(lock, WidgetConfig()).model.allText() shouldNotContain "Lisbon"
+    }
+
+    @Test
+    fun `the preview takes the reported size for the current orientation, whatever the list order`() {
+        val id = place(WidgetKind.TwoClocks, 54)
+        manager.updateAppWidgetOptions(
+            id,
+            Bundle().apply {
+                putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, arrayListOf(SizeF(300f, 150f), SizeF(180f, 240f)))
+            },
+        )
+
+        updater.sizeDp(id, landscape = false) shouldBe SizeF(180f, 240f)
+        updater.sizeDp(id, landscape = true) shouldBe SizeF(300f, 150f)
+    }
+
+    @Test
+    fun `with several sizes per orientation the preview takes the tallest or the widest`() {
+        // A foldable reports a size per posture: the bigger one wins, not the most extreme aspect ratio.
+        val id = place(WidgetKind.TwoClocks, 56)
+        manager.updateAppWidgetOptions(
+            id,
+            Bundle().apply {
+                putParcelableArrayList(
+                    AppWidgetManager.OPTION_APPWIDGET_SIZES,
+                    arrayListOf(SizeF(100f, 300f), SizeF(250f, 500f), SizeF(500f, 200f), SizeF(800f, 400f)),
+                )
+            },
+        )
+
+        updater.sizeDp(id, landscape = false) shouldBe SizeF(250f, 500f)
+        updater.sizeDp(id, landscape = true) shouldBe SizeF(800f, 400f)
+    }
+
+    @Test
+    fun `without reported sizes the preview uses the portrait or landscape bounds`() {
+        val id = place(WidgetKind.TwoClocks, 55)
+        manager.updateAppWidgetOptions(
+            id,
+            Bundle().apply {
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 300)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 150)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 240)
+            },
+        )
+
+        // The platform's convention: portrait is min width × max height, landscape max width × min height.
+        updater.sizeDp(id, landscape = false) shouldBe SizeF(180f, 240f)
+        updater.sizeDp(id, landscape = true) shouldBe SizeF(300f, 150f)
     }
 
     // endregion

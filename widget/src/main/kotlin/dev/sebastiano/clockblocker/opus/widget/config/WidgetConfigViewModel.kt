@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -66,18 +67,28 @@ internal class WidgetConfigViewModel(
     settingsRepository: SettingsRepository,
     background: CoroutineDispatcher = Dispatchers.Default,
     private val saveScope: CoroutineScope = updater.scope,
+    landscape: Boolean = false,
 ) : ViewModel() {
 
     /** The app's appearance settings, which the screen's theme follows; null until read. */
     val settings: StateFlow<AppSettings?> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /** Whether the screen is in landscape: the preview copies the widget's size in that orientation (#125). */
+    private val orientation = MutableStateFlow(landscape)
+
+    /** The activity's orientation, reported on every (re)creation: this ViewModel outlives a rotation. */
+    fun setLandscape(value: Boolean) {
+        orientation.value = value
+    }
+
     val state: StateFlow<WidgetConfigUiState?> = combine(
         configs.configs.map { it[appWidgetId] ?: WidgetConfig() }.distinctUntilChanged(),
         // The preview follows the app's theme too.
         settingsRepository.settings,
-    ) { config, _ -> config }
-        .mapLatest(::build)
+        orientation,
+    ) { config: WidgetConfig, _: Any?, isLandscape: Boolean -> config to isLandscape }
+        .mapLatest { (config, isLandscape) -> build(config, isLandscape) }
         .flowOn(background)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -104,9 +115,9 @@ internal class WidgetConfigViewModel(
         }
     }
 
-    private suspend fun build(config: WidgetConfig): WidgetConfigUiState {
-        val preview = updater.previewModel(config)
-        val size = updater.sizeDp(appWidgetId)
+    private suspend fun build(config: WidgetConfig, landscape: Boolean): WidgetConfigUiState {
+        val preview = updater.previewModel(appWidgetId, config)
+        val size = updater.sizeDp(appWidgetId, landscape)
         return WidgetConfigUiState(
             kind = kind,
             bodyRing = config.bodyRing,
