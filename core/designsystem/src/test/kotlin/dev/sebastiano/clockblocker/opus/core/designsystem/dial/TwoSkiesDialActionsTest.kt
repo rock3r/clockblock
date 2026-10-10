@@ -261,4 +261,81 @@ class TwoSkiesDialActionsTest {
 
         compose.onNodeWithTag("dial").assertContentDescriptionContains("2:00 AM local. Your body clock is 3:00 AM", substring = true)
     }
+
+    // From 00:30 EDT: sleep ends at the first 01:30 (05:30Z) and a light block starts at the second 01:30 (06:30Z),
+    // both an hour of the face ahead; the light block ends at 02:00 EST (07:00Z).
+    private val firstRunEnd = Instant.parse("2026-11-01T05:30:00Z")
+    private val secondRunStart = Instant.parse("2026-11-01T06:30:00Z")
+    private val lightEnd = Instant.parse("2026-11-01T07:00:00Z")
+    private val twoBoundariesAtOneFaceTime = fallBack.copy(
+        arcs = persistentListOf(
+            DialArc("sleep", AdviceType.Sleep, startMinute = 30f, sweepMinutes = 60f, startInstant = now, endInstant = firstRunEnd),
+            DialArc(
+                "light",
+                AdviceType.SeeBrightLight,
+                startMinute = 90f,
+                sweepMinutes = 30f,
+                startInstant = secondRunStart,
+                endInstant = lightEnd,
+            ),
+        ),
+    )
+
+    @Test
+    fun `Next and Previous block visit both boundaries that share one face time in a fall-back night (#106)`() {
+        val visited = visitedBy(twoBoundariesAtOneFaceTime, Next, Next, Next, Previous, Previous)
+
+        visited shouldBe listOf(firstRunEnd, secondRunStart, lightEnd, secondRunStart, firstRunEnd)
+    }
+
+    // New York, 8 March 2026, 01:00 EST. A block ends at 01:59 EST and the next starts at 03:00 EDT: an hour of the
+    // face apart, but only a minute apart in real time.
+    private val beforeTheGap = Instant.parse("2026-03-08T06:00:00Z")
+    private val endsBeforeTheGap = Instant.parse("2026-03-08T06:59:00Z")
+    private val startsAfterTheGap = Instant.parse("2026-03-08T07:00:00Z")
+    private val laterEnd = Instant.parse("2026-03-08T08:00:00Z")
+    private val springForward = DialState(
+        instant = beforeTheGap,
+        displayZoneId = "America/New_York",
+        localMinute = 60f,
+        bodyAheadMinutes = 0f,
+        arcs = persistentListOf(
+            DialArc(
+                "sleep",
+                AdviceType.Sleep,
+                startMinute = 30f,
+                sweepMinutes = 89f,
+                startInstant = Instant.parse("2026-03-08T05:30:00Z"),
+                endInstant = endsBeforeTheGap,
+            ),
+            DialArc("light", AdviceType.SeeBrightLight, startMinute = 180f, sweepMinutes = 60f, startInstant = startsAfterTheGap, endInstant = laterEnd),
+        ),
+    )
+
+    @Test
+    fun `Next and Previous block visit boundaries a minute apart in real time across a spring-forward gap`() {
+        val visited = visitedBy(springForward, Next, Next, Next, Previous, Previous)
+
+        visited shouldBe listOf(endsBeforeTheGap, startsAfterTheGap, laterEnd, startsAfterTheGap, endsBeforeTheGap)
+    }
+
+    /** Performs each of [actions] (string resources of the dial's custom actions) and returns the instant each reports. */
+    private fun visitedBy(state: DialState, vararg actions: Int): List<Instant> {
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme {
+                TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it })
+            }
+        }
+        return actions.map { action ->
+            compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(action))
+            compose.waitForIdle()
+            reported.last()
+        }
+    }
+
+    private companion object {
+        val Next = R.string.dial_action_next_block
+        val Previous = R.string.dial_action_previous_block
+    }
 }

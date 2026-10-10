@@ -22,6 +22,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlin.math.abs
 
 /**
  * The dial is a 24 h wall-clock face: across a DST change its arcs are drawn, and the hand scrubs, in wall-clock
@@ -214,6 +215,47 @@ class DialDstTest {
         val state = repeatedHour()
         blockBoundaryInstant(state, -480f) shouldBe state.instantAt(-480f) // 16:30 EDT, not 14:00
         blockBoundaryInstant(state, -450f) shouldBe Instant.parse("2026-10-31T21:00:00Z")
+    }
+
+    @Test
+    fun `without two boundaries at one face time, the stops are the boundaries at their real instants (#106)`() {
+        val state = repeatedHour()
+        val stops = blockBoundaryStops(state)
+        stops.map { it.offset } shouldBe blockBoundaries(state)
+        stops.map { it.instant } shouldBe blockBoundaries(state).map { blockBoundaryInstant(state, it) }
+    }
+
+    @Test
+    fun `a clipped edge in the spring-forward gap doesn't hide a block that starts at the change`() {
+        // 10:30 EDT on 8 March 2026: the window starts at 02:30, a wall time the change skips, so the face's instant
+        // there is the change itself (07:00Z). A block clipped at that edge and one that really starts at the change
+        // (03:00 EDT, 7.5 hours of the face back) share that instant; the stop is the real start, drawn at 03:00.
+        val change = Instant.parse("2026-03-08T07:00:00Z")
+        val state = plan(
+            LocalDate.of(2026, 3, 8),
+            advice("clipped", AdviceType.Sleep, "2026-03-08T05:00:00Z", "2026-03-08T08:00:00Z"),
+            advice("atChange", AdviceType.SeeBrightLight, "2026-03-08T07:00:00Z", "2026-03-08T09:00:00Z"),
+        ).toDialState(Instant.parse("2026-03-08T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe change
+
+        blockBoundaryStops(state).single { it.instant == change }.offset shouldBe (-450f plusOrMinus 0.01f)
+    }
+
+    @Test
+    fun `a clipped edge in the second run of the repeated hour stays a stop beside a block starting in the first`() {
+        // 09:30 EST on 1 November 2026: the window starts at 01:30, and the face's instant there is the second 01:30
+        // (EST, 06:30Z). A block clipped at that edge and one that really starts at the first 01:30 (EDT, 05:30Z) are
+        // both drawn from there, but they're an hour apart: both are stops.
+        val firstRun = Instant.parse("2026-11-01T05:30:00Z")
+        val secondRun = Instant.parse("2026-11-01T06:30:00Z")
+        val state = plan(
+            LocalDate.of(2026, 11, 1),
+            advice("clipped", AdviceType.Sleep, "2026-11-01T04:00:00Z", "2026-11-01T08:00:00Z"),
+            advice("firstRun", AdviceType.SeeBrightLight, "2026-11-01T05:30:00Z", "2026-11-01T05:45:00Z"),
+        ).toDialState(Instant.parse("2026-11-01T14:30:00Z"), newYork)
+        state.instantAt(-480f) shouldBe secondRun
+
+        blockBoundaryStops(state).filter { abs(it.offset + 480f) < 0.01f }.map { it.instant } shouldBe listOf(firstRun, secondRun)
     }
 
     @Test
