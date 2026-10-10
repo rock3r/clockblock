@@ -272,13 +272,16 @@ object TwoSkies {
             val edge = kotlin.math.abs(y - cy) + sized.size / 2f
             val room = if (edge < hubR) 2f * kotlin.math.sqrt(hubR * hubR - edge * edge) - 2f else 0f
             fun fits(text: String) = measurer.width(text, sized) <= room
+
+            // A host that rewrites the reading keeps it in the hub in its widest form, either marker included.
+            fun fitsLive(text: String) = fits(text) && (!liveReadouts || scrubbed || listOf(10 * 60f, 22 * 60f).all { fits(labels.fullTime(it)) })
             if (aligned) {
                 val text = labels.inSync()
                 if (fits(text)) ops += DialOp.Text(text, cx, y, sized, p.body, part = DialPart.Readout)
                 return
             }
             val full = labels.fullTime(bodyMinute)
-            ops += if (fits(full)) {
+            ops += if (fitsLive(full)) {
                 DialOp.Text(full, cx, y, sized, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body, marker = true)))
             } else {
                 DialOp.Text(labels.time(bodyMinute), cx, y, sized, p.body, part = DialPart.Readout, live = live(LiveTime(LiveClock.Body)))
@@ -482,28 +485,41 @@ object TwoSkies {
             // A host that rewrites the reading lays the group out for its widest digits ("10:00", "12:00").
             val steady = liveReadouts && !scrubbed && marker != null
             val wide = if (steady) listOf(digits, labels.time(10 * 60f), labels.time(12 * 60f)).maxBy { measurer.width(it, spec) } else digits
-            val natural = measurer.width(wide, spec) + (marker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
+            // …and for the wider of its markers: a locale's evening one can be longer than its morning one.
+            val wideMarker = if (steady) {
+                listOfNotNull(marker, labels.marker(MorningMinute), labels.marker(EveningMinute)).maxBy { measurer.width(it, markerSpec) }
+            } else {
+                marker
+            }
+            val natural = measurer.width(wide, spec) + (wideMarker?.let { gap + measurer.width(it, markerSpec) } ?: 0f)
             var fit = if (natural > maxWidth && natural > 0f) maxWidth / natural else 1f
             fun digitsAlone(fit: Float): Float {
                 val digitsSpec = spec.copy(size = maxOf(spec.size * fit, labelText))
                 ops += DialOp.Text(digits, cx, y, digitsSpec, p.ink, part = DialPart.Readout, live = live(LiveTime(LiveClock.Local)))
                 return y + digitsSpec.size / 2f
             }
-            if (marker == null) return digitsAlone(fit)
+            fun digitsAloneFit(): Float {
+                val alone = measurer.width(wide, spec)
+                return if (alone > maxWidth && alone > 0f) maxWidth / alone else 1f
+            }
+            if (marker == null || wideMarker == null) return digitsAlone(fit)
+            if (measurer.width(wideMarker, markerSpec) > measurer.width(wide, spec) * MaxMarkerToDigits) {
+                // A locale whose marker is a phrase (Kölsch's "Uhr vörmiddaachs") would crowd out the time: it goes alone.
+                return digitsAlone(digitsAloneFit())
+            }
             val smallSpec = markerSpec.copy(size = maxOf(markerSize * fit, minText, labelText))
             if (smallSpec.size > markerSize * fit) {
                 // The marker is held at the host's floor: the digits take what is left of the width.
-                val room = maxWidth - gap * fit - measurer.width(marker, smallSpec)
+                val room = maxWidth - gap * fit - measurer.width(wideMarker, smallSpec)
                 fit = minOf(fit, room / measurer.width(wide, spec)).coerceAtLeast(0f)
             }
             val digitsSpec = spec.copy(size = spec.size * fit)
             if (labelText > 0f && digitsSpec.size < smallSpec.size * MinDigitsToMarker) {
                 // The marker at the label floor would dwarf the digits: the time goes without it.
-                val alone = measurer.width(wide, spec)
-                return digitsAlone(if (alone > maxWidth && alone > 0f) maxWidth / alone else 1f)
+                return digitsAlone(digitsAloneFit())
             }
             val w = measurer.width(wide, digitsSpec)
-            val total = w + gap * fit + measurer.width(marker, smallSpec)
+            val total = w + gap * fit + measurer.width(wideMarker, smallSpec)
             val left = cx - total / 2f
             if (steady) {
                 // Ending at the marker: digits that grow on the host grow away from it.
@@ -547,6 +563,16 @@ internal const val MaxFill = 0.85f
 
 /** The local time's digits stay at least this many times the size of its AM/PM marker, or the marker goes. */
 private const val MinDigitsToMarker = 1.15f
+
+/**
+ * The widest an AM/PM marker may be, at its own size, next to the widest digits at theirs, or it goes. "PM" is about
+ * 0.14 of "10:00", Spanish "p. m." about 0.35. A phrase like Kölsch's "Uhr vörmiddaachs" is wider than the digits.
+ */
+private const val MaxMarkerToDigits = 0.5f
+
+/** A morning and an evening minute, to read a locale's two AM/PM markers. */
+private const val MorningMinute = 9 * 60f
+private const val EveningMinute = 21 * 60f
 
 /** The least angle between the ends of the Simple dial's two ring labels, so they never read as one phrase. */
 private const val LabelGapDeg = 12f

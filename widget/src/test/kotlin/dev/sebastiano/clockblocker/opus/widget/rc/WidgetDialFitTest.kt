@@ -150,6 +150,27 @@ class WidgetDialFitTest {
         withClue(failures.take(40).joinToString("\n")) { failures.shouldBeEmpty() }
     }
 
+    @Test
+    fun `12-hour dial text fits with other locales' AM PM markers`() {
+        val failures = sortedSetOf<String>()
+        // British "am"/"pm", Spanish "a. m."/"p. m." (with a no-break space), Korean "오전"/"오후" before noon and after.
+        for (locale in listOf("en-rGB", "es-rES", "ko-rKR")) {
+            RuntimeEnvironment.setQualifiers("$locale-xhdpi")
+            for (scale in SCALES) {
+                RuntimeEnvironment.setFontScale(scale)
+                for (scenario in DemoPlans.Scenario.entries) for (hour in listOf(0L, 5L, 11L, 17L)) {
+                    val state = state(scenario, now.plus(Duration.ofHours(hour)))
+                    WidgetSizes.TWO_CLOCKS.forEach { bucket ->
+                        val where = "$locale $scenario +${hour}h @${scale}x ${bucket.layout} ${bucket.min}"
+                        failures += problems(spec(state, bucket, is24 = false), design(bucket.layout), false, state.dial.isAligned)
+                            .map { "$where: $it" }
+                    }
+                }
+            }
+        }
+        withClue(failures.take(40).joinToString("\n")) { failures.shouldBeEmpty() }
+    }
+
     private class Box(val left: Float, val top: Float, val right: Float, val bottom: Float) {
         fun overlaps(o: Box) = left < o.right - SLACK && o.left < right - SLACK && top < o.bottom - SLACK && o.top < bottom - SLACK
         override fun toString() = "[%.1f, %.1f – %.1f, %.1f]".format(left, top, right, bottom)

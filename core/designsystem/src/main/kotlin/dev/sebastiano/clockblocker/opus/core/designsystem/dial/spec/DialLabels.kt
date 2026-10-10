@@ -59,10 +59,11 @@ interface DialLabels {
 /** English labels with the app's conventions (half hours, "in sync" under the alignment threshold). */
 class DefaultDialLabels(private val is24Hour: Boolean = true, locale: Locale = Locale.ENGLISH) : DialLabels {
     private val digits = DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm", locale)
+    private val markers = DateTimeFormatter.ofPattern("a", locale)
 
     override fun time(minuteOfDay: Float): String = digits.format(DialGeometry.timeOf(minuteOfDay.roundToMinute()))
     override fun marker(minuteOfDay: Float): String? =
-        if (is24Hour) null else if (DialGeometry.timeOf(minuteOfDay.roundToMinute()).hour < 12) "AM" else "PM"
+        if (is24Hour) null else markers.format(DialGeometry.timeOf(minuteOfDay.roundToMinute()))
     override fun fullTime(minuteOfDay: Float): String = marker(minuteOfDay)?.let { "${time(minuteOfDay)} $it" } ?: time(minuteOfDay)
     override fun numeral(hour: Int): String = numeralFor(hour, is24Hour)
     override fun placeDay(place: String) = "$place day"

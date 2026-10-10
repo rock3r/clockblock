@@ -87,10 +87,12 @@ They drive the real app, with real DataStore files and real notifications.
 | `NotificationsTest` | 2 | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan |
 | `TripsTest` | 3 | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
 | `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |
-| `PlanInteractionsTest` | 2 | A timeline block opens the Why sheet and the toolbar jumps back to now; calendar export opens the file picker |
+| `PlanInteractionsTest` | 4 | A timeline block opens the Why sheet and the toolbar jumps back to now; a light block's Why sheet shows the light response curve, and its "Later hour" action moves the readout; a timeline check-off circle logs Done, and Undo or unticking clears it; calendar export opens the file picker |
+| `PlanTwoPaneTest` | 1 | In landscape, where the plan has two panes, the day strip marks the day the timeline is showing |
 | `DeepLinkTest` | 5 | Every `clockblock://` link, including one sent to an already running app |
 | `WidgetTest` | 2 | *Two clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
 | `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
+| `BackupImportTest` | 2 | Importing a backup: Merge is the dialog's main action and keeps the trips already on the phone; Replace swaps them for the backup's. The system file picker is replaced by a stub that returns a prepared file |
 
 [`ClockblockE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/ClockblockE2eTest.kt) is the base
 class. It provides a Compose test rule and a UiAutomator `UiDevice`. Tests check which screen is showing through
@@ -136,7 +138,7 @@ All seven jobs run in parallel. Each one reports its own check on the pull reque
 | Assemble | CI | `./gradlew :app:assembleDebug :app:assembleRelease :app:assembleDebugAndroidTest` | The debug APK (`clockblock-debug`), kept 14 days |
 | babysit-pr watcher tests | CI | Python 3.12 `unittest` over `.agents/skills/babysit-pr/scripts` | none |
 | Places generator tests | CI | Python 3.12 `unittest` over `tools/places`: the city-name rules and the committed `places.tsv` | none |
-| e2e (emulator) | e2e | `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (Pixel 7 profile, animations off, KVM) | `e2e-reports`, always |
+| e2e (emulator) | e2e | [`run-e2e.sh`](../.github/scripts/run-e2e.sh) runs `./gradlew :app:connectedDebugAndroidTest` on an API 37 Google APIs x86_64 emulator (canary emulator channel, Pixel 7 profile, 4 GB RAM, 8 GB disk, animations off, KVM), with three-button navigation, once the package manager answers and the user is unlocked steadily, and retries once if the APKs fail to install. Then [`verify-e2e-ran.sh`](../.github/scripts/verify-e2e-ran.sh) fails the job if an APK didn't install or no test ran, because the test runner can end successfully without running anything. **For now both are non-blocking** ([#122](https://github.com/rock3r/clockblock/issues/122): the emulator keeps restarting system_server): a failed or empty run adds a warning to the job instead of failing it | `e2e-reports` with the Gradle log and the device logcat, always |
 
 Every Gradle job sets up JDK 21 and the Android SDK through the local composite action
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
