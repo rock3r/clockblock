@@ -80,6 +80,7 @@ class FakeJetLagPlanner(
             phase = phase,
             estimatedDaysToAdapt = kotlin.math.abs(shiftHours) / 1.5,
             estimatedDaysWithoutPlan = kotlin.math.abs(shiftHours),
+            bodyClockStartZoneId = trip.bodyClockStartZone?.id?.takeIf { it != home.id },
         )
     }
 

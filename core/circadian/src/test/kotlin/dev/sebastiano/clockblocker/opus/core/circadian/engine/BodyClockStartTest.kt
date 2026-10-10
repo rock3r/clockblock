@@ -54,8 +54,12 @@ class BodyClockStartTest {
         plan.shiftHours shouldBe 8.0
         plan.direction shouldBe ShiftDirection.Advance
 
+        plan.startZoneId shouldBe SFO.zoneId
+        plan.originZoneId shouldBe JFK.zoneId // Days and "local time" still follow where the traveller is.
+
         val before = planner.plan(jfkLhr, traveller, NOW)
         before.phase.first().bodyUtcOffsetMinutes shouldBe -4 * 60
+        before.startZoneId shouldBe JFK.zoneId
     }
 
     @Test

@@ -1,6 +1,10 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
@@ -180,5 +184,29 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         open()
         tag(TripsTestTags.EditorSave).assertIsNotEnabled()
         tag(TripsTestTags.editorLeg(0)).assertExists()
+    }
+
+    @Test
+    fun choosingWhereTheBodyClockStartsIsSaved() {
+        // Home is Los Angeles; the trip leaves London.
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        compose.onNodeWithText("Body clock when you leave").performScrollTo().assertExists()
+        tag(TripsTestTags.EditorBodyClockStartDeparture).performScrollTo().assertTextEquals("Departure city").assertIsOn()
+        tag(TripsTestTags.EditorBodyClockStartHome).assertTextEquals("Home (Los Angeles)").assertIsOff().performClick()
+        settle()
+        tag(TripsTestTags.EditorBodyClockStartHome).assertIsOn()
+        tag(TripsTestTags.EditorBodyClockStartDeparture).assertIsOff()
+        compose.onNodeWithText("The plan starts on Los Angeles time", substring = true).assertExists()
+
+        tag(TripsTestTags.EditorSave).performClick()
+        settle()
+        trips.current.single { it.id == DemoData.LhrSydId }.bodyClockStartZoneId shouldBe "America/Los_Angeles"
+    }
+
+    @Test
+    fun noBodyClockStartChoiceWhenTheTripLeavesFromHome() {
+        open(TripEditorArgs(tripId = DemoData.SfoLhrId)) // San Francisco is on Los Angeles time.
+        tag(TripsTestTags.EditorBodyClockStartHome).assertDoesNotExist()
+        compose.onNodeWithText("Body clock when you leave").assertDoesNotExist()
     }
 }

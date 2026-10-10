@@ -144,8 +144,16 @@ data class JetLagPlan(
     val estimatedDaysToAdapt: Double,
     /** Model estimate without any intervention (for the "you saved X days" message). */
     val estimatedDaysWithoutPlan: Double,
+    /**
+     * The zone the body clock starts on when it isn't [originZoneId] ([Trip.bodyClockStartZoneId], e.g. still on
+     * home time after just arriving in the departure city); null = [originZoneId]. See [startZoneId].
+     */
+    val bodyClockStartZoneId: String? = null,
 ) {
     val allAdvice: List<Advice> get() = days.flatMap { it.advice }
+
+    /** The zone the body clock starts on: "home time" for this plan (home-time mode keeps the clock there). */
+    val startZoneId: String get() = bodyClockStartZoneId ?: originZoneId
 
     /** Advice active at [instant], highest priority (lowest ordinal) first. */
     fun activeAt(instant: Instant): List<Advice> =
@@ -160,7 +168,7 @@ data class JetLagPlan(
      * interpolation takes the short way round the 24 h dial (stored offsets may wrap, e.g. −11 h → +12 h).
      */
     fun bodyOffsetAt(instant: Instant): ZoneOffset {
-        if (phase.isEmpty()) return ZoneId.of(originZoneId).rules.getOffset(instant)
+        if (phase.isEmpty()) return ZoneId.of(startZoneId).rules.getOffset(instant)
         val after = phase.indexOfFirst { !it.instant.isBefore(instant) }
         val minutes = when {
             after == -1 -> phase.last().bodyUtcOffsetMinutes.toDouble()

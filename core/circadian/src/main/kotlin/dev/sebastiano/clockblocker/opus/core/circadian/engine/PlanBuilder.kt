@@ -432,6 +432,7 @@ internal class PlanBuilder(
             phase = phase,
             estimatedDaysToAdapt = daysToAdapt,
             estimatedDaysWithoutPlan = daysWithout,
+            bodyClockStartZoneId = trip.bodyClockStartZone?.id?.takeIf { it != originZone.id },
         )
     }
 

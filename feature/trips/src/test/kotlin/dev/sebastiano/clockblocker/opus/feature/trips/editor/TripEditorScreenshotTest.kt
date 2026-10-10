@@ -38,7 +38,7 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
     val main = MainDispatcherRule()
 
     private val clock = MutableClock(DemoData.Now)
-    private val trips = FakeTripRepository(DemoData.trips() + TripsSamples.lisbonTokyoWrongDate())
+    private val trips = FakeTripRepository(DemoData.trips() + TripsSamples.lisbonTokyoWrongDate() + TripsSamples.newYorkParisFromHome())
 
     private fun viewModel(args: TripEditorArgs = TripEditorArgs()) = TripEditorViewModel(
         args = args,
@@ -96,6 +96,23 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         val vm = viewModel(TripEditorArgs(tripId = DemoData.LhrSydId))
         editor(vm, "editor_multi_leg_dark", darkTheme = true, qualifiers = "w411dp-h2000dp")
     }
+
+    /** "Body clock when you leave" set to Home: the trip leaves New York, home is Los Angeles (issue #9). */
+    @Test
+    fun bodyClockStartHome() =
+        editor(viewModel(TripEditorArgs(tripId = "jfk-cdg-from-home")), "editor_body_clock_home", qualifiers = "w411dp-h1700dp")
+
+    @Test
+    fun bodyClockStartHomeDark() =
+        editor(viewModel(TripEditorArgs(tripId = "jfk-cdg-from-home")), "editor_body_clock_home_dark", darkTheme = true, qualifiers = "w411dp-h1700dp")
+
+    @Test
+    fun bodyClockStartHomeFontScale() = editor(
+        viewModel(TripEditorArgs(tripId = "jfk-cdg-from-home")),
+        "editor_body_clock_home_fontscale_1_5",
+        fontScale = 1.5f,
+        qualifiers = "w411dp-h2600dp",
+    )
 
     @Test
     fun returnTrip() = editor(viewModel(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId)), "editor_return")
