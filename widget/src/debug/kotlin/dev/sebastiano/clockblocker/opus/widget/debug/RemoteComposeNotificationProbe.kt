@@ -71,8 +71,10 @@ class RemoteComposeNotificationProbe(private val context: Context) {
         if (!manager.areNotificationsEnabled()) {
             return Variant.entries.map { Result(it, Verdict.Unsupported, "notifications are off for this app") }
         }
-        // A blocked channel would swallow every post and read as "dropped by SystemUI".
-        if (manager.getNotificationChannel(ClockblockChannel.Now.id)?.importance == NotificationManager.IMPORTANCE_NONE) {
+        // A blocked channel or channel group would swallow every post and read as "dropped by SystemUI".
+        val channelOff = manager.getNotificationChannel(ClockblockChannel.Now.id)?.importance == NotificationManager.IMPORTANCE_NONE
+        val groupOff = manager.getNotificationChannelGroup(ClockblockChannel.Now.group.id)?.isBlocked == true
+        if (channelOff || groupOff) {
             return Variant.entries.map { Result(it, Verdict.Unsupported, "the Now notification channel is turned off") }
         }
         val profile = RemoteComposeSupport.profileOrNull()
