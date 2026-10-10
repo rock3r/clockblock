@@ -13,7 +13,7 @@ On a tablet or a wide screen, the trips list and the plan appear side by side, w
 
 ## The plan screen
 
-<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. Below the header, a strip of day pills with Pre −1 picked. The dial shows 14:52 local and 17:25 body. The Now card says Avoid caffeine, 5 h 8 min left, until 20:00, with a Done button." width="300" />
+<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. Below the header, a strip of day pills with Pre −1 picked. The dial shows 18:06 in Lisbon and 20:48 body, with an arc saying Avoid light until 20:00, then sleep. The Now card says Avoid light, 1 h 54 min left, until 20:00 (04:00 Tokyo the next day), Also now: Avoid caffeine, with a Done button." width="300" />
 
 From top to bottom:
 
