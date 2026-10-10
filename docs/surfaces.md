@@ -57,8 +57,17 @@ A few details matter:
   one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features it, so its end
   refresh still fires, a minute into the sleep.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
-  permission, it uses a 10-minute `setWindow`. That is not allow-while-idle, so in Doze the alarm can wait for the
-  next maintenance window, well past 10 minutes.
+  permission, it arms each instant twice:
+  - a 10-minute `setWindow`, which keeps reminders within 10 minutes while the phone is awake. It isn't
+    allow-while-idle, so Doze holds it until a maintenance window, which can be hours away overnight.
+  - a backstop with `setAndAllowWhileIdle` for the same instant (request code `200 + slot`). Doze lets it through,
+    but it is inexact: the platform gives it a window of up to an hour after the instant.
+
+  Whichever arrives first handles the instant and re-arms the chain, which replaces the other. In Doze, a reminder
+  is now at most about an hour late instead of waiting for the next maintenance window. If both are delivered
+  together, [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt)
+  (a persisted list of the instants already handled) makes the second one refresh and re-arm without reminding
+  again. Granting exact access cancels the backstops on the next re-arm.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.
   [`ReminderSelector`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/schedule/ReminderSelector.kt)
   drops any reminder that is no longer true when it fires.
@@ -549,7 +558,7 @@ without them, with fewer or less punctual reminders.
 | Permission | Why | Who controls it | Without it |
 |---|---|---|---|
 | `POST_NOTIFICATIONS` | Reminders and the Now notification | The user, at runtime | No notifications; widgets still work |
-| `SCHEDULE_EXACT_ALARM` | Reminders on the minute | The user, in "Alarms & reminders" | Reminders use a 10-minute window, and Doze can defer them further |
+| `SCHEDULE_EXACT_ALARM` | Reminders on the minute | The user, in "Alarms & reminders" | Reminders arrive within 10 minutes while the phone is awake, and up to about an hour late while it's idle (Doze) |
 | `POST_PROMOTED_NOTIFICATIONS` | The travel-day Live Update | Granted at install; the user can turn Live Updates off | A normal ongoing notification |
 | `RECEIVE_BOOT_COMPLETED` | Re-arm alarms after a reboot | Granted at install | (always available) |
 

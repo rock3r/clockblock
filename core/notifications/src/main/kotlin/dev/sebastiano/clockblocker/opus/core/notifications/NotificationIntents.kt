@@ -61,6 +61,31 @@ object NotificationIntents {
         PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    /**
+     * Request codes of the allow-while-idle backstops, one per alarm slot (`BACKSTOP_REQUEST_CODE_BASE + slot`).
+     * Clear of the plan slots (0 until [AdviceAlarmScheduler.MAX_ALARMS]) and the widget Done code (100).
+     */
+    internal const val BACKSTOP_REQUEST_CODE_BASE: Int = 200
+
+    /**
+     * The backstop of alarm [slot]: the same broadcast for the same instant, armed with `setAndAllowWhileIdle` when
+     * exact alarms aren't allowed, so Doze can't hold the reminder until its next maintenance window.
+     */
+    internal fun backstop(context: Context, slot: Int, at: Instant): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        BACKSTOP_REQUEST_CODE_BASE + slot,
+        alarmIntent(context, at),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    /** The existing backstop of [slot], if armed. */
+    internal fun existingBackstop(context: Context, slot: Int): PendingIntent? = PendingIntent.getBroadcast(
+        context,
+        BACKSTOP_REQUEST_CODE_BASE + slot,
+        Intent(context, AdviceAlarmReceiver::class.java).setAction(alarmAction(context)),
+        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     internal fun testAlarm(context: Context): PendingIntent = PendingIntent.getBroadcast(
         context,
         TEST_ALARM_REQUEST_CODE,

@@ -56,13 +56,14 @@ class AdviceAlarmSchedulerTest {
     private val clock = FakeClock(utc("2026-10-10T07:00"))
     private val capabilities = FakeCapabilities()
     private val snooze = SnoozeStore(context)
+    private val handled = HandledAlarms(context)
     private val factory = NotificationFactory(context, capabilities)
     private val reminders = ReminderNotifier(context, factory, capabilities)
     private val widget = RecordingSurface()
     private val nowSurface = NowNotificationSurface(context, plans, settings, logs, snooze, factory, capabilities, clock, FakeTripRepository())
 
     private fun scheduler(vararg extra: dev.sebastiano.clockblocker.opus.core.data.PlanSurface) = AdviceAlarmScheduler(
-        context, plans, settings, setOf(nowSurface, widget, *extra), reminders, snooze, capabilities, clock,
+        context, plans, settings, setOf(nowSurface, widget, *extra), reminders, snooze, capabilities, clock, handled,
     )
 
     private val scheduled: List<ShadowAlarmManager.ScheduledAlarm>
@@ -72,6 +73,11 @@ class AdviceAlarmSchedulerTest {
     private val now: Notification? get() = shadowOf(notificationManager).getNotification(NotificationIds.NOW)
 
     private fun ScheduledAlarm(at: String) = utc(at).toEpochMilli()
+
+    /** An allow-while-idle backstop (request codes `BACKSTOP_REQUEST_CODE_BASE + slot`), not a window or exact alarm. */
+    private val ShadowAlarmManager.ScheduledAlarm.isBackstop: Boolean
+        get() = shadowOf(operation).requestCode - NotificationIntents.BACKSTOP_REQUEST_CODE_BASE in
+            0 until AdviceAlarmScheduler.MAX_ALARMS
 
     @Before
     fun setUp() {
@@ -113,8 +119,80 @@ class AdviceAlarmSchedulerTest {
         val result = scheduler().resync()
 
         result.exact shouldBe false
+        val windows = scheduled.filterNot { it.isBackstop }
+        windows shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS
+        windows.all { it.windowLengthMs == Duration.ofMinutes(10).toMillis() && !it.isAllowWhileIdle } shouldBe true
+    }
+
+    @Test
+    fun `without exact access every instant also gets an allow-while-idle backstop, so Doze can't hold it for hours`() = runTest {
+        capabilities.exact = false
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+
+        scheduler().resync()
+
+        val (backstops, windows) = scheduled.partition { it.isBackstop }
+        backstops.map { it.triggerAtMs } shouldContainExactly windows.map { it.triggerAtMs }
+        backstops.all { it.isAllowWhileIdle && it.type == AlarmManager.RTC_WAKEUP } shouldBe true
+        backstops.all { it.windowLengthMs == ShadowAlarmManager.WINDOW_HEURISTIC } shouldBe true
+        // Same broadcast and instant as the window alarm it backs up.
+        backstops.zip(windows).all { (backstop, window) ->
+            shadowOf(backstop.operation).savedIntent.filterEquals(shadowOf(window.operation).savedIntent) &&
+                shadowOf(backstop.operation).savedIntent.getLongExtra(NotificationIntents.EXTRA_AT, 0) == window.triggerAtMs
+        } shouldBe true
+    }
+
+    @Test
+    fun `granting exact access cancels the backstops`() = runTest {
+        val scheduler = scheduler()
+        capabilities.exact = false
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+        scheduler.resync()
+        scheduled.count { it.isBackstop } shouldBe AdviceAlarmScheduler.PLAN_ALARMS
+
+        capabilities.exact = true
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
+        scheduler.resync()
+
+        scheduled.none { it.isBackstop } shouldBe true
         scheduled shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS
-        scheduled.all { it.windowLengthMs == Duration.ofMinutes(10).toMillis() } shouldBe true
+        scheduled.all { it.windowLengthMs == ShadowAlarmManager.WINDOW_EXACT } shouldBe true
+    }
+
+    @Test
+    fun `handling an instant re-arms the chain, replacing that instant's backstop`() = runTest {
+        capabilities.exact = false
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+        val scheduler = scheduler()
+        scheduler.resync()
+        clock.instant = utc("2026-10-10T07:46")
+
+        scheduler.onAlarm(utc("2026-10-10T07:45"))
+
+        scheduled.none { it.triggerAtMs == ScheduledAlarm("2026-10-10T07:45") } shouldBe true
+        scheduled.count { it.isBackstop } shouldBe scheduled.count { !it.isBackstop }
+    }
+
+    @Test
+    fun `a duplicate delivery of an instant already handled does not remind again`() = runTest {
+        capabilities.exact = false
+        clock.instant = utc("2026-10-10T13:45")
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldNotBeNull()
+        reminders.cancel() // the user dismissed it
+
+        // The backstop of the same instant arrives later, in the same process...
+        clock.instant = utc("2026-10-10T13:52")
+        scheduler().onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldBeNull()
+
+        // ...or in a new one.
+        AdviceAlarmScheduler(
+            context, plans, settings, setOf(widget), ReminderNotifier(context, factory, capabilities), snooze,
+            capabilities, clock, HandledAlarms(context),
+        ).onAlarm(utc("2026-10-10T13:45"))
+        reminder.shouldBeNull()
+        widget.refreshes shouldBe 3 // surfaces still refresh, and the chain is re-armed
     }
 
     @Test
@@ -205,7 +283,7 @@ class AdviceAlarmSchedulerTest {
 
         val restarted = AdviceAlarmScheduler(
             context, plans, settings, setOf(widget), ReminderNotifier(context, factory, capabilities), snooze,
-            capabilities, clock,
+            capabilities, clock, handled,
         )
         restarted.start(backgroundScope)
 
@@ -225,7 +303,7 @@ class AdviceAlarmSchedulerTest {
             override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
         }
         val scheduler = AdviceAlarmScheduler(
-            context, plans, racing, setOf(widget), reminders, snooze, capabilities, clock,
+            context, plans, racing, setOf(widget), reminders, snooze, capabilities, clock, handled,
         )
         clock.instant = utc("2026-10-10T13:45")
 
@@ -268,7 +346,7 @@ class AdviceAlarmSchedulerTest {
         }
         val notifier = ReminderNotifier(context, factory, pausing)
         clock.instant = utc("2026-10-10T13:45")
-        AdviceAlarmScheduler(context, plans, settings, setOf(widget), notifier, snooze, pausing, clock)
+        AdviceAlarmScheduler(context, plans, settings, setOf(widget), notifier, snooze, pausing, clock, handled)
             .onAlarm(utc("2026-10-10T13:45"))
         reminder.shouldNotBeNull()
 
