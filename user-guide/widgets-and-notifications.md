@@ -77,13 +77,13 @@ home screen asks where to put it. (The section only appears if your home screen 
 also touch and hold an empty area of your home screen, tap **Widgets**, find Clockblock, and drag the widget
 you want onto the screen. You can resize both widgets.
 
-<img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two Clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />
+<img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />
 
-### Two Clocks
+### Two clocks
 
-<img src="images/widget-two-clocks.png" alt="Two Clocks widgets. Top row: the round dial in light, dark and night-safe (black and amber). Two rings of sky, a needle, 15:20 local time and 08:20 body time in the middle, and Avoid light until 16:30 underneath. Then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with two bars of sky crossed by a line at now, 15:20 above and 08:20 below, a card saying Tokyo · Day 2, Avoid light until 16:30, 08:30 in Lisbon, and a Done button." width="480" />
+<img src="images/widget-two-clocks.png" alt="Two clocks widgets. Top row: the round dial in light, dark and night-safe (black and amber). Two rings of sky, a needle, 15:20 local time and 08:20 body time in the middle, and Avoid light until 16:30 underneath. Then the empty state: No trip, Plan one. Bottom row: the wide version in light and dark, with two bars of sky crossed by a line at now, 15:20 above and 08:20 below, a card saying Tokyo · Day 2, Avoid light until 16:30, 08:30 in Lisbon, and a Done button." width="480" />
 
-The *Two Clocks* widget draws the same two skies as the dial in the app (see
+The *Two clocks* widget draws the same two skies as the dial in the app (see
 [Following your plan](following-your-plan.md)). The outer ring is the sky where you are, and the inner ring is the
 sky your body thinks it is under. The needle points at the local time. In the middle are the local time and, in
 italics, the time your body clock thinks it is ("08:20").
@@ -105,7 +105,7 @@ you've adapted.
 The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
 short label. Bigger sizes add the time in your other zone and a **Done** button, and the tallest and widest ones
 list what's up next, next to your route ("LIS → HND"). It says "Free time" when there's nothing to do, and
-"Clockblocked" when your plan is finished.
+"Clockblocked" when your plan is finished ("Adapted" on the smallest size).
 
 ### Good to know
 
