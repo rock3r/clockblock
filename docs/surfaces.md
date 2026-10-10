@@ -109,7 +109,7 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded, in the shade: header "Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded, in the shade: header "Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Sun 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
 The notification is a `DecoratedCustomViewStyle` with our own content
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
@@ -121,7 +121,7 @@ body clock, the expand button and the actions. Our part reads top to bottom:
 | Glyph | — (the label needs the room at large font sizes) | The headline's glyph on its colour chip |
 | Label and time | "See some light" … "until 19:00" | "See some light", then "until 19:00 · 11:00 Los Angeles" |
 | Progress | A bar from the block's start to its end | Same |
-| Alongside | — | "Also now: Avoid caffeine until Wed 02:00 · 18:00 Los Angeles", up to two blocks, each with its own end |
+| Alongside | — | "Also now: Avoid caffeine until Sun 02:00 · 18:00 Los Angeles", up to two blocks, each with its own end |
 | Next | — | "Next: Avoid light at 23:30 · 15:30 Los Angeles" |
 | Tip | — | The headline's tip, in italics |
 
@@ -291,7 +291,7 @@ Remote Compose has a few gaps, and the widget falls back:
   `drawTextOnCircle`, which can't be checked on a real launcher yet).
 - Four typeface styles only: weights round to regular or bold, so the body time is regular italic.
 
-![Next up widgets: 4×1 rows with a countdown and Done, 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
+![Next up widgets: 4×1 rows with Done (the launcher-drawn countdown isn't in test renders), 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
 The *Next up* widget shows the current advice with a countdown. The 1×1 tile shows only the countdown and a
 short label. When the plan has no advice left, it shows "Clockblocked" (the 1×1 tile says "Adapted").
