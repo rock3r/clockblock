@@ -138,11 +138,13 @@ fun TwoSkiesDial(
         currentOnScrub?.invoke(landing?.atFor(currentState) ?: currentState.instantAt(offset))
     }
 
-    // A restored preview (see ScrubSaver) is reported once so the host's cards agree with the hand: off now, or at now
-    // on the face but in the other run of a repeated hour (a landing at offset 0).
-    LaunchedEffect(Unit) {
-        val restored = landing
-        if (scrub.value != 0f || restored != null) report(scrub.value, restored?.at, restored?.anchor ?: currentState.instant)
+    // A preview is reported again whenever now moves on, so the host's cards agree with the hand: the instant under an
+    // offset hand moves with now, and a landing moves on by the real time since it was resolved (#113). The first run
+    // covers a restored preview (see ScrubSaver): off now, or at now on the face but in the other run of a repeated
+    // hour (a landing at offset 0). A hand at now reports nothing; the host already follows now.
+    LaunchedEffect(state.instant) {
+        val current = landing
+        if (scrub.value != 0f || current != null) report(scrub.value, current?.at, current?.anchor ?: currentState.instant)
     }
 
     /**

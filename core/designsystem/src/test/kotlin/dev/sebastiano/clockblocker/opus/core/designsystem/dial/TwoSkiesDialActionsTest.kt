@@ -162,6 +162,70 @@ class TwoSkiesDialActionsTest {
     }
 
     @Test
+    fun `when now moves on, the host is told where the landing now is (#113)`() {
+        var state by mutableStateOf(fallBack)
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        compose.onNodeWithTag("dial").performCustomAccessibilityActionWithLabel(context.getString(R.string.dial_action_next_block))
+        compose.waitForIdle()
+        reported.last() shouldBe end
+
+        state = fallBack.copy(instant = now.plusSeconds(5 * 60L), localMinute = 35f)
+        compose.waitForIdle()
+
+        // The dial shows the second 01:35 now; the cards must too.
+        reported.last() shouldBe end.plusSeconds(5 * 60L)
+    }
+
+    // New York on an ordinary summer day, 08:00 EDT.
+    private val summer = DialState(
+        instant = Instant.parse("2026-06-15T12:00:00Z"),
+        displayZoneId = "America/New_York",
+        localMinute = 480f,
+        bodyAheadMinutes = 0f,
+        arcs = persistentListOf(),
+    )
+
+    @Test
+    fun `when now moves on during a dragged preview, the host is told the instant under the hand (#113)`() {
+        var state by mutableStateOf(summer)
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        // Drop the hand on the rim at three o'clock and let go: the preview stays.
+        compose.onNodeWithTag("dial").performTouchInput {
+            down(centerRight.copy(x = centerRight.x - 24.dp.toPx()))
+            up()
+        }
+        compose.waitForIdle()
+        val previewed = reported.last()
+
+        state = summer.copy(instant = summer.instant.plusSeconds(5 * 60L), localMinute = 485f)
+        compose.waitForIdle()
+
+        // The hand stays the same number of minutes from now, so it (and the cards) moved on five minutes.
+        reported.last() shouldBe previewed.plusSeconds(5 * 60L)
+    }
+
+    @Test
+    fun `when now moves on with the hand at now, the host isn't told anything`() {
+        var state by mutableStateOf(summer)
+        val reported = mutableListOf<Instant>()
+        compose.setContent {
+            ClockblockTheme { TwoSkiesDial(state, Modifier.size(320.dp).testTag("dial"), onScrub = { reported += it }) }
+        }
+        compose.waitForIdle()
+
+        state = summer.copy(instant = summer.instant.plusSeconds(5 * 60L), localMinute = 485f)
+        compose.waitForIdle()
+
+        reported shouldBe emptyList()
+    }
+
+    @Test
     fun `when now moves on while the hand is still travelling, the landing and the cards agree`() {
         var state by mutableStateOf(fallBack)
         val reported = mutableListOf<Instant>()
