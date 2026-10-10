@@ -100,7 +100,7 @@ you've adapted.
 
 ### Next up
 
-<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light, until 16:30, 08:30 Lisbon, with a Done button; Free time until 16:00, 08:00 in Lisbon, in light, dark and night-safe; small tiles with Sleep, Avoid light, Adapted and a night-safe Sleep; and No trip, Plan one. The live countdown is left out of this picture." width="480" />
+<img src="images/widget-next-up.png" alt="Next up widgets: rows in light and dark saying Avoid light until 16:30, then Melatonin, 08:30 in Lisbon, with a 1h 10m countdown and a Done button; Free time until 16:00, 08:00 in Lisbon, in light, dark and night-safe; small tiles with Sleep 5h40m, Avoid light 1h10m and Clockblocked; and No trip, Plan one." width="480" />
 
 The *Next up* widget shows the current block with a countdown. The smallest size shows only the countdown and a
 short label. Bigger sizes add the time in your other zone and a **Done** button, and the tallest and widest ones
