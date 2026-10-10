@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialPalettes
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.Daylight
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.floats.plusOrMinus

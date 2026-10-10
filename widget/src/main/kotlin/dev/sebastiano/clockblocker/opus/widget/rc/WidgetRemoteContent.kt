@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.widget.R
 import dev.sebastiano.clockblocker.opus.widget.draw.GlyphKind
 import dev.sebastiano.clockblocker.opus.widget.draw.Glyphs

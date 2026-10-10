@@ -5,6 +5,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialPalettes
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.floats.plusOrMinus

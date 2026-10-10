@@ -9,10 +9,13 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
+import android.util.SizeF
+import android.widget.RemoteViews
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.PlanRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.sebastiano.clockblocker.opus.core.data.TripRepository
+import dev.sebastiano.clockblocker.opus.core.data.WidgetConfigRepository
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
@@ -20,6 +23,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
@@ -61,6 +65,7 @@ class WidgetUpdater(
     private val settingsRepository: SettingsRepository = DefaultSettingsRepository,
     private val adviceLogRepository: AdviceLogRepository = NoAdviceLogRepository,
     private val tripRepository: TripRepository = NoTripRepository,
+    private val widgetConfigs: WidgetConfigRepository = NoWidgetConfigRepository,
 ) {
     internal var clock: Clock = Clock.systemDefaultZone()
     internal var readTimeoutMs: Long = READ_TIMEOUT_MS
@@ -129,8 +134,11 @@ class WidgetUpdater(
     /** Re-render all widgets of both kinds. */
     suspend fun updateAll() {
         val config = RenderConfig.of(application.resources.configuration)
-        WidgetKind.entries.forEach { kind -> render(kind, ids(kind)) }
+        val placed = WidgetKind.entries.associateWith { ids(it) }
+        placed.forEach { (kind, ids) -> render(kind, ids) }
         prefs.edit().putString(KEY_RENDERED_CONFIG, config.key).apply()
+        // A removal whose broadcast never arrived (the app was being updated, say) leaves options behind: drop them.
+        widgetConfigs.retainOnly(placed.values.flatMap { it.toList() })
         publishPreviewsIfNeeded()
     }
 
@@ -157,11 +165,12 @@ class WidgetUpdater(
         val redacted by lazy { WidgetStateMapper.redact(state) }
         val renderer = rendererFactory(application)
         val theme = theme(settings, state, application.resources.configuration)
+        val configs = withTimeoutOrNull(readTimeoutMs) { widgetConfigs.configs.first() }.orEmpty()
         appWidgetIds.forEach { id ->
             try {
                 val options = manager.getAppWidgetOptions(id)
                 val shown = if (hideOnLockScreen && isKeyguard(options)) redacted else state
-                val model = renderer.model(shown, theme)
+                val model = renderer.model(shown, theme).with(configs[id] ?: WidgetConfig())
                 val views = renderer.render(kind, model)
                 onRendered(id, model)
                 manager.updateAppWidget(id, views)
@@ -188,6 +197,46 @@ class WidgetUpdater(
         val dialPlaces = trip?.let(WidgetStateMapper::places).orEmpty()
         val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes, dialPlaces)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
+    }
+
+    /**
+     * What the configuration screen previews (#52): the widget as it would show now, drawn with [config]. Without a
+     * plan it shows the sample trip the picker previews use, flagged by [ConfigPreview.sample].
+     */
+    internal suspend fun previewModel(config: WidgetConfig): ConfigPreview {
+        val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
+        val settings = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() } ?: AppSettings()
+        val logs = plan?.let { withTimeoutOrNull(readTimeoutMs) { adviceLogRepository.logs(it.tripId).first() } }
+        val live = state(plan, settings, keyguard = false, logs = logs)
+        val sample = live is WidgetState.NoTrip
+        val state = if (sample) sampleState() else live
+        val model = rendererFactory(application).model(state, theme(settings, state, application.resources.configuration))
+        return ConfigPreview(model.with(config), sample)
+    }
+
+    /** [model] rendered as [kind] would draw it, for the configuration screen's preview. */
+    internal suspend fun renderPreview(kind: WidgetKind, model: WidgetModel): RemoteViews = rendererFactory(application).render(kind, model)
+
+    /** The size [appWidgetId] is drawn at on the home screen, in dp: the host's first reported size, else its minimum. */
+    internal fun sizeDp(appWidgetId: Int): SizeF {
+        val options = manager.getAppWidgetOptions(appWidgetId)
+        @Suppress("DEPRECATION") // getParcelableArrayList(key, Class) needs the SizeF class token; this is equivalent.
+        options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)?.firstOrNull()?.let { return it }
+        val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 0
+        val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT) ?: 0
+        return if (width > 0 && height > 0) SizeF(width.toFloat(), height.toFloat()) else DefaultPreviewSize
+    }
+
+    private fun sampleState(): WidgetState {
+        val now = clock.instant()
+        return WidgetStateMapper.map(
+            DemoPlans.lisbonTokyo(now),
+            now,
+            route = DemoPlans.ROUTE,
+            placeNames = DemoPlans.PLACE_NAMES,
+            placeCodes = DemoPlans.PLACE_CODES,
+            places = DemoPlans.PLACES,
+        )
     }
 
     /**
@@ -235,6 +284,24 @@ class WidgetUpdater(
 
     fun ids(kind: WidgetKind): IntArray = manager.getAppWidgetIds(componentName(application, kind))
 
+    /**
+     * Saves [appWidgetId]'s options (its configuration screen, #52) and redraws that widget. The scheduler doesn't
+     * watch the options, so this is what makes a change show.
+     */
+    suspend fun configure(appWidgetId: Int, transform: (WidgetConfig) -> WidgetConfig) {
+        widgetConfigs.update(appWidgetId, transform)
+        kindOf(appWidgetId)?.let { update(it, intArrayOf(appWidgetId)) }
+    }
+
+    /** Which of our widgets [appWidgetId] is; null when it isn't one of ours (or no longer exists). */
+    fun kindOf(appWidgetId: Int): WidgetKind? = WidgetKind.entries.firstOrNull { appWidgetId in ids(it) }
+
+    /** The widgets were removed: forget their options. */
+    suspend fun forget(appWidgetIds: IntArray) = widgetConfigs.remove(appWidgetIds.toList())
+
+    /** A backup restore gave the widgets new ids: keep their options ([oldIds] and [newIds] pair up). */
+    suspend fun restored(oldIds: IntArray, newIds: IntArray) = widgetConfigs.remap(oldIds, newIds)
+
     /** The host category is a bit mask, so a lock-screen host may report keyguard together with another category. */
     private fun isKeyguard(options: Bundle?): Boolean {
         val category = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY) ?: 0
@@ -247,6 +314,9 @@ class WidgetUpdater(
         private const val KEY_PREVIEW = "generated_previews_key"
         private const val KEY_RENDERED_CONFIG = "rendered_config_key"
         private const val READ_TIMEOUT_MS = 3_000L
+
+        /** A 2×2 cell on a typical phone, for a widget whose host reported no size yet. */
+        private val DefaultPreviewSize = SizeF(176f, 176f)
 
         fun componentName(context: Context, kind: WidgetKind): ComponentName = when (kind) {
             WidgetKind.TwoClocks -> ComponentName(context, TwoClocksWidgetProvider::class.java)
@@ -317,4 +387,19 @@ internal object NoPlanRepository : PlanRepository {
 internal object DefaultSettingsRepository : SettingsRepository {
     override val settings: Flow<AppSettings> = flowOf(AppSettings())
     override suspend fun update(transform: (AppSettings) -> AppSettings) = Unit
+}
+
+/** What the configuration screen previews: [model] for the widget, and whether it shows the [sample] trip. */
+internal data class ConfigPreview(val model: WidgetModel, val sample: Boolean)
+
+/** [this] model drawn with one widget's own options. */
+internal fun WidgetModel.with(config: WidgetConfig): WidgetModel = copy(bodyRing = config.bodyRing)
+
+/** Used until a real [WidgetConfigRepository] is bound: every widget uses the defaults. */
+internal object NoWidgetConfigRepository : WidgetConfigRepository {
+    override val configs: Flow<Map<Int, WidgetConfig>> = flowOf(emptyMap())
+    override suspend fun update(appWidgetId: Int, transform: (WidgetConfig) -> WidgetConfig) = Unit
+    override suspend fun remove(appWidgetIds: Collection<Int>) = Unit
+    override suspend fun remap(oldIds: IntArray, newIds: IntArray) = Unit
+    override suspend fun retainOnly(appWidgetIds: Collection<Int>) = Unit
 }

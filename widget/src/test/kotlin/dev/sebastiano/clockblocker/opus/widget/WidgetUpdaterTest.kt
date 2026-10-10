@@ -35,6 +35,9 @@ import io.kotest.matchers.string.shouldNotContain
 import dev.sebastiano.clockblocker.opus.core.data.AdviceLogRepository
 import dev.sebastiano.clockblocker.opus.core.data.SettingsRepository
 import dev.sebastiano.clockblocker.opus.core.data.TripRepository
+import dev.sebastiano.clockblocker.opus.core.data.WidgetConfigRepository
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -66,13 +69,15 @@ class WidgetUpdaterTest {
     private val now = Instant.parse("2026-10-06T09:00:00Z")
     private val plans = FakePlanRepository()
     private val rendered = mutableMapOf<Int, WidgetModel>()
+    private val configs = FakeWidgetConfigRepository()
     private val updater = updater()
 
     private fun updater(
         settings: SettingsRepository = FakeSettingsRepository(),
         logs: AdviceLogRepository = NoAdviceLogRepository,
         trips: TripRepository = NoTripRepository,
-    ) = WidgetUpdater(app, plans, settings, logs, trips).apply {
+        configs: WidgetConfigRepository = this.configs,
+    ) = WidgetUpdater(app, plans, settings, logs, trips, configs).apply {
         clock = Clock.fixed(now, ZoneOffset.UTC)
         rendererFactory = { WidgetRenderer(it, profileProvider = { null }) }
         onRendered = { id, model -> rendered[id] = model }
@@ -409,4 +414,66 @@ class WidgetUpdaterTest {
         texts.done.shouldNotBeNull().logged shouldBe AdviceOutcome.Done
         texts.deepLink shouldBe DeepLinks.plan(plan.tripId)
     }
+
+    // region Per-widget options (#52)
+
+    @Test
+    fun `each widget draws the body ring it was configured with`() = runBlocking<Unit> {
+        plans.current.value = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
+        val plain = place(WidgetKind.TwoClocks, 41)
+        val precise = place(WidgetKind.TwoClocks, 42)
+        configs.current.value = mapOf(precise to WidgetConfig(bodyRing = BodyRingMode.Precise))
+
+        updater.updateAll()
+
+        rendered[plain].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Simple
+        rendered[precise].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Precise
+    }
+
+    @Test
+    fun `configuring a widget saves the option and redraws only that widget`() = runBlocking<Unit> {
+        val other = place(WidgetKind.TwoClocks, 43)
+        val configured = place(WidgetKind.TwoClocks, 44)
+        updater.updateAll() // Renders at the current configuration first, so the next update is a partial one.
+        rendered.clear()
+
+        updater.configure(configured) { it.copy(bodyRing = BodyRingMode.Precise) }
+
+        configs.current.value shouldBe mapOf(configured to WidgetConfig(bodyRing = BodyRingMode.Precise))
+        rendered[configured].shouldNotBeNull().bodyRing shouldBe BodyRingMode.Precise
+        rendered[other].shouldBeNull()
+    }
+
+    @Test
+    fun `kindOf names our widgets and nothing else`() {
+        val clocks = place(WidgetKind.TwoClocks, 45)
+        val next = place(WidgetKind.NextUp, 46)
+        updater.kindOf(clocks) shouldBe WidgetKind.TwoClocks
+        updater.kindOf(next) shouldBe WidgetKind.NextUp
+        updater.kindOf(999).shouldBeNull()
+    }
+
+    @Test
+    fun `removed widgets forget their options and restored ones keep them`() = runBlocking<Unit> {
+        val precise = WidgetConfig(bodyRing = BodyRingMode.Precise)
+        configs.current.value = mapOf(1 to precise, 2 to precise, 3 to precise)
+
+        updater.forget(intArrayOf(1))
+        updater.restored(oldIds = intArrayOf(2), newIds = intArrayOf(20))
+
+        configs.current.value shouldBe mapOf(20 to precise, 3 to precise)
+    }
+
+    @Test
+    fun `a full update drops the options of widgets that are no longer placed`() = runBlocking<Unit> {
+        val placed = place(WidgetKind.TwoClocks, 47)
+        val precise = WidgetConfig(bodyRing = BodyRingMode.Precise)
+        configs.current.value = mapOf(placed to precise, 999 to precise)
+
+        updater.updateAll()
+
+        configs.current.value shouldBe mapOf(placed to precise)
+    }
+
+    // endregion
 }

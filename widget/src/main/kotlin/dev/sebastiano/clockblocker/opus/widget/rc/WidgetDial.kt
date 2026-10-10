@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialPalettes
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.ResourceDialLabels
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.Argb
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.BodyRingMode
+import dev.sebastiano.clockblocker.opus.core.model.BodyRingMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialLabels
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DialSpec

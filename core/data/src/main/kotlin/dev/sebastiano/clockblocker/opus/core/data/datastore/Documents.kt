@@ -4,6 +4,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.model.WidgetConfig
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -30,6 +31,13 @@ internal data class ProfileDocument(
 internal data class SettingsDocument(
     val schemaVersion: Int = CurrentSchemaVersion,
     val settings: AppSettings = AppSettings(),
+)
+
+@Serializable
+internal data class WidgetConfigsDocument(
+    val schemaVersion: Int = CurrentSchemaVersion,
+    /** appWidgetId -> that widget's options. */
+    val configs: Map<Int, WidgetConfig> = emptyMap(),
 )
 
 @Serializable
