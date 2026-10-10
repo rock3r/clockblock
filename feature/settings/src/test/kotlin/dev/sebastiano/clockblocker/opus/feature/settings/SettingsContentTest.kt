@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.settings
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -80,10 +81,17 @@ class SettingsContentTest {
 
     private val actions = RecordingSettingsActions()
 
-    private fun show(state: SettingsUiState = settingsState()) {
+    private fun show(state: SettingsUiState = settingsState(), extraSection: (@Composable () -> Unit)? = null) {
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = true) {
-                SettingsContent(state, actions, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
+                SettingsContent(
+                    state,
+                    actions,
+                    onBack = null,
+                    modifier = Modifier.fillMaxSize(),
+                    now = DemoData.Now,
+                    extraSection = extraSection,
+                )
             }
         }
     }
@@ -208,6 +216,21 @@ class SettingsContentTest {
         click(SettingsTags.ReplayOnboarding)
         click(SettingsTags.About)
         actions.calls shouldContainExactly listOf("export", "import", "replay", "about")
+    }
+
+    @Test
+    fun `an extra section from the app closes the list and its row opens`() {
+        var opened = 0
+        show(
+            extraSection = {
+                SettingsLinkSection(header = "Extra", title = "Extra row", supporting = "Opens something", tag = "extra") {
+                    opened++
+                }
+            },
+        )
+        compose.onNodeWithText("Extra row").performScrollTo().assertIsDisplayed()
+        click("extra")
+        opened shouldBe 1
     }
 
     @Test

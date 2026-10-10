@@ -240,7 +240,8 @@ interface SettingsActions {
 
 /**
  * Settings (navigation contract used by `:app`; keep these signatures, additive defaulted params OK).
- * [onBack] null when shown as a top-level destination.
+ * [onBack] null when shown as a top-level destination. [extraSection] closes the list with a section the app adds
+ * (debug builds add Debug; release builds add nothing).
  */
 @Composable
 fun SettingsScreen(
@@ -248,6 +249,7 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
     onReplayOnboarding: () -> Unit,
     modifier: Modifier = Modifier,
+    extraSection: (@Composable () -> Unit)? = null,
 ) {
     val viewModel = metroViewModel<SettingsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -309,7 +311,14 @@ fun SettingsScreen(
             override fun openAbout() = onOpenAbout()
         }
     }
-    SettingsContent(state = state, actions = actions, onBack = onBack, snackbarHostState = snackbars, modifier = modifier)
+    SettingsContent(
+        state = state,
+        actions = actions,
+        onBack = onBack,
+        snackbarHostState = snackbars,
+        modifier = modifier,
+        extraSection = extraSection,
+    )
 }
 
 private const val BackupMimeType = "application/json"
@@ -367,6 +376,7 @@ private enum class ProfileEditor { None, Home, Sleep, Chronotype }
  * and data on the right.
  *
  * @param now the instant used for GMT offset labels (fixed in screenshot tests; offsets move with DST).
+ * @param extraSection a section the app adds after More (debug builds: Debug), usually a [SettingsLinkSection].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -377,6 +387,7 @@ fun SettingsContent(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     now: Instant = remember { Instant.now() },
+    extraSection: (@Composable () -> Unit)? = null,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var editor by rememberSaveable { mutableStateOf(ProfileEditor.None) }
@@ -416,6 +427,10 @@ fun SettingsContent(
                 if (state.widgetPinningSupported) WidgetsSection(actions)
                 DataSection(actions, busy = state.isWorking)
             }
+            val more: @Composable ColumnScope.() -> Unit = {
+                MoreSection(actions)
+                extraSection?.invoke()
+            }
             val end: @Composable ColumnScope.() -> Unit = {
                 Spacer(Modifier.size(24.dp))
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
@@ -430,14 +445,14 @@ fun SettingsContent(
                         horizontalArrangement = Arrangement.spacedBy(TwoPaneGutter),
                     ) {
                         // "More" closes the shorter left column, so the two land at about the same height.
-                        Column(Modifier.weight(1f)) { you(); MoreSection(actions); end() }
+                        Column(Modifier.weight(1f)) { you(); more(); end() }
                         Column(Modifier.weight(1f)) { system(); end() }
                     }
                 } else {
                     Column(Modifier.widthIn(max = ContentMaxWidth).fillMaxWidth().padding(horizontal = 16.dp)) {
                         you()
                         system()
-                        MoreSection(actions)
+                        more()
                         end()
                     }
                 }
@@ -513,6 +528,18 @@ private fun MoreSection(actions: SettingsActions) {
             shape = segmentedShape(1, 2),
             tag = SettingsTags.About,
         )
+    }
+}
+
+/**
+ * A section with one row that opens something, styled like the rest of Settings: for sections the app adds through
+ * `extraSection` (the debug build's Debug section).
+ */
+@Composable
+fun SettingsLinkSection(header: String, title: String, supporting: String, tag: String, onClick: () -> Unit) {
+    SectionHeader(header)
+    SettingsGroup {
+        SettingsRow(title = title, supporting = supporting, onClick = onClick, shape = segmentedShape(0, 1), tag = tag)
     }
 }
 
