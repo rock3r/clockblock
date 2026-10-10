@@ -324,6 +324,18 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `a refresh is armed for when a moment stops being due, so the widget stops featuring it`() = runTest {
+        // Captured at the 19:00 melatonin, a widget features it; a minute later the dial would move on, but nothing
+        // else happens until the 22:00 sleep's reminder.
+        plans.current.value = planOf(advice(Melatonin, "2026-10-10T19:00", detail = "0.5 mg"), sleep)
+        clock.instant = utc("2026-10-10T19:00")
+
+        val alarms = scheduler().resync().instants
+
+        alarms.first() shouldBe utc("2026-10-10T19:01")
+    }
+
+    @Test
     fun `alarm at a lead time posts one reminder, refreshes surfaces and re-arms`() = runTest {
         val scheduler = scheduler()
         clock.instant = utc("2026-10-10T13:45")

@@ -121,6 +121,11 @@ fun DialState.focusAt(minute: Float): DialFocus {
     return DialFocus(current, next)
 }
 
-/** A moment (melatonin, a nap cue) is due from half a minute before it until a minute after. */
+/** A moment (melatonin, a nap cue) is due from half a minute before it until [MomentDueMinutes] after. */
 private const val MomentLeadMinutes = 0.5f
-private const val MomentDueMinutes = 1f
+
+/**
+ * How long after its minute a moment stays due, and featured on the dial. Widgets only move the hand between captures,
+ * so the scheduler refreshes them this long after each moment (`TransitionPlanner.nextMomentEnd`).
+ */
+const val MomentDueMinutes = 1f
