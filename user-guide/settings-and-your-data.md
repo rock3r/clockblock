@@ -40,8 +40,9 @@ on the left, reminders, widgets and your data on the right.
 
 All your data stays on your phone: your profile, settings, trips and the blocks you marked as done or skipped.
 The app has no internet access, so it can't send your data anywhere itself. Your data leaves the phone only when
-you export it, when you share a plan summary to another app, or when Android's own device backup copies app data to
-your backup account (if you have that turned on in your phone's settings).
+you export it, when you share a plan summary to another app, when Android's own backup copies it to your backup
+account (if you have that turned on in your phone's settings), or when you transfer it to a new phone (see
+[Moving to a new phone](#moving-to-a-new-phone)).
 
 ### Back up and restore
 
@@ -67,7 +68,17 @@ asks how to import it:
 If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
 tells you why.
 
-To move to a new phone, export a backup on the old phone, copy the file across, and import it on the new one.
+### Moving to a new phone
+
+Android's own backup and the phone-to-phone transfer you get when setting up a new phone bring your profile,
+settings, trips and check-ins across, and the options of any widgets your home screen app puts back. Cloud backups are made only when your phone
+has a screen lock, so the backup is end-to-end encrypted. A running snooze stays behind.
+
+Open the app once on the new phone: that sets up its reminders again. Android doesn't carry over permissions, so
+check **What Android allows** in Settings and allow notifications and exact timing again.
+
+If you don't use Android backup, or want a copy you control, export a backup on the old phone, copy the file
+across, and import it on the new one.
 
 ### Export a plan to your calendar
 

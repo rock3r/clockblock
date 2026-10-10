@@ -48,9 +48,13 @@ class PreferencesCelebrationStore(
         prefs.edit { putStringSet(KEY, state.value) }
     }
 
-    private companion object {
+    companion object {
+        /**
+         * SharedPreferences file name (pre-rename prefix). Included in Android backup and device transfer with the
+         * trips, so a restored phone doesn't replay celebrations that already played.
+         */
         const val PREFS = "opus_plan_celebrations"
-        const val KEY = "celebrated_trip_ids"
+        private const val KEY = "celebrated_trip_ids"
     }
 }
 
