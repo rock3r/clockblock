@@ -78,7 +78,7 @@ day?**.
 
 Below the flights, **Trip details** has these settings:
 
-- **Title**: suggested from your route. Change it if you like.
+- **Title**: named after your route. Tap **Rename** to give the trip a name of your own.
 - **Body clock**: how the plan treats your body clock.
 - **Body clock when you leave**: only shown when the trip leaves from a city on a different time from home. See
   [Starting away from home](#starting-away-from-home).

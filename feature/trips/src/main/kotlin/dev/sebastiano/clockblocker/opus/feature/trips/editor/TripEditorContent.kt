@@ -69,6 +69,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
@@ -447,18 +449,44 @@ private fun TripDetails(state: TripEditorUiState, actions: TripEditorActions) {
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = if (state.form.titleEdited) state.form.title else state.suggestedTitle,
-                onValueChange = actions::onTitleChange,
-                label = { Text(stringResource(R.string.editor_trip_title)) },
-                supportingText = if (!state.form.titleEdited && state.suggestedTitle.isNotBlank()) {
-                    { Text(stringResource(R.string.editor_trip_title_hint)) }
-                } else {
-                    null
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag(TripsTestTags.EditorTitle),
-            )
+            // The title is generated from the route, so it reads as text with a Rename button; the field only opens
+            // on Rename (and stays open once the title is the traveller's own).
+            var renaming by rememberSaveable { mutableStateOf(false) }
+            if (renaming || state.form.titleEdited) {
+                val focus = remember { FocusRequester() }
+                OutlinedTextField(
+                    value = if (state.form.titleEdited) state.form.title else state.suggestedTitle,
+                    onValueChange = actions::onTitleChange,
+                    label = { Text(stringResource(R.string.editor_trip_title)) },
+                    supportingText = if (!state.form.titleEdited && state.suggestedTitle.isNotBlank()) {
+                        { Text(stringResource(R.string.editor_trip_title_hint)) }
+                    } else {
+                        null
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(TripsTestTags.EditorTitle),
+                )
+                // Opened by Rename: straight into the field (not on a restored or already-edited title).
+                if (renaming && !state.form.titleEdited) LaunchedEffect(Unit) { focus.requestFocus() }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
+                        Text(
+                            stringResource(R.string.editor_trip_title),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            state.suggestedTitle.ifBlank { stringResource(R.string.editor_trip_title_pending) },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (state.suggestedTitle.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    TextButton(onClick = { renaming = true }, modifier = Modifier.testTag(TripsTestTags.EditorRename)) {
+                        Text(stringResource(R.string.editor_trip_rename))
+                    }
+                }
+            }
 
             Spacer(Modifier.height(20.dp))
             Text(stringResource(R.string.editor_strategy), style = MaterialTheme.typography.titleSmall)

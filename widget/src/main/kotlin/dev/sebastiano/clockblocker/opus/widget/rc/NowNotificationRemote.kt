@@ -189,7 +189,7 @@ private fun LiveProgress(model: ThemedWidgetModel, fit: ExpandedNotificationFit,
                     cornerRadius = RemoteOffset(r, r),
                 )
                 // Minutes into the block on the host's clock, as a share of the block; a sliver from the start.
-                val minutes = elapsed.toFloat().rf + HostTime.minutesSince(DialMath.minuteOfDay(state.capturedAt, 0))
+                val minutes = elapsed.toFloat().rf + HostTime.minutesSince(DialMath.minuteOfDay(state.hostClockFrom, 0))
                 val share = (minutes / total.toFloat().rf).min(1f.rf)
                 drawRoundRect(
                     paint = RemotePaint { color = fill; style = PaintingStyle.Fill },
