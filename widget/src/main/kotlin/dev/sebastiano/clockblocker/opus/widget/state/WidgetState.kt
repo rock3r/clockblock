@@ -66,6 +66,11 @@ sealed interface WidgetState {
          * route or supplement names. Times and block kinds stay.
          */
         val redacted: Boolean = false,
+        /**
+         * The instant host-evaluated time counts on from (the live countdown and progress bar): [capturedAt], except
+         * for onboarding's preview, which shows a pinned daytime moment that then runs on with the real clock.
+         */
+        val hostClockFrom: Instant = capturedAt,
     ) : WidgetState {
         /** The name of [zoneId]'s place: the trip's city when it has one there, else the zone's own city. */
         fun placeName(zoneId: String): String = placeNames[zoneId] ?: DialMath.cityName(zoneId)

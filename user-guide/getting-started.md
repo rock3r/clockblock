@@ -96,7 +96,7 @@ clock earlier. Melatonin is a medicine in many countries. Check with a doctor or
 
 ### 5. Reminders that actually arrive
 
-<img src="images/reminders.png" alt="Step 5 of 5, Reminders that actually arrive: a sample reminder as it looks in the notification shade, See bright light until 05:00 with a progress bar and 2h 23m left, Next: Avoid light at 05:30, and the Done, Can't do this and Snooze 15 min actions. Under it, an Allow notifications button. At the bottom, Back and Maybe later." width="280" />
+<img src="images/reminders.png" alt="Step 5 of 5, Reminders that actually arrive: a sample reminder as it looks in the notification shade, See bright light until 18:00 (10:00 in Lisbon) with a progress bar and the time left counting down, Next: Caffeine OK at 15:30, and the Done, Can't do this and Snooze 15 min actions. Under it, an Allow notifications button. At the bottom, Back and Maybe later." width="280" />
 
 The app can remind you just before each change in your plan. It never sends a reminder while you're meant to be
 asleep, except the one that wakes you.

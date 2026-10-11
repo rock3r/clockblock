@@ -30,6 +30,7 @@ import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * The Now notification's Remote Compose content (#49): the notification documents ([NowNotificationDocuments]) for the
@@ -66,20 +67,31 @@ class RemoteNowNotificationContent(
 
     /**
      * Onboarding's preview: the expanded document for the widgets' sample Lisbon → Tokyo plan in bright light (made-up
-     * advice, no user data), [widthDp] wide, with no click action.
+     * advice, no user data), [widthDp] wide, with no click action. The sample is pinned to mid-afternoon in Tokyo
+     * ([previewMoment]), so it never reads "See bright light until 05:00" in someone's evening; its countdown and bar
+     * then run on with the real clock from there.
      */
     override suspend fun preview(now: Instant, widthDp: Int): RemoteViews? {
         val profile = profileProvider() ?: return null
-        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.SeeBrightLight)
-        val state = NowStateCalculator.compute(plan, now) ?: return null
-        val model = model(state, plan, now, DemoPlans.trip()) ?: return null
+        val model = previewModel(now) ?: return null
         val slots = NotificationSlots(collapsedWidthDp = widthDp, expandedWidthDp = widthDp)
         val documents = NowNotificationDocuments.capture(application, model, slots) { size, content -> capturer(profile, size, content) }
         return RemoteComposeRenderer.remoteViews(documents.expanded)
     }
 
-    /** What the documents show: the widgets' render of [plan] with the notification's pick ([WidgetStateMapper.forNowNotification]). */
-    internal fun model(state: NowState, plan: JetLagPlan, now: Instant, trip: Trip?): ThemedWidgetModel? {
+    /** The preview's document model: the sample plan at [previewMoment], its live parts counting on from [now]. */
+    internal fun previewModel(now: Instant): ThemedWidgetModel? {
+        val pinned = previewMoment(now)
+        val plan = DemoPlans.lisbonTokyo(pinned, DemoPlans.Scenario.SeeBrightLight)
+        val state = NowStateCalculator.compute(plan, pinned) ?: return null
+        return model(state, plan, pinned, DemoPlans.trip(), hostClockFrom = now)
+    }
+
+    /**
+     * What the documents show: the widgets' render of [plan] with the notification's pick
+     * ([WidgetStateMapper.forNowNotification]). [hostClockFrom] is where the live countdown and bar count on from.
+     */
+    internal fun model(state: NowState, plan: JetLagPlan, now: Instant, trip: Trip?, hostClockFrom: Instant = now): ThemedWidgetModel? {
         val mapped = WidgetStateMapper.map(
             plan,
             now,
@@ -89,11 +101,19 @@ class RemoteNowNotificationContent(
             places = trip?.let(WidgetStateMapper::places).orEmpty(),
         ) as? WidgetState.Active ?: return null
         val shown = WidgetStateMapper.forNowNotification(mapped, state.headline, state.next, state.outcome)
-        return WidgetRenderer(application).themedModel(shown)
+        return WidgetRenderer(application).themedModel(shown.copy(hostClockFrom = hostClockFrom))
     }
 
-    private companion object {
+    internal companion object {
+        /** The preview's pinned moment: 15:20 in Tokyo, the sample's destination, on [now]'s date there. */
+        fun previewMoment(now: Instant): Instant =
+            now.atZone(ZoneId.of(DemoPlans.DESTINATION_ZONE)).toLocalDate().atTime(PREVIEW_HOUR, PREVIEW_MINUTE)
+                .atZone(ZoneId.of(DemoPlans.DESTINATION_ZONE)).toInstant()
+
+        private const val PREVIEW_HOUR = 15
+        private const val PREVIEW_MINUTE = 20
+
         /** Like the widgets: a trip that can't be read in time leaves the place names to the zones. */
-        const val READ_TIMEOUT_MS = 2_000L
+        private const val READ_TIMEOUT_MS = 2_000L
     }
 }

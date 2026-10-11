@@ -27,7 +27,9 @@ import java.time.temporal.ChronoUnit
 object DemoPlans {
     const val TRIP_ID = "demo-lisbon-tokyo"
     private const val ORIGIN = "Europe/Lisbon"
-    private const val DESTINATION = "Asia/Tokyo"
+    /** The demo trip's destination zone (Tokyo). */
+    const val DESTINATION_ZONE = "Asia/Tokyo"
+    private const val DESTINATION = DESTINATION_ZONE
 
     /** The demo trip's airport codes, for the route strip. */
     val ROUTE = WidgetRoute("LIS", "HND")
