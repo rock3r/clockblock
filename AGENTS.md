@@ -98,6 +98,8 @@ Read `MOTION.md` (motion language) and `docs/design.md` (visual identity) before
 ## Cross-module contracts
 - `PlanSurface` (`:core:data`): widgets + Now notification implement it and contribute into a Metro set;
   the scheduler in `:core:notifications` refreshes all of them at advice boundaries and on plan changes.
+- `NowNotificationContent` (`:core:notifications`): `:widget` contributes the Now notification's Remote Compose
+  documents through Metro; without them, or when they fail, the notification uses its classic views.
 - `JetLagPlanner` (`:core:circadian`): the app binds `DefaultJetLagPlanner`; data depends on the interface only.
 - Deep links (`DeepLinks` in `:core:model`): `clockblock://trips`, `…/trips/new`, `…/plan/{tripId}`,
   `…/plan/current`.

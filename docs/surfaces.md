@@ -124,12 +124,50 @@ listens for these broadcasts and re-syncs everything:
 shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
 pings.
 
-![The Now notification, expanded, in the shade: header "Clockblock · Body 4½ h behind"; a sun glyph on a pale yellow chip beside "See some light" and "until 19:00 · 11:00 Los Angeles"; a yellow progress bar; "Also now: Avoid caffeine until Sun 02:00 · 18:00 Los Angeles" and "Next: Avoid light at 23:30 · 15:30 Los Angeles", each with a small glyph chip; the tip; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
+![The Now notification, expanded, in the shade on a Pixel 7 Pro: header "Clockblock · Body 3 h ahead"; a sun glyph beside "See some light" and "until 11:00 · 19:00 in London"; a pale yellow progress bar with "3h 21m" left; "Next: Avoid caffeine at 12:00 · 20:00 in London" with a small glyph; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
-The notification is a `DecoratedCustomViewStyle` with our own content
+The notification is a `DecoratedCustomViewStyle` with our own content. The system still draws the icon, the header
+with the body clock, the expand button and the actions. The content is a Remote Compose document (#49) where the
+phone can play one, and the classic `RemoteViews` layouts otherwise.
+
+**Remote Compose content.** `:widget` owns the documents (they share the widgets' state, texts, fitting and
+glyphs) and contributes them through Metro as
+[`NowNotificationContent`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationContent.kt)
+([`RemoteNowNotificationContent`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteNowNotificationContent.kt),
+documents in [`NowNotificationRemote.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/NowNotificationRemote.kt)),
+so `:core:notifications` doesn't depend on `:widget`. They are built from the notification's own `NowState`
+(`WidgetStateMapper.forNowNotification`), so they name the same advice as the actions under them:
+
+| | Collapsed (48 dp) | Expanded (wraps its content, at most 252 dp) |
+|---|---|---|
+| Label and time | The headline's glyph beside "See some light" and "until 19:00 · 11:00 in Los Angeles" | Same, with a larger glyph; the line may wrap after a "·" |
+| Progress | — | A bar from the block's start to its end, and the time left ("1h 22m") |
+| Next | — | "Next: Avoid light at 23:30 · 15:30 in Los Angeles", with its glyph |
+
+The until line keeps the other zone's time in every form it tries (shorter place names, then the airport code)
+and is left out when none fits. Once the headline is logged, it starts with the outcome ("✓ Done · until 19:00 ·
+…"). In a gap, the label is "Free time", the line gives when it ends, and the next row only names the next block
+("Next: Sleep"), since the line above already has its times. There is no Done button in the document: the
+notification's actions do that, for accessibility and automation. The bar and the countdown run on the shade's
+clock, so they need no re-post. Every colour is a light and dark pair (`themedColor`), and the player draws the
+pair for the shade's theme: when night mode flips, SystemUI re-applies the views and the document repaints, with no
+re-post. There is no Night-safe look. The main region carries a spoken description (the block with both zones'
+times, the outcome, the time left and what's next) and opens the plan, like the content intent. The title and text
+are still set, so the shade's accessibility, the ticker, wearables and automation get text.
+
+**Fallback.** `NowNotificationSurface` posts the classic content instead, with nothing for the user to set, when
+the platform player reports no supported document version, when rendering or building throws, when `notify`
+rejects the notification, or when SystemUI drops it. SystemUI inflates notifications after `notify` returns and
+cancels one it can't inflate without telling the app (the platform documents an `IllegalArgumentException` for
+`DrawInstructions` nested in another `RemoteViews`, which is what a notification template does; 37.0 and 37.1
+don't enforce it there). So 5 seconds after posting a Remote Compose notification the surface checks that it is
+still showing. If it is gone and nothing was posted since, it records the system build (`Build.FINGERPRINT`) and
+posts the classic one; Remote Compose stays off until the system is updated. A user who swipes the notification away
+within those 5 seconds turns it off the same way.
+
+**Classic content**
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
-layouts `notif_now_collapsed` / `notif_now_expanded`). The system still draws the icon, the header with the
-body clock, the expand button and the actions. Our part reads top to bottom:
+layouts `notif_now_collapsed` / `notif_now_expanded`) reads top to bottom:
 
 | | Collapsed (48 dp) | Expanded |
 |---|---|---|
@@ -147,25 +185,26 @@ In a gap, the title is "Nothing right now" and the line says what's next; the ex
 chip and neither view has a bar. The collapsed view shows local times only; in the expanded one every time
 (until, also, next) is followed by the other zone as a short tail, kept on one line with no-break spaces.
 
-The small icon (status bar, AOD, the header on older shades) is always the app's Horizon mark, so you can tell
-it's Clockblock at a glance; newer shades show the app icon there instead. The advice glyph lives in the body: the
-chip in the custom view, or the large icon on the lock-screen version, reminders and the Live Update. Chips and
-bars use the design system's advice colours, light and dark (copied into
+The small icon (status bar, AOD, the header on older shades) is always the app's Horizon mark, tinted with the
+headline's accent (`nowNotificationAccent`), so you can tell it's Clockblock at a glance; newer shades show the app
+icon there instead. The advice glyph lives in the body: in the custom content, or the large icon on the lock-screen
+version, reminders and the Live Update. In the classic content, chips and bars use the design system's advice
+colours, light and dark (copied into
 [`NotificationPalette`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationPalette.kt),
 kept in step by `NotificationPaletteTest`), and the shade picks the pair for its theme. Text uses the shade's own
 notification text appearances, so it follows dark mode and the font size. Every glyph sits next to its text
 label and is hidden from TalkBack, which reads the labels; the bar is hidden too, since "until" says the same.
 
-The bar only moves when the notification is rebuilt. Plan boundaries rebuild it anyway; in between, an inexact,
-**non-wakeup** alarm (`AlarmManager.RTC`, every 5 minutes, `NotificationIntents.progressTick`) re-renders it. A
-sleeping phone isn't woken for it: the alarm is delivered the next time the phone wakes up, so the bar (and an
-"Also now" line that changed inside a sleep window) is current when you look. The tick is cancelled whenever the
-Now notification is hidden, its channel is blocked in system settings, or it becomes the travel-day Live Update. There is no countdown or `setWhen` time: the
-shade would show the device's zone, not the plan's, and a ticking chronometer is noise on a surface you see all
-day.
+The classic bar only moves when the notification is rebuilt. Plan boundaries rebuild it anyway; in between, an
+inexact, **non-wakeup** alarm (`AlarmManager.RTC`, every 5 minutes, `NotificationIntents.progressTick`) re-renders
+it. A sleeping phone isn't woken for it: the alarm is delivered the next time the phone wakes up, so the bar (and
+an "Also now" line that changed inside a sleep window) is current when you look. The tick is cancelled whenever the
+Now notification is hidden, its channel is blocked in system settings, it shows Remote Compose content (whose bar
+moves by itself), or it becomes the travel-day Live Update. There is no `setWhen` time: the shade would show the
+device's zone, not the plan's.
 
 The redacted lock-screen version uses the standard big-text template with the same text (headline, "until"
-line, "Also now", "Next", tip) and the advice chip as its large icon.
+line, "Also now", "Next", tip) and the advice chip as its large icon, whichever content the full version has.
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)
@@ -235,6 +274,7 @@ The Now notification becomes a Live Update during the travel day. It uses
 `Notification.ProgressStyle`, with coloured segments for advice blocks and points for take-off and landing.
 [`TravelPlanner.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/TravelPlanner.kt)
 defines the travel window as 3 hours before the first departure to 2 hours after the last arrival.
+It never has custom content, Remote Compose or classic: Android only promotes notifications without custom views.
 
 Android's rules say a Live Update must be ongoing, started by the user and time-sensitive. So the app shows it
 only inside the travel window and only while a real plan window is active, not just a flight marker. At other

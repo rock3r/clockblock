@@ -30,14 +30,19 @@ so a mistaken tap is easy to take back. When the only thing happening is the fli
 
 ## The Now notification
 
-<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 4½ h behind. A sun symbol on a pale yellow circle sits beside See some light, until 19:00, 11:00 Los Angeles, with a yellow bar about three quarters full below. Then Also now: Avoid caffeine until Sun 02:00, 18:00 Los Angeles, and Next: Avoid light at 23:30, 15:30 Los Angeles, each with a small symbol, a short tip, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
+<img src="images/notification.png" alt="The Now notification, expanded. Its header says Clockblock, Body 3 h ahead. A sun symbol sits beside See some light, until 11:00, 19:00 in London. Below, a pale yellow bar that has just started filling, with 3h 21m left, then Next: Avoid caffeine at 12:00, 20:00 in London, with a small symbol, and the buttons Done, Can't do this and Snooze 15 min." width="480" />
 
 While a plan is in progress, one quiet notification stays in your notification shade. It shows what to do now,
-with its symbol and colour, until when, and a bar that fills up as the block goes by, for example "See some
-light … until 19:00". Expand it to see the times in your other time zone too, anything else that's going on at
-the same time ("Also now: Avoid caffeine until 02:00"), what comes next ("Next: Avoid light at 23:30") and a short
-tip. "Until" is always when that block ends, the same time the app and the widgets show. When nothing is going
-on, it says "Nothing right now" and what's next.
+with its symbol, until when, and that time in your other time zone, for example "See some light, until 19:00 ·
+11:00 in Los Angeles". Expand it to see a bar that fills up as the block goes by, how long is left, and what comes
+next ("Next: Avoid light at 23:30 · 15:30 in Los Angeles"). "Until" is always when that block ends, the same time
+the app and the widgets show. Once you've answered, the line starts with your answer ("✓ Done · until 19:00").
+When nothing is going on, it says "Free time" until when, and what's next. It follows your phone's light or dark
+theme.
+
+If your phone can't draw this notification, Clockblock shows a plainer version instead, with the same buttons. It
+also lists anything else going on at the same time ("Also now: Avoid caffeine until 02:00") and a short tip, and
+shows the other time zone only when expanded.
 
 It updates by itself and never makes a sound. Tap it to open the plan. Its header shows how far your body clock
 is from local time, for example "Body 3½ h behind", or "Body clock in sync" once you've adjusted.
