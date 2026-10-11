@@ -10,6 +10,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 
 /** Which end of a leg an airport field edits. */
 enum class LegEnd { Origin, Destination }
@@ -57,6 +58,18 @@ data class LegDraft(
     /** Whether the user hasn't set any part of the arrival, so the editor may estimate it. */
     val arrivalUntouched: Boolean get() = arrivalEstimated || (arrivalDate == null && arrivalTime == null)
 
+    /**
+     * Calendar days from the departure date to the arrival date, both local to their airports (the ticket's
+     * "+1 day"): 1 for an overnight flight, −1 for one that lands "the day before" across the date line. Null until
+     * both dates are known.
+     */
+    val arrivalDayOffset: Int?
+        get() {
+            val from = departureDate ?: return null
+            val to = arrivalDate ?: return null
+            return ChronoUnit.DAYS.between(from, to).toInt()
+        }
+
     /** The leg as a domain object, or null while anything required is missing. */
     fun toFlightLeg(): FlightLeg? {
         val from = origin.place ?: return null
@@ -93,6 +106,11 @@ data class EditorForm(
     /** What the user typed; [titleEdited] false means "use the suggestion". */
     val title: String = "",
     val titleEdited: Boolean = false,
+    /**
+     * The Return flight switch. On: [returnDate] / [returnTime] are when the trip flies back (local time where it
+     * ends), stored as the trip's `returnDeparture`; a new trip also gets its return trip on Save.
+     */
+    val returnFlight: Boolean = false,
     val returnDate: LocalDate? = null,
     val returnTime: LocalTime? = null,
     val strategy: AdaptationStrategy? = null,
@@ -172,6 +190,11 @@ data class TripEditorUiState(
     val homeZoneId: String? = null,
     /** Where the body clock starts, when that choice matters for this draft (null: not offered). */
     val bodyClockStart: BodyClockStartChoice? = null,
+    /**
+     * The trip being edited already flew back when it was opened (it has a `returnDeparture`): its return trip, if
+     * any, was made before, so Save only updates the date and adds no second one.
+     */
+    val returnAlreadySet: Boolean = false,
 ) {
     val legs: List<LegDraft> get() = form.legs
 
@@ -183,8 +206,36 @@ data class TripEditorUiState(
 
     val hasErrors: Boolean get() = issues.any { it.severity == IssueSeverity.Error }
 
-    /** Save is disabled only for errors (and for legs that can't be planned yet). */
-    val canSave: Boolean get() = !loading && !saving && complete && !hasErrors
+    /** The inline Return flight switch: offered on new and edited trips, not on a return trip itself. */
+    val offersReturnFlight: Boolean get() = mode != EditorMode.Return
+
+    /** Save also creates the return trip (reversed legs, like Create return trip). */
+    val createsReturnTrip: Boolean get() = offersReturnFlight && form.returnFlight && !returnAlreadySet
+
+    /** The return flight, as local time where the trip ends; null while the switch is off or has no date. */
+    val returnLocal: LocalDateTime?
+        get() = if (form.returnFlight) form.returnDate?.atTime(form.returnTime ?: DefaultReturnTime) else null
+
+    /** The return flight leaves before the last flight lands (both known). */
+    val returnLeavesBeforeArrival: Boolean
+        get() {
+            val local = returnLocal ?: return false
+            val last = legs.lastOrNull()?.toFlightLeg() ?: return false
+            return !local.atZone(last.destination.zone).toInstant().isAfter(last.arrival)
+        }
+
+    /** Why the main action is disabled (null: it isn't), in the order the user should fix things. */
+    val saveBlocker: SaveBlocker?
+        get() = when {
+            hasErrors -> SaveBlocker.Errors
+            !complete -> SaveBlocker.Incomplete
+            form.returnFlight && form.returnDate == null -> SaveBlocker.ReturnDateMissing
+            returnLeavesBeforeArrival -> SaveBlocker.ReturnBeforeArrival
+            else -> null
+        }
+
+    /** Save is disabled only for a [saveBlocker] (or while loading or saving). */
+    val canSave: Boolean get() = !loading && !saving && saveBlocker == null
 
     fun issuesFor(legIndex: Int): List<TripIssue> = issues.filter { it.legIndex == legIndex }
 
@@ -194,4 +245,12 @@ data class TripEditorUiState(
         val next = legs.getOrNull(legIndex)?.toFlightLeg() ?: return null
         return Duration.between(prev.arrival, next.departure)
     }
+
+    companion object {
+        /** Time of day for a return flight picked by date only. */
+        val DefaultReturnTime: LocalTime = LocalTime.of(12, 0)
+    }
 }
+
+/** Why the editor's main action is disabled; the bottom bar says it in words. */
+enum class SaveBlocker { Errors, Incomplete, ReturnDateMissing, ReturnBeforeArrival }

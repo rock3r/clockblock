@@ -32,9 +32,13 @@ fun ClockblockE2eTest.openNewTrip() {
     awaitTag("route_trip_editor").assertIsDisplayed()
 }
 
-/** Types [query] into a place field and picks the result with IATA [code]. */
+/**
+ * Taps the ticket's airport code [fieldTag], types [query] into the search sheet and picks the result with IATA
+ * [code]. The sheet may already be open for this field: after From, the editor asks for an empty To straight away.
+ */
 fun ClockblockE2eTest.pickPlace(fieldTag: String, query: String, code: String) {
-    searchUntilResult(fieldTag, query, TripsTestTags.placeResult(code))
+    if (!exists(TripsTestTags.EditorPlaceSearch)) awaitTag(fieldTag).scrollIntoViewAndClick()
+    searchUntilResult(TripsTestTags.EditorPlaceSearch, query, TripsTestTags.placeResult(code))
     awaitTag(TripsTestTags.placeResult(code)).scrollIntoViewAndClick()
     awaitGone(TripsTestTags.placeResult(code))
 }

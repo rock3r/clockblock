@@ -153,40 +153,24 @@ fun RouteArcBanner(
     val hasOrigin = !origin.isNullOrBlank()
     val hasDestination = !destination.isNullOrBlank()
     val motion = ClockblockTheme.motion
-    val reduce = LocalReduceMotion.current
-
-    // Starts at rest (no entrance); later changes animate. Both values are read only in the draw phase.
-    val apexTarget = if (hasDestination) apex.coerceIn(0f, 1f) else 0f
-    val planeTarget = if (hasDestination) progress.coerceIn(0f, 1f) else 0f
-    val apexValue = remember { Animatable(apexTarget) }
-    val planeValue = remember { Animatable(planeTarget) }
-    LaunchedEffect(apexTarget, reduce) {
-        if (reduce) apexValue.snapTo(apexTarget) else apexValue.animateTo(apexTarget, motion.containerSpatial())
-    }
-    LaunchedEffect(planeTarget, reduce) {
-        if (reduce) planeValue.snapTo(planeTarget) else planeValue.animateTo(planeTarget, motion.dataSpatial())
-    }
     val originCode by animateColorAsState(if (hasOrigin) colors.code else colors.emptyCode, motion.colour(), label = "originCode")
     val destinationCode by animateColorAsState(if (hasDestination) colors.code else colors.emptyCode, motion.colour(), label = "destCode")
 
     val codeHeight = with(LocalDensity.current) { codeStyle.glyphHeight.toDp() }
     val canvasHeight = max(arcHeight, codeHeight + 20.dp)
-    val route = remember { Path() }
-    val flown = remember { Path() }
-    val measure = remember { PathMeasure() }
 
     Column(modifier.clearAndSetSemantics { this.contentDescription = contentDescription }) {
         Row(verticalAlignment = Alignment.Bottom) {
             IataCode(origin, style = codeStyle, color = originCode, contentDescription = null)
-            Canvas(Modifier.weight(1f).height(canvasHeight)) {
-                val mirror = layoutDirection == LayoutDirection.Rtl
-                scale(if (mirror) -1f else 1f, 1f) {
-                    drawRoute(
-                        RouteFrame(codeHeight.toPx(), apexValue.value, planeValue.value, hasOrigin, hasDestination),
-                        colors, route, flown, measure,
-                    )
-                }
-            }
+            RouteArc(
+                hasOrigin = hasOrigin,
+                hasDestination = hasDestination,
+                codeHeight = codeHeight,
+                modifier = Modifier.weight(1f).height(canvasHeight),
+                progress = progress,
+                apex = apex,
+                colors = colors,
+            )
             IataCode(destination, style = codeStyle, color = destinationCode, contentDescription = null)
         }
         if (originCaption != null || destinationCaption != null) {
@@ -201,6 +185,50 @@ fun RouteArcBanner(
                     maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End,
                 )
             }
+        }
+    }
+}
+
+/**
+ * The arc of a [RouteArcBanner] on its own, for layouts that place the two codes themselves (the trip editor's
+ * ticket). Its baseline sits [codeHeight] / 2 above the bottom edge, so with its bottom aligned to the codes'
+ * bottom the dots meet the codes' middle. Same motion as the banner: the apex springs up on
+ * `ClockblockMotion.containerSpatial()` when [hasDestination] turns on, the plane glides on `dataSpatial()`, and
+ * reduce motion snaps both. Decorative: no semantics of its own.
+ */
+@Composable
+fun RouteArc(
+    hasOrigin: Boolean,
+    hasDestination: Boolean,
+    codeHeight: Dp,
+    modifier: Modifier = Modifier,
+    progress: Float = 0f,
+    apex: Float = 1f,
+    colors: RouteArcColors = RouteArcDefaults.colors(),
+) {
+    val motion = ClockblockTheme.motion
+    val reduce = LocalReduceMotion.current
+    // Starts at rest (no entrance); later changes animate. Both values are read only in the draw phase.
+    val apexTarget = if (hasDestination) apex.coerceIn(0f, 1f) else 0f
+    val planeTarget = if (hasDestination) progress.coerceIn(0f, 1f) else 0f
+    val apexValue = remember { Animatable(apexTarget) }
+    val planeValue = remember { Animatable(planeTarget) }
+    LaunchedEffect(apexTarget, reduce) {
+        if (reduce) apexValue.snapTo(apexTarget) else apexValue.animateTo(apexTarget, motion.containerSpatial())
+    }
+    LaunchedEffect(planeTarget, reduce) {
+        if (reduce) planeValue.snapTo(planeTarget) else planeValue.animateTo(planeTarget, motion.dataSpatial())
+    }
+    val route = remember { Path() }
+    val flown = remember { Path() }
+    val measure = remember { PathMeasure() }
+    Canvas(modifier) {
+        val mirror = layoutDirection == LayoutDirection.Rtl
+        scale(if (mirror) -1f else 1f, 1f) {
+            drawRoute(
+                RouteFrame(codeHeight.toPx(), apexValue.value, planeValue.value, hasOrigin, hasDestination),
+                colors, route, flown, measure,
+            )
         }
     }
 }

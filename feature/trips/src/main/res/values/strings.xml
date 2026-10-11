@@ -94,9 +94,12 @@
     <string name="editor_title_edit">Edit trip</string>
     <string name="editor_title_return">Return trip</string>
     <string name="editor_close">Close</string>
-    <string name="editor_save">Save</string>
-    <string name="editor_save_hint">Add airports and times for every flight to save.</string>
-    <string name="editor_save_blocked">Fix the issues marked in red to save.</string>
+    <string name="editor_build_plan">Build my plan</string>
+    <string name="editor_save_changes">Save changes</string>
+    <string name="editor_save_hint">Add airports and times for every flight.</string>
+    <string name="editor_save_blocked">Fix the issues marked in red first.</string>
+    <string name="editor_save_return_missing">Pick the date of your return flight, or turn Return flight off.</string>
+    <string name="editor_save_return_before">Your return flight leaves before you land. Check its date and time.</string>
     <string name="editor_not_found">This trip no longer exists.</string>
     <string name="editor_back">Back</string>
     <string name="editor_leg_title">Flight %1$d</string>
@@ -104,7 +107,11 @@
     <string name="editor_from">From</string>
     <string name="editor_to">To</string>
     <string name="editor_place_placeholder">City, airport or code</string>
-    <string name="editor_place_supporting">%1$s · %2$s · %3$s</string>
+    <string name="editor_place_choose">Choose airport</string>
+    <string name="editor_place_change">Change airport</string>
+    <string name="editor_place_sheet_from">Flying from</string>
+    <string name="editor_place_sheet_to">Flying to</string>
+    <string name="editor_place_sheet_title_leg">%1$s · flight %2$d</string>
     <string name="editor_place_pick_hint">Pick a match below, or press Enter for the top one</string>
     <string name="editor_place_no_results">No airport or city matches “%1$s”.</string>
     <string name="editor_place_popular">Popular airports</string>
@@ -122,12 +129,26 @@
     <string name="editor_pick_time">Pick time</string>
     <string name="editor_field_value">%1$s: %2$s</string>
     <string name="editor_flight_number">Flight number (optional)</string>
+    <string name="editor_flight_number_short">Flight no.</string>
     <string name="editor_flight_duration">%1$s in the air</string>
     <string name="editor_day_next">Lands the next day</string>
     <string name="editor_day_previous">Lands the day before</string>
     <plurals name="editor_day_later">
         <item quantity="one">Lands %1$d day later</item>
         <item quantity="other">Lands %1$d days later</item>
+    </plurals>
+    <plurals name="editor_day_earlier">
+        <item quantity="one">Lands %1$d day earlier</item>
+        <item quantity="other">Lands %1$d days earlier</item>
+    </plurals>
+    <!-- Beside the arrival chips: the arrival is on another calendar day (local dates). -->
+    <plurals name="editor_day_offset_later">
+        <item quantity="one">+%1$d day</item>
+        <item quantity="other">+%1$d days</item>
+    </plurals>
+    <plurals name="editor_day_offset_earlier">
+        <item quantity="one">−%1$d day</item>
+        <item quantity="other">−%1$d days</item>
     </plurals>
     <string name="editor_add_leg">Add connecting flight</string>
     <string name="editor_layover">%1$s layover in %2$s</string>
@@ -139,9 +160,6 @@
     <string name="editor_details">Trip details</string>
     <string name="editor_trip_title">Title</string>
     <string name="editor_trip_title_hint">Suggested from your route. Change it if you like.</string>
-    <string name="editor_return">Flying back (optional)</string>
-    <string name="editor_return_hint">Lets us spot short trips. %1$s.</string>
-    <string name="editor_return_clear">Clear return flight</string>
     <string name="editor_strategy">Body clock</string>
     <string name="editor_strategy_auto">Auto</string>
     <string name="editor_strategy_adapt">Adapt</string>
@@ -155,23 +173,35 @@
     <string name="editor_body_clock_start_departure_explanation">The plan starts on %1$s time. Right if you live there, or have been there long enough to get over jet lag.</string>
     <string name="editor_body_clock_start_home_explanation">The plan starts on %1$s time. Right if you only just got to %2$s and your body is still on home time.</string>
 
-    <!-- Shift preview. -->
-    <string name="editor_preview_title">Your shift preview</string>
-    <string name="editor_preview_east">%1$s east</string>
-    <string name="editor_preview_west">%1$s west</string>
-    <string name="editor_preview_earlier">shift earlier</string>
-    <string name="editor_preview_later">shift later</string>
+    <!-- Return flight. -->
+    <string name="editor_return_title">Return flight</string>
+    <string name="editor_return_off">One way / not sure yet</string>
+    <string name="editor_return_on">Pick when you fly back</string>
+    <string name="editor_return_route">%1$s → %2$s</string>
+    <string name="editor_return_flies">Flies back</string>
+    <string name="editor_return_creates">Your return trip, %1$s, is added to Trips too.</string>
+    <string name="editor_return_creates_generic">Your return trip is added to Trips too.</string>
+    <string name="editor_return_hint">Lets us spot short trips.</string>
+    <string name="editor_return_before_landing">Leaves before you land in %1$s.</string>
+
+    <!-- Your shift. -->
+    <string name="editor_shift_title">Your shift</string>
+    <string name="editor_shift_empty">Add your flights to see how far your body clock has to move.</string>
+    <string name="editor_shift_home_title">Home time</string>
+    <string name="editor_shift_none_title">No jet lag</string>
+    <plurals name="editor_shift_with">
+        <item quantity="one">About %1$d day with the plan</item>
+        <item quantity="other">About %1$d days with the plan</item>
+    </plurals>
+    <plurals name="editor_shift_without">
+        <item quantity="one">%1$d without</item>
+        <item quantity="other">%1$d without</item>
+    </plurals>
+    <string name="editor_shift_long_way_later">Your body clock goes the long way round: a little later each day.</string>
+    <string name="editor_shift_long_way_earlier">Your body clock goes the long way round: a little earlier each day.</string>
     <string name="editor_preview_no_shift">No jet lag expected: these places keep nearly the same hours.</string>
     <string name="editor_preview_home">Short trip: the plan keeps your body clock on home time.</string>
-    <plurals name="editor_preview_days">
-        <item quantity="one">About %1$d day to adapt with the plan</item>
-        <item quantity="other">About %1$d days to adapt with the plan</item>
-    </plurals>
-    <plurals name="editor_preview_without">
-        <item quantity="one">about %1$d day without one</item>
-        <item quantity="other">about %1$d days without one</item>
-    </plurals>
-    <string name="editor_preview_note">Estimated by the planner from the flights above. Save to see the full plan.</string>
+    <string name="editor_preview_note">Estimated by the planner from the flights above.</string>
 
     <!-- I'm delayed. -->
     <string name="editor_delay_title">I\'m delayed</string>

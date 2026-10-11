@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
@@ -222,6 +223,12 @@ fun IataCode(
 
 /** IATA airport codes are three characters. */
 const val IataLength = 3
+
+/** Width in px of [code] as [IataCode] draws it in [style] (at least [IataLength] cells), for layouts that align to it. */
+fun iataCodeWidthPx(code: String?, style: DotMatrixStyle, density: Density): Int {
+    val pitch = with(density) { style.glyphHeight.toPx() } / DotMatrixFont.Rows
+    return ceil(dotMatrixWidth(dotMatrixCells(code, IataLength).length, style, pitch)).toInt()
+}
 
 /** Width of [cells] dot-matrix cells in [style], in px for the given dot [pitch]. */
 internal fun dotMatrixWidth(cells: Int, style: DotMatrixStyle, pitch: Float): Float =
