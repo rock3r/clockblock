@@ -190,7 +190,7 @@ object TwoSkies {
                 ops += DialOp.Text(labels.numeral(hour), x, y, numeral, p.inkMuted, part = DialPart.Numeral)
             }
 
-            advice(laneR, laneW, discR = 10f * k, nextDiscR = 8f * k, rimR = rimR, sayK = k)
+            advice(laneR, laneW, discR = 10f * k, nextDiscR = 8f * k, rimAt = rimR, sayK = k)
             nowMark(outerR + ringW / 2f + 3.5f * k, 2.4f * k)
             needle(innerR - ringW / 2f - 2f * k, outerR + ringW / 2f + 2.5f * k, 3f * k, tip = 4.5f * k)
 
@@ -237,7 +237,7 @@ object TwoSkies {
                     otherHalfRingLabel(labels.body(), innerR, ringW, bodyNight, bodyText)?.takeUnless { it.clashes(other) }
                 }
             bodyLabel?.let { ops += it }
-            advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
+            advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimAt = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
             val local = localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
@@ -393,7 +393,9 @@ object TwoSkies {
          * The advice in focus: the block under the hand as one arc on the lane with its glyph at the start (or,
          * when nothing is on, the next block), and on the full dial its narration along the rim.
          */
-        fun advice(laneR: Float, laneW: Float, discR: Float, nextDiscR: Float?, rimR: Float?, sayK: Float) {
+        fun advice(laneR: Float, laneW: Float, discR: Float, nextDiscR: Float?, rimAt: Float?, sayK: Float) {
+            // Grown narration moves out by half its growth, keeping clear of the advice lane and its glyphs.
+            val rimR = rimAt?.let { it + (narrationSize(sayK) - 10f * sayK) / 2f }
             val current = focus.current
             val next = focus.next
             val shown = current ?: next ?: return
