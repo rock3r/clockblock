@@ -41,22 +41,24 @@ class NotificationFactory(
     /**
      * The standard ongoing "Now" notification. Its header carries the body clock ("Body 3½ h behind").
      *
-     * The content is custom ([NowNotificationViews], inside `DecoratedCustomViewStyle` so the system keeps its
-     * header, expand button and actions): glyph, label, until with the other zone as a tail, a progress bar, and,
-     * expanded, what runs alongside, what's next and a tip. The redacted lock-screen version uses the standard
-     * template with the same text. Title and text are set either way (accessibility, wearables).
+     * The content is custom, inside `DecoratedCustomViewStyle` so the system keeps its header, expand button and
+     * actions (Done, Can't do this, Snooze, or Undo). With [content] it is the Remote Compose documents
+     * ([NowNotificationContent]: glyph, label, until with the other zone's time, and, expanded, a live progress bar
+     * and countdown and what's next); without, the classic views ([NowNotificationViews]: the same, plus what runs
+     * alongside and a tip). The redacted lock-screen version uses the standard template with the same text. Title
+     * and text are set either way: the shade's accessibility, the ticker, wearables and automation read them.
      *
      * @param redact hide details on the lock screen: the notification becomes `VISIBILITY_PRIVATE` with a public
      *   version that keeps labels and times but drops places, flight numbers and supplements.
      */
-    fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false): Notification {
+    fun now(state: NowState, plan: JetLagPlan, now: Instant, redact: Boolean = false, content: NowContentViews? = null): Notification {
         fun build(publicText: Boolean): NotificationCompat.Builder {
             val text = formatter(publicText).now(state, plan, now)
             val builder = ongoingBuilder(ClockblockChannel.Now, state, text)
             if (!publicText) {
                 builder.setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                    .setCustomContentView(NowNotificationViews.collapsed(context, state, text, now))
-                    .setCustomBigContentView(NowNotificationViews.expanded(context, state, text, now))
+                    .setCustomContentView(content?.collapsed ?: NowNotificationViews.collapsed(context, state, text, now))
+                    .setCustomBigContentView(content?.expanded ?: NowNotificationViews.expanded(context, state, text, now))
             } else {
                 builder.setStyle(NotificationCompat.BigTextStyle().bigText(text.bigText))
                     // Melatonin is never the headline (moments get reminders), so the chip never names it.

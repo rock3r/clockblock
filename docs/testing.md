@@ -67,19 +67,19 @@ difference under `<module>/build/outputs/roborazzi/`. CI uploads that folder as 
 The e2e tests are in [`app/src/androidTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e).
 They drive the real app, with real DataStore files and real notifications.
 
-| Test class | Tests | What it covers |
-|---|---|---|
-| `SmokeTest` | 2 | The app starts on the right first screen, and shows the navigation after onboarding |
-| `FirstRunTest` | 2 | All onboarding steps, finished without the permission prompt ("Maybe later", or "Finish" when notifications are already allowed); skipping ahead and stepping back |
-| `NotificationsTest` | 2 | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan |
-| `TripsTest` | 3 | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
-| `EditorConfigChangesTest` | 1 | The trip editor keeps its input across rotation and a large font |
-| `PlanInteractionsTest` | 4 | A timeline block opens the Why sheet and the toolbar jumps back to now; a light block's Why sheet shows the light response curve, and its "Later hour" action moves the readout; a timeline check-off circle logs Done, and Undo or unticking clears it; calendar export opens the file picker |
-| `PlanTwoPaneTest` | 1 | In landscape, where the plan has two panes, the day strip marks the day the timeline is showing |
-| `DeepLinkTest` | 5 | Every `clockblock://` link, including one sent to an already running app |
-| `WidgetTest` | 2 | *Two clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
-| `SettingsTest` | 3 | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
-| `BackupImportTest` | 2 | Importing a backup: Merge is the dialog's main action and keeps the trips already on the phone; Replace swaps them for the backup's. The system file picker is replaced by a stub that returns a prepared file |
+| Test class | What it covers |
+|---|---|
+| `SmokeTest` | The app starts on the right first screen, and shows the navigation after onboarding |
+| `FirstRunTest` | All onboarding steps, finished without the permission prompt ("Maybe later", or "Finish" when notifications are already allowed); skipping ahead and stepping back |
+| `NotificationsTest` | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan; the Now notification keeps its Remote Compose content in the shade, and its Done action logs the outcome |
+| `TripsTest` | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
+| `EditorConfigChangesTest` | The trip editor keeps its input across rotation and a large font |
+| `PlanInteractionsTest` | A timeline block opens the Why sheet and the toolbar jumps back to now; a light block's Why sheet shows the light response curve, and its "Later hour" action moves the readout; a timeline check-off circle logs Done, and Undo or unticking clears it; calendar export opens the file picker |
+| `PlanTwoPaneTest` | In landscape, where the plan has two panes, the day strip marks the day the timeline is showing |
+| `DeepLinkTest` | Every `clockblock://` link, including one sent to an already running app |
+| `WidgetTest` | *Two clocks* shows the active trip and opens its plan; *Next up* with no trips opens the trip editor |
+| `SettingsTest` | Dark theme repaints the app; replaying setup returns to Settings; one hidden extra |
+| `BackupImportTest` | Importing a backup: Merge is the dialog's main action and keeps the trips already on the phone; Replace swaps them for the backup's. The system file picker is replaced by a stub that returns a prepared file |
 
 [`ClockblockE2eTest`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/ClockblockE2eTest.kt) is the base
 class. It provides a Compose test rule and a UiAutomator `UiDevice`. Tests check which screen is showing through
@@ -100,9 +100,10 @@ notifications. Runtime permissions stay granted between tests.
 Debug builds add **Settings → Debug → Debug tools**
 ([`DebugActivity`](../app/src/debug/kotlin/dev/sebastiano/clockblocker/opus/debug/DebugActivity.kt)). It runs the
 Remote Compose notification probe (#49) and opens the widget gallery's pages, so you can try them on a phone
-without adb. The probe posts a preview of a Remote Compose Now notification on a demo plan, in four variants: a
-48 dp collapsed row and an expanded view sized for the shade, in colours that follow the system theme. Its results
-stay on screen when you switch the theme. Release builds don't include it.
+without adb. The probe posts the Now notification's Remote Compose documents on a demo plan, in four variants (the
+real Now notification uses one of them, with its actions): a 48 dp collapsed row and an expanded view sized for the
+shade, in colours that follow the system theme. Its results stay on screen when you switch the theme. Release
+builds don't include it.
 
 ## CI
 

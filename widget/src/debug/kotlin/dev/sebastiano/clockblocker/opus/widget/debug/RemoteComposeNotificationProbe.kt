@@ -26,7 +26,8 @@ import kotlinx.coroutines.delay
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * DEBUG ONLY (#49). A preview of a Remote Compose Now notification, and a check that the shade takes one
+ * DEBUG ONLY (#49). The Remote Compose Now notification's documents on the demo plan, and a check that the shade takes
+ * them
  * (`RemoteViews(DrawInstructions)` as custom content). Posts one notification per [Variant] on the Now channel, built
  * from the notification documents (`NowNotificationDocuments`: a 48 dp collapsed row and an expanded view that wraps
  * its content under the 252 dp cap, sized for this screen's shade, in colours the player picks by the system theme),
@@ -37,8 +38,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * Run it from Settings → Debug → Run the probe (debug builds), or with
  * `adb shell am start -n <applicationId>/dev.sebastiano.clockblocker.opus.widget.debug.WidgetGalleryActivity --es page notification`.
  * Results show on screen and go to logcat under [TAG]. Look at the shade too, and flip dark theme with them showing:
- * "active" only means SystemUI kept the notification, not that the document drew. The demo plan is not a real trip,
- * so Done does nothing; a tap elsewhere opens the app.
+ * "active" only means SystemUI kept the notification, not that the document drew. The demo plan is not a real trip:
+ * the probe posts no actions (the real Now notification has them), and a tap opens the app.
  */
 class RemoteComposeNotificationProbe(private val context: Context) {
 
@@ -109,7 +110,7 @@ class RemoteComposeNotificationProbe(private val context: Context) {
             "${NotificationSlots.COLLAPSED_HEIGHT_DP} dp, expanded ${slots.expandedWidthDp}×${expandedHeight.toInt()} dp"
         Log.i(TAG, "$sizes; collapsed ${documents.collapsed.bytes.size} B, expanded ${documents.expanded.bytes.size} B")
 
-        // A tap on the content opens the app (the demo trip has no plan screen); Done stays inert (see the KDoc).
+        // A tap on the content opens the app (the demo trip has no plan screen).
         val click = DeepLinkIntents.pendingIntent(context, DeepLinks.TRIPS)
         val threw = Variant.entries.associateWith { variant ->
             try {

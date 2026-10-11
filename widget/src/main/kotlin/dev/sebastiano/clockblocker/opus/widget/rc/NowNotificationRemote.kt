@@ -16,19 +16,14 @@ import androidx.compose.remote.creation.compose.layout.RemoteRow
 import androidx.compose.remote.creation.compose.layout.RemoteSize
 import androidx.compose.remote.creation.compose.layout.RemoteText
 import androidx.compose.remote.creation.compose.modifier.RemoteModifier
-import androidx.compose.remote.creation.compose.modifier.background
 import androidx.compose.remote.creation.compose.modifier.clickable
-import androidx.compose.remote.creation.compose.modifier.clip
 import androidx.compose.remote.creation.compose.modifier.contentDescription
-import androidx.compose.remote.creation.compose.modifier.fillMaxHeight
 import androidx.compose.remote.creation.compose.modifier.fillMaxSize
 import androidx.compose.remote.creation.compose.modifier.fillMaxWidth
 import androidx.compose.remote.creation.compose.modifier.height
 import androidx.compose.remote.creation.compose.modifier.padding
 import androidx.compose.remote.creation.compose.modifier.semantics
 import androidx.compose.remote.creation.compose.modifier.size
-import androidx.compose.remote.creation.compose.modifier.width
-import androidx.compose.remote.creation.compose.shapes.RemoteRoundedCornerShape
 import androidx.compose.remote.creation.compose.state.RemoteColor
 import androidx.compose.remote.creation.compose.state.RemotePaint
 import androidx.compose.remote.creation.compose.state.RemoteString
@@ -78,24 +73,22 @@ data class ThemedWidgetModel(val light: WidgetModel, val dark: WidgetModel) {
 }
 
 /**
- * The Now notification's collapsed content as a Remote Compose document (a preview for #49: the debug probe posts it;
- * the real Now notification still uses classic views). One 48 dp row: the advice glyph beside its label, the until
- * line with the other zone's time ("until 20:30 · 12:30 in Lisbon"), and Done. No background: it sits on the shade's
- * own surface, like the classic content. Fitted for [widthDp] (see [NotificationSlots]).
+ * The Now notification's collapsed content as a Remote Compose document (#49; the debug probe posts it too). One 48 dp
+ * row: the advice glyph beside its label and the until line with the other zone's time ("until 20:30 · 12:30 in
+ * Lisbon"). No Done inside: the notification's own actions (Done, Can't do this, Snooze) do that, for accessibility
+ * and automation, so the text has the full width. No background: it sits on the shade's own surface, like the
+ * classic content. Fitted for [widthDp] (see [NotificationSlots]).
  */
 @RemoteComposable
 @Composable
 fun NowNotificationCollapsedRemote(model: ThemedWidgetModel, widthDp: Int) {
     val texts = model.texts
     val fit = NotificationFit.collapsed(LocalContext.current, texts, widthDp)
-    val doneRoom = fit.done?.let { it.widthDp + COLLAPSED_DONE_GAP_DP } ?: 0
     RemoteBox(
         modifier = RemoteModifier.fillMaxWidth().height(NotificationSlots.COLLAPSED_HEIGHT_DP.rdp),
         contentAlignment = RemoteAlignment.CenterStart,
     ) {
-        // Done is overlaid at the end rather than a trailing Row child (alpha20's RemoteRow gives a weighted sibling
-        // the room of trailing fixed children, see NextUpRemote); the main region keeps clear of it.
-        NotificationRegion(model, spokenNow(model, withNext = false), RemoteModifier.fillMaxSize().padding(end = doneRoom.rdp)) {
+        NotificationRegion(model, spokenNow(model, withNext = false), RemoteModifier.fillMaxSize()) {
             RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
                 if (fit.glyph) ThemedGlyph(texts.glyph, model, COLLAPSED_GLYPH_DP)
                 RemoteColumn(
@@ -112,20 +105,15 @@ fun NowNotificationCollapsedRemote(model: ThemedWidgetModel, widthDp: Int) {
                 }
             }
         }
-        fit.done?.let { done ->
-            RemoteBox(modifier = RemoteModifier.fillMaxSize(), contentAlignment = RemoteAlignment.CenterEnd) {
-                NotificationDone(model, done, COLLAPSED_DONE_PILL_DP, RemoteModifier.width(done.widthDp.rdp).fillMaxHeight())
-            }
-        }
     }
 }
 
 /**
- * The Now notification's expanded content as a Remote Compose document (#49 preview, see
- * [NowNotificationCollapsedRemote]), in reading order: the glyph beside the label and the until line with the other
- * zone's time; the block's progress with its countdown, both live (the host moves them, no alarm or re-post); what
- * starts next, glyph beside its label; and a normal-height Done button. It wraps its content (the shade caps the view
- * at 252 dp; [NotificationFit] drops the next row first when a large font scale would reach the cap).
+ * The Now notification's expanded content as a Remote Compose document (#49, see [NowNotificationCollapsedRemote]), in
+ * reading order: the glyph beside the label and the until line with the other zone's time; the block's progress with
+ * its countdown, both live (the host moves them, no alarm or re-post); and what starts next, glyph beside its label.
+ * The notification's actions follow under it. It wraps its content (the shade caps the view at 252 dp;
+ * [NotificationFit] drops the next row first when a large font scale would reach the cap).
  */
 @RemoteComposable
 @Composable
@@ -166,17 +154,6 @@ fun NowNotificationExpandedRemote(model: ThemedWidgetModel, widthDp: Int) {
                         }
                     }
                 }
-            }
-        }
-        fit.done?.let { done ->
-            RemoteBox(
-                modifier = RemoteModifier
-                    .fillMaxWidth()
-                    .padding(start = 0.rdp, top = DONE_ROW_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp)
-                    .height(DONE_TOUCH_DP.rdp),
-                contentAlignment = RemoteAlignment.CenterEnd,
-            ) {
-                NotificationDone(model, done, EXPANDED_DONE_PILL_DP, RemoteModifier.width(done.widthDp.rdp).fillMaxHeight())
             }
         }
     }
@@ -241,41 +218,7 @@ private fun LiveProgress(model: ThemedWidgetModel, fit: ExpandedNotificationFit,
 /** The bar never draws thinner than its own height. */
 private const val MIN_PROGRESS = 0.04f
 
-/**
- * Done, as a normal button: a [pillDp] tall pill in a full-height touch target. Once something is logged it turns
- * into a chip in the same footprint that opens the plan, like the widgets' Done.
- */
-@RemoteComposable
-@Composable
-private fun NotificationDone(model: ThemedWidgetModel, fit: DoneFit, pillDp: Int, modifier: RemoteModifier) {
-    val done = model.texts.done ?: return
-    val logged = done.logged != null
-    RemoteBox(
-        modifier = modifier
-            .clickable(if (logged) deepLinkAction(model.texts.deepLink) else doneAction(done))
-            .semantics { contentDescription = done.contentDescription.rs },
-        contentAlignment = RemoteAlignment.Center,
-    ) {
-        RemoteBox(
-            modifier = RemoteModifier
-                .fillMaxWidth()
-                .height(pillDp.rdp)
-                .clip(RemoteRoundedCornerShape((pillDp / 2).rdp))
-                .background(model.color { if (logged) it.surfaceContainer else it.primary }),
-            contentAlignment = RemoteAlignment.Center,
-        ) {
-            NotificationLabel(
-                fit.label,
-                model.color { if (logged) it.onSurfaceVariant else it.onPrimary },
-                FontWeight.SemiBold,
-                RemoteModifier.fillMaxWidth(),
-                TextAlign.Center,
-            )
-        }
-    }
-}
-
-/** The region that opens the plan, spoken as [description] (a sibling of Done, never its parent). */
+/** The region that opens the plan, spoken as [description]. */
 @RemoteComposable
 @Composable
 private fun NotificationRegion(
@@ -323,10 +266,14 @@ private fun NotificationLabel(
     )
 }
 
-/** What the main region says: the block with the other zone's time, the live countdown, and what starts next. */
+/**
+ * What the main region says: the block with the other zone's time, what was logged for it, the live countdown, and
+ * what starts next.
+ */
 private fun spokenNow(model: ThemedWidgetModel, withNext: Boolean): RemoteString {
     val texts = model.texts
     var spoken = texts.spokenNow.rs
+    texts.done?.takeIf { it.logged != null }?.let { spoken = spoken + ". ".rs + it.contentDescription.rs }
     spokenCountdown(model.light)?.let { spoken = spoken + ". ".rs + it }
     if (withNext) {
         texts.copy(upcoming = texts.upcoming.take(1)).upcomingDescription?.let { spoken = spoken + ". ".rs + it.rs }
@@ -335,7 +282,7 @@ private fun spokenNow(model: ThemedWidgetModel, withNext: Boolean): RemoteString
 }
 
 /**
- * The Now notification's two documents for [slots] (#49 preview): collapsed ([NowNotificationCollapsedRemote]) and
+ * The Now notification's two documents for [slots] (#49): collapsed ([NowNotificationCollapsedRemote]) and
  * expanded ([NowNotificationExpandedRemote]), each recorded at its natural size so the player measures it right even
  * before its first draw. Both follow the system theme by themselves ([ThemedWidgetModel]).
  */

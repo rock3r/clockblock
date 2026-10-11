@@ -11,4 +11,7 @@ import dev.zacsweers.metro.ContributesTo
 interface NotificationsGraph {
     val adviceAlarmScheduler: AdviceAlarmScheduler
     val notificationPermissions: NotificationPermissions
+
+    /** The Now notification; e2e tests render it to check which content the device takes. */
+    val nowNotificationSurface: NowNotificationSurface
 }
