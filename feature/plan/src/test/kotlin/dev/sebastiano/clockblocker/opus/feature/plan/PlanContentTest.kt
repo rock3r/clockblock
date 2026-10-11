@@ -929,12 +929,20 @@ class PlanContentTest {
     }
 
     @Test
-    fun `the header spells out the airport codes and only repeats the body shift when the dial is compact`() {
-        show(midAdaptation)
+    fun `the header spells out the airport codes, omits them for plain cities, and only repeats the body shift when the dial is compact`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
         compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S F O to L H R"))).assertExists()
         // At 400×880 dp the dial draws its full offset pill ("3½ h behind"), so the header subtitle does not repeat it.
         compose.onNodeWithText("Day 2 · Adapting").assertExists()
         compose.onNodeWithText("body 3½ h behind", substring = true).assertDoesNotExist()
+
+        // Plain-city trips (blank IATA code) do not fabricate a 3-letter airport code in the header.
+        val plainCityLeg = PlanFixtures.trip.legs.single().let { leg -> leg.copy(origin = leg.origin.copy(code = "")) }
+        state = midAdaptation.copy(trip = PlanFixtures.trip.copy(legs = listOf(plainCityLeg)))
+        compose.waitForIdle()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S F O to L H R"))).assertDoesNotExist()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S A N to L H R"))).assertDoesNotExist()
     }
 
     @Test

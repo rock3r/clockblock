@@ -549,7 +549,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val shownPlace = state.trip?.placeIn(shown.zone, shown.instant)
         val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
         val daylight = remember(shownPlace, shown.zone, shownDate) { headerDaylight(shownPlace, shown.zone, shownDate) }
-        val route = state.trip?.let { trip -> HeaderRoute(trip.origin.displayCode, trip.destination.displayCode) }
+        val route = state.trip?.let { trip ->
+            val origin = trip.origin.code
+            val destination = trip.destination.code
+            if (origin.isNotBlank() && destination.isNotBlank()) HeaderRoute(origin, destination) else null
+        }
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
