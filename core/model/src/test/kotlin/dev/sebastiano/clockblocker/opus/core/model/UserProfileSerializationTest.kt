@@ -1,6 +1,5 @@
 package dev.sebastiano.clockblocker.opus.core.model
 
-import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
@@ -8,6 +7,7 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.checkAll
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.Test
 
@@ -41,11 +41,11 @@ class UserProfileSerializationTest {
     }
 
     @Test
-    fun `profiles round-trip, and the old switch is never written back`() = runTest {
+    fun `profiles round-trip and write a compatible switch for older builds`() = runTest {
         checkAll(Arb.int(HeadStart.Choices.first()..HeadStart.Choices.last()), Arb.boolean()) { days, naps ->
             val profile = UserProfile(homeZoneId = "Europe/London", headStartDays = days, napsOk = naps)
             val text = json.encodeToString(UserProfile.serializer(), profile)
-            json.parseToJsonElement(text).jsonObject.keys shouldNotContain "adjustBeforeDeparture"
+            json.parseToJsonElement(text).jsonObject["adjustBeforeDeparture"] shouldBe JsonPrimitive(days > 0)
             json.decodeFromString(UserProfile.serializer(), text) shouldBe profile
         }
     }

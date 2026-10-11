@@ -100,7 +100,7 @@ object ToolsTags {
 fun ToolsEditor(
     profile: UserProfile,
     melatoninAcknowledged: Boolean,
-    onProfileChange: (UserProfile) -> Unit,
+    onProfileChange: ((UserProfile) -> UserProfile) -> Unit,
     onMelatoninChange: (Boolean) -> Unit,
     onAcknowledgeMelatonin: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -111,7 +111,7 @@ fun ToolsEditor(
             title = stringResource(R.string.tool_caffeine),
             description = stringResource(R.string.tool_caffeine_description),
             checked = profile.useCaffeine,
-            onCheckedChange = { onProfileChange(profile.copy(useCaffeine = it)) },
+            onCheckedChange = { onProfileChange { p -> p.copy(useCaffeine = it) } },
             shape = segmentedShape(0, 5),
             tag = ToolsTags.Caffeine,
             glyph = AdviceType.Caffeine,
@@ -121,7 +121,7 @@ fun ToolsEditor(
             title = stringResource(R.string.tool_planes),
             description = stringResource(R.string.tool_planes_description),
             checked = profile.canSleepOnPlanes,
-            onCheckedChange = { onProfileChange(profile.copy(canSleepOnPlanes = it)) },
+            onCheckedChange = { onProfileChange { p -> p.copy(canSleepOnPlanes = it) } },
             shape = segmentedShape(1, 5),
             tag = ToolsTags.Planes,
             glyph = AdviceType.Sleep,
@@ -131,7 +131,7 @@ fun ToolsEditor(
             title = stringResource(R.string.tool_naps),
             description = stringResource(R.string.tool_naps_description),
             checked = profile.napsOk,
-            onCheckedChange = { onProfileChange(profile.copy(napsOk = it)) },
+            onCheckedChange = { onProfileChange { p -> p.copy(napsOk = it) } },
             shape = segmentedShape(2, 5),
             tag = ToolsTags.Naps,
             glyph = AdviceType.Nap,
@@ -139,7 +139,7 @@ fun ToolsEditor(
         )
         HeadStartRow(
             selectedDays = profile.headStartDays,
-            onSelect = { days -> onProfileChange(profile.copy(headStartDays = days)) },
+            onSelect = { days -> onProfileChange { p -> p.copy(headStartDays = days) } },
             shape = segmentedShape(3, 5),
         )
         // Melatonin's card holds the row and its safety note, so the whole card takes the tint.

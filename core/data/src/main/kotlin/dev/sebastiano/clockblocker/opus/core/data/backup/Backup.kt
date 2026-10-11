@@ -72,6 +72,7 @@ class BackupCodec {
         if (format != FormatName && format !in LegacyFormatNames) throw BackupException.WrongFormat(format)
         val version = malformedOnFailure { root["version"]?.jsonPrimitive?.intOrNull }
             ?: throw BackupException.Malformed(null)
+        if (version < 1) throw BackupException.Malformed(null)
         if (version > CurrentVersion) throw BackupException.UnsupportedVersion(version, CurrentVersion)
         return malformedOnFailure {
             val backup = json.decodeFromJsonElement(Backup.serializer(), root)
@@ -92,7 +93,7 @@ class BackupCodec {
     }
 
     companion object {
-        const val CurrentVersion: Int = 1
+        const val CurrentVersion: Int = 2
         const val FormatName: String = "clockblock"
 
         /** Format names written by earlier builds (the app was called Opus Clockblock); still imported. */

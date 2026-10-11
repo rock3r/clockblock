@@ -105,6 +105,12 @@ object UserProfileSerializer : JsonTransformingSerializer<UserProfile>(UserProfi
     private const val Legacy = "adjustBeforeDeparture"
     private const val Days = "headStartDays"
 
+    override fun transformSerialize(element: JsonElement): JsonElement {
+        if (element !is JsonObject) return element
+        val days = (element[Days] as? JsonPrimitive)?.intOrNull ?: HeadStart.DefaultDays
+        return JsonObject(element + (Legacy to JsonPrimitive(days > 0)))
+    }
+
     override fun transformDeserialize(element: JsonElement): JsonElement {
         if (element !is JsonObject || (Legacy !in element && Days !in element)) return element
         val days = (element[Days] as? JsonPrimitive)?.intOrNull

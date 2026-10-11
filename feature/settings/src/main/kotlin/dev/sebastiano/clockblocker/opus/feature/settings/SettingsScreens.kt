@@ -605,7 +605,7 @@ private fun ProfileSection(
     ToolsEditor(
         profile = profile,
         melatoninAcknowledged = melatoninAcknowledged,
-        onProfileChange = { updated -> actions.updateProfile { updated } },
+        onProfileChange = actions::updateProfile,
         onMelatoninChange = actions::setMelatonin,
         onAcknowledgeMelatonin = actions::acknowledgeMelatonin,
     )

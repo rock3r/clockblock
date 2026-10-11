@@ -219,7 +219,12 @@ class SettingsContentTest {
         click(ToolsTags.headStart(2))
         actions.profile.headStartDays shouldBe 2
         click(ToolsTags.headStart(0))
-        actions.profile.headStartDays shouldBe 0
+        actions.profile shouldBe DemoData.profile.copy(
+            intensity = Intensity.Max,
+            useCaffeine = false,
+            napsOk = false,
+            headStartDays = 0,
+        )
     }
 
     @Test

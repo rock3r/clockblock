@@ -40,7 +40,7 @@ class BackupCodecTest {
     @Test
     fun `output is versioned, readable JSON`() {
         val text = codec.encode(full)
-        text shouldContain "\"version\": 1"
+        text shouldContain "\"version\": ${BackupCodec.CurrentVersion}"
         text shouldContain "\"format\": \"clockblock\""
         text shouldContain "\"zoneId\": \"Europe/London\""
         text shouldContain "\"departureLocal\": \"2026-06-15T19:30\""
@@ -48,10 +48,28 @@ class BackupCodecTest {
 
     @Test
     fun `newer versions are refused`() {
-        val newer = codec.encode(full).replace("\"version\": 1", "\"version\": 7")
+        val newer = codec.encode(full).replace("\"version\": ${BackupCodec.CurrentVersion}", "\"version\": 7")
         val e = shouldThrow<BackupException.UnsupportedVersion> { codec.decode(newer) }
         e.found shouldBe 7
         e.supported shouldBe BackupCodec.CurrentVersion
+    }
+
+    @Test
+    fun `version 1 backups with the legacy head-start switch still import`() {
+        val v1 = """
+            {
+              "version": 1,
+              "format": "clockblock",
+              "exportedAt": "2026-06-01T12:00:00Z",
+              "profile": {
+                "homeZoneId": "Europe/London",
+                "adjustBeforeDeparture": false
+              }
+            }
+        """.trimIndent()
+        val decoded = codec.decode(v1)
+        decoded.version shouldBe BackupCodec.CurrentVersion
+        decoded.profile?.headStartDays shouldBe 0
     }
 
     @Test
@@ -63,6 +81,7 @@ class BackupCodecTest {
         shouldThrow<BackupException.Malformed> { codec.decode("""{"format":{"nested":true}}""") }
         shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"clockblock"}""") }
         shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"clockblock","version":"one"}""") }
+        shouldThrow<BackupException.Malformed> { codec.decode("""{"format":"clockblock","version":0,"exportedAt":"2026-01-01T00:00:00Z"}""") }
         shouldThrow<BackupException.Malformed> {
             codec.decode("""{"format":"clockblock","version":1,"exportedAt":"yesterday"}""")
         }

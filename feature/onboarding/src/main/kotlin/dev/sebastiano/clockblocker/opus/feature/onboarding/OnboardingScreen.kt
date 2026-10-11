@@ -90,7 +90,7 @@ interface OnboardingActions {
     fun sleepChange(window: SleepWindow)
     fun daysOffSleepChange(window: SleepWindow)
     fun chronotypeChange(chronotype: Chronotype)
-    fun profileChange(profile: UserProfile)
+    fun profileChange(transform: (UserProfile) -> UserProfile)
     fun melatoninChange(enabled: Boolean)
     fun acknowledgeMelatonin(acknowledged: Boolean)
     fun intensityChange(intensity: Intensity)
@@ -111,7 +111,7 @@ interface OnboardingActions {
         override fun sleepChange(window: SleepWindow) = Unit
         override fun daysOffSleepChange(window: SleepWindow) = Unit
         override fun chronotypeChange(chronotype: Chronotype) = Unit
-        override fun profileChange(profile: UserProfile) = Unit
+        override fun profileChange(transform: (UserProfile) -> UserProfile) = Unit
         override fun melatoninChange(enabled: Boolean) = Unit
         override fun acknowledgeMelatonin(acknowledged: Boolean) = Unit
         override fun intensityChange(intensity: Intensity) = Unit
@@ -152,7 +152,7 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             override fun sleepChange(window: SleepWindow) = viewModel.setSleep(window)
             override fun daysOffSleepChange(window: SleepWindow) = viewModel.setDaysOffSleep(window)
             override fun chronotypeChange(chronotype: Chronotype) = viewModel.setChronotype(chronotype)
-            override fun profileChange(profile: UserProfile) = viewModel.updateProfile { profile }
+            override fun profileChange(transform: (UserProfile) -> UserProfile) = viewModel.updateProfile(transform)
             override fun melatoninChange(enabled: Boolean) = viewModel.setMelatonin(enabled)
             override fun acknowledgeMelatonin(acknowledged: Boolean) = viewModel.acknowledgeMelatoninNote(acknowledged)
             override fun intensityChange(intensity: Intensity) = viewModel.setIntensity(intensity)
