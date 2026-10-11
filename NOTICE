@@ -87,7 +87,9 @@ Libraries
 -------------------------------------------------------------------------------------------------------------
 
 The app is built on open-source libraries (AndroidX / Jetpack Compose, Kotlin and kotlinx, Metro, and others),
-each under its own licence, as declared in gradle/libs.versions.toml and listed in the app's licences screen.
+each under its own licence, as declared in gradle/libs.versions.toml. The app's licences screen lists them all
+with their licence texts, collected at build time by the AboutLibraries Gradle plugin; the entries the build can't
+see (vendored code, fonts, icons and data) are defined in app/config/aboutlibraries.
 
 -------------------------------------------------------------------------------------------------------------
 Trademarks

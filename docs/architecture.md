@@ -305,5 +305,9 @@ searches it in memory.
 - compileSdk 37.1, targetSdk 37, minSdk 37 (Android 17).
 - Compose uses an alpha BOM to get the public Material 3 Expressive APIs.
 - Project accessors are type-safe (`projects.core.data`).
+- The [AboutLibraries](https://github.com/mikepenz/AboutLibraries) plugin in `:app` collects every dependency's
+  licence at build time into `res/raw/aboutlibraries.json`. `:app` reads it and hands it to the licences screen in
+  `:feature:settings`. Entries the dependency graph can't show (the app, vendored code, fonts, icons, data) live in
+  [`app/config/aboutlibraries`](../app/config/aboutlibraries/README.md).
 
 For tests and CI, read [testing.md](testing.md).

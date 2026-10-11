@@ -1,0 +1,9 @@
+{
+  "uniqueId": "icons:material-symbols-rounded",
+  "name": "Material Symbols Rounded",
+  "description": "A handful of interface icons, imported as vector drawables.",
+  "website": "https://github.com/google/material-design-icons",
+  "developers": [{ "name": "Google LLC" }],
+  "licenses": ["Apache-2.0"],
+  "tag": "icons"
+}

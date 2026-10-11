@@ -1,0 +1,9 @@
+{
+  "uniqueId": "data:natural-earth",
+  "name": "Natural Earth",
+  "description": "The land on the route globe. Made with Natural Earth.",
+  "website": "https://www.naturalearthdata.com",
+  "developers": [{ "name": "Natural Earth contributors" }],
+  "licenses": ["PublicDomain"],
+  "tag": "data"
+}
