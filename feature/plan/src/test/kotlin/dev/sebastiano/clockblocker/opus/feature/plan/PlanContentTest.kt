@@ -905,4 +905,119 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.OpenTrips).performClick()
         openedTrips shouldBe 1
     }
+
+    @Test
+    fun `the header shows a countdown to the next action within a day, a date further out, and nothing after the last`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Mid-adaptation: the next action ("See some light" at 13:30 London) is 2 h 30 min away → countdown + time.
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("in 2 h 30 min", substring = true)
+            .assertContentDescriptionContains("13:30", substring = true)
+            .assertContentDescriptionContains("Los Angeles", substring = true)
+
+        // Picking Day 3 updates the header's Next action to that day's next block; Day 4 at 11:00 is already in the
+        // plan's final block, so Next disappears.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("See some light", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+
+        // Days before the plan starts: the first action is more than 24 h away → day and time, no countdown.
+        state = ready(Instant.parse("2026-06-10T16:00:00Z"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("Thu 11 Jun 20:00", substring = true)
+            .assertContentDescriptionContains("04:00 London +1", substring = true)
+
+        // After the trip: all actions have started → no next action row.
+        state = ready(Instant.parse("2026-06-24T12:00:00Z"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the header spells out the airport codes, omits them for plain cities, and only repeats the body shift when the dial is compact`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S F O to L H R"))).assertExists()
+        // At 400×880 dp the dial draws its full offset pill ("3½ h behind"), so the header subtitle does not repeat it.
+        compose.onNodeWithText("Day 2 · Adapting").assertExists()
+        compose.onNodeWithText("body 3½ h behind", substring = true).assertDoesNotExist()
+
+        // Plain-city trips (blank IATA code) do not fabricate a 3-letter airport code in the header.
+        val plainCityLeg = PlanFixtures.trip.legs.single().let { leg -> leg.copy(origin = leg.origin.copy(code = "")) }
+        state = midAdaptation.copy(trip = PlanFixtures.trip.copy(legs = listOf(plainCityLeg)))
+        compose.waitForIdle()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S F O to L H R"))).assertDoesNotExist()
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S A N to L H R"))).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h640dp-xhdpi")
+    fun `compact dial - the header carries the body shift that the simplified dial omits`() {
+        show(midAdaptation)
+        compose.onNodeWithText("Day 2 · Adapting · body 3½ h behind").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "w280dp-h880dp-xhdpi")
+    fun `narrow window - the header carries the body shift when width shrinks the dial below full size`() {
+        show(midAdaptation)
+        compose.onNodeWithText("Day 2 · Adapting · body 3½ h behind").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "w500dp-h400dp-xhdpi")
+    fun `short window - the collapsed header and the upcoming card keep the first action, and the list scrolls`() {
+        show(ready(Instant.parse("2026-06-10T16:00:00Z")))
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertTextContains("Thu 11 Jun 20:00", substring = true)
+            .assertTextContains("04:00 London +1", substring = true)
+        compose.onNode(hasText("Thu 11 Jun 20:00", substring = true) and hasAnyAncestor(hasTestTag(PlanTags.NowCard)))
+            .assertExists()
+        // Touch-scrolling the list on a short window is not swallowed by the collapsed app bar.
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NowCard).assertIsNotDisplayed()
+    }
+
+    @Test
+    fun `header ambient waits before starting a session and reacts to reduceMotion`() {
+        compose.mainClock.autoAdvance = false
+        var reduceMotion by mutableStateOf(false)
+        lateinit var ambient: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = reduceMotion) {
+                ambient = rememberHeaderAmbient(enabled = true)
+            }
+        }
+        ambient.sessionMillis shouldBe -1L
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis - 100)
+        ambient.sessionMillis shouldBe -1L
+
+        compose.mainClock.advanceTimeBy(500)
+        (ambient.sessionMillis > 0L) shouldBe true
+
+        // Turning on Reduce motion stops the running session.
+        reduceMotion = true
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        ambient.sessionMillis shouldBe -1L
+
+        // Turning Reduce motion back off starts the ambient timer again.
+        reduceMotion = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
+        (ambient.sessionMillis > 0L) shouldBe true
+    }
 }

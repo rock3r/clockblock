@@ -1,7 +1,7 @@
 {
   "uniqueId": "dev.c5inco.m3evibes:prime-meridian",
   "name": "Prime Meridian (m3e-vibes)",
-  "description": "The trip editor's ticket shape and the route globe are adapted from it (core/designsystem TicketShape.kt, GlobeGeo.kt and RouteGlobe.kt).",
+  "description": "The trip editor's ticket shape, the route globe and the sky atmosphere are adapted from it (core/designsystem TicketShape.kt, GlobeGeo.kt, RouteGlobe.kt and SkyAtmosphere.kt).",
   "website": "https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian",
   "developers": [{ "name": "Chris Sinco" }],
   "licenses": ["Apache-2.0"],

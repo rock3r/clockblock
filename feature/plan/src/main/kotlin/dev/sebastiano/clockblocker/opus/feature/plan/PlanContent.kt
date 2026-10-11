@@ -99,6 +99,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.circadian.secondaryZoneFor
+import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
+import dev.sebastiano.clockblocker.opus.core.circadian.localZoneAt
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.ShapeLoadingIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.TwoSkiesDial
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
@@ -458,6 +461,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         railDays.firstOrNull { !state.now.isBefore(it.start) && state.now.isBefore(it.end) }?.day?.index
     }
     val dayOffsets = remember(plan, railDays) { dayStripOffsets(plan, railDays) }
+    val dayDates = remember(plan, railDays) { dayStripDates(plan, railDays) }
     val rows = remember(railDays, state.now, screen.showEarlier) { buildRailRows(railDays, state.now, screen.showEarlier) }
     // Two panes: the day the rail is showing, for the strip to mark and keep in sight. Layout is read in the derived
     // state, so scrolling only recomposes the strip when the day changes. (Rows start after the rail's title.)
@@ -533,6 +537,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val shortWindow = maxHeight < ShortWindowMaxHeight
+        // Short windows always split when there is room: one pane there leaves the plan a sliver under
+        // the dial.
+        val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
         // Compact phones: the dial gives up size before the Now card's Done drops below the fold (issue #11). Sized
         // from the window, never from the collapsing header, so scrolling never resizes it.
         // The day strip goes above the dial when that still leaves the dial its smallest size; otherwise it
@@ -540,20 +547,29 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val withStrip = railDays.size > 1
         val stripFirst = withStrip && maxHeight - HeroReserve - StripReserve >= MinDialSize
         val dialSize = (maxHeight - HeroReserve - if (stripFirst) StripReserve else 0.dp).coerceIn(MinDialSize, MaxDialSize)
+        val heroWidth = (if (expanded) maxWidth * 0.46f else maxWidth).coerceAtMost(640.dp)
+        val dialSide = minOf(dialSize, (heroWidth - 48.dp).coerceAtLeast(0.dp))
         val strip = if (withStrip) {
-            DayStripModel(railDays, dayOffsets, todayIndex, first = stripFirst)
+            DayStripModel(railDays, dayOffsets, dayDates, todayIndex, first = stripFirst)
         } else {
             null
         }
+        val headerNext = rememberHeaderNext(plan, shown.instant)
         val sections = PlanSections(
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
+            upcomingNext = headerNext.takeIf { shortWindow },
         )
         // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date
         // (the place can change within a zone and a date, e.g. a same-day flight inside one zone).
         val shownPlace = state.trip?.placeIn(shown.zone, shown.instant)
         val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
         val daylight = remember(shownPlace, shown.zone, shownDate) { headerDaylight(shownPlace, shown.zone, shownDate) }
+        val route = state.trip?.let { trip ->
+            val origin = trip.origin.code
+            val destination = trip.destination.code
+            if (origin.isNotBlank() && destination.isNotBlank()) HeaderRoute(origin, destination) else null
+        }
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -573,15 +589,17 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     // is only cleared after it), so the fade starts here rather than over an already-live sky.
                     skyKey = selectedDay.takeIf { dayBase != null },
                     daylight = daylight,
+                    route = route,
+                    next = headerNext,
+                    // Compact phones or narrow windows draw the dial without its offset pill: the header says it there instead.
+                    showBodyShift = dialSide < FullDialMinSize,
+                    ambient = state.easterEggs,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
             containerColor = MaterialTheme.colorScheme.surface,
         ) { padding ->
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                // Short windows always split when there is room: one pane there leaves the plan a sliver under
-                // the dial.
-                val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
+            Box(Modifier.fillMaxSize()) {
                 val heroKeys = sections.heroKeys
                 val railList = if (expanded) rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
@@ -867,6 +885,7 @@ private class PlanSections(
     val anchor: Instant = state.now,
     val anchorZone: ZoneId = state.moment.zone,
     val strip: DayStripModel? = null,
+    val upcomingNext: HeaderNext? = null,
 ) {
     val heroKeys: List<String> = buildList {
         if (strip?.first == true) add(KeyDays)
@@ -889,6 +908,7 @@ private class PlanSections(
                     PlanDayStrip(
                         days = model.days,
                         offsets = model.offsets,
+                        dates = model.dates,
                         todayIndex = model.todayIndex,
                         selectedIndex = screen.selectedDay(state.plan.tripId)?.takeIf { picked -> model.days.any { it.day.index == picked } },
                         onSelect = { index ->
@@ -1037,7 +1057,7 @@ private class PlanSections(
                 modifier = modifier,
             )
             shown.stage == PlanStage.Complete -> CompleteCard(state.plan, state.outcomes, modifier)
-            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier)
+            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier, next = upcomingNext)
             else -> FreeTimeCard(shown, previewing, modifier, previewDay = previewDay)
         }
     }
@@ -1146,20 +1166,47 @@ private val StripReserve = 80.dp
 internal class DayStripModel(
     val days: List<RailDay>,
     val offsets: Map<Int, Float>,
+    val dates: Map<Int, Pair<java.time.LocalDate, java.time.LocalDate>>,
     val todayIndex: Int?,
     val first: Boolean,
 )
 
 /** The dial's size on roomy windows, and the smallest it gets on compact ones. */
 private val MaxDialSize = 320.dp
-private val MinDialSize = 200.dp
+private val MinDialSize = 172.dp
 
 /**
  * Window height the expanded header, the Now card (with Done) and the paddings around the dial need, so the dial
  * takes what is left (between [MinDialSize] and [MaxDialSize]).
  */
-private val HeroReserve = 456.dp
+private val HeroReserve = 468.dp
 
 /** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
 private val ShortWindowMaxHeight = 480.dp
 private val ShortTwoPaneMinWidth = 600.dp
+
+/** The dial's smallest side that draws its Full level (with the offset pill); smaller is Simple. */
+private val FullDialMinSize = 250.dp
+
+/**
+ * The header's next action at [now] ([nextAction]): a countdown with its time when it starts within a day ("Next:
+ * Avoid caffeine in 1 h 20 min", "at 14:00 · 22:00 London"), else its day and time ("Next: See bright light, Thu 11
+ * Jun 20:00", "04:00 London +1"). Local time where the traveller will be then, with the other zone. Null once the
+ * last action has started.
+ */
+@Composable
+private fun rememberHeaderNext(plan: JetLagPlan, now: Instant): HeaderNext? {
+    val action = remember(plan, now) { nextAction(plan.allAdvice, now) } ?: return null
+    val formatter = rememberTimeFormatter()
+    val zone = remember(plan, action) { plan.localZoneAt(action.advice.start) }
+    val time = nextActionTime(action.advice.start, zone, plan.secondaryZoneFor(zone), formatter, withDay = !action.soon)
+    val label = action.advice.type.label()
+    return if (action.soon) {
+        HeaderNext(
+            stringResource(R.string.plan_next_soon, label, formatDuration(action.startsIn)),
+            stringResource(R.string.plan_next_when, time.local, time.secondary),
+        )
+    } else {
+        HeaderNext(stringResource(R.string.plan_next_later, label, time.local), time.secondary)
+    }
+}

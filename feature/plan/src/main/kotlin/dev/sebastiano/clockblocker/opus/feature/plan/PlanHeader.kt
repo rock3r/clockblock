@@ -1,6 +1,36 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.vector.VectorPainter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.unit.sp
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.IataCode
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.SkyStars
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.drawSkyStars
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.drawSunGlow
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.spellOut
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.starVisibility
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.sunGlowStrength
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DotMatrixStyle
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
@@ -37,14 +67,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -100,13 +127,31 @@ internal fun planTitle(plan: JetLagPlan, trip: Trip?): String =
     trip?.title?.takeIf { it.isNotBlank() }
         ?: (ZoneId.of(plan.originZoneId).cityName() + " \u2192 " + ZoneId.of(plan.destinationZoneId).cityName())
 
+/** The route's airport codes for the header: where it leaves from and where it ends. */
+@Immutable
+internal data class HeaderRoute(val origin: String, val destination: String)
+
+/** The header's next action: [headline] ("Next: Avoid caffeine in 1 h 20 min") and [detail] ("at 14:00 · 22:00 London"). */
+@Immutable
+internal data class HeaderNext(val headline: String, val detail: String)
+
 /**
- * The header (design.md §2.4 C): a large flexible top app bar laid transparently over the body-clock sky, so the
- * header literally shows what time it is inside you. Title = the trip, subtitle = "Day 2 · Adapting · body 8 h behind".
- * The sky follows [moment] (so it moves while the dial is scrubbed).
+ * The header (design.md §2.4 C): an immersive sky painted for **body** time (the real sunrise and sunset where the
+ * traveller is), edge to edge under the status bar, that melts into the page at its foot. Over it: the navigation row
+ * with the sun or moon on its path, then the trip as dot-matrix airport codes and a city line, where the plan is
+ * ("Day 2 · Adapting", "2 days before your flight") and the next action. The sky follows [moment] (so it moves while
+ * the dial is scrubbed).
+ *
+ * It collapses with [scrollBehavior] to the navigation row with the trip's name; the expanded block fades out as it
+ * goes (read in the layer phase). Short windows keep it collapsed.
+ *
+ * [showBodyShift]: the subtitle also says how far off the body is ("body 2½ h ahead"), for when the dial doesn't
+ * (compact phones draw it without its offset pill); otherwise the dial's pill is the one place that says it.
  *
  * [skyKey] is the day picked in the day strip (`null` = live). Picking another day jumps the body clock by hours,
  * so the sky cross-fades to it; anything else (scrubbing, the minute tick) repaints the same sky in place.
+ *
+ * [ambient]: the sky may come alive now and then ([HeaderAmbient]); off under Reduce motion and in sleep windows.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -125,6 +170,10 @@ internal fun PlanHeader(
     firstLight: Boolean = false,
     skyKey: Int? = null,
     daylight: HeaderDaylight = HeaderDaylight.Default,
+    route: HeaderRoute? = null,
+    next: HeaderNext? = null,
+    showBodyShift: Boolean = false,
+    ambient: Boolean = false,
 ) {
     val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
     val fade = rememberSkyFade(skyKey, live)
@@ -135,70 +184,302 @@ internal fun PlanHeader(
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
+    val collapsedFraction: () -> Float = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction }
+    val celestialFrame by rememberUpdatedState(foreground)
+    val frame = remember { { celestialFrame } }
+    val headerAmbient = rememberHeaderAmbient(ambient && !nightSafe)
+    val stage = stageLabel(moment, firstDay)
+    val subtitle = if (showBodyShift) stage + " \u00B7 " + bodyShiftLabel(moment.bodyAheadHours) else stage
     Box(
         modifier
             .testTag(PlanTags.Header)
-            .onGloballyPositioned { atStartEdge = it.positionInWindow().x < 1f && it.positionInWindow().y < 1f },
+            .onGloballyPositioned { atStartEdge = it.positionInWindow().x < 1f && it.positionInWindow().y < 1f }
+            .clipToBounds(),
     ) {
-        // The sky paints the gradient; the sun / moon ride the navigation row (HeaderCelestial) so they never sit
-        // behind the title.
         HeaderSky(fade, live, Modifier.matchParentSize())
-        val subtitle: @Composable () -> Unit = {
-            PriorityLine(optional = stageLabel(moment, firstDay), essential = bodyShiftLabel(moment.bodyAheadHours))
-        }
-        val navigationIcon: @Composable () -> Unit = {
-            val onBack = actions.onBack
-            if (onBack != null) {
-                IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
-                    Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
-                }
-            }
-        }
-        val barActions: @Composable RowScope.() -> Unit = {
-            if (nightSafe) NightSafeChip()
-            OverflowMenu(canEdit, actions)
-        }
-        val colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-            scrolledContainerColor = Color.Transparent,
-            navigationIconContentColor = ink,
-            titleContentColor = ink,
-            actionIconContentColor = ink,
-            subtitleContentColor = ink.copy(alpha = 0.82f),
-        )
-        if (shortWindow) {
-            // Short windows (landscape phones): the large sky header took a third of the height and left the
-            // plan a sliver, so it is a single row there (pinned; nothing to collapse).
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                subtitle = subtitle,
-                navigationIcon = navigationIcon,
-                actions = barActions,
-                colors = colors,
-            )
-        } else {
-            LargeFlexibleTopAppBar(
-                title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                subtitle = subtitle,
-                navigationIcon = navigationIcon,
-                actions = barActions,
-                colors = colors,
+        // Stars and the ambient plane, behind everything else on the sky.
+        HeaderAtmosphere(frame, headerAmbient, ink, collapsedFraction, Modifier.matchParentSize())
+        CompositionLocalProvider(LocalContentColor provides ink) {
+            HeaderLayout(
                 scrollBehavior = scrollBehavior,
+                shortWindow = shortWindow,
+                navRow = {
+                    HeaderNavRow(
+                        title = title,
+                        subtitle = subtitle.takeIf { shortWindow },
+                        next = next.takeIf { shortWindow },
+                        collapsedFraction = collapsedFraction,
+                        nightSafe = nightSafe,
+                        canEdit = canEdit,
+                        actions = actions,
+                    )
+                },
+                expanded = { HeaderExpanded(title, route, subtitle, next, ink, collapsedFraction) },
+                fade = { HeaderFoot(collapsedFraction) },
             )
         }
-        // Above the app bar: its Surface would swallow the moon's taps otherwise. The frame changes per scrub frame, so
-        // it goes in as a provider read in layout and draw.
-        val celestialFrame by rememberUpdatedState(foreground)
+        // Above the rest: the moon takes taps. The frame changes per scrub frame, so it goes in as a provider read in
+        // layout and draw.
         HeaderCelestial(
-            frame = remember { { celestialFrame } },
+            frame = frame,
             ink = ink,
             eggEnabled = easterEggs,
             reserveEnd = if (nightSafe) 200.dp else 72.dp,
-            collapsedFraction = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction },
+            collapsedFraction = collapsedFraction,
             onTip = onMoonTip,
             firstLight = firstLight,
             modifier = Modifier.matchParentSize(),
         )
+    }
+}
+
+/**
+ * The header's three parts: the [navRow] (status bar and navigation row, always there), the [expanded] block under it
+ * and the [fade] at its foot. Expanded, it is all three; collapsing (the scroll behaviour's height offset, read in
+ * layout, so scrolling never recomposes) it shrinks to the navigation row, clipping the block from the bottom.
+ * The expanded height comes from the content (it grows with the font size), and is what the scroll behaviour may
+ * take away.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeaderLayout(
+    scrollBehavior: TopAppBarScrollBehavior,
+    shortWindow: Boolean,
+    navRow: @Composable () -> Unit,
+    expanded: @Composable () -> Unit,
+    fade: @Composable () -> Unit,
+) {
+    val state = scrollBehavior.state
+    Layout(contents = listOf(navRow, if (shortWindow) ({}) else expanded, if (shortWindow) ({}) else fade)) { (navs, blocks, fades), constraints ->
+        val width = constraints.maxWidth
+        val loose = Constraints(maxWidth = width)
+        val nav = navs.first().measure(loose)
+        val block = blocks.firstOrNull()?.measure(loose)
+        val foot = fades.firstOrNull()?.measure(Constraints.fixedWidth(width))
+        val collapsedHeight = nav.height
+        val expandedHeight = collapsedHeight + (block?.height ?: 0)
+        val limit = (collapsedHeight - expandedHeight).toFloat()
+        if (state.heightOffsetLimit != limit) state.heightOffsetLimit = limit
+        if (shortWindow && state.heightOffset != 0f) state.heightOffset = 0f
+        val height = if (shortWindow) collapsedHeight else (expandedHeight + state.heightOffset).roundToInt().coerceIn(collapsedHeight, expandedHeight)
+        layout(width, height) {
+            block?.placeRelative(0, collapsedHeight)
+            foot?.placeRelative(0, height - foot.height)
+            nav.placeRelative(0, 0)
+        }
+    }
+}
+
+/**
+ * The status bar's room and the navigation row: back, the trip's name (fading in as the header collapses; always
+ * there on short windows, with the [subtitle] and [next] action under it), the Night-safe chip and the menu.
+ */
+@Composable
+private fun HeaderNavRow(
+    title: String,
+    subtitle: String?,
+    next: HeaderNext?,
+    collapsedFraction: () -> Float,
+    nightSafe: Boolean,
+    canEdit: Boolean,
+    actions: PlanActions,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .height(NavRowHeight)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val onBack = actions.onBack
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = Modifier.testTag(PlanTags.Back)) {
+                Icon(PlanIcons.ArrowBack, contentDescription = stringResource(R.string.plan_navigate_up))
+            }
+        } else {
+            Spacer(Modifier.width(12.dp))
+        }
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
+                // Fades in over the second half of the collapse, once the expanded block has faded out.
+                .graphicsLayer { alpha = ((collapsedFraction() - 0.5f) * 2f).coerceIn(0f, 1f) },
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMediumEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) {
+                val line = if (next != null) "$subtitle \u00B7 ${next.headline} \u00B7 ${next.detail}" else subtitle
+                Text(
+                    line,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalContentColor.current.copy(alpha = 0.82f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (next != null) Modifier.testTag(PlanTags.NextAction) else Modifier,
+                )
+            }
+        }
+        if (nightSafe) NightSafeChip()
+        OverflowMenu(canEdit, actions)
+    }
+}
+
+/**
+ * The expanded block: the route in dot-matrix codes ("SFO ✈ LHR", no codes for a trip without airports) with where the
+ * plan is beside it, the city line, and the next action. It fades out over the first half of the collapse.
+ */
+@Composable
+private fun HeaderExpanded(title: String, route: HeaderRoute?, subtitle: String, next: HeaderNext?, ink: Color, collapsedFraction: () -> Float) {
+    val quiet = ink.copy(alpha = 0.82f)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 16.dp)
+            .graphicsLayer { alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f) },
+    ) {
+        if (route != null) {
+            val described = stringResource(R.string.plan_route_codes, spellOut(route.origin), spellOut(route.destination))
+            FlowRow(
+                Modifier.padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    Modifier.clearAndSetSemantics { contentDescription = described },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IataCode(route.origin, style = HeaderCodeStyle, color = ink, animateChanges = false)
+                    Icon(
+                        PlanIcons.Flight,
+                        contentDescription = null,
+                        tint = quiet,
+                        modifier = Modifier.padding(horizontal = 10.dp).size(18.dp).graphicsLayer { rotationZ = 90f },
+                    )
+                    IataCode(route.destination, style = HeaderCodeStyle, color = ink, animateChanges = false)
+                }
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = quiet)
+            }
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLargeEmphasized,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.semantics { heading() },
+        )
+        if (route == null) {
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = quiet)
+        }
+        if (next != null) {
+            val description = stringResource(R.string.plan_next_description, next.headline, next.detail)
+            Column(
+                Modifier
+                    .padding(top = 6.dp)
+                    .testTag(PlanTags.NextAction)
+                    .clearAndSetSemantics { contentDescription = description },
+            ) {
+                Text(next.headline, style = MaterialTheme.typography.labelLargeEmphasized)
+                Text(next.detail, style = ClockblockTheme.textStyles.timeLabel, color = quiet)
+            }
+        }
+    }
+}
+
+/** Where the sky melts into the page: a gradient into the surface, gone once collapsed (read in the layer). */
+@Composable
+private fun HeaderFoot(collapsedFraction: () -> Float) {
+    val surface = MaterialTheme.colorScheme.surface
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(FootHeight)
+            .graphicsLayer { alpha = 1f - collapsedFraction() }
+            .drawBehind { drawRect(Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface))) },
+    )
+}
+
+private val HeaderCodeStyle = DotMatrixStyle(glyphHeight = 18.sp)
+private val FootHeight = 20.dp
+
+/**
+ * The sky's atmosphere behind the header's text: its stars at body night (they come out through dusk), breathing in
+ * and out during an ambient session, and now and then the ambient plane. Everything is read in the draw phase from
+ * [frame] and [ambient], and fades with the collapsing header.
+ */
+@Composable
+private fun HeaderAtmosphere(frame: () -> HeaderFrame, ambient: HeaderAmbient, ink: Color, collapsedFraction: () -> Float, modifier: Modifier = Modifier) {
+    val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
+    val art = ClockblockTheme.artColors
+    val starColor = if (nightSafe) art.onInverse.copy(alpha = 0.45f) else Moonlight
+    val stars = remember { SkyStars.generate(seed = 7, count = 42) }
+    val plane = rememberVectorPainter(PlanIcons.Flight)
+    val trail = remember { Path() }
+    Box(
+        modifier.drawBehind {
+            val alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f)
+            if (alpha <= 0f) return@drawBehind
+            val now = frame()
+            val hour = now.bodyTime.toHourFloat()
+            val visibility = starVisibility(hour, now.daylight.sunriseHour, now.daylight.sunsetHour)
+            val session = ambient.sessionMillis
+            drawSkyStars(
+                stars,
+                Rect(0f, 0f, size.width, size.height - FootHeight.toPx()),
+                starColor.copy(alpha = starColor.alpha * alpha),
+                visibility,
+                session,
+            )
+            val flight = planeAt(session) ?: return@drawBehind
+            drawAmbientPlane(flight, plane, trail, ink, visibility, alpha, session)
+        },
+    )
+}
+
+/**
+ * The ambient plane: it climbs gently across the upper right of the sky, its contrail streaming behind and fading out
+ * once it has gone. By night there is no contrail to see, only its blinking light.
+ */
+private fun DrawScope.drawAmbientPlane(
+    flight: PlaneFrame,
+    plane: VectorPainter,
+    trail: Path,
+    ink: Color,
+    starVisibility: Float,
+    alpha: Float,
+    sessionMillis: Long,
+) {
+    val from = Offset(size.width * 0.18f, size.height * 0.62f)
+    val to = Offset(size.width * 1.08f, size.height * 0.22f)
+    val at = from + (to - from) * flight.progress
+    val direction = (to - from) / (to - from).getDistance()
+    val dayness = 1f - starVisibility
+    // The contrail: a fading streak from where the plane was a while ago up to the plane.
+    if (dayness > 0f) {
+        val tail = at - direction * (size.width * 0.42f).coerceAtMost((at - from).getDistance())
+        trail.rewind()
+        trail.moveTo(tail.x, tail.y)
+        trail.lineTo(at.x, at.y)
+        val streak = Color.White.copy(alpha = 0.7f * dayness * flight.trailAlpha * alpha)
+        drawPath(
+            trail,
+            Brush.linearGradient(listOf(streak.copy(alpha = 0f), streak), start = tail, end = at),
+            style = Stroke(2.dp.toPx(), cap = StrokeCap.Round),
+        )
+    }
+    if (flight.progress >= 1f) return
+    val planeSize = 14.dp.toPx()
+    val heading = Math.toDegrees(kotlin.math.atan2(direction.y, direction.x).toDouble()).toFloat() + 90f
+    translate(at.x - planeSize / 2f, at.y - planeSize / 2f) {
+        rotate(heading, pivot = Offset(planeSize / 2f, planeSize / 2f)) {
+            with(plane) { draw(Size(planeSize, planeSize), alpha = 0.6f * alpha, colorFilter = ColorFilter.tint(ink)) }
+        }
+    }
+    if (starVisibility > 0f) {
+        // Its navigation light, blinking about once a second.
+        val on = (sessionMillis / 600L) % 2L == 0L
+        drawCircle(Color(0xFFFF5A4E).copy(alpha = (if (on) 0.9f else 0.25f) * starVisibility * alpha), 1.6.dp.toPx(), at)
     }
 }
 
@@ -400,10 +681,8 @@ private const val PathAlpha = 0.45f
 private const val JoinAlpha = 0.6f
 private const val GhostAlpha = 0.85f
 
-private val HeaderStars = listOf(
-    0.30f to 0.10f, 0.42f to 0.22f, 0.55f to 0.08f, 0.64f to 0.30f, 0.12f to 0.52f,
-    0.78f to 0.14f, 0.88f to 0.40f, 0.50f to 0.46f, 0.22f to 0.28f, 0.70f to 0.56f,
-)
+/** The warm haze round the sun (its alpha follows [sunGlowStrength]). */
+private val SunGlow = Color(0xFFFFE6B0)
 
 /** Line segments the sun path is drawn with: smooth at any header width. */
 private const val ArcSteps = 48
@@ -433,8 +712,9 @@ private fun Density.arcPath(width: Float, top: Float, from: Float, to: Float, re
 }
 
 /**
- * The header's sun or moon at the **body's** solar time, riding the navigation row so it never hides the title,
- * plus a few stars at body night. It fades out as the header collapses (read in the draw phase).
+ * The header's sun or moon at the **body's** solar time, riding the navigation row so it never hides the title, with
+ * the sun's glow round it (strongest at sunrise and sunset). It fades out as the header collapses (read in the draw
+ * phase). The stars are [HeaderAtmosphere]'s.
  *
  * Sun path (issue #21): the faint dashed half sine the sun / moon ride, and a ghost ring where they would be by the
  * wall clock ([HeaderFrame.localTime]; [HeaderDaylight.ghostT]: at the nearer end when the wall clock is on the other
@@ -544,11 +824,10 @@ private fun HeaderCelestial(
             val rest = celestialCenter(size.width, top, body.t, reserveEnd, rtl)
             // Rising: from just below the header's bottom edge (the horizon) up to its resting place.
             val c = rest.copy(y = rest.y + (1f - risen) * (size.height - rest.y + r * 1.2f))
-            if (!isSun) {
-                val star = 1.3.dp.toPx()
-                HeaderStars.forEachIndexed { i, (x, y) ->
-                    drawCircle(moonColor.copy(alpha = moonColor.alpha * 0.6f * alpha), if (i % 3 == 0) star * 1.4f else star, Offset(size.width * x, top + (size.height - top) * y))
-                }
+            // The sun's glow: wide and warm around sunrise and sunset, soft by day, gone at night (and in Night-safe).
+            if (!nightSafe) {
+                val glow = sunGlowStrength(hour, daylight.sunriseHour, daylight.sunsetHour)
+                drawSunGlow(c, size.width * 0.32f, glow, SunGlow.copy(alpha = alpha))
             }
             // The sun path, the join to the wall clock's spot on it, and the ghost ring there.
             val pathInk = ink.copy(alpha = ink.alpha * alpha * if (nightSafe) 0.6f else 1f)
