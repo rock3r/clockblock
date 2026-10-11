@@ -9,4 +9,6 @@ dependencies {
     implementation(projects.feature.onboarding)
     // SAF launchers (backup export/import) and runtime permission requests.
     implementation(libs.androidx.activity.compose)
+    // The licences screen: AboutLibraries' list of the libraries :app collects at build time.
+    implementation(libs.aboutlibraries.compose.m3)
 }

@@ -1,0 +1,9 @@
+{
+  "uniqueId": "font:google-sans-flex",
+  "name": "Google Sans Flex",
+  "description": "The interface typeface (variable, subset). \"Google Sans\" is a trademark of Google LLC.",
+  "website": "https://fonts.google.com/specimen/Google+Sans+Flex",
+  "developers": [{ "name": "The Google Sans Flex Authors" }],
+  "licenses": ["OFL-1.1"],
+  "tag": "font"
+}

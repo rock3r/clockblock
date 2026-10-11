@@ -1,0 +1,9 @@
+{
+  "uniqueId": "dev.sebastiano.clockblocker:clockblock",
+  "name": "Clockblock",
+  "description": "This app: source code, illustrations and docs.",
+  "website": "https://github.com/rock3r/clockblock",
+  "developers": [{ "name": "Sebastiano Poggi and contributors" }],
+  "licenses": ["Apache-2.0"],
+  "tag": "clockblock"
+}

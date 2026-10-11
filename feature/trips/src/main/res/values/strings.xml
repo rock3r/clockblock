@@ -185,6 +185,24 @@
     <string name="editor_return_hint">Lets us spot short trips.</string>
     <string name="editor_return_before_landing">Leaves before you land in %1$s.</string>
 
+    <!-- Route globe. -->
+    <string name="globe_route">%1$s to %2$s</string>
+    <string name="globe_route_via">%1$s to %2$s via %3$s</string>
+    <plurals name="globe_hours_east">
+        <item quantity="one">%1$d hour east</item>
+        <item quantity="other">%1$d hours east</item>
+    </plurals>
+    <plurals name="globe_hours_west">
+        <item quantity="one">%1$d hour west</item>
+        <item quantity="other">%1$d hours west</item>
+    </plurals>
+    <string name="globe_hours_east_fraction">%1$.1f hours east</string>
+    <string name="globe_hours_west_fraction">%1$.1f hours west</string>
+    <string name="globe_expand">Show the globe full size</string>
+    <string name="globe_title">Your route</string>
+    <string name="globe_tap_hint">Tap a flight to go to its ticket.</string>
+    <string name="globe_leg_action">Go to flight %1$d: %2$s to %3$s</string>
+
     <!-- Your shift. -->
     <string name="editor_shift_title">Your shift</string>
     <string name="editor_shift_empty">Add your flights to see how far your body clock has to move.</string>

@@ -135,6 +135,13 @@ internal fun WhySheetContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(8.dp))
+        // The globe behind the dial is hidden (no coach mark): this line is its only hint in the app.
+        Text(
+            stringResource(R.string.plan_why_globe_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -194,7 +194,7 @@ class SettingsExpandedScreenshotTest : ClockblockScreenshotTest() {
         AboutContent("1.0.0", onVersionTap = {}, onOpenSource = {}, onOpenLicenses = {}, onBack = {}, modifier = Modifier.fillMaxSize())
     }
 
-    @Test fun licenses() = snap("licenses_expanded") { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
+    @Test fun licenses() = snap("licenses_expanded") { LicensesScreen(FixtureLibraries, onBack = {}, modifier = Modifier.fillMaxSize()) }
 
     @Test fun titleCard() = snap("opus_title_card_expanded") { TitleCardOverScrim() }
 }
@@ -214,11 +214,11 @@ class AboutScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun fontScale() = about("about_fontscale_1_5", fontScale = 1.5f)
 
-    @Test fun licenses() = snap("licenses") { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
+    @Test fun licenses() = snap("licenses") { LicensesScreen(FixtureLibraries, onBack = {}, modifier = Modifier.fillMaxSize()) }
 
-    @Test fun licensesDark() = snap("licenses_dark", darkTheme = true) { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
+    @Test fun licensesDark() = snap("licenses_dark", darkTheme = true) { LicensesScreen(FixtureLibraries, onBack = {}, modifier = Modifier.fillMaxSize()) }
 
-    @Test fun licensesFontScale() = snap("licenses_fontscale_1_5", fontScale = 1.5f) { LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize()) }
+    @Test fun licensesFontScale() = snap("licenses_fontscale_1_5", fontScale = 1.5f) { LicensesScreen(FixtureLibraries, onBack = {}, modifier = Modifier.fillMaxSize()) }
 }
 
 /** The Opus mode title card at phone size. */

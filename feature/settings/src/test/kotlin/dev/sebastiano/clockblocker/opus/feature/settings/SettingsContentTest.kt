@@ -8,11 +8,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
@@ -328,23 +331,27 @@ class AboutContentTest {
     }
 
     @Test
-    fun `licence cards open their project pages`() {
-        val opened = mutableListOf<String>()
-        compose.setContent {
-            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
-                LicensesContent(onBack = {}, modifier = Modifier.fillMaxSize(), onOpenUrl = { opened += it })
-            }
-        }
-        compose.onNodeWithTag(AboutTags.credit(SourceUrl)).performScrollTo().performClick()
-        compose.onNodeWithTag(AboutTags.credit("https://github.com/ZacSweers/metro")).performScrollTo().performClick()
-        compose.onNodeWithText("github.com/ZacSweers/metro").assertIsDisplayed()
-        opened shouldContainExactly listOf(SourceUrl, "https://github.com/ZacSweers/metro")
+    fun `licences lead with the app, then list everything else in order`() {
+        val ordered = FixtureLibraries.appFirst().libraries
+        ordered.first().uniqueId shouldBe "dev.sebastiano.clockblocker:clockblock"
+        ordered.drop(1) shouldContainExactly FixtureLibraries.libraries.filterNot { it.tag == AppLicenseTag }
     }
 
     @Test
-    fun `display urls drop the scheme, www and trailing slash`() {
-        displayUrl("https://www.iana.org/time-zones") shouldBe "iana.org/time-zones"
-        displayUrl("https://ourairports.com/data/") shouldBe "ourairports.com/data"
+    fun `a licence entry opens its text, and back forwards`() {
+        var backs = 0
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                LicensesScreen(libraries = FixtureLibraries, onBack = { backs++ }, modifier = Modifier.fillMaxSize())
+            }
+        }
+        compose.onNodeWithTag(AboutTags.LicensesList).performScrollToNode(hasText("Torph for Jetpack Compose"))
+        compose.onNodeWithText("Torph for Jetpack Compose").performClick()
+        compose.onNodeWithText("Permission is hereby granted", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Close").performClick()
+        compose.onNodeWithText("Permission is hereby granted", substring = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Back").performClick()
+        backs shouldBe 1
     }
 
     @Test

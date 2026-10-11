@@ -3,6 +3,20 @@ plugins {
     alias(libs.plugins.clockblock.android.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.metro)
+    // Collects every dependency's licence at build time into res/raw/aboutlibraries.json (the licences screen).
+    alias(libs.plugins.aboutlibraries.android)
+}
+
+aboutLibraries {
+    collect {
+        // What the plugin can't see in the dependency graph: vendored code, fonts, icons and data sources.
+        // One JSON file per entry in libraries/ (licence texts it lacks in licenses/): see config/aboutlibraries/README.md.
+        configPath = file("config/aboutlibraries")
+    }
+    license {
+        // Full texts for the licences our own entries use, even if no dependency happens to.
+        additionalLicenses.addAll("mit", "apache_2_0")
+    }
 }
 
 android {
@@ -91,6 +105,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.collections.immutable)
+    implementation(libs.aboutlibraries.compose.m3)
 
     testImplementation(projects.core.testing)
 

@@ -25,6 +25,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.Pinch
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.pinchGesture
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
 import androidx.compose.ui.platform.LocalView
@@ -68,6 +70,9 @@ import kotlin.math.min
  *   [onScrubEnd]: a "peek" preview rather than a persistent one.
  * @param onRingsAligned called once the inner ring has finished turning into alignment (after the CONFIRM click).
  * @param bodyRing what the inner ring shows: the turned local sky (default) or the planner's biological night.
+ * @param onPinchOut a two-finger pinch out (the plan's way to the globe). One finger still scrubs, taps and
+ *   long-presses as before: the pinch only takes over once a second finger is down.
+ * @param extraActions more TalkBack custom actions after Next block / Previous block / Back to now.
  */
 @Composable
 fun TwoSkiesDial(
@@ -80,10 +85,13 @@ fun TwoSkiesDial(
     returnOnRelease: Boolean = false,
     onRingsAligned: (() -> Unit)? = null,
     bodyRing: BodyRingMode = BodyRingMode.Simple,
+    onPinchOut: (() -> Unit)? = null,
+    extraActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
     val view = LocalView.current
+    val currentOnPinchOut by rememberUpdatedState(onPinchOut)
     val scope = rememberCoroutineScope()
     val measurer = rememberTextMeasurer(cacheSize = 128)
     val formatter = rememberTimeFormatter()
@@ -210,8 +218,9 @@ fun TwoSkiesDial(
                         stops.lastOrNull { it.instant < hand && !it.isUnderHand(hand) }?.let { animateScrubToBoundary(it); true } ?: false
                     },
                     CustomAccessibilityAction(nowLabel) { animateScrubTo(0f); true },
-                )
+                ) + extraActions
             }
+            .pinchGesture(enabled = onPinchOut != null) { if (it == Pinch.Out) currentOnPinchOut?.invoke() }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
