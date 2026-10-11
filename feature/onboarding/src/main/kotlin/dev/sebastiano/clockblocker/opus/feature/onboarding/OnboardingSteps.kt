@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -533,6 +534,10 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
             enter = expandVertically(motion.containerSpatial()) + fadeIn(motion.containerSpatial()),
             exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.containerSpatial()),
         ) {
+            // The row appears under the card, often below the fold: bring it into view once it has grown in.
+            val exactRow = remember { BringIntoViewRequester() }
+            val grown = transition.currentState == EnterExitState.Visible && !transition.isRunning
+            LaunchedEffect(grown) { if (grown) exactRow.bringIntoView() }
             PermissionRow(
                 title = stringResource(R.string.reminders_exact),
                 description = stringResource(R.string.reminders_exact_description),
@@ -541,7 +546,7 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
                 onAction = actions::openExactAlarmSettings,
                 shape = segmentedShape(1, 2),
                 tag = RemindersTags.ExactAlarm,
-                modifier = Modifier.testTag(RemindersTags.ExactAlarmRow),
+                modifier = Modifier.bringIntoViewRequester(exactRow).testTag(RemindersTags.ExactAlarmRow),
             )
         }
     }

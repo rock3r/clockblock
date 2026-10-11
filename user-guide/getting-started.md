@@ -37,7 +37,7 @@ that city, or still on home time. See [Starting away from home](planning-a-trip.
 
 ### 3. When do you usually sleep?
 
-<img src="images/sleep.png" alt="Step 3 of 5, When do you usually sleep: a round dial with a moon at bedtime and a sun at wake-up on the inner ring, and a thinner, paler ring outside it for the other schedule. In the middle, 7 h 45 m and a Work days | Days off switch. Below the dial, two buttons: Bedtime 23:30 and Wake 07:15." width="280" />
+<img src="images/sleep.png" alt="Step 3 of 5, When do you usually sleep: a round dial with a moon at 23:00 and a sun at 07:00 on the inner ring, and a thinner, paler ring outside it for days off, from about half past midnight to half past nine. In the middle, 8 h and a Work days | Days off switch with Work days selected. Below the dial, two buttons: Bedtime 23:00 and Wake 07:00." width="280" />
 
 Drag the moon to your usual bedtime and the sun to your usual wake-up time. The dial holds two schedules:
 
@@ -55,7 +55,7 @@ of sleep.
 
 #### Your chronotype
 
-<img src="images/chronotype.png" alt="Step 3 of 5, still: a small sky with the sun low on its path, From your sleep, Morning person, Mornings are your best hours, the time your nights off are centred on, and a Doesn't sound like me link." width="280" />
+<img src="images/chronotype.png" alt="Still step 3 of 5: a small sky with the sun high on its path, From your sleep, Somewhere in between, Neither a lark nor an owl. Most people are here. Below: Allowing for catch-up sleep, your nights off are centred on 04:38, and a Doesn't sound like me link." width="280" />
 
 When you tap **Next**, the app works out your chronotype from those two schedules: Early bird, Morning person,
 Somewhere in between, Evening person or Night owl. It uses the middle of your nights off, allowing for catch-up sleep
@@ -96,7 +96,7 @@ clock earlier. Melatonin is a medicine in many countries. Check with a doctor or
 
 ### 5. Reminders that actually arrive
 
-<img src="images/reminders.png" alt="Step 5 of 5, Reminders that actually arrive: a sample reminder as it looks in the notification shade, See bright light with how long is left and what comes next, then an Allow notifications button. At the bottom, Back and Maybe later." width="280" />
+<img src="images/reminders.png" alt="Step 5 of 5, Reminders that actually arrive: a sample reminder as it looks in the notification shade, See bright light until 05:00 with a progress bar and 2h 23m left, Next: Avoid light at 05:30, and the Done, Can't do this and Snooze 15 min actions. Under it, an Allow notifications button. At the bottom, Back and Maybe later." width="280" />
 
 The app can remind you just before each change in your plan. It never sends a reminder while you're meant to be
 asleep, except the one that wakes you.

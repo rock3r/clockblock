@@ -684,7 +684,8 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
     BoxWithConstraints(modifier) {
         // Both labels share one size, fitted to the wider of the two in half the toggle (minus the tab's paddings).
         val labelStyle = MaterialTheme.typography.labelLarge
-        val segmentPx = with(density) { (maxWidth / 2 - ToggleInset * 2 - ToggleLabelPadding * 2).roundToPx() }
+        // A dp of slack: a label fitted to the exact pixel can still wrap at its space on some fonts.
+        val segmentPx = with(density) { (maxWidth / 2 - ToggleInset * 2 - ToggleLabelPadding * 2 - 2.dp).roundToPx() }
         val style = remember(measurer, labelStyle, labels, segmentPx) { measurer.fitted(labelStyle, labels.values.toList(), segmentPx, 8.sp) }
         Row(Modifier.fillMaxWidth().clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup()) {
             SleepSchedule.entries.forEach { option ->
@@ -707,6 +708,7 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
                         style = style.copy(textAlign = TextAlign.Center),
                         color = { ink },
                         maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(horizontal = ToggleLabelPadding, vertical = 8.dp),
                     )
                 }
