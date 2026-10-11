@@ -182,7 +182,7 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
             intensity = Intensity.Balanced,
             useCaffeine = true,
             canSleepOnPlanes = true,
-            adjustBeforeDeparture = true,
+            headStartDays = 3,
             useMelatonin = true,
         ),
         melatoninAcknowledged = true,

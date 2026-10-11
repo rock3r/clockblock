@@ -270,7 +270,8 @@ internal class PlanBuilder(
                 }
                 c.nap?.let {
                     val type = if (s - w > habitualWakeLength + config.napRecommendedExtraWake) AdviceType.Nap else AdviceType.OptionalNap
-                    out += RawAdvice(type, it, AdviceReason.SleepPressure)
+                    // "Naps are OK" off: leave out the optional ones; a long day still gets its recommended nap.
+                    if (type == AdviceType.Nap || profile.napsOk) out += RawAdvice(type, it, AdviceReason.SleepPressure)
                 }
             }
         }

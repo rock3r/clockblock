@@ -267,7 +267,9 @@ class DefaultJetLagPlannerTest {
 
     @Test
     fun `pre-flight adjustment follows the profile`() {
-        planner.plan(sfoLhr, profile(SFO, preAdjust = false), NOW).bodyOffsetAt(sfoLhr.departure) shouldBe ZoneOffset.ofHours(-7)
+        planner.plan(sfoLhr, profile(SFO, headStartDays = 0), NOW).bodyOffsetAt(sfoLhr.departure) shouldBe ZoneOffset.ofHours(-7)
+        // One day of head start: one pre-flight advance of at most an hour.
+        planner.plan(sfoLhr, profile(SFO, headStartDays = 1), NOW).bodyOffsetAt(sfoLhr.departure) shouldBe ZoneOffset.ofHours(-6)
         val gentle = planner.plan(sfoLhr, profile(SFO, intensity = Intensity.Gentle), NOW)
         gentle.bodyOffsetAt(sfoLhr.departure) shouldBe ZoneOffset.ofHours(-5)
         val balanced = planner.plan(sfoLhr, profile(SFO), NOW)

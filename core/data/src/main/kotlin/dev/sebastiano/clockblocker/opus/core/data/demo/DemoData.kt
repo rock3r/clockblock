@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.core.data.demo
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.HeadStart
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
@@ -58,7 +59,7 @@ object DemoData {
         useMelatonin = false,
         useCaffeine = true,
         canSleepOnPlanes = true,
-        adjustBeforeDeparture = true,
+        headStartDays = HeadStart.DefaultDays,
         intensity = Intensity.Balanced,
     )
 

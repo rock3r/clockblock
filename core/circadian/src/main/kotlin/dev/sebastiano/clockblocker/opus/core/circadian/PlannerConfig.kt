@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.core.circadian
 
+import dev.sebastiano.clockblocker.opus.core.model.HeadStart
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 
@@ -134,7 +135,8 @@ data class PlannerConfig(
      *   1 h/day advance / 1.5 h/day delay (E&B 2009's "realistic adherence" rate).
      * - [Intensity.Balanced]: the report's defaults.
      * - [Intensity.Max]: defaults plus Tier-2 model-based direction choice for 8–12 h eastward shifts.
-     * - `adjustBeforeDeparture = false` → no pre-flight days.
+     * - `headStartDays` caps the pre-flight days (0 = none). It never raises them, and the per-day and total
+     *   pre-flight caps above still apply.
      */
     fun forProfile(profile: UserProfile): PlannerConfig {
         val byIntensity = when (profile.intensity) {
@@ -149,6 +151,7 @@ data class PlannerConfig(
             Intensity.Balanced -> this
             Intensity.Max -> copy(tier2DirectionChoice = true)
         }
-        return if (profile.adjustBeforeDeparture) byIntensity else byIntensity.copy(preFlightDays = 0)
+        val headStart = profile.headStartDays.coerceIn(0, HeadStart.MaxDays)
+        return byIntensity.copy(preFlightDays = minOf(byIntensity.preFlightDays, headStart))
     }
 }

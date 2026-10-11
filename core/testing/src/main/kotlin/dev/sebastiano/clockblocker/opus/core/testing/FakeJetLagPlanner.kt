@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
  * adapted days; sleep, light and flight cards; a linear body-clock drift) that is cheap to compute. Not
  * science. Counts invocations so memoisation can be asserted.
  *
- * @param preDays pre-trip days (when the profile adjusts before departure).
+ * @param preDays pre-trip days (capped at the profile's head start).
  * @param postDays days after the arrival day.
  */
 class FakeJetLagPlanner(
@@ -50,7 +50,7 @@ class FakeJetLagPlanner(
         }
         val departureDate = trip.departure.atZone(home).toLocalDate()
         val arrivalDate = trip.arrival.atZone(dest).toLocalDate()
-        val pre = if (profile.adjustBeforeDeparture) preDays else 0
+        val pre = minOf(preDays, profile.headStartDays.coerceAtLeast(0))
 
         val days = buildList {
             for (i in pre downTo 1) add(day(trip, -i, DayKind.PreTrip, departureDate.minusDays(i.toLong()), home, profile))
