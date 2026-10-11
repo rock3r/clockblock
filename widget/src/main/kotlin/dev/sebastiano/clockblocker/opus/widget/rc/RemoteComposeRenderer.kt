@@ -12,6 +12,7 @@ import androidx.compose.remote.creation.compose.capture.createCreationDisplayInf
 import androidx.compose.remote.creation.compose.layout.RemoteComposable
 import androidx.compose.remote.creation.profile.Profile
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -31,15 +32,21 @@ object RemoteComposeSupport {
 @OptIn(ExperimentalRemoteCreationComposeApi::class, ExperimentalRemoteCreationApi::class)
 object RemoteComposeRenderer {
 
+    /**
+     * Captures [content]. The document's recorded size is the display's, or [sizePx] when given: the platform player
+     * measures a document by that size until its first draw, so a document that wraps its content (the notification
+     * documents) passes its natural size here.
+     */
     suspend fun capture(
         context: Context,
         profile: Profile,
+        sizePx: Size? = null,
         content: @RemoteComposable @Composable () -> Unit,
     ): CapturedDocument = withContext(Dispatchers.Main) {
         // The androidx widget demo captures on Main; the recomposer runs on the caller's context.
         captureSingleRemoteDocument(
             context = context,
-            creationDisplayInfo = createCreationDisplayInfo(context),
+            creationDisplayInfo = sizePx?.let { createCreationDisplayInfo(context, it) } ?: createCreationDisplayInfo(context),
             profile = profile,
             content = content,
         )

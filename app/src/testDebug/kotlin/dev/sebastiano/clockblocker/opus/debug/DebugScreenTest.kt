@@ -86,6 +86,14 @@ class DebugScreenTest {
     }
 
     @Test
+    fun `notifications from an earlier run are listed`() {
+        show(ProbeState.Showing(listOf(Variant.DecoratedCollapsed, Variant.DecoratedBoth)))
+        compose.onNodeWithText(
+            "From an earlier run, still in the shade: decorated, collapsed view only; decorated, collapsed and expanded views.",
+        ).assertExists()
+    }
+
+    @Test
     fun `every control reaches its callback`() {
         show(ProbeState.Idle)
         compose.onNodeWithTag(DebugTags.RunProbe).performClick()

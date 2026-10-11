@@ -47,3 +47,10 @@ internal const val NEUTRAL_SEGMENT_COLOR: Int = 0xFF9E9E9E.toInt()
 /** Twilight Indigo seed, the app accent for neutral notifications. */
 @ColorInt
 internal const val BRAND_COLOR: Int = 0xFF4F46E5.toInt()
+
+/**
+ * The colour the Now notification tints its status bar icon (`ic_notif_app`) and header with: the headline advice's,
+ * else the brand's. Public for the debug Remote Compose notification probe (#49), which must match it.
+ */
+@ColorInt
+fun nowNotificationAccent(type: AdviceType?): Int = type?.style?.color ?: BRAND_COLOR

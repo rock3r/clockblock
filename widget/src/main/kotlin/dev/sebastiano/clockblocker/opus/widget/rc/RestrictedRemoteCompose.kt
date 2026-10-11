@@ -4,9 +4,11 @@ package dev.sebastiano.clockblocker.opus.widget.rc
 
 import androidx.compose.remote.creation.compose.action.Action
 import androidx.compose.remote.creation.compose.layout.RemoteTime
+import androidx.compose.remote.creation.compose.state.RemoteColor
 import androidx.compose.remote.creation.compose.state.RemoteFloat
 import androidx.compose.remote.creation.compose.state.RemoteString
 import androidx.compose.remote.creation.compose.state.floor
+import androidx.compose.remote.creation.compose.state.rc
 import androidx.compose.remote.creation.compose.state.rf
 import androidx.compose.remote.creation.compose.state.rs
 import androidx.compose.remote.creation.compose.state.selectIfLt
@@ -16,6 +18,7 @@ import androidx.compose.remote.core.operations.utilities.AnimatedFloatExpression
 import androidx.compose.remote.creation.CreationDisplayInfo
 import androidx.compose.remote.creation.RemoteComposeWriterAndroid
 import androidx.compose.remote.creation.platform.AndroidxRcPlatformServices
+import androidx.compose.ui.graphics.Color
 import dev.sebastiano.clockblocker.opus.widget.text.CountdownWords
 import java.lang.reflect.Constructor
 import java.text.DecimalFormat
@@ -31,6 +34,8 @@ import java.text.DecimalFormat
  * - `selectIfLt` (host-side conditional strings) for the countdown format.
  * - The Kotlin-`internal` compose `HostAction(id, …)`, via reflection ([idHostAction]): the only way to write the id
  *   host action the platform player maps to `RemoteViews` clicks.
+ * - Themed colours ([themedColor]): `RemoteComposeWriter.addThemedColor` through `RemoteColor`'s Kotlin-`internal`
+ *   writer-callback constructor, reached from Java ([ThemedRemoteColors], the one restricted-API file outside this one).
  *
  * Kotlin does not enforce @RestrictTo (lint does), so this compiles; keep usages here so the migration to the
  * public API is a one-file change.
@@ -179,3 +184,24 @@ private object IdHostAction {
             .getConstructor(Int::class.javaPrimitiveType, RemoteString::class.java, RemoteString::class.java)
     }
 }
+
+/**
+ * A colour the *player* picks by its theme: [light] in a light theme, [dark] in a dark one, with no new capture.
+ *
+ * It writes a `ColorTheme` operation (document v7, on the platform's v7 widget operation map since Android 17.0):
+ * one colour id with a light and a dark value. The player resolves it at draw time from the theme it plays with
+ * (`RemoteViews` sets that from the view's `Configuration.isNightModeActive()` each time it applies the views, and
+ * SystemUI re-applies notification views when night mode flips). The group name is our own, so the player keeps
+ * the two fallback values rather than mapping them to system colours (its "android" group would). Equal values
+ * write a plain constant.
+ *
+ * The public alpha20 API has no themed colour: [ThemedRemoteColors] (Java, which can reach `RemoteColor`'s
+ * Kotlin-`internal` writer-callback constructor and cache key types) calls `RemoteComposeWriter.addThemedColor`.
+ */
+internal fun themedColor(light: Int, dark: Int): RemoteColor {
+    if (light == dark) return Color(light).rc
+    return ThemedRemoteColors.create(THEMED_COLOR_GROUP, light, dark)
+}
+
+/** Not a colour engine the player knows, so it uses our light / dark values (it logs that it found no engine). */
+private const val THEMED_COLOR_GROUP = "clockblock"

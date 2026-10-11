@@ -113,7 +113,7 @@ class WidgetGalleryActivity : Activity() {
         scope.launch {
             if (page == "notification") {
                 column.addView(label("Remote Compose notification probe (#49): posting…"))
-                RemoteComposeNotificationProbe(this@WidgetGalleryActivity).run(state, WidgetTheme.Light).forEach {
+                RemoteComposeNotificationProbe(this@WidgetGalleryActivity).run(state).forEach {
                     column.addView(label("${it.variant}: ${it.verdict}: ${it.outcome}"))
                 }
                 return@launch
