@@ -901,6 +901,19 @@ class PlanContentTest {
             .assertContentDescriptionContains("13:30", substring = true)
             .assertContentDescriptionContains("Los Angeles", substring = true)
 
+        // Picking Day 3 updates the header's Next action to that day's next block; Day 4 at 11:00 is already in the
+        // plan's final block, so Next disappears.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("See some light", substring = true)
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
+        compose.waitForIdle()
+
         // Days before the plan starts: the first action is more than 24 h away → day and time, no countdown.
         state = ready(Instant.parse("2026-06-10T16:00:00Z"))
         compose.waitForIdle()

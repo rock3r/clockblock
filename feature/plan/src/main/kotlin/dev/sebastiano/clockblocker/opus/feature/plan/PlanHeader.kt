@@ -826,7 +826,7 @@ private fun HeaderCelestial(
             // The sun's glow: wide and warm around sunrise and sunset, soft by day, gone at night (and in Night-safe).
             if (!nightSafe) {
                 val glow = sunGlowStrength(hour, daylight.sunriseHour, daylight.sunsetHour)
-                drawSunGlow(c, size.width * 0.32f, glow * alpha, SunGlow)
+                drawSunGlow(c, size.width * 0.32f, glow, SunGlow.copy(alpha = alpha))
             }
             // The sun path, the join to the wall clock's spot on it, and the ghost ring there.
             val pathInk = ink.copy(alpha = ink.alpha * alpha * if (nightSafe) 0.6f else 1f)

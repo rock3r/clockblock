@@ -27,6 +27,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -284,11 +285,13 @@ class PlanScreenshotTest {
      */
     @Test
     fun nowCardAlsoNow() = snap("now_card_also_now", capture = false) { AlsoNowCard() }.also {
+        compose.invalidateAllViews()
         compose.onNodeWithTag(PlanTags.NowCard).captureRoboImage("src/test/screenshots/plan_now_card_also_now.png")
     }
 
     @Test
     fun nowCardAlsoNowDark() = snap("now_card_also_now_dark", darkTheme = true, capture = false) { AlsoNowCard() }.also {
+        compose.invalidateAllViews()
         compose.onNodeWithTag(PlanTags.NowCard).captureRoboImage("src/test/screenshots/plan_now_card_also_now_dark.png")
     }
 

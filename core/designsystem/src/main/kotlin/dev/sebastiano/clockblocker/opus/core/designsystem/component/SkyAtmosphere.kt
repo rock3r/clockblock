@@ -155,9 +155,11 @@ fun DrawScope.drawSkyStars(stars: SkyStars, area: Rect, color: Color, visibility
 /** A soft radial glow of [color] round the sun at [centre], [strength] 0–1 (see [sunGlowStrength]). */
 fun DrawScope.drawSunGlow(centre: Offset, radius: Float, strength: Float, color: Color) {
     if (strength <= 0f || radius <= 0f) return
-    val r = radius * (0.6f + 0.4f * strength)
+    val s = strength.coerceIn(0f, 1f)
+    val fade = (s / NoonGlow).coerceIn(0f, 1f)
+    val r = radius * (0.6f + 0.4f * s)
     drawCircle(
-        Brush.radialGradient(listOf(color.copy(alpha = color.alpha * (0.25f + 0.45f * strength)), Color.Transparent), centre, r),
+        Brush.radialGradient(listOf(color.copy(alpha = color.alpha * (0.25f + 0.45f * s) * fade), Color.Transparent), centre, r),
         r,
         centre,
     )

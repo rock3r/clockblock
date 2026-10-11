@@ -533,7 +533,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         } else {
             null
         }
-        val headerNext = rememberHeaderNext(plan, state.now)
+        val headerNext = rememberHeaderNext(plan, shown.instant)
         val sections = PlanSections(
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
