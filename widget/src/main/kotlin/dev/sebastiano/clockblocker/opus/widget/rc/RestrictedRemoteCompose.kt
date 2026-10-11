@@ -34,6 +34,8 @@ import java.text.DecimalFormat
  * - `selectIfLt` (host-side conditional strings) for the countdown format.
  * - The Kotlin-`internal` compose `HostAction(id, …)`, via reflection ([idHostAction]): the only way to write the id
  *   host action the platform player maps to `RemoteViews` clicks.
+ * - Themed colours ([themedColor]): `RemoteComposeWriter.addThemedColor` through `RemoteColor`'s Kotlin-`internal`
+ *   writer-callback constructor, reached from Java ([ThemedRemoteColors], the one restricted-API file outside this one).
  *
  * Kotlin does not enforce @RestrictTo (lint does), so this compiles; keep usages here so the migration to the
  * public API is a one-file change.

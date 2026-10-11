@@ -100,7 +100,9 @@ notifications. Runtime permissions stay granted between tests.
 Debug builds add **Settings → Debug → Debug tools**
 ([`DebugActivity`](../app/src/debug/kotlin/dev/sebastiano/clockblocker/opus/debug/DebugActivity.kt)). It runs the
 Remote Compose notification probe (#49) and opens the widget gallery's pages, so you can try them on a phone
-without adb. Release builds don't include it.
+without adb. The probe posts a preview of a Remote Compose Now notification on a demo plan, in four variants: a
+48 dp collapsed row and an expanded view sized for the shade, in colours that follow the system theme. Its results
+stay on screen when you switch the theme. Release builds don't include it.
 
 ## CI
 
