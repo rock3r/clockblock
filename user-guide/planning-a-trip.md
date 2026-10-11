@@ -28,36 +28,48 @@ phone in landscape, a **+** button sits in the top bar instead, so it never cove
 
 ## Adding flights
 
-<img src="images/trip-editor.png" alt="The New trip screen: Flight 1 from Lisbon (LIS) to Tokyo (HND) under a boarding-pass card with the route drawn as an arc. Departs Wed, Oct 7 at 09:00, local time in Lisbon; 14 h 25 m in the air, lands the next day; arrives Thu, Oct 8 at 07:25, local time in Tokyo, marked Estimated from the flight distance. Below, an optional flight number and Add connecting flight." width="280" />
+<img src="images/trip-editor.png" alt="The New trip screen: a ticket from LIS, Lisbon, to HND, Tokyo, with the route drawn as an arc and a swap button. Departs · local time in Lisbon: Mon 12 Oct, 09:00. Arrives · local time in Tokyo: Tue 13 Oct, 07:25, with +1 day in red, then Estimated from the flight distance. Adjust it to your ticket. The ticket's stub says 14 h 25 m in the air, with a Flight no. field. Below: Add connecting flight, Return flight (One way / not sure yet, switched off), Your shift: +8 h east, and the Build my plan button at the bottom." width="280" />
 
-1. Under **From**, type a city, an airport name or a three-letter code (for example LIS) and pick the airport.
-   The search works offline. Before you type, the list offers a few popular airports. Each result shows the
-   city with its country's flag, the airport name and country underneath, the airport's current local time (with
-   a sun or moon for day or night) and its UTC offset. Picking your home time zone uses the same rows.
-2. Do the same under **To**. Picked the airports the wrong way round? Tap the swap button next to them.
-3. Set the departure date and time. Use the **local time at the departure airport**, as printed on your ticket.
+Each flight is a ticket: the airport codes big at the top, the departure and arrival below, and the time in the air
+at the bottom.
+
+1. Tap **FROM** on the ticket. A search sheet opens: type a city, an airport name or a three-letter code (for
+   example LIS) and pick the airport. The search works offline. Before you type, the sheet offers a few popular
+   airports. Each result shows the city with its country's flag, the airport name and country underneath, the
+   airport's current local time (with a sun or moon for day or night) and its UTC offset. Picking your home time
+   zone uses the same rows.
+2. Once **From** is picked, the sheet asks for **To** straight away. Picked the airports the wrong way round? Tap
+   the swap button between them. To change an airport, tap its code again.
+3. Tap the departure date and time. Use the **local time at the departure airport**, as printed on your ticket.
    The label reminds you: "Departs · local time in Lisbon".
 4. Check the arrival date and time, in the **local time at the arrival airport**. Once both airports and the
    departure are set, the app fills in an estimate from the flight distance, marked "Estimated from the flight
    distance". Change it to the time on your ticket. Once you've set the arrival yourself, the app leaves it alone.
-5. Add the flight number if you like. It's optional and only used as a label.
-6. If you change planes, tap **Add connecting flight** and repeat for each flight.
-7. Tap **Save**.
+   When the flight lands on another calendar day, a red **+1 day** (or **−1 day**, **+2 days**) sits next to the
+   arrival.
+5. The bottom of the ticket shows the time in the air ("14 h 25 m in the air"). Add the flight number there if you
+   like. It's optional and only used as a label.
+6. If you change planes, tap **Add connecting flight** and fill in the next ticket. With more than one flight, each
+   ticket gets a heading (**Flight 1**, **Flight 2**) and a button to remove it.
+7. Flying back? Turn on **Return flight** (see [Return trips](#return-trips)).
+8. Tap **Build my plan** at the bottom. Until the trip is complete, the button is greyed out and the line above it
+   says what's missing.
 
 The app works out the time difference and the flight duration for you, including daylight-saving changes.
 
-When the flights are complete, **Your shift preview** under the trip details shows what the plan will do: how
-many hours you shift and in which direction, and about how many days it takes to adapt with the plan compared
-with no plan. It updates as you edit. Save to see the full plan.
+When the flights are complete, **Your shift** under the flights shows what the plan will do: how many hours the
+time changes and in which direction ("+9 h east"), and about how many days it takes to adapt with the plan compared
+with no plan ("About 4 days with the plan, 7 without"). It updates as you edit.
 
 If you stay at a stop for three days or more, the plan treats that stop as a destination of its own and adapts
 you to it before the next flight.
 
 ### When something looks wrong
 
-<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Wed, Oct 14 and the arrival fields outlined in red. A card headed Fix this says: Lands before it takes off. Each time is local to its airport, so check the arrival date and time. A button offers Arrives next day?" width="280" />
+<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Mon 12 Oct and the arrival date and time chips in red. A card headed Fix this says: Lands before it takes off. Each time is local to its airport, so check the arrival date and time. A button offers Arrives next day? Above the greyed-out Build my plan button: Fix the issues marked in red first." width="280" />
 
-The editor checks your flights as you type. Problems are marked **Fix this** (you can't save until you fix it),
+The editor checks your flights as you type. Problems are marked **Fix this** (you can't build the plan until you
+fix it),
 **Check this** (probably a mistake) or **Note** (just information). Many come with a one-tap fix. For example, an
 overnight flight entered with the same arrival date shows "Lands before it takes off" and offers **Arrives next
 day?**.
@@ -67,12 +79,11 @@ day?**.
 Below the flights, **Trip details** has these settings:
 
 - **Title**: suggested from your route. Change it if you like.
-- **Flying back (optional)**: the date and time of your return flight. This lets the app spot short trips.
 - **Body clock**: how the plan treats your body clock.
 - **Body clock when you leave**: only shown when the trip leaves from a city on a different time from home. See
   [Starting away from home](#starting-away-from-home).
 
-<img src="images/body-clock-choice.png" alt="The Trip details card: the title London to San Francisco, an empty Flying back (optional) date and time, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Below, Your shift preview: 8 h west, shift later, about 5 days to adapt with the plan, about 8 days without one." width="320" />
+<img src="images/body-clock-choice.png" alt="Your shift: −8 h west, about 6 days with the plan, 8 without. Below, the Trip details card: the title London to San Francisco, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Then Body clock when you leave, with Departure city selected and Home (Los Angeles)." width="320" />
 
 | Choice | What happens |
 |---|---|
@@ -108,16 +119,28 @@ short stay away your body is probably still on home time. Any other trip starts 
 other one if it fits you better: once you've picked, changing the flights doesn't change it again. A saved trip
 keeps what it was saved with.
 
-A trip that leaves from home doesn't show this choice. If it's a round trip, add your return flight under **Flying
-back** and **Auto** keeps you on home time when you're back within 72 hours.
+A trip that leaves from home doesn't show this choice. If it's a round trip, turn on **Return flight** and **Auto**
+keeps you on home time when you're back within 72 hours.
 
 ## Return trips
 
-<img src="images/return-trip.png" alt="The Return trip screen: Flight 1 from London (LHR) to San Francisco (SFO) under a boarding-pass card, on Tue, Jun 23, departing 19:30 and arriving 21:50, 10 h 20 m in the air." width="280" />
+<img src="images/return-trip.png" alt="The New trip screen scrolled to the Return flight card, switched on: Tokyo → Lisbon, Flies back · local time in Tokyo, Tue 20 Oct at 09:00, and Added to your trips as a trip of its own when you build your plan. Below, Your shift: +8 h east, about 3 days with the plan, 7 without. Build my plan at the bottom." width="280" />
 
-To plan the way home, open the trip's menu (the three dots on its card) and choose **Create return trip**, or tap
-**New trip** in the corner and then **Return from** the destination. The app reverses the route and suggests times. Check them against your
-ticket before you save. When the return flies you home, its body clock starts on home time (see
+The quickest way to plan the way home is the **Return flight** switch under the flights, while you add the trip
+("One way / not sure yet" while it's off). Turn it on and the app suggests flying back a week after you land, at
+the time of day you left. Change the date and time to your ticket's, in the local time where the trip ends. This
+also lets the app spot short trips. When you tap **Build my plan**, the app adds the return trip to Trips too: the
+route reversed, with the flight times copied from the way out, so check them against your ticket later with
+**Edit**. If the return would leave before you land, the card says so and the plan can't be built until you fix
+the date.
+
+Editing a trip that already has a return flight only changes its date: it doesn't add a second return trip.
+
+You can also open a trip's menu (the three dots on its card) and choose **Create return trip**, or tap **New
+trip** in the corner and then **Return from** the destination. The app reverses the route and suggests times.
+Check them against your ticket before you build the plan.
+
+Either way, when the return flies you home, its body clock starts on home time (see
 [Starting away from home](#starting-away-from-home)).
 
 ## Changing a trip
@@ -134,13 +157,13 @@ three-dot menu on the card has:
 
 ## When your flight is delayed
 
-<img src="images/delayed.png" alt="The Edit trip screen with an I'm delayed card at the top: Moves BA 11 later. Save and your plan follows. Chips for LHR to SIN and SIN to SYD, and buttons +30 m, +1 h, +2 h, +3 h and Custom." width="280" />
+<img src="images/delayed.png" alt="The Edit trip screen with an I'm delayed card at the top: Moves BA 11 later. Save and your plan follows. Chips for LHR to SIN and SIN to SYD, and buttons +30 m, +1 h, +2 h, +3 h and Custom. Below, the ticket for Flight 1, London to Singapore, and the Save changes button at the bottom." width="280" />
 
 From 48 hours before departure until you land, the **Edit trip** screen shows an **I'm delayed** card.
 
 1. Pick the flight that's late (on a trip with connections, each flight has its own chip).
 2. Tap how late it is: **+30 m**, **+1 h**, **+2 h**, **+3 h**, or **Custom** to type the minutes.
-3. Tap **Save**.
+3. Tap **Save changes**.
 
 The flight moves later, and the plan is rebuilt around the new times.
 

@@ -122,7 +122,13 @@ class TripEditorViewModel(
         }
         baseline = form
         val home = profiles.profile.first()?.homeZoneId
-        _state.value = derive(TripEditorUiState(loading = false, mode = mode, homeZoneId = home), form)
+        val base = TripEditorUiState(
+            loading = false,
+            mode = mode,
+            homeZoneId = home,
+            returnAlreadySet = original?.returnDeparture != null,
+        )
+        _state.value = derive(base, form)
         schedulePreview(_state.value)
     }
 
@@ -132,6 +138,7 @@ class TripEditorViewModel(
             legs = trip.legs.map(LegDraft::from),
             title = if (titleEdited) trip.title else "",
             titleEdited = titleEdited,
+            returnFlight = back != null,
             returnDate = back?.toLocalDate(),
             returnTime = back?.toLocalTime()?.withSecond(0)?.withNano(0),
             strategy = trip.strategyOverride,
@@ -200,11 +207,26 @@ class TripEditorViewModel(
         leg.copy(arrivalTime = time, arrivalDate = leg.arrivalDate ?: leg.departureDate, arrivalEstimated = false)
     }
 
-    override fun onReturnDateChange(date: LocalDate) = editForm { it.copy(returnDate = date, returnTime = it.returnTime ?: DefaultReturnTime) }
+    override fun onReturnDateChange(date: LocalDate) = editForm {
+        it.copy(returnFlight = true, returnDate = date, returnTime = it.returnTime ?: DefaultReturnTime)
+    }
 
-    override fun onReturnTimeChange(time: LocalTime) = editForm { it.copy(returnTime = time) }
+    override fun onReturnTimeChange(time: LocalTime) = editForm { it.copy(returnFlight = true, returnTime = time) }
 
-    override fun clearReturn() = editForm { it.copy(returnDate = null, returnTime = null) }
+    /**
+     * On: suggests flying back [ReturnTripFactory.DefaultStay] after the last landing, at the time of day the trip
+     * leaves (as Create return trip does), unless a date is already set. With nothing to go on yet, the date stays
+     * empty for the user to pick. Off: forgets the return.
+     */
+    override fun onReturnFlightChange(on: Boolean) = editForm { form ->
+        if (!on) return@editForm form.copy(returnFlight = false, returnDate = null, returnTime = null)
+        val landed = form.legs.lastOrNull()?.let { it.arrivalDate ?: it.departureDate }
+        form.copy(
+            returnFlight = true,
+            returnDate = form.returnDate ?: landed?.plusDays(ReturnTripFactory.DefaultStay.toDays()),
+            returnTime = form.returnTime ?: form.legs.firstOrNull()?.departureTime ?: DefaultReturnTime,
+        )
+    }
 
     override fun onStrategyChange(strategy: AdaptationStrategy?) = editForm { it.copy(strategy = strategy) }
 
@@ -272,13 +294,15 @@ class TripEditorViewModel(
 
     // region Airport search
 
+    /**
+     * Searches as the user types in the airport sheet. The ticket keeps its current airport until another one is
+     * picked, so a half-typed search can be dismissed without losing anything.
+     */
     override fun onPlaceQueryChange(field: PlaceFieldRef, query: String) {
-        editLeg(field.legIndex) { it.withPlace(field.end, PlaceInput(query, place = null)) }
         searchJob?.cancel()
         popularJob?.cancel()
         if (query.isBlank()) {
-            // Still in the field, now empty again: back to the popular airports.
-            _state.update { it.copy(search = null) }
+            // Empty again: back to the popular airports.
             showPopular(field)
             return
         }
@@ -337,28 +361,36 @@ class TripEditorViewModel(
         _state.update { it.copy(search = null) }
     }
 
-    override fun onPlaceFieldFocused(field: PlaceFieldRef) {
-        val input = _state.value.legs.getOrNull(field.legIndex)?.place(field.end) ?: return
-        if (input.place != null || input.query.isNotBlank()) return
-        if (_state.value.search?.field == field) return
+    /** Opens the search for [field] at once (the sheet shows straight away), with the popular airports. */
+    override fun openPlaceSearch(field: PlaceFieldRef) {
+        if (_state.value.legs.getOrNull(field.legIndex) == null) return
         searchJob?.cancel()
         showPopular(field)
     }
 
-    /** Offers [PopularAirports] under an empty [field], minus the airport already at the leg's other end. */
+    /**
+     * Shows [PopularAirports] for [field] while its query is empty, minus the airport already at the leg's other
+     * end. The search state is set synchronously (with the list if it's loaded already), so the sheet never closes
+     * between two fields; the list fills in once loaded.
+     */
     private fun showPopular(field: PlaceFieldRef) {
         popularJob?.cancel()
+        _state.update { current -> current.copy(search = popularSearch(current, field, popularPlaces.orEmpty())) }
+        if (popularPlaces != null) return
         popularJob = viewModelScope.launch {
-            val all = popularPlaces ?: PopularAirports.Codes.mapNotNull { places.byCode(it) }.also { popularPlaces = it }
+            val all = PopularAirports.Codes.mapNotNull { places.byCode(it) }.also { popularPlaces = it }
             _state.update { current ->
-                val leg = current.legs.getOrNull(field.legIndex) ?: return@update current
-                val input = leg.place(field.end)
-                if (input.place != null || input.query.isNotBlank()) return@update current
-                val other = leg.place(if (field.end == LegEnd.Origin) LegEnd.Destination else LegEnd.Origin).place
-                val results = all.filter { it != other }.take(PopularLimit)
-                current.copy(search = PlaceSearchState(field, "", results, searching = false, popular = true))
+                if (current.search?.field != field || current.search.query.isNotBlank()) current
+                else current.copy(search = popularSearch(current, field, all))
             }
         }
+    }
+
+    private fun popularSearch(state: TripEditorUiState, field: PlaceFieldRef, all: List<Place>): PlaceSearchState {
+        val other = state.legs.getOrNull(field.legIndex)
+            ?.place(if (field.end == LegEnd.Origin) LegEnd.Destination else LegEnd.Origin)?.place
+        val results = all.filter { it != other }.take(PopularLimit)
+        return PlaceSearchState(field, "", results, searching = false, popular = true)
     }
 
     // endregion
@@ -371,9 +403,8 @@ class TripEditorViewModel(
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             val destination = legs.last().destination
-            val returnDeparture = current.form.returnDate?.let { date ->
-                date.atTime(current.form.returnTime ?: DefaultReturnTime).atZone(destination.zone).toInstant()
-            }
+            val returnLocal = current.returnLocal
+            val returnDeparture = returnLocal?.atZone(destination.zone)?.toInstant()
             val trip = Trip(
                 id = original?.id ?: newId(),
                 title = current.effectiveTitle,
@@ -384,11 +415,23 @@ class TripEditorViewModel(
                 bodyClockStartZoneId = current.effectiveBodyClockStartZoneId,
             )
             trips.upsert(trip)
+            if (current.createsReturnTrip && returnLocal != null) trips.upsert(returnTripOf(trip, returnLocal, current.homeZoneId))
             outbound?.let { out -> if (out.returnDeparture == null) trips.upsert(returnTrips.linkOutbound(out, trip)) }
             baseline = current.form
             _state.update { it.copy(saving = false, dirty = false) }
             events.send(TripEditorEvent.Saved(trip.id))
         }
+    }
+
+    /**
+     * The Return flight switch's trip: [outbound] reversed by [ReturnTripFactory] (as Create return trip does),
+     * leaving at [departureLocal]. Its body clock start gets the editor's default for a new trip: Home when it flies
+     * you home from somewhere on other hours (HOME → destination → HOME, #145), else the departure city.
+     */
+    private fun returnTripOf(outbound: Trip, departureLocal: LocalDateTime, homeZoneId: String?): Trip {
+        val back = returnTrips.create(outbound, departureLocal, newId = ::newId)
+        val start = bodyClockStartChoice(formOf(back, titleEdited = false), homeZoneId)?.takeIf { it.fromHome }?.homeZoneId
+        return back.copy(bodyClockStartZoneId = start)
     }
 
     private fun derive(base: TripEditorUiState, form: EditorForm): TripEditorUiState {
@@ -491,9 +534,7 @@ class TripEditorViewModel(
     private fun previewTripOf(state: TripEditorUiState): Trip? {
         val legs = state.legs.map { it.toFlightLeg()?.copy(flightNumber = null) ?: return null }
         if (legs.isEmpty()) return null
-        val returnDeparture = state.form.returnDate?.let { date ->
-            date.atTime(state.form.returnTime ?: DefaultReturnTime).atZone(legs.last().destination.zone).toInstant()
-        }
+        val returnDeparture = state.returnLocal?.atZone(legs.last().destination.zone)?.toInstant()
         return Trip(
             id = original?.id ?: PreviewTripId,
             title = "",
@@ -528,7 +569,7 @@ class TripEditorViewModel(
         private val PlaceholderInstant: Instant = Instant.EPOCH
         const val MaxFlightNumberLength: Int = 8
         val DelayWindowBeforeDeparture: Duration = Duration.ofHours(48)
-        val DefaultReturnTime: LocalTime = LocalTime.of(12, 0)
+        val DefaultReturnTime: LocalTime = TripEditorUiState.DefaultReturnTime
         private val PlaceholderTime: LocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0)
 
         private fun newId(): String = UUID.randomUUID().toString()

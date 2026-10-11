@@ -46,6 +46,7 @@ private data class Credit(@StringRes val name: Int, @StringRes val detail: Int, 
 private val Sections: List<Pair<Int, List<Credit>>> = listOf(
     R.string.licenses_section_app to listOf(
         Credit(R.string.licenses_app_name, R.string.licenses_app_detail, R.string.license_apache2, SourceUrl),
+        Credit(R.string.licenses_prime_meridian, R.string.licenses_prime_meridian_detail, R.string.license_apache2, "https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian"),
     ),
     R.string.licenses_section_fonts to listOf(
         Credit(R.string.licenses_google_sans_flex, R.string.licenses_google_sans_flex_detail, R.string.license_ofl, "https://fonts.google.com/specimen/Google+Sans+Flex"),

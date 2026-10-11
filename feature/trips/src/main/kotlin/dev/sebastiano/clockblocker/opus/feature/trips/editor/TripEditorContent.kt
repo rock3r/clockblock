@@ -3,6 +3,18 @@ package dev.sebastiano.clockblocker.opus.feature.trips.editor
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,7 +30,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -169,15 +180,11 @@ fun TripEditorContent(
                         Icon(painterResource(R.drawable.ic_trips_close), contentDescription = stringResource(R.string.editor_close))
                     }
                 },
-                actions = {
-                    Button(
-                        onClick = actions::save,
-                        enabled = state.canSave,
-                        modifier = Modifier.padding(end = 12.dp).testTag(TripsTestTags.EditorSave),
-                    ) { Text(stringResource(R.string.editor_save)) }
-                },
                 scrollBehavior = scrollBehavior,
             )
+        },
+        bottomBar = {
+            if (!state.loading && !state.notFound) PrimaryActionBar(state, onSave = actions::save)
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -187,15 +194,27 @@ fun TripEditorContent(
             else -> EditorBody(
                 state = state,
                 actions = actions,
-                now = now,
                 snackbarHostState = snackbarHostState,
                 onPick = { picker = it },
-                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = padding,
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
 
     picker?.let { target -> PickerDialog(target, state, actions, onDismiss = { picker = null }) }
+
+    state.search?.let { search ->
+        PlaceSearchSheet(
+            search = search,
+            legCount = state.legs.size,
+            now = now,
+            onQueryChange = { actions.onPlaceQueryChange(search.field, it) },
+            onPick = { place -> pickPlace(state, actions, search.field) { actions.onPlaceSelected(search.field, place); true } },
+            onPickTop = { pickPlace(state, actions, search.field) { actions.pickTopResult(search.field) } },
+            onDismiss = actions::dismissSearch,
+        )
+    }
 
     if (confirmDiscard) {
         AlertDialog(
@@ -218,74 +237,144 @@ fun TripEditorContent(
     }
 }
 
+/**
+ * Picks an airport with [pick] (false: nothing was picked) and moves on: after From, an empty To opens next in the
+ * same sheet, so a new trip's route is two picks in a row.
+ */
+private fun pickPlace(state: TripEditorUiState, actions: TripEditorActions, field: PlaceFieldRef, pick: () -> Boolean) {
+    val leg = state.legs.getOrNull(field.legIndex) ?: return
+    if (!pick()) return
+    if (field.end == LegEnd.Origin && leg.destination.place == null) {
+        actions.openPlaceSearch(PlaceFieldRef(field.legIndex, LegEnd.Destination))
+    }
+}
+
+/**
+ * The editor's main action, at the bottom in thumb reach: full-width "Build my plan" ("Save changes" when editing),
+ * disabled until the trip is valid, with the reason right above it. It rides above the keyboard and the navigation
+ * bar.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PrimaryActionBar(state: TripEditorUiState, onSave: () -> Unit) {
+    val surface = MaterialTheme.colorScheme.surface
+    val blocker = state.saveBlocker.takeIf { !state.saving }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(surface)
+            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (blocker != null) {
+            Text(
+                stringResource(
+                    when (blocker) {
+                        SaveBlocker.Errors -> R.string.editor_save_blocked
+                        SaveBlocker.Incomplete -> R.string.editor_save_hint
+                        SaveBlocker.ReturnDateMissing -> R.string.editor_save_return_missing
+                        SaveBlocker.ReturnBeforeArrival -> R.string.editor_save_return_before
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (blocker == SaveBlocker.Incomplete) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = PrimaryActionMaxWidth).padding(bottom = 8.dp).testTag(TripsTestTags.EditorSaveHint),
+            )
+        }
+        Button(
+            onClick = onSave,
+            enabled = state.canSave,
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier
+                .widthIn(max = PrimaryActionMaxWidth)
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .testTag(TripsTestTags.EditorSave),
+        ) {
+            Text(
+                stringResource(if (state.mode == EditorMode.Edit) R.string.editor_save_changes else R.string.editor_build_plan),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+    }
+}
+
+private val PrimaryActionMaxWidth = 560.dp
+
 @Composable
 private fun EditorBody(
     state: TripEditorUiState,
     actions: TripEditorActions,
-    now: Instant,
     snackbarHostState: SnackbarHostState,
     onPick: (PickerTarget) -> Unit,
+    contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    val focus = remember(state.legs.map { it.id }) { state.legs.associate { it.id to LegFocus() } }
-    val flights: @Composable () -> Unit = {
+    val flights: @Composable ColumnScope.() -> Unit = {
         if (state.canReportDelay) {
             DelayCard(state, actions, snackbarHostState)
             Spacer(Modifier.height(16.dp))
         }
         state.legs.forEachIndexed { index, leg ->
             if (index > 0) LayoverConnector(state, index)
-            LegCard(
-                index = index,
-                leg = leg,
-                legCount = state.legs.size,
-                issues = state.issuesFor(index),
-                search = state.search,
-                now = now,
-                focus = focus.getValue(leg.id),
-                actions = actions,
-                onPick = onPick,
-            )
+            key(leg.id) {
+                LegTicket(
+                    index = index,
+                    leg = leg,
+                    legCount = state.legs.size,
+                    issues = state.issuesFor(index),
+                    actions = actions,
+                    onPick = onPick,
+                    onPickPlace = actions::openPlaceSearch,
+                )
+            }
         }
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(
+        Spacer(Modifier.height(8.dp))
+        TextButton(
             onClick = actions::addLeg,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(TripsTestTags.EditorAddLeg),
+            modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp).testTag(TripsTestTags.EditorAddLeg),
         ) {
             Icon(painterResource(R.drawable.ic_trips_add), contentDescription = null)
             Spacer(Modifier.size(8.dp))
             Text(stringResource(R.string.editor_add_leg))
         }
-    }
-    val details: @Composable () -> Unit = {
-        TripDetails(state, actions, onPick)
-        state.preview?.let { preview ->
-            Spacer(Modifier.height(16.dp))
-            ShiftPreviewCard(preview)
-        }
-        if (!state.canSave && !state.saving) {
-            Spacer(Modifier.height(16.dp))
-            Text(
-                stringResource(if (state.hasErrors) R.string.editor_save_blocked else R.string.editor_save_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (state.hasErrors) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp),
-            )
+        if (state.offersReturnFlight) {
+            Spacer(Modifier.height(8.dp))
+            ReturnFlightCard(state, onToggle = actions::onReturnFlightChange, onPick = onPick)
         }
     }
-    BoxWithConstraints(modifier.imePadding(), contentAlignment = Alignment.TopCenter) {
+    val details: @Composable ColumnScope.() -> Unit = {
+        // Globe slot (UX plan, PR 4): pass `globe = { … }` here once the route globe exists.
+        YourShiftCard(state.preview, blocked = state.hasErrors, pending = state.complete && !state.hasErrors)
+        Spacer(Modifier.height(16.dp))
+        TripDetails(state, actions)
+    }
+    val layoutDirection = LocalLayoutDirection.current
+    val top = contentPadding.calculateTopPadding()
+    val bottom = contentPadding.calculateBottomPadding()
+    BoxWithConstraints(
+        modifier.padding(
+            start = contentPadding.calculateStartPadding(layoutDirection),
+            end = contentPadding.calculateEndPadding(layoutDirection),
+            top = top,
+            // Outside the scroll, not inside it: the viewport then ends at the main action, so focus, TalkBack and
+            // scroll-into-view never leave a field hidden behind the bar.
+            bottom = bottom,
+        ),
+        contentAlignment = Alignment.TopCenter,
+    ) {
         if (maxWidth >= TwoPaneMinWidth) {
             Row(
                 Modifier.widthIn(max = 1200.dp).fillMaxSize().padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                Column(Modifier.weight(3f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+                Column(Modifier.weight(3f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
                     flights()
-                    Spacer(Modifier.height(32.dp))
                 }
-                Column(Modifier.weight(2f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+                Column(Modifier.weight(2f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
                     details()
-                    Spacer(Modifier.height(32.dp))
                 }
             }
         } else {
@@ -294,12 +383,11 @@ private fun EditorBody(
                     .widthIn(max = 720.dp)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             ) {
                 flights()
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
                 details()
-                Spacer(Modifier.height(32.dp))
             }
         }
     }
@@ -349,10 +437,7 @@ private fun LayoverConnector(state: TripEditorUiState, index: Int) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TripDetails(state: TripEditorUiState, actions: TripEditorActions, onPick: (PickerTarget) -> Unit) {
-    val dates = rememberDateFormatter()
-    val times = rememberTimeFormatter()
-    val destination = state.legs.lastOrNull()?.destination?.place
+private fun TripDetails(state: TripEditorUiState, actions: TripEditorActions) {
     Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
             Text(
@@ -373,49 +458,6 @@ private fun TripDetails(state: TripEditorUiState, actions: TripEditorActions, on
                 },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag(TripsTestTags.EditorTitle),
-            )
-
-            Spacer(Modifier.height(20.dp))
-            Text(stringResource(R.string.editor_return), style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(6.dp))
-            val zoneLabel = destination?.let { stringResource(R.string.editor_local_time_in, it.cityLabel) }
-                ?: stringResource(R.string.editor_local_time_destination)
-            Row(
-                Modifier.height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PickerField(
-                    label = stringResource(R.string.editor_date),
-                    accessibilityLabel = stringResource(R.string.editor_return),
-                    value = state.form.returnDate?.let(dates::format),
-                    icon = R.drawable.ic_trips_event,
-                    onClick = { onPick(PickerTarget.ReturnDate) },
-                    pickLabel = stringResource(R.string.editor_pick_date),
-                    tag = TripsTestTags.EditorReturnDate,
-                    modifier = Modifier.weight(1.35f).fillMaxHeight(),
-                )
-                PickerField(
-                    label = stringResource(R.string.editor_time),
-                    accessibilityLabel = "${stringResource(R.string.editor_return)}, $zoneLabel",
-                    value = state.form.returnTime?.takeIf { state.form.returnDate != null }?.let(times::formatFull),
-                    icon = R.drawable.ic_trips_schedule,
-                    onClick = { onPick(PickerTarget.ReturnTime) },
-                    pickLabel = stringResource(R.string.editor_pick_time),
-                    tag = TripsTestTags.EditorReturnTime,
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                )
-                if (state.form.returnDate != null) {
-                    IconButton(onClick = actions::clearReturn) {
-                        Icon(painterResource(R.drawable.ic_trips_close), contentDescription = stringResource(R.string.editor_return_clear))
-                    }
-                }
-            }
-            Text(
-                stringResource(R.string.editor_return_hint, zoneLabel.replaceFirstChar { it.uppercase() }),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp, top = 6.dp),
             )
 
             Spacer(Modifier.height(20.dp))
@@ -660,13 +702,13 @@ private fun PickerDialog(target: PickerTarget, state: TripEditorUiState, actions
             onConfirm = { actions.onArrivalTimeChange(target.legIndex, it) },
         )
         PickerTarget.ReturnDate -> LocalDatePickerDialog(
-            title = stringResource(R.string.editor_return),
+            title = stringResource(R.string.editor_return_title),
             initial = state.form.returnDate ?: state.legs.lastOrNull()?.arrivalDate,
             onDismiss = onDismiss,
             onConfirm = actions::onReturnDateChange,
         )
         PickerTarget.ReturnTime -> LocalTimePickerDialog(
-            title = "${stringResource(R.string.editor_return)} · ${zoneOf(state.legs.lastIndex, origin = false)}",
+            title = "${stringResource(R.string.editor_return_title)} · ${zoneOf(state.legs.lastIndex, origin = false)}",
             initial = state.form.returnTime,
             onDismiss = onDismiss,
             onConfirm = { time ->

@@ -42,6 +42,8 @@ class EditorConfigChangesTest : ClockblockE2eTest() {
         awaitTag("route_trip_editor", LongTimeoutMillis)
 
         pickPlace(TripsTestTags.editorFrom(0), "lis", "LIS")
+        pickPlace(TripsTestTags.editorTo(0), "hnd", "HND")
+        awaitGone(TripsTestTags.EditorPlaceSheet)
         awaitTag(TripsTestTags.editorFlightNumber(0)).scrollToIfScrollable().performTextInput("TP 80")
         assertInputKept()
 
@@ -62,6 +64,7 @@ class EditorConfigChangesTest : ClockblockE2eTest() {
     private fun assertInputKept() {
         awaitTag("route_trip_editor", LongTimeoutMillis)
         awaitTag(TripsTestTags.editorFrom(0)).scrollToIfScrollable().assert(showsText("Lisbon") or showsText("LIS"))
+        awaitTag(TripsTestTags.editorTo(0)).scrollToIfScrollable().assert(showsText("Tokyo") or showsText("HND"))
         awaitTag(TripsTestTags.editorFlightNumber(0)).scrollToIfScrollable().assert(showsText("TP 80"))
     }
 
