@@ -34,6 +34,12 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
     val main = MainDispatcherRule()
 
     private val clock = MutableClock(DemoData.Now)
+
+    @org.junit.Before
+    fun loadLand() {
+        // The globe loads its land dots off the main thread; load them up front so the capture has them.
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+    }
     private val trips = FakeTripRepository(DemoData.trips() + TripsSamples.lisbonTokyoWrongDate() + TripsSamples.newYorkParisFromHome())
 
     private fun viewModel(args: TripEditorArgs = TripEditorArgs()) = TripEditorViewModel(
@@ -185,6 +191,19 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
             }
         }
         capture(name)
+    }
+
+    /** The full-size globe (the sheet's content): airport codes beside the stops, the active flight bright. */
+    @Test
+    fun globeFullSize() {
+        val vm = viewModel(TripEditorArgs(tripId = DemoData.LhrSydId))
+        main.dispatcher.scheduler.advanceUntilIdle()
+        setContent(qualifiers = "w411dp-h891dp") {
+            val state by vm.state.collectAsStateWithLifecycle()
+            val route = EditorRoute.of(state.legs)
+            GlobeSheetContent(route, routeDescription(route, null), clock.instant(), activeLeg = 1, onLegClick = {})
+        }
+        capture("editor_globe_sheet")
     }
 
     /** LIS Wed 7 Oct 09:00 → HND, the arrival estimated from the distance (lands the next day). */

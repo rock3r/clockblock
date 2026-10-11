@@ -66,6 +66,9 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Trip editor Return flight switch | the return date row grows in (and out) on `containerSpatial()` with a `fade()`; reduce motion: it appears at once, and the switch carries the state | OBSERVED |
 | Trip editor airport search sheet | the platform `ModalBottomSheet` motion only; picking From turns the open sheet into To in place (no motion of its own) | OBSERVED |
 | Trip editor main action ("Build my plan") | the platform state layer and the Expressive button shape morph on press (`ButtonDefaults.shapes()`); nothing else moves | OBSERVED |
+| Route globe turning to a ticket (editor card, full-size sheet, world view) | the view centre (latitude, longitude) turns on `dataSpatial()` the short way round (the route's place on Earth is data: no bounce); snaps under reduce motion. The globe never spins or drifts on its own: no self-timed motion, so nothing reads `MotionDurationScale`. The brighter active arc swaps with no animation | OBSERVED |
+| Editor globe full size | the platform `ModalBottomSheet` motion (and its predictive back) only; tapping a flight closes the sheet and scrolls its ticket into view (`bringIntoView`) | OBSERVED |
+| Plan dial ↔ world (pinch out / pinch in, Back, TalkBack Show the world / Back to the dial) | the dial and the globe cross-fade in place on `fade()`, the dial's alpha read in its layer; nothing scales or moves. Reduce motion keeps the cross-fade (effects are still allowed); the globe is the static carrier | OBSERVED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
@@ -89,12 +92,16 @@ on-screen time, not opens, is what gates its motion.
 | Header sun path + ghost ring (issue #21) | continuous | Static: repaints with the minute tick and a scrub, drawn in the draw phase, fades with the collapsing header; nothing animates, so Remove animations changes nothing |
 | Illustrations (Why? sheet, onboarding, empty state) | rare | Ambient loops + entrances |
 | Light response curve (Why sheet, About) | rare | Handle grows on `containerSpatial`; position on `dataSpatial`; hour haptics |
+| Route globe (trip editor) / world behind the dial (pinch out) | a few/month / rare | Turn on `dataSpatial`, cross-fade on `fade()`; never spins on its own |
 | Adaptation celebration (rings → Bloom + confetti) | once per trip | Full delight, one mover at a time |
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
 
 ## Gestures and haptics
 - Dial drag scrubs time: `CLOCK_TICK` per local hour crossed, `SEGMENT_TICK` per advice boundary.
 - Dial centre tap → back to now (`dataSpatial`). Custom a11y actions: next / previous block / back to now.
+- Two-finger pinch out on the dial → the world (pinch in, or Back, returns). The pinch takes the gesture only once a
+  second finger is down, so one-finger scrub, the Rewind long-press and the moon taps never see it. No haptic. Custom
+  a11y actions: Show the world (dial), Back to the dial (globe).
 - Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
 - Moon egg taps 1–6 → `CLOCK_TICK`.
@@ -112,8 +119,9 @@ on-screen time, not opens, is what gates its motion.
 - Loading indicator becomes a still Sunny with the same "Working out your plan" semantics.
 - Confetti is skipped; `onFinished` fires immediately. The celebration goes straight to its overlay.
 - Easter eggs are off (`easterEggs` is false under reduce motion and inside sleep windows).
-- Dot-matrix codes, rolling readouts, the dial's body sky and offset pill and the route arc (apex and plane) snap to their
-  end state; the still picture carries the whole meaning.
+- Dot-matrix codes, rolling readouts, the dial's body sky and offset pill, the route arc (apex and plane) and the route
+  globe's turn snap to their end state; the still picture carries the whole meaning. The world behind the dial is not
+  an easter egg: it works under reduce motion and in sleep windows.
 - Screenshot goldens render with reduce motion on, proving each static carrier. `_mid` goldens
   (`snapMidChange`) freeze one frame mid-transition with motion on.
 

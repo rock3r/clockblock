@@ -39,6 +39,7 @@ class LicencesDataTest {
             "data:ourairports",
             "data:mwgg-airports",
             "data:iana-tzdb",
+            "data:natural-earth",
         )
     }
 

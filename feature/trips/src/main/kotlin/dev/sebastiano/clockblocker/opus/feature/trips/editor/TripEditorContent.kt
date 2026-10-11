@@ -60,6 +60,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -158,6 +159,25 @@ fun TripEditorContent(
 ) {
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
+    // The ticket the user is on (touched or focused last): the globe frames and highlights it.
+    var activeLeg by rememberSaveable { mutableIntStateOf(0) }
+    var globeExpanded by rememberSaveable { mutableStateOf(false) }
+    val tickets = remember(state.legs.map { it.id }) { state.legs.map { TicketHandle() } }
+    val scope = rememberCoroutineScope()
+    val route = remember(state.legs) { EditorRoute.of(state.legs) }
+    val routeDescription = routeDescription(route, state.preview?.let(ShiftSummary::of))
+    val active = activeLeg.coerceIn(0, (state.legs.size - 1).coerceAtLeast(0))
+    // A tap on a flight (on the globe, small or full size): go to its ticket and make it the active one.
+    val goToLeg: (Int) -> Unit = { index ->
+        activeLeg = index
+        globeExpanded = false
+        tickets.getOrNull(index)?.let { ticket ->
+            scope.launch {
+                ticket.bringIntoView.bringIntoView()
+                runCatching { ticket.focus.requestFocus() }
+            }
+        }
+    }
     val requestClose = { if (state.dirty) confirmDiscard = true else onClose() }
     BackHandler(enabled = state.dirty && !confirmDiscard) { confirmDiscard = true }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -199,12 +219,40 @@ fun TripEditorContent(
                 snackbarHostState = snackbarHostState,
                 onPick = { picker = it },
                 contentPadding = padding,
+                tickets = tickets,
+                activeLeg = active,
+                onActiveLeg = { activeLeg = it },
+                globe = if (route.isEmpty) {
+                    null
+                } else {
+                    {
+                        EditorGlobe(
+                            route = route,
+                            description = routeDescription,
+                            now = now,
+                            activeLeg = active,
+                            onLegClick = goToLeg,
+                            onExpand = { globeExpanded = true },
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxSize(),
             )
         }
     }
 
     picker?.let { target -> PickerDialog(target, state, actions, onDismiss = { picker = null }) }
+
+    if (globeExpanded && !route.isEmpty) {
+        GlobeSheet(
+            route = route,
+            description = routeDescription,
+            now = now,
+            activeLeg = active,
+            onLegClick = goToLeg,
+            onDismiss = { globeExpanded = false },
+        )
+    }
 
     state.search?.let { search ->
         PlaceSearchSheet(
@@ -312,6 +360,10 @@ private fun EditorBody(
     snackbarHostState: SnackbarHostState,
     onPick: (PickerTarget) -> Unit,
     contentPadding: PaddingValues,
+    tickets: List<TicketHandle>,
+    activeLeg: Int,
+    onActiveLeg: (Int) -> Unit,
+    globe: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val flights: @Composable ColumnScope.() -> Unit = {
@@ -330,6 +382,9 @@ private fun EditorBody(
                     actions = actions,
                     onPick = onPick,
                     onPickPlace = actions::openPlaceSearch,
+                    active = index == activeLeg && state.legs.size > 1,
+                    handle = tickets.getOrNull(index),
+                    onActive = { onActiveLeg(index) },
                 )
             }
         }
@@ -348,8 +403,7 @@ private fun EditorBody(
         }
     }
     val details: @Composable ColumnScope.() -> Unit = {
-        // Globe slot (UX plan, PR 4): pass `globe = { … }` here once the route globe exists.
-        YourShiftCard(state.preview, blocked = state.hasErrors, pending = state.complete && !state.hasErrors)
+        YourShiftCard(state.preview, blocked = state.hasErrors, pending = state.complete && !state.hasErrors, globe = globe)
         Spacer(Modifier.height(16.dp))
         TripDetails(state, actions)
     }
