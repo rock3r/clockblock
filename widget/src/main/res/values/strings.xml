@@ -61,6 +61,8 @@
     <string name="widget_done">Done</string>
     <string name="widget_done_logged">✓ Done</string>
     <string name="widget_skipped">Skipped</string>
+    <!-- Remote Compose Now notification preview (#49, debug probe): what starts next, "Next: Sleep at 20:30 · 12:30 in Lisbon". -->
+    <string name="widget_notification_next">Next: %1$s</string>
 
     <!-- Accessibility -->
     <string name="widget_a11y_done_action">Mark %1$s as done</string>

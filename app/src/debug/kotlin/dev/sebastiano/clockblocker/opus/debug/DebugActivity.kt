@@ -6,31 +6,31 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
-import dev.sebastiano.clockblocker.opus.widget.debug.RemoteComposeNotificationProbe
 import dev.sebastiano.clockblocker.opus.widget.debug.WidgetGalleryActivity
-import kotlinx.coroutines.launch
 
 /**
  * Debug builds only (declared in the debug manifest): Settings → Debug → Debug tools. Runs the Remote Compose
- * notification probe (#49) and opens the widget gallery's pages, so they can be tried on a phone without adb.
+ * notification probe (#49) and opens the widget gallery's pages, so they can be tried on a phone without adb. The
+ * probe's state lives in [ProbeViewModel], so its results stay on screen when a theme switch recreates the activity.
  */
 class DebugActivity : ComponentActivity() {
+    private val probe: ProbeViewModel by viewModels { ProbeViewModel.factory(this) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val probe = RemoteComposeNotificationProbe(this)
         setContent {
             ClockblockTheme {
-                val scope = rememberCoroutineScope()
-                var state by remember { mutableStateOf<ProbeState>(ProbeState.Idle) }
+                val state by probe.state.collectAsStateWithLifecycle()
                 var allowed by remember { mutableStateOf(notificationsAllowed()) }
                 LifecycleResumeEffect(Unit) {
                     allowed = notificationsAllowed()
@@ -39,14 +39,8 @@ class DebugActivity : ComponentActivity() {
                 DebugScreen(
                     probe = state,
                     notificationsAllowed = allowed,
-                    onRunProbe = {
-                        state = ProbeState.Running
-                        scope.launch { state = ProbeState.Done(probe.runOnDemoPlan()) }
-                    },
-                    onClearProbe = {
-                        probe.cancelAll()
-                        if (state is ProbeState.Done) state = ProbeState.Idle
-                    },
+                    onRunProbe = probe::run,
+                    onClearProbe = probe::clear,
                     // Always the app's notification settings: they work whether notifications were never granted,
                     // denied for good (no more prompts) or turned off later, and the resume effect picks up the change.
                     onAllowNotifications = {

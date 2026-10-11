@@ -46,6 +46,9 @@ sealed interface ProbeState {
     data object Idle : ProbeState
     data object Running : ProbeState
     data class Done(val results: List<Result>) : ProbeState
+
+    /** No results in this process, but the probe's notifications are still in the shade (an earlier run). */
+    data class Showing(val variants: List<Variant>) : ProbeState
 }
 
 /** The widget gallery's pages ([dev.sebastiano.clockblocker.opus.widget.debug.WidgetGalleryActivity]). */
@@ -124,9 +127,10 @@ private fun ProbeSection(
     Header("Remote Compose notification probe (#49)")
     Card {
         Text(
-            "Posts ${Variant.entries.size} test notifications whose custom views are the widgets' Remote Compose " +
-                "documents, waits ${RemoteComposeNotificationProbe.SETTLE_MS / 1000} s, then reports what the system did " +
-                "with each. Open the shade too: \"kept\" means the system didn't drop it, not that it drew.",
+            "Posts ${Variant.entries.size} test notifications whose custom views are notification-sized Remote Compose " +
+                "documents on a demo plan, waits ${RemoteComposeNotificationProbe.SETTLE_MS / 1000} s, then reports what the " +
+                "system did with each. Open the shade too: \"kept\" means the system didn't drop it, not that it drew. " +
+                "Switch dark theme on or off with them showing: they should follow it. Done does nothing here.",
             style = MaterialTheme.typography.bodyMedium,
         )
         if (!notificationsAllowed) {
@@ -164,6 +168,11 @@ private fun ProbeSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             is ProbeState.Done -> probe.results.forEach { ResultRow(it) }
+            is ProbeState.Showing -> Text(
+                "From an earlier run, still in the shade: ${probe.variants.joinToString("; ") { it.description.lowercase() }}.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

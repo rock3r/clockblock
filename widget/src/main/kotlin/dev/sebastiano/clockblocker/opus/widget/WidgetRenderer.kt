@@ -14,6 +14,7 @@ import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeRenderer
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeSupport
+import dev.sebastiano.clockblocker.opus.widget.rc.ThemedWidgetModel
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
@@ -37,6 +38,13 @@ class WidgetRenderer(
 ) {
     fun model(state: WidgetState, theme: WidgetTheme): WidgetModel =
         WidgetModel(state, textsTransform(WidgetTexts.from(context, state)), WidgetPalette.of(theme))
+
+    /**
+     * Both looks of [state] for documents that follow the system theme by themselves (the notification documents,
+     * #49, see [ThemedWidgetModel]). No Night-safe look: the shade's own theme decides.
+     */
+    fun themedModel(state: WidgetState): ThemedWidgetModel =
+        ThemedWidgetModel.of(state, textsTransform(WidgetTexts.from(context, state)))
 
     suspend fun render(kind: WidgetKind, state: WidgetState, theme: WidgetTheme): RemoteViews =
         render(kind, model(state, theme))

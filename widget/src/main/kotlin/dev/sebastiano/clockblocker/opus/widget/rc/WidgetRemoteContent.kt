@@ -743,20 +743,20 @@ private fun FittedLabel(
     Label(fitted.text.rs, color, fitted.sp, weight = weight, maxLines = fitted.lines, align = align, modifier = modifier)
 }
 
-private fun countdownMinutes(model: WidgetModel): Int? {
+internal fun countdownMinutes(model: WidgetModel): Int? {
     val state = model.state as? WidgetState.Active ?: return null
     val end = model.texts.countdownEnd ?: return null
     return Duration.between(state.capturedAt, end).toMinutes().toInt()
 }
 
-private fun countdownText(model: WidgetModel, compact: Boolean = false): RemoteString? {
+internal fun countdownText(model: WidgetModel, compact: Boolean = false): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
     return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0), compact)
 }
 
 /** The live countdown in words for the spoken description ("1 hour 10 minutes left"); null without one. */
-private fun spokenCountdown(model: WidgetModel): RemoteString? {
+internal fun spokenCountdown(model: WidgetModel): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
     return HostText.countdownSpoken(total, DialMath.minuteOfDay(state.capturedAt, 0), model.texts.countdownWords)
@@ -766,10 +766,10 @@ private fun spokenCountdown(model: WidgetModel): RemoteString? {
  * The main region opens [deepLink] through an id host action ([idHostAction]) answered by the click PendingIntent
  * that [RemoteComposeRenderer.remoteViews] registers under [DeepLinkIntents.CLICK_ACTION_ID].
  */
-private fun deepLinkAction(deepLink: String): Action = idHostAction(DeepLinkIntents.CLICK_ACTION_ID, deepLink)
+internal fun deepLinkAction(deepLink: String): Action = idHostAction(DeepLinkIntents.CLICK_ACTION_ID, deepLink)
 
 /** Done: an id host action answered by the Done broadcast registered under [DeepLinkIntents.DONE_ACTION_ID]. */
-private fun doneAction(done: DoneText): Action = idHostAction(DeepLinkIntents.DONE_ACTION_ID, done.adviceId)
+internal fun doneAction(done: DoneText): Action = idHostAction(DeepLinkIntents.DONE_ACTION_ID, done.adviceId)
 
 /** Deep-link PendingIntents shared by both backends. */
 object DeepLinkIntents {

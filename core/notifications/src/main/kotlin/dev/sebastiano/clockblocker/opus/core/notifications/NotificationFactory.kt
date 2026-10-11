@@ -234,7 +234,7 @@ class NotificationFactory(
         val headline = state.headline
         val builder = NotificationCompat.Builder(context, channel.id)
             .setSmallIcon(R.drawable.ic_notif_app)
-            .setColor(headline?.type?.style?.color ?: BRAND_COLOR)
+            .setColor(nowNotificationAccent(headline?.type))
             .setContentTitle(text.title)
             .setContentText(text.line)
             .setSubText(text.subText)
