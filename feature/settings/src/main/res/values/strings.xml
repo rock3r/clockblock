@@ -176,40 +176,7 @@
     <string name="opus_title_dismiss">Bravo</string>
 
     <!-- Licences -->
-    <string name="licenses_open">Open the %1$s page</string>
     <string name="licenses_title">Licences</string>
+    <string name="licenses_close">Close</string>
     <string name="licenses_intro">Clockblock stands on other people\'s generous work. Thank you.</string>
-    <string name="licenses_section_app">The app</string>
-    <string name="licenses_section_fonts">Fonts</string>
-    <string name="licenses_section_icons">Icons</string>
-    <string name="licenses_section_data">Data</string>
-    <string name="licenses_section_libraries">Libraries</string>
-    <string name="licenses_app_name">Clockblock</string>
-    <string name="licenses_app_detail">Source code, illustrations and docs.</string>
-    <string name="licenses_prime_meridian">Prime Meridian</string>
-    <string name="licenses_prime_meridian_detail">The trip editor\'s ticket shape is adapted from it. © Chris Sinco.</string>
-    <string name="licenses_google_sans_flex">Google Sans Flex</string>
-    <string name="licenses_google_sans_flex_detail">The interface typeface. © Google LLC.</string>
-    <string name="licenses_fraunces">Fraunces</string>
-    <string name="licenses_fraunces_detail">The editorial serif. © The Fraunces Project Authors (Undercase Type).</string>
-    <string name="licenses_material_symbols">Material Symbols Rounded</string>
-    <string name="licenses_material_symbols_detail">A handful of interface icons. © Google LLC.</string>
-    <string name="licenses_ourairports">OurAirports</string>
-    <string name="licenses_ourairports_detail">Airport names, codes and locations.</string>
-    <string name="licenses_mwgg">mwgg/Airports</string>
-    <string name="licenses_mwgg_detail">Airport time zones. © mwgg and contributors.</string>
-    <string name="licenses_tzdb">IANA Time Zone Database</string>
-    <string name="licenses_tzdb_detail">Every time zone rule, via java.time.</string>
-    <string name="licenses_androidx">AndroidX and Jetpack Compose</string>
-    <string name="licenses_androidx_detail">Compose, Material 3, Navigation 3, DataStore, Lifecycle. © The Android Open Source Project.</string>
-    <string name="licenses_kotlin">Kotlin and kotlinx</string>
-    <string name="licenses_kotlin_detail">The language, coroutines, serialization and immutable collections. © JetBrains s.r.o. and contributors.</string>
-    <string name="licenses_metro">Metro</string>
-    <string name="licenses_metro_detail">Compile-time dependency injection. © Zac Sweers.</string>
-    <string name="licenses_torph">Torph for Jetpack Compose</string>
-    <string name="licenses_torph_detail">Morphing text for the sleep dial\'s times. © Chris Sinco; a port of torph, © Lochie Axon.</string>
-    <string name="license_apache2">Apache License 2.0</string>
-    <string name="license_ofl">SIL Open Font License 1.1</string>
-    <string name="license_mit">MIT License</string>
-    <string name="license_public_domain">Public domain</string>
 </resources>

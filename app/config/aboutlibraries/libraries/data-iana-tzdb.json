@@ -1,0 +1,9 @@
+{
+  "uniqueId": "data:iana-tzdb",
+  "name": "IANA Time Zone Database",
+  "description": "Every time zone rule, read from the device through java.time.",
+  "website": "https://www.iana.org/time-zones",
+  "developers": [{ "name": "IANA and contributors" }],
+  "licenses": ["PublicDomain"],
+  "tag": "data"
+}

@@ -1,0 +1,19 @@
+{
+  "uniqueId": "des.c5inco.torph:torph-compose",
+  "name": "Torph for Jetpack Compose",
+  "description": "Morphing text for the sleep dial's times, vendored in third-party/torph. Copyright (c) 2026 Chris Sinco. An unofficial port of torph, copyright (c) 2025 Lochie Axon, also under the MIT License.",
+  "artifactVersion": "de406f7",
+  "website": "https://github.com/c5inco/torph-compose",
+  "developers": [
+    {
+      "name": "Chris Sinco"
+    },
+    {
+      "name": "Lochie Axon (torph)"
+    }
+  ],
+  "licenses": [
+    "MIT"
+  ],
+  "tag": "vendored"
+}

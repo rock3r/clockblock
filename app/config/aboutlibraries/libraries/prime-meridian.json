@@ -1,0 +1,9 @@
+{
+  "uniqueId": "dev.c5inco.m3evibes:prime-meridian",
+  "name": "Prime Meridian (m3e-vibes)",
+  "description": "The trip editor's ticket shape is adapted from it (core/designsystem TicketShape.kt).",
+  "website": "https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian",
+  "developers": [{ "name": "Chris Sinco" }],
+  "licenses": ["Apache-2.0"],
+  "tag": "vendored"
+}

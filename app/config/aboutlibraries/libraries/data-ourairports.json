@@ -1,0 +1,9 @@
+{
+  "uniqueId": "data:ourairports",
+  "name": "OurAirports",
+  "description": "Airport codes, names, places and locations in the offline airport search. Airport data from OurAirports (David Megginson and contributors).",
+  "website": "https://ourairports.com/data/",
+  "developers": [{ "name": "David Megginson and contributors" }],
+  "licenses": ["PublicDomain"],
+  "tag": "data"
+}
