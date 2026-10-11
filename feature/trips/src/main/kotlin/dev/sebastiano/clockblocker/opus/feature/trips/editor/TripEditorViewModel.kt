@@ -104,7 +104,8 @@ class TripEditorViewModel(
                     return
                 }
                 original = trip
-                EditorMode.Edit to formOf(trip, titleEdited = trip.title != titles.suggest(trip))
+                // A saved trip's start is settled, whatever its shape: null stays the departure city.
+                EditorMode.Edit to formOf(trip, titleEdited = trip.title != titles.suggest(trip)).copy(bodyClockStartPicked = true)
             }
 
             args.returnOfTripId != null -> {
@@ -207,10 +208,13 @@ class TripEditorViewModel(
 
     override fun onStrategyChange(strategy: AdaptationStrategy?) = editForm { it.copy(strategy = strategy) }
 
-    /** "Body clock when you leave": Home stores the offered home zone, the departure city stores nothing. */
+    /**
+     * "Body clock when you leave": Home stores the offered home zone, the departure city stores nothing. Either way
+     * the pick sticks: later edits to the route no longer change it.
+     */
     override fun onBodyClockStartChange(fromHome: Boolean) {
         val home = _state.value.bodyClockStart?.homeZoneId ?: return
-        editForm { it.copy(bodyClockStartZoneId = if (fromHome) home else null) }
+        editForm { it.copy(bodyClockStartZoneId = if (fromHome) home else null, bodyClockStartPicked = true) }
     }
 
     /** Adds a connecting flight that leaves from where the last one lands, on the day it lands. */
@@ -410,17 +414,39 @@ class TripEditorViewModel(
      * Offers "Body clock when you leave" once the first departure (airport and date) is known and the Home option's
      * zone is on a different UTC offset from it then; otherwise the choice can't change the plan. The Home option is
      * the trip's saved zone if it has one (kept even if home has changed since), else the profile's home zone.
+     *
+     * Until the start is picked ([EditorForm.bodyClockStartPicked]), Home is preselected for a trip back home and the
+     * departure city otherwise; Save then stores that default explicitly.
      */
     private fun bodyClockStartChoice(form: EditorForm, homeZoneId: String?): BodyClockStartChoice? {
-        val (departure, at) = form.legs.mapNotNull { leg ->
+        val departures = form.legs.mapNotNull { leg ->
             val place = leg.origin.place ?: return@mapNotNull null
             val date = leg.departureDate ?: return@mapNotNull null
-            place to date.atTime(leg.departureTime ?: LocalTime.NOON).atZone(place.zone).toInstant()
-        }.minByOrNull { it.second } ?: return null
+            Triple(leg, place, date.atTime(leg.departureTime ?: LocalTime.NOON).atZone(place.zone).toInstant())
+        }
+        val (_, departure, at) = departures.minByOrNull { it.third } ?: return null
         val homeId = form.bodyClockStartZoneId ?: homeZoneId ?: return null
         val home = runCatching { ZoneId.of(homeId) }.getOrNull() ?: return null
         if (home.rules.getOffset(at) == departure.zone.rules.getOffset(at)) return null
-        return BodyClockStartChoice(departure, homeId, fromHome = form.bodyClockStartZoneId != null)
+        val fromHome = if (form.bodyClockStartPicked) {
+            form.bodyClockStartZoneId != null
+        } else {
+            departures.maxBy { it.third }.first.landsOnTimeOf(home)
+        }
+        return BodyClockStartChoice(departure, homeId, fromHome)
+    }
+
+    /**
+     * A trip back home: this (last) flight lands somewhere on [home]'s UTC offset at its arrival (the departure, while
+     * the arrival isn't known). Compared by offset like the choice itself, so any airport on home time counts.
+     */
+    private fun LegDraft.landsOnTimeOf(home: ZoneId): Boolean {
+        val place = destination.place ?: return false
+        val local = arrivalDate?.atTime(arrivalTime ?: LocalTime.NOON)
+            ?: departureDate?.atTime(departureTime ?: LocalTime.NOON)
+            ?: return false
+        val at = local.atZone(place.zone).toInstant()
+        return home.rules.getOffset(at) == place.zone.rules.getOffset(at)
     }
 
     /** Whole-trip validation when every leg is complete; otherwise each complete leg on its own. */

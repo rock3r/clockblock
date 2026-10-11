@@ -204,6 +204,23 @@ class TripEditorFlowTest : TripsScreenshotTest() {
     }
 
     @Test
+    fun aTripBackHomeStartsOnHomeTimeUnlessYouSayOtherwise() {
+        // Home is Los Angeles: the return of San Francisco → London flies back home.
+        open(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId))
+        tag(TripsTestTags.EditorBodyClockStartHome).performScrollTo().assertTextEquals("Home (Los Angeles)").assertIsOn()
+        tag(TripsTestTags.EditorBodyClockStartDeparture).assertIsOff().performClick()
+        settle()
+        tag(TripsTestTags.EditorBodyClockStartDeparture).assertIsOn()
+        tag(TripsTestTags.EditorBodyClockStartHome).assertIsOff()
+        compose.onNodeWithText("The plan starts on London time", substring = true).assertExists()
+
+        tag(TripsTestTags.EditorSave).performClick()
+        settle()
+        val saved = trips.current.single { it.id == done.single() }
+        saved.bodyClockStartZoneId shouldBe null
+    }
+
+    @Test
     fun noBodyClockStartChoiceWhenTheTripLeavesFromHome() {
         open(TripEditorArgs(tripId = DemoData.SfoLhrId)) // San Francisco is on Los Angeles time.
         tag(TripsTestTags.EditorBodyClockStartHome).assertDoesNotExist()
