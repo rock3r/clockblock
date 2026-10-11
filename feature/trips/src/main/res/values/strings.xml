@@ -179,14 +179,15 @@
     <string name="editor_return_on">Pick when you fly back</string>
     <string name="editor_return_route">%1$s → %2$s</string>
     <string name="editor_return_flies">Flies back</string>
-    <string name="editor_return_creates">Your return trip, %1$s, is added to Trips too.</string>
-    <string name="editor_return_creates_generic">Your return trip is added to Trips too.</string>
+    <string name="editor_return_creates">Added to your trips as a trip of its own when you build your plan.</string>
     <string name="editor_return_hint">Lets us spot short trips.</string>
     <string name="editor_return_before_landing">Leaves before you land in %1$s.</string>
 
     <!-- Your shift. -->
     <string name="editor_shift_title">Your shift</string>
     <string name="editor_shift_empty">Add your flights to see how far your body clock has to move.</string>
+    <string name="editor_shift_blocked">Fix the flights above to see your shift.</string>
+    <string name="editor_shift_pending">Working out your shift…</string>
     <string name="editor_shift_home_title">Home time</string>
     <string name="editor_shift_none_title">No jet lag</string>
     <plurals name="editor_shift_with">

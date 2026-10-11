@@ -31,7 +31,8 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 /**
  * "Your shift": what the planner makes of the trip as entered, live, before the main action. Every number comes from
  * the [ShiftPreview] the ViewModel computed with the real planner, summarised by [ShiftSummary] ("+9 h east", "About
- * 4 days with the plan, 7 without"); nothing is guessed here. Until the draft can be planned it says what it needs.
+ * 4 days with the plan, 7 without"); nothing is guessed here. Until the draft can be planned it says what it needs
+ * ([blocked]: the flights are in but have errors to fix; [pending]: they're complete and the planner is still working).
  * Static (no motion): it simply updates when the draft changes.
  *
  * @param globe **Globe slot (UX plan, PR 4).** The route globe goes here, above the summary, about 180 dp tall: the
@@ -43,6 +44,8 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 internal fun YourShiftCard(
     preview: ShiftPreview?,
     modifier: Modifier = Modifier,
+    blocked: Boolean = false,
+    pending: Boolean = false,
     globe: (@Composable () -> Unit)? = null,
 ) {
     val summary = preview?.let(ShiftSummary::of)
@@ -63,7 +66,7 @@ internal fun YourShiftCard(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ShiftSummaryText(summary)
+                    ShiftSummaryText(summary, blocked, pending)
                 }
                 if (globe == null && summary is ShiftSummary.Shift) {
                     Spacer(Modifier.width(12.dp))
@@ -83,10 +86,19 @@ internal fun YourShiftCard(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ShiftSummaryText(summary: ShiftSummary?) {
+private fun ShiftSummaryText(summary: ShiftSummary?, blocked: Boolean, pending: Boolean) {
     val headline = MaterialTheme.typography.headlineSmallEmphasized
     when (summary) {
-        null -> Text(stringResource(R.string.editor_shift_empty), style = MaterialTheme.typography.bodyLarge)
+        null -> Text(
+            stringResource(
+                when {
+                    blocked -> R.string.editor_shift_blocked
+                    pending -> R.string.editor_shift_pending
+                    else -> R.string.editor_shift_empty
+                },
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+        )
         ShiftSummary.HomeTime -> {
             Text(stringResource(R.string.editor_shift_home_title), style = headline)
             Text(stringResource(R.string.editor_preview_home), style = MaterialTheme.typography.bodyMedium)

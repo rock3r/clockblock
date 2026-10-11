@@ -246,7 +246,7 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         tag(TripsTestTags.EditorReturnSwitch).assertIsOn()
         // A week after landing (Tue 16 Jun), at the outbound's time of day.
         tag(TripsTestTags.EditorReturnDate).performScrollTo().assertContentDescriptionContains("Jun 23", substring = true)
-        compose.onNodeWithText("Your return trip, London → San Francisco, is added to Trips too.").assertExists()
+        compose.onNodeWithText("Added to your trips as a trip of its own when you build your plan.").assertExists()
 
         tag(TripsTestTags.EditorSave).performClick()
         settle()

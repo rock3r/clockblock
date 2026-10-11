@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.feature.trips.editor
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -13,9 +14,6 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.key
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -254,7 +252,7 @@ private fun pickPlace(state: TripEditorUiState, actions: TripEditorActions, fiel
 /**
  * The editor's main action, at the bottom in thumb reach: full-width "Build my plan" ("Save changes" when editing),
  * disabled until the trip is valid, with the reason right above it. It rides above the keyboard and the navigation
- * bar; the content scrolls under its soft top edge.
+ * bar.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -264,13 +262,9 @@ private fun PrimaryActionBar(state: TripEditorUiState, onSave: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .drawBehind {
-                val fade = BarFade.toPx().coerceAtMost(size.height)
-                drawRect(Brush.verticalGradient(listOf(surface.copy(alpha = 0f), surface), startY = 0f, endY = fade))
-                drawRect(surface, topLeft = Offset(0f, fade), size = Size(size.width, size.height - fade))
-            }
+            .background(surface)
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-            .padding(start = 16.dp, end = 16.dp, top = BarFade, bottom = 12.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (blocker != null) {
@@ -307,8 +301,6 @@ private fun PrimaryActionBar(state: TripEditorUiState, onSave: () -> Unit) {
     }
 }
 
-/** The soft edge above the main action that the content scrolls under. */
-private val BarFade = 16.dp
 private val PrimaryActionMaxWidth = 560.dp
 
 @Composable
@@ -355,7 +347,7 @@ private fun EditorBody(
     }
     val details: @Composable ColumnScope.() -> Unit = {
         // Globe slot (UX plan, PR 4): pass `globe = { … }` here once the route globe exists.
-        YourShiftCard(state.preview)
+        YourShiftCard(state.preview, blocked = state.hasErrors, pending = state.complete && !state.hasErrors)
         Spacer(Modifier.height(16.dp))
         TripDetails(state, actions)
     }
@@ -367,6 +359,9 @@ private fun EditorBody(
             start = contentPadding.calculateStartPadding(layoutDirection),
             end = contentPadding.calculateEndPadding(layoutDirection),
             top = top,
+            // Outside the scroll, not inside it: the viewport then ends at the main action, so focus, TalkBack and
+            // scroll-into-view never leave a field hidden behind the bar.
+            bottom = bottom,
         ),
         contentAlignment = Alignment.TopCenter,
     ) {
@@ -375,10 +370,10 @@ private fun EditorBody(
                 Modifier.widthIn(max = 1200.dp).fillMaxSize().padding(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                Column(Modifier.weight(3f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = bottom + 24.dp)) {
+                Column(Modifier.weight(3f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
                     flights()
                 }
-                Column(Modifier.weight(2f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = bottom + 24.dp)) {
+                Column(Modifier.weight(2f).verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 24.dp)) {
                     details()
                 }
             }
@@ -388,7 +383,7 @@ private fun EditorBody(
                     .widthIn(max = 720.dp)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 24.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
             ) {
                 flights()
                 Spacer(Modifier.height(16.dp))

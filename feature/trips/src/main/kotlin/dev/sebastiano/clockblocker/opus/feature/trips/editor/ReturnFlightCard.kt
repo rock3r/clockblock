@@ -130,8 +130,7 @@ internal fun ReturnFlightCard(
                     Text(
                         when {
                             error -> stringResource(R.string.editor_return_before_landing, destination?.cityLabel.orEmpty())
-                            state.createsReturnTrip && route != null -> stringResource(R.string.editor_return_creates, route)
-                            state.createsReturnTrip -> stringResource(R.string.editor_return_creates_generic)
+                            state.createsReturnTrip -> stringResource(R.string.editor_return_creates)
                             else -> stringResource(R.string.editor_return_hint)
                         },
                         style = MaterialTheme.typography.bodySmall,

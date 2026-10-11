@@ -28,7 +28,7 @@ phone in landscape, a **+** button sits in the top bar instead, so it never cove
 
 ## Adding flights
 
-<img src="images/trip-editor.png" alt="TRIP_EDITOR_ALT" width="280" />
+<img src="images/trip-editor.png" alt="The New trip screen: a ticket from LIS, Lisbon, to HND, Tokyo, with the route drawn as an arc and a swap button. Departs · local time in Lisbon: Mon 12 Oct, 09:00. Arrives · local time in Tokyo: Tue 13 Oct, 07:25, with +1 day in red, then Estimated from the flight distance. Adjust it to your ticket. The ticket's stub says 14 h 25 m in the air, with a Flight no. field. Below: Add connecting flight, Return flight (One way / not sure yet, switched off), Your shift: +8 h east, and the Build my plan button at the bottom." width="280" />
 
 Each flight is a ticket: the airport codes big at the top, the departure and arrival below, and the time in the air
 at the bottom.
@@ -66,7 +66,7 @@ you to it before the next flight.
 
 ### When something looks wrong
 
-<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Wed, Oct 14 and the arrival fields outlined in red. A card headed Fix this says: Lands before it takes off. Each time is local to its airport, so check the arrival date and time. A button offers Arrives next day?" width="280" />
+<img src="images/trip-editor-validation.png" alt="The New trip screen for Lisbon to Tokyo with both dates on Mon 12 Oct and the arrival date and time chips in red. A card headed Fix this says: Lands before it takes off. Each time is local to its airport, so check the arrival date and time. A button offers Arrives next day? Above the greyed-out Build my plan button: Fix the issues marked in red first." width="280" />
 
 The editor checks your flights as you type. Problems are marked **Fix this** (you can't build the plan until you
 fix it),
@@ -83,7 +83,7 @@ Below the flights, **Trip details** has these settings:
 - **Body clock when you leave**: only shown when the trip leaves from a city on a different time from home. See
   [Starting away from home](#starting-away-from-home).
 
-<img src="images/body-clock-choice.png" alt="The Trip details card: the title London to San Francisco, an empty Flying back (optional) date and time, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Below, Your shift preview: 8 h west, shift later, about 5 days to adapt with the plan, about 8 days without one." width="320" />
+<img src="images/body-clock-choice.png" alt="Your shift: −8 h west, about 6 days with the plan, 8 without. Below, the Trip details card: the title London to San Francisco, and the Body clock setting with three options, Auto (selected), Adapt and Home time. The text says: Adapts to your destination, unless you fly back within 72 hours: then you stay on home time. Then Body clock when you leave, with Departure city selected and Home (Los Angeles)." width="320" />
 
 | Choice | What happens |
 |---|---|
@@ -124,7 +124,7 @@ keeps you on home time when you're back within 72 hours.
 
 ## Return trips
 
-<img src="images/return-trip.png" alt="RETURN_TRIP_ALT" width="280" />
+<img src="images/return-trip.png" alt="The New trip screen scrolled to the Return flight card, switched on: Tokyo → Lisbon, Flies back · local time in Tokyo, Tue 20 Oct at 09:00, and Added to your trips as a trip of its own when you build your plan. Below, Your shift: +8 h east, about 3 days with the plan, 7 without. Build my plan at the bottom." width="280" />
 
 The quickest way to plan the way home is the **Return flight** switch under the flights, while you add the trip
 ("One way / not sure yet" while it's off). Turn it on and the app suggests flying back a week after you land, at
@@ -157,7 +157,7 @@ three-dot menu on the card has:
 
 ## When your flight is delayed
 
-<img src="images/delayed.png" alt="The Edit trip screen with an I'm delayed card at the top: Moves BA 11 later. Save and your plan follows. Chips for LHR to SIN and SIN to SYD, and buttons +30 m, +1 h, +2 h, +3 h and Custom." width="280" />
+<img src="images/delayed.png" alt="The Edit trip screen with an I'm delayed card at the top: Moves BA 11 later. Save and your plan follows. Chips for LHR to SIN and SIN to SYD, and buttons +30 m, +1 h, +2 h, +3 h and Custom. Below, the ticket for Flight 1, London to Singapore, and the Save changes button at the bottom." width="280" />
 
 From 48 hours before departure until you land, the **Edit trip** screen shows an **I'm delayed** card.
 
