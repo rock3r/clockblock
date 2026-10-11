@@ -44,9 +44,10 @@ class TripsContentTest : TripsScreenshotTest() {
         onTryDemo = { calls += "demo" },
         onDelete = { calls += "delete:$it" },
         onDuplicate = { calls += "duplicate:$it" },
+        onOpenNow = { calls += "now" },
     )
 
-    private fun show(state: TripsUiState = TripsSamples.state()) = setContent { TripsContent(state, callbacks) }
+    private fun show(state: TripsUiState = TripsSamples.state()) = setContent { TripsContent(state, callbacks, now = TripsSamples.Now) }
 
     @Test
     fun emptyStateOffersPlanningAndADemo() {
@@ -56,6 +57,36 @@ class TripsContentTest : TripsScreenshotTest() {
         compose.onNodeWithTag(TripsTestTags.EmptyDemoTrip).performClick()
         compose.onNodeWithTag(TripsTestTags.Fab).assertDoesNotExist()
         calls shouldContainExactly listOf("new", "demo")
+    }
+
+    @Test
+    fun upcomingEmptyCardLinksToNowWhenOnlyCurrentTripExists() {
+        show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyNow).performClick()
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyPlan).performClick()
+        compose.onNodeWithTag(TripsTestTags.tripCard(TripsSamples.lisbonTokyo.id)).assertIsDisplayed()
+        calls shouldContainExactly listOf("now", "new")
+    }
+
+    @Test
+    fun upcomingEmptyCardOffersPlanningWhenOnlyPastTripsExist() {
+        val afterAll = java.time.Instant.parse("2026-08-01T12:00:00Z")
+        show(TripsSamples.state(now = afterAll))
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyNow).assertDoesNotExist()
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyPlan).performClick()
+        compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).assertIsDisplayed()
+        calls shouldContainExactly listOf("new")
+    }
+
+    @Test
+    fun tappingPastTripsHeaderOpensThePastGlobeSheet() {
+        show()
+        compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(TripsTestTags.section(TripPhase.Past.name)))
+        compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).performClick()
+        compose.onNodeWithTag(TripsTestTags.PastGlobeSheet).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.PastGlobe).assertIsDisplayed()
     }
 
     @Test
@@ -84,14 +115,14 @@ class TripsContentTest : TripsScreenshotTest() {
     @Test
     fun shortWindowsMoveTheAddMenuIntoTheAppBar() {
         // Landscape phone (#15): no floating button over the cards; the same entries sit behind an app bar action.
-        setContent(qualifiers = "w540dp-h411dp") { TripsContent(TripsSamples.state(), callbacks) }
+        setContent(qualifiers = "w540dp-h411dp") { TripsContent(TripsSamples.state(), callbacks, now = TripsSamples.Now) }
         compose.onNodeWithTag(TripsTestTags.Fab).performClick()
         compose.onNodeWithTag(TripsTestTags.ReturnTrip).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.DemoTrip).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.NewTrip).performClick()
         calls shouldContainExactly listOf("new")
         val fab = compose.onNodeWithTag(TripsTestTags.Fab).fetchSemanticsNode().boundsInRoot
-        val firstCard = compose.onNodeWithTag(TripsTestTags.tripCard(DemoData.SfoLhrId)).fetchSemanticsNode().boundsInRoot
+        val firstCard = compose.onNodeWithTag(TripsTestTags.tripCard(DemoData.LhrSydId)).fetchSemanticsNode().boundsInRoot
         (fab.bottom <= firstCard.top) shouldBe true
     }
 

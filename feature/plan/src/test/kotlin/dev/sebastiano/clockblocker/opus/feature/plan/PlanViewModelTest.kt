@@ -85,10 +85,12 @@ class PlanViewModelTest {
     }
 
     @Test
-    fun `no current plan is an empty state`() = runTest {
+    fun `no current plan is an empty state that reports past trip count`() = runTest {
         plans.setCurrentPlan(null)
         viewModel(null).state.test {
-            awaitNoPlan().missing.shouldBeFalse()
+            val noPlan = awaitNoPlan()
+            noPlan.missing.shouldBeFalse()
+            noPlan.pastTripCount shouldBe DemoData.trips().size
         }
     }
 

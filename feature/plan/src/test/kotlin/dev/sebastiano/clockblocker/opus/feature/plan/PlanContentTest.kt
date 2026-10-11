@@ -889,4 +889,20 @@ class PlanContentTest {
         summary shouldContain "05:00 – 08:00"
         summary shouldContain context.getString(R.string.plan_day_header_travel)
     }
+
+    @Test
+    fun `no current plan with past trips links to Trips`() {
+        var openedTrips = 0
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                PlanContent(
+                    PlanUiState.NoPlan(missing = false, pastTripCount = 2),
+                    PlanActions(onOpenTrips = { openedTrips++ }),
+                )
+            }
+        }
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.plan_empty_past_body, 2, 2)).assertIsDisplayed()
+        compose.onNodeWithTag(PlanTags.OpenTrips).performClick()
+        openedTrips shouldBe 1
+    }
 }

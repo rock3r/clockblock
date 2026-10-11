@@ -76,10 +76,21 @@ data class TripSummary(
     val flightProgress: Float,
     val adaptation: AdaptationSnapshot?,
     val daysToAdapt: Double? = null,
+    val daysSaved: Double = 0.0,
     val bodyTime: LocalTime? = null,
 ) {
     val id: String get() = trip.id
 }
+
+/**
+ * How trips split between the **Now** tab ([nowTrip]: the trip in progress, or else the first upcoming one) and
+ * the **Trips** tab ([upcoming]: all following upcoming trips after [nowTrip], plus [past] below).
+ */
+data class PartitionedTrips(
+    val nowTrip: TripSummary?,
+    val upcoming: List<TripSummary>,
+    val past: List<TripSummary>,
+)
 
 /** Pure derivation of [TripSummary]s, kept free of Android so it is unit-tested on the JVM. */
 object TripSummaries {
@@ -139,6 +150,7 @@ object TripSummaries {
         }
 
         val shifts = plan != null && !homeTime && plan.direction != ShiftDirection.None
+        val daysSaved = if (shifts) (plan.estimatedDaysWithoutPlan - plan.estimatedDaysToAdapt).coerceAtLeast(0.0) else 0.0
         return TripSummary(
             trip = trip,
             title = trip.title.ifBlank { fallbackTitle },
@@ -148,7 +160,32 @@ object TripSummaries {
             flightProgress = flightProgress(trip, now),
             adaptation = adaptation,
             daysToAdapt = plan?.estimatedDaysToAdapt?.takeIf { shifts && phase == TripPhase.Upcoming },
+            daysSaved = daysSaved,
             bodyTime = plan?.takeIf { phase == TripPhase.InProgress }?.let { now.atOffset(it.bodyOffsetAt(now)).toLocalTime() },
+        )
+    }
+
+    /**
+     * Splits [summaries] between the **Now** tab and the **Trips** tab:
+     * - [PartitionedTrips.nowTrip] is the in-progress trip (latest departure if active plans overlap, matching
+     *   `PlanRepository.currentPlan`), or else the soonest upcoming trip.
+     * - [PartitionedTrips.upcoming] holds all remaining non-past trips in departure order (so the trip shown on
+     *   Now is not duplicated on Trips).
+     * - [PartitionedTrips.past] holds all past trips, most recent first.
+     */
+    fun partition(summaries: List<TripSummary>): PartitionedTrips {
+        val grouped = sections(summaries)
+        val inProgress = grouped.getValue(TripPhase.InProgress)
+        val upcoming = grouped.getValue(TripPhase.Upcoming)
+        val past = grouped.getValue(TripPhase.Past)
+        val nowTrip = inProgress.maxByOrNull { it.trip.departure } ?: upcoming.firstOrNull()
+        val following = (inProgress + upcoming)
+            .filter { it.id != nowTrip?.id }
+            .sortedBy { it.trip.departure }
+        return PartitionedTrips(
+            nowTrip = nowTrip,
+            upcoming = following,
+            past = past,
         )
     }
 

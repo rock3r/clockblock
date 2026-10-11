@@ -222,12 +222,111 @@ private val TapTolerance = 24.dp
 
 internal fun globeRadius(width: Float, height: Float): Float = min(width, height) / 2f * 0.94f
 
-/** The stops in route order: the first departure, then every arrival (a connection isn't repeated). */
+/** The distinct stops in visit order (connections and hubs shared across trips aren't repeated). */
 internal fun routeStops(legs: List<GlobeLeg>): List<GlobeStop> = buildList {
     legs.forEach { leg ->
-        if (lastOrNull()?.point != leg.from.point) add(leg.from)
-        add(leg.to)
+        if (none { it.point == leg.from.point && it.label == leg.from.label }) add(leg.from)
+        if (none { it.point == leg.to.point && it.label == leg.to.label }) add(leg.to)
     }
+}
+
+internal data class StopLabelInput(
+    val ox: Float,
+    val oy: Float,
+    val width: Float,
+    val height: Float,
+)
+
+internal data class StopLabelPlacement(
+    val left: Float,
+    val top: Float,
+    val scrimLeft: Float,
+    val scrimTop: Float,
+    val scrimRight: Float,
+    val scrimBottom: Float,
+)
+
+/**
+ * Places each visible stop's airport-code label beside its dot, choosing the candidate side (right, left, above,
+ * below or diagonal) that avoids overlapping other stop dots and already-placed labels.
+ */
+internal fun placeStopLabels(
+    stops: List<StopLabelInput>,
+    canvasWidth: Float,
+    canvasHeight: Float,
+    dotRadius: Float,
+    gap: Float,
+    pad: Float,
+): List<StopLabelPlacement> {
+    if (stops.isEmpty()) return emptyList()
+    val placed = ArrayList<StopLabelPlacement>(stops.size)
+    for (s in stops) {
+        val w = s.width
+        val h = s.height
+        val candidates = arrayOf(
+            s.ox + gap to s.oy - h / 2f,
+            s.ox - gap - w to s.oy - h / 2f,
+            s.ox - w / 2f to s.oy - gap - h,
+            s.ox - w / 2f to s.oy + gap,
+            s.ox + gap to s.oy - gap - h,
+            s.ox + gap to s.oy + gap,
+            s.ox - gap - w to s.oy - gap - h,
+            s.ox - gap - w to s.oy + gap,
+        )
+        var best: StopLabelPlacement? = null
+        var bestScore = Float.POSITIVE_INFINITY
+        for ((rawLeft, rawTop) in candidates) {
+            val maxLeft = (canvasWidth - w - pad).coerceAtLeast(pad)
+            val maxTop = (canvasHeight - h - pad).coerceAtLeast(pad)
+            val left = rawLeft.coerceIn(pad, maxLeft)
+            val top = rawTop.coerceIn(pad, maxTop)
+            val sLeft = left - pad
+            val sTop = top - pad / 2f
+            val sRight = left + w + pad
+            val sBottom = top + h + pad / 2f
+
+            var overlap = 0f
+            for (prev in placed) {
+                overlap += rectOverlap(sLeft, sTop, sRight, sBottom, prev.scrimLeft, prev.scrimTop, prev.scrimRight, prev.scrimBottom)
+            }
+            for (dot in stops) {
+                overlap += rectOverlap(
+                    sLeft,
+                    sTop,
+                    sRight,
+                    sBottom,
+                    dot.ox - dotRadius,
+                    dot.oy - dotRadius,
+                    dot.ox + dotRadius,
+                    dot.oy + dotRadius,
+                )
+            }
+            val clampPenalty = kotlin.math.abs(left - rawLeft) + kotlin.math.abs(top - rawTop)
+            val score = overlap * 100f + clampPenalty
+            if (score < bestScore) {
+                bestScore = score
+                best = StopLabelPlacement(left, top, sLeft, sTop, sRight, sBottom)
+                if (score == 0f) break
+            }
+        }
+        placed += best!!
+    }
+    return placed
+}
+
+private fun rectOverlap(
+    ax0: Float,
+    ay0: Float,
+    ax1: Float,
+    ay1: Float,
+    bx0: Float,
+    by0: Float,
+    bx1: Float,
+    by1: Float,
+): Float {
+    val dx = (min(ax1, bx1) - maxOf(ax0, bx0)).coerceAtLeast(0f)
+    val dy = (min(ay1, by1) - maxOf(ay0, by0)).coerceAtLeast(0f)
+    return dx * dy
 }
 
 /** The globe is a night-sky object in both themes: Clockblock's night sky ramp, warm land and Marigold routes. */
@@ -498,27 +597,41 @@ private class GlobeRenderer {
         }
         labels?.let { layouts ->
             val pad = 4f * density
+            val gap = dotRadius + 6f * density
+            val visibleIndices = ArrayList<Int>(stops.size)
+            val inputs = ArrayList<StopLabelInput>(stops.size)
             for (i in 0 until stops.size) {
                 val px = stops.x[i]
                 val py = stops.y[i]
                 val pz = stops.z[i]
                 if (rotation.depth(px, py, pz) < 0f) continue
                 val layout = layouts.getOrNull(i) ?: continue
-                val ox = cx + rotation.x(px, py) * radius
-                val oy = cy - rotation.y(px, py, pz) * radius
-                val w = layout.size.width
-                val h = layout.size.height
-                val gap = dotRadius + 6f * density
-                // Beside the dot, on whichever side has room.
-                val left = if (ox + gap + w + pad <= size.width) ox + gap else ox - gap - w
-                val top = (oy - h / 2f).coerceIn(pad, size.height - h - pad)
+                visibleIndices += i
+                inputs += StopLabelInput(
+                    ox = cx + rotation.x(px, py) * radius,
+                    oy = cy - rotation.y(px, py, pz) * radius,
+                    width = layout.size.width.toFloat(),
+                    height = layout.size.height.toFloat(),
+                )
+            }
+            val placements = placeStopLabels(
+                stops = inputs,
+                canvasWidth = size.width,
+                canvasHeight = size.height,
+                dotRadius = dotRadius + 2f * density,
+                gap = gap,
+                pad = pad,
+            )
+            for (k in visibleIndices.indices) {
+                val layout = layouts[visibleIndices[k]]
+                val p = placements[k]
                 drawRoundRect(
                     GlobePalette.Scrim,
-                    topLeft = Offset(left - pad, top - pad / 2),
-                    size = Size(w + 2 * pad, h + pad),
+                    topLeft = Offset(p.scrimLeft, p.scrimTop),
+                    size = Size(p.scrimRight - p.scrimLeft, p.scrimBottom - p.scrimTop),
                     cornerRadius = CornerRadius(pad, pad),
                 )
-                drawText(layout, topLeft = Offset(left, top))
+                drawText(layout, topLeft = Offset(p.left, p.top))
             }
         }
 

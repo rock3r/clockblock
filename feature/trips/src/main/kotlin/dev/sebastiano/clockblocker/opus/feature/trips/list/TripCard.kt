@@ -64,6 +64,8 @@ import java.time.LocalDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 /** Card actions. Null callbacks hide their menu entry (e.g. when the host hasn't wired the editor). */
 class TripCardActions(
     val onOpen: () -> Unit,
@@ -74,9 +76,10 @@ class TripCardActions(
 )
 
 /**
- * A trip as a rich card: status, time shift (and, for upcoming trips, the planner's days to adapt), route title,
- * a dot-matrix route banner, both ends in their own local time and, while under way, the wavy adaptation line. A 100+/day surface, so it only gets the platform
- * state layer (no bespoke motion).
+ * A trip as a rich, compact card: dot-matrix route banner (`LHR ──✈── SYD`) and overflow menu at the top,
+ * route title and single-line dates + stops in the middle, and status, time-zone shift and adaptation summary
+ * at the bottom. Past trips are rendered with a muted surface and reduced alpha so upcoming trips stand out.
+ * A 100+/day surface, so it only gets the platform state layer (no bespoke motion).
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -88,10 +91,11 @@ internal fun TripCard(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
+    val isPast = summary.phase == TripPhase.Past
     val (container, content) = when (summary.phase) {
         TripPhase.InProgress -> colors.primaryContainer to colors.onPrimaryContainer
         TripPhase.Upcoming -> colors.surfaceContainerHigh to colors.onSurface
-        TripPhase.Past -> colors.surfaceContainerLow to colors.onSurface
+        TripPhase.Past -> colors.surfaceContainerLow to colors.onSurfaceVariant
     }
     val labels = rememberActionLabels()
     val customActions = buildList {
@@ -104,6 +108,7 @@ internal fun TripCard(
     Surface(
         modifier = modifier
             .testTag(TripsTestTags.tripCard(summary.id))
+            .graphicsLayer { alpha = if (isPast) PastCardAlpha else 1f }
             .semantics {
                 this.selected = selected
                 this.customActions = customActions
@@ -121,19 +126,16 @@ internal fun TripCard(
                     onLongClick = { menuOpen = true },
                     onClick = actions.onOpen,
                 )
-                .padding(start = 20.dp, top = 12.dp, end = 8.dp, bottom = 20.dp),
+                .padding(start = 20.dp, top = 12.dp, end = 8.dp, bottom = 16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FlowRow(
+                RouteBanner(
+                    summary = summary,
+                    container = container,
+                    content = content,
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    itemVerticalAlignment = Alignment.CenterVertically,
-                ) {
-                    StatusChip(summary)
-                    ShiftPill(summary.shiftHours, content)
-                    summary.daysToAdapt?.let { days -> DaysToAdaptPill(days, content) }
-                }
+                )
+                Spacer(Modifier.width(4.dp))
                 Box {
                     IconButton(
                         onClick = { menuOpen = true },
@@ -147,40 +149,29 @@ internal fun TripCard(
                     TripMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, actions = actions)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
                 summary.title,
-                style = MaterialTheme.typography.headlineSmallEmphasized,
+                style = MaterialTheme.typography.titleLargeEmphasized,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(end = 12.dp),
             )
+            Spacer(Modifier.height(4.dp))
+            ScheduleAndStopsLine(summary = summary, modifier = Modifier.padding(end = 12.dp))
             Spacer(Modifier.height(12.dp))
-            RouteBanner(summary, container, content, Modifier.padding(end = 12.dp))
-            Spacer(Modifier.height(6.dp))
-            Text(
-                stopsLine(summary),
-                style = MaterialTheme.typography.labelLarge,
-                color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
-            )
-            Spacer(Modifier.height(12.dp))
-            val trip = summary.trip
-            Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                EndpointLine(
-                    icon = R.drawable.ic_trips_takeoff,
-                    local = trip.legs.first().departureLocal,
-                    place = trip.origin,
-                    departs = true,
-                )
-                EndpointLine(
-                    icon = R.drawable.ic_trips_land,
-                    local = trip.legs.last().arrivalLocal,
-                    place = trip.destination,
-                    departs = false,
-                )
+            FlowRow(
+                modifier = Modifier.padding(end = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatusChip(summary)
+                ShiftPill(summary.shiftHours, content)
+                summary.daysToAdapt?.let { days -> DaysToAdaptPill(days, content) }
             }
             summary.adaptation?.let { adaptation ->
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
                 AdaptationRow(adaptation, Modifier.padding(end = 12.dp))
             }
         }
@@ -305,42 +296,37 @@ private fun stopsLine(summary: TripSummary): String {
     return "${pluralStringResource(R.plurals.trip_stops, stops, stops)} · ${stringResource(R.string.trip_via, via)}"
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EndpointLine(icon: Int, local: LocalDateTime, place: Place, departs: Boolean) {
+private fun ScheduleAndStopsLine(summary: TripSummary, modifier: Modifier = Modifier) {
+    val trip = summary.trip
     val dates = rememberDateFormatter()
     val times = rememberTimeFormatter()
-    val date = dates.format(local.toLocalDate())
-    val time = times.formatFull(local.toLocalTime())
-    val description = stringResource(
-        if (departs) R.string.trip_departs_description else R.string.trip_arrives_description,
-        date,
-        time,
-        place.cityLabel,
-    )
-    Row(
-        modifier = Modifier.clearAndSetSemantics { contentDescription = description },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(R.string.trip_time_at, date, time),
-                style = ClockblockTheme.textStyles.timeLabel,
-            )
-            Text(
-                place.cityLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+    val departLocal = trip.legs.first().departureLocal
+    val arriveLocal = trip.legs.last().arrivalLocal
+    val departDate = dates.format(departLocal.toLocalDate())
+    val departTime = times.formatFull(departLocal.toLocalTime())
+    val arriveDate = dates.format(arriveLocal.toLocalDate())
+    val arriveTime = times.formatFull(arriveLocal.toLocalTime())
+    val stops = stopsLine(summary)
+    val departPart = stringResource(R.string.trip_time_at, departDate, departTime)
+    val arrivePart = if (departLocal.toLocalDate() == arriveLocal.toLocalDate()) {
+        arriveTime
+    } else {
+        stringResource(R.string.trip_time_at, arriveDate, arriveTime)
     }
+    val line = stringResource(R.string.trip_schedule_line, departPart, arrivePart, stops)
+    val description = listOf(
+        stringResource(R.string.trip_departs_description, departDate, departTime, trip.origin.cityLabel),
+        stringResource(R.string.trip_arrives_description, arriveDate, arriveTime, trip.destination.cityLabel),
+        stops,
+    ).joinToString(", ")
+
+    Text(
+        text = line,
+        style = ClockblockTheme.textStyles.timeLabel,
+        color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
+        modifier = modifier.clearAndSetSemantics { contentDescription = description },
+    )
 }
 
 @Composable
@@ -418,7 +404,8 @@ private fun rememberActionLabels(): ActionLabels = ActionLabels(
 )
 
 /**
- * Secondary lines (route codes, endpoint cities) on every card colour. 0.86 keeps them at WCAG AA (4.5:1) on the
+ * Secondary lines (route codes, schedule line) on every card colour. 0.86 keeps them at WCAG AA (4.5:1) on the
  * in-progress `primaryContainer`, where 0.72 fell to 4:1 (see `ContrastAuditTest` in :core:designsystem).
  */
 private const val SecondaryContentAlpha = 0.86f
+private const val PastCardAlpha = 0.68f

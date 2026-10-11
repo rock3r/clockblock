@@ -197,6 +197,11 @@ class PlanScreenshotTest {
     fun noTrip() = snap("no_trip") { PlanContent(PlanUiState.NoPlan(missing = false), actions) }
 
     @Test
+    fun noTripWithPastTrips() = snap("no_trip_past") {
+        PlanContent(PlanUiState.NoPlan(missing = false, pastTripCount = 2), PlanActions(onOpenTrips = {}))
+    }
+
+    @Test
     fun loading() {
         snap("loading", capture = false) { PlanContent(PlanUiState.Loading, actions) }
         // Nothing shows during the show-delay (fast loads never flash a loader); capture once it's up.

@@ -229,8 +229,9 @@ ends. The splash screen stays up while the shell is still loading.
 
 [`ClockblockShell`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/shell/ClockblockApp.kt) uses
 `NavigationSuiteScaffold`, which shows a bottom bar on phones and a navigation rail on wider windows. The
-navigation is hidden during onboarding and in the trip editor. When the window has room for two panes, a
-`ListDetailSceneStrategy` shows the trips list and a plan side by side.
+navigation is hidden during onboarding, in the trip editor, and when viewing a trip's plan pushed from the Trips
+tab (`PlanRoute`). On wide windows, the Trips screen lays out trip cards in a two-column grid and the plan screen
+shows its hero column and timeline side by side.
 
 During the user's body night (by the plan, or by the usual sleep window when there is no plan), the shell
 switches the whole app to calmer motion. Separately, the plan screen switches to the dark, dim Night-safe theme

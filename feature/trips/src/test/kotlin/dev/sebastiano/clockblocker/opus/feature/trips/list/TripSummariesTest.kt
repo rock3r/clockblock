@@ -170,4 +170,64 @@ class TripSummariesTest {
         val next = outbound.copy(trip = later, bodyTime = java.time.LocalTime.of(3, 0))
         TripSummaries.sky(listOf(outbound, next), now, ZoneOffset.UTC) shouldBe TripsSky(java.time.LocalTime.of(3, 0), bodyClock = true)
     }
+
+    @Test
+    fun `partition puts the in-progress trip on Now and all upcoming trips in Trips`() {
+        val now = Instant.parse("2026-06-17T12:00:00Z")
+        val inProgress = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "active"), now = now)
+        val upcoming1 = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 7, 1), id = "next-1"), now = now)
+        val upcoming2 = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 8, 1), id = "next-2"), now = now)
+        val past = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 5, 1), id = "past"), now = now)
+
+        val partitioned = TripSummaries.partition(listOf(upcoming2, past, inProgress, upcoming1))
+        partitioned.nowTrip?.id shouldBe "active"
+        partitioned.upcoming.map { it.id } shouldContainExactly listOf("next-1", "next-2")
+        partitioned.past.map { it.id } shouldContainExactly listOf("past")
+    }
+
+    @Test
+    fun `partition without an in-progress trip puts the first upcoming trip on Now and the following ones in Trips`() {
+        val now = Instant.parse("2026-06-01T12:00:00Z")
+        val first = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "first"), now = now)
+        val second = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 7, 10), id = "second"), now = now)
+        val third = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 8, 5), id = "third"), now = now)
+        val past = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 4, 1), id = "past"), now = now)
+
+        val partitioned = TripSummaries.partition(listOf(third, past, first, second))
+        partitioned.nowTrip?.id shouldBe "first"
+        partitioned.upcoming.map { it.id } shouldContainExactly listOf("second", "third")
+        partitioned.past.map { it.id } shouldContainExactly listOf("past")
+    }
+
+    @Test
+    fun `partition with a single upcoming trip leaves Trips upcoming empty because that trip is on Now`() {
+        val now = Instant.parse("2026-06-01T12:00:00Z")
+        val only = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "only"), now = now)
+
+        val partitioned = TripSummaries.partition(listOf(only))
+        partitioned.nowTrip?.id shouldBe "only"
+        partitioned.upcoming shouldContainExactly emptyList()
+        partitioned.past shouldContainExactly emptyList()
+    }
+
+    @Test
+    fun `partition with only past trips has no Now trip and keeps past trips most-recent first`() {
+        val now = Instant.parse("2026-09-01T12:00:00Z")
+        val older = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 5, 1), id = "older"), now = now)
+        val newer = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 7, 1), id = "newer"), now = now)
+
+        val partitioned = TripSummaries.partition(listOf(older, newer))
+        partitioned.nowTrip.shouldBeNull()
+        partitioned.upcoming shouldContainExactly emptyList()
+        partitioned.past.map { it.id } shouldContainExactly listOf("newer", "older")
+    }
+
+    @Test
+    fun `summaries record days saved when the plan shifts the body clock`() {
+        val plan = planner.plan(trip, DemoData.profile, DemoData.Now)
+        val expected = (plan.estimatedDaysWithoutPlan - plan.estimatedDaysToAdapt).coerceAtLeast(0.0)
+        summarize(now = Instant.parse("2026-06-25T12:00:00Z")).daysSaved shouldBe expected
+        val homeTime = trip.copy(strategyOverride = AdaptationStrategy.StayOnHomeTime)
+        summarize(t = homeTime, now = Instant.parse("2026-06-25T12:00:00Z")).daysSaved shouldBe 0.0
+    }
 }

@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import dev.sebastiano.clockblocker.opus.debug.DebugMenu
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingScreen
-import dev.sebastiano.clockblocker.opus.feature.plan.PlanEmptyPane
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanScreen
 import dev.sebastiano.clockblocker.opus.feature.settings.AboutScreen
 import dev.sebastiano.clockblocker.opus.feature.settings.LicensesScreen
@@ -29,11 +28,8 @@ interface AppDestinations {
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
         onNewTrip: () -> Unit,
+        onOpenTrips: (() -> Unit)? = null,
     )
-
-    /** Detail-pane placeholder next to the trips list when no trip is open. */
-    @Composable
-    fun PlanPlaceholder(onNewTrip: () -> Unit)
 
     @Composable
     fun Trips(
@@ -43,6 +39,7 @@ interface AppDestinations {
         onOpenSettings: () -> Unit,
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
+        onOpenNow: () -> Unit = {},
     )
 
     @Composable
@@ -77,6 +74,7 @@ object FeatureDestinations : AppDestinations {
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
         onNewTrip: () -> Unit,
+        onOpenTrips: (() -> Unit)?,
     ) {
         PlanScreen(
             tripId = tripId,
@@ -84,12 +82,8 @@ object FeatureDestinations : AppDestinations {
             onEditTrip = onEditTrip,
             onCreateReturnTrip = onCreateReturnTrip,
             onNewTrip = onNewTrip,
+            onOpenTrips = onOpenTrips,
         )
-    }
-
-    @Composable
-    override fun PlanPlaceholder(onNewTrip: () -> Unit) {
-        PlanEmptyPane(onNewTrip = onNewTrip)
     }
 
     @Composable
@@ -100,6 +94,7 @@ object FeatureDestinations : AppDestinations {
         onOpenSettings: () -> Unit,
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
+        onOpenNow: () -> Unit,
     ) {
         TripsScreen(
             onOpenTrip = onOpenTrip,
@@ -108,6 +103,7 @@ object FeatureDestinations : AppDestinations {
             selectedTripId = selectedTripId,
             onEditTrip = onEditTrip,
             onCreateReturnTrip = onCreateReturnTrip,
+            onOpenNow = onOpenNow,
         )
     }
 
