@@ -71,8 +71,9 @@ tells you why.
 ### Moving to a new phone
 
 Android's own backup and the phone-to-phone transfer you get when setting up a new phone bring your profile,
-settings, trips and check-ins across, and the options of any widgets your home screen app puts back. Cloud backups are made only when your phone
-has a screen lock, so the backup is end-to-end encrypted. A running snooze stays behind.
+settings, trips and check-ins across, and the options of any widgets your home screen app puts back. Cloud backups
+are made whether or not your phone has a screen lock; with one, Android encrypts the backup end to end. A running
+snooze stays behind.
 
 Open the app once on the new phone: that sets up its reminders again. Android doesn't carry over permissions, so
 check **What Android allows** in Settings and allow notifications and exact timing again.
