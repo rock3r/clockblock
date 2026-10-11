@@ -19,7 +19,9 @@ sealed interface ShiftSummary {
     data object NoShift : ShiftSummary
 
     /**
-     * @property shiftHours destination minus origin, signed (positive = east), for `formatJetLagHours`.
+     * @property shiftHours the time difference the body clock crosses, from where it starts to the destination,
+     *   in (−12, 12] (positive = east), for `formatJetLagHours`. Not the planned shift: a +10 h eastward trip
+     *   planned the long way is a 14 h delay (`JetLagPlan.shiftHours` −14), and still reads "+10 h east".
      * @property longWay the body clock moves the other way round (later for an eastward trip, earlier for a westward
      *   one), which the card calls out so "+10 h east" with a later shift doesn't read as a mistake.
      */
@@ -36,18 +38,27 @@ sealed interface ShiftSummary {
         /** Below this the planner treats the trip as no shift (the plan screen's "no jet lag" threshold). */
         const val MinShiftHours: Double = 1.0
 
-        fun of(preview: ShiftPreview): ShiftSummary = when {
-            // A home-time plan reports no shift (direction None, 0 h) by design, so it's checked first: otherwise a
-            // long-haul short stay would read as "no jet lag".
-            preview.strategy == AdaptationStrategy.StayOnHomeTime -> HomeTime
-            preview.direction == ShiftDirection.None || abs(preview.shiftHours) < MinShiftHours -> NoShift
-            else -> Shift(
-                shiftHours = preview.shiftHours.toFloat(),
-                daysWithPlan = roundDays(preview.daysToAdapt),
-                daysWithoutPlan = roundDays(preview.daysWithoutPlan),
-                longWay = (preview.shiftHours > 0 && preview.direction == ShiftDirection.Delay) ||
-                    (preview.shiftHours < 0 && preview.direction == ShiftDirection.Advance),
-            )
+        fun of(preview: ShiftPreview): ShiftSummary {
+            val zone = timeDifference(preview.shiftHours)
+            return when {
+                // A home-time plan reports no shift (direction None, 0 h) by design, so it's checked first:
+                // otherwise a long-haul short stay would read as "no jet lag".
+                preview.strategy == AdaptationStrategy.StayOnHomeTime -> HomeTime
+                preview.direction == ShiftDirection.None || abs(zone) < MinShiftHours -> NoShift
+                else -> Shift(
+                    shiftHours = zone.toFloat(),
+                    daysWithPlan = roundDays(preview.daysToAdapt),
+                    daysWithoutPlan = roundDays(preview.daysWithoutPlan),
+                    longWay = (zone > 0 && preview.direction == ShiftDirection.Delay) ||
+                        (zone < 0 && preview.direction == ShiftDirection.Advance),
+                )
+            }
+        }
+
+        /** The planned shift folded back to the time difference it crosses, in (−12, 12]: −14 → +10, +13 → −11. */
+        internal fun timeDifference(plannedHours: Double): Double {
+            val folded = ((plannedHours % 24.0) + 24.0) % 24.0 // [0, 24)
+            return if (folded > 12.0) folded - 24.0 else folded
         }
 
         private fun roundDays(days: Double): Int = days.roundToInt().coerceAtLeast(1)

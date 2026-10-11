@@ -158,7 +158,10 @@ data class PlaceSearchState(
  * computed for the draft, so the editor never claims more than the plan will.
  */
 data class ShiftPreview(
-    /** Destination minus origin, positive = east (as the planner normalises it). */
+    /**
+     * The planned shift (`JetLagPlan.shiftHours`): positive = advance east, but a long-way plan crosses more than 12 h
+     * (−14 for +10 h east delayed). [ShiftSummary] folds it back to the time difference.
+     */
     val shiftHours: Double,
     val direction: ShiftDirection,
     val strategy: AdaptationStrategy,

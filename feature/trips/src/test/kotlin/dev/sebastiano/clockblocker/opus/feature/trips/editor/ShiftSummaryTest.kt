@@ -45,10 +45,28 @@ class ShiftSummaryTest {
     }
 
     @Test
-    fun `shifting the long way round is called out`() {
-        // East, but the planner delays the body clock (the way round that's easier for a big eastward shift).
-        ShiftSummary.of(preview(10.0, ShiftDirection.Delay)).shouldBeInstanceOf<ShiftSummary.Shift>().longWay shouldBe true
-        ShiftSummary.of(preview(-11.0, ShiftDirection.Advance)).shouldBeInstanceOf<ShiftSummary.Shift>().longWay shouldBe true
+    fun `shifting the long way round keeps the route's offset and is called out`() {
+        // +10 h east planned as a 14 h delay: the planner reports −14 (the way round that's easier for a big
+        // eastward shift). The card still reads "+10 h east", and says it goes the long way.
+        val east = ShiftSummary.of(preview(-14.0, ShiftDirection.Delay)).shouldBeInstanceOf<ShiftSummary.Shift>()
+        east.shiftHours shouldBe 10f
+        east.east shouldBe true
+        east.longWay shouldBe true
+        // −11 h west planned as a 13 h advance.
+        val west = ShiftSummary.of(preview(13.0, ShiftDirection.Advance)).shouldBeInstanceOf<ShiftSummary.Shift>()
+        west.shiftHours shouldBe -11f
+        west.east shouldBe false
+        west.longWay shouldBe true
+    }
+
+    @Test
+    fun `the time difference folds into minus 12 to plus 12`() {
+        ShiftSummary.timeDifference(-14.0) shouldBe 10.0
+        ShiftSummary.timeDifference(13.0) shouldBe -11.0
+        ShiftSummary.timeDifference(12.0) shouldBe 12.0
+        ShiftSummary.timeDifference(-12.0) shouldBe 12.0
+        ShiftSummary.timeDifference(-8.0) shouldBe -8.0
+        ShiftSummary.timeDifference(5.5) shouldBe 5.5
     }
 
     @Test
