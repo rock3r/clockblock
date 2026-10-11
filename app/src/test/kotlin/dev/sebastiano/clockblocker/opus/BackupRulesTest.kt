@@ -75,8 +75,9 @@ class BackupRulesTest {
     }
 
     @Test
-    fun `cloud backups are made only when they are end-to-end encrypted`() {
-        section("cloud-backup").getAttribute("disableIfNoEncryptionCapabilities") shouldBe "true"
+    fun `cloud backups are made on any device, with or without a screen lock`() {
+        // Nothing here is a secret, so a backup without end-to-end encryption beats no backup at all.
+        section("cloud-backup").getAttribute("disableIfNoEncryptionCapabilities") shouldBe "false"
     }
 
     @Test

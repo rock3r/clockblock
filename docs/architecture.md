@@ -125,7 +125,8 @@ device:
 - **Left out:** the snooze and the handled alarm instants (both tied to this device's alarms) and the widget render
   bookkeeping, which the new phone works out again. Plans are never stored.
 
-Cloud backups are made only when they can be end-to-end encrypted (`disableIfNoEncryptionCapabilities`).
+Cloud backups are made on any device, including ones without a screen lock that can't encrypt them end to end
+(`disableIfNoEncryptionCapabilities="false"`): the app stores no secrets, and a backup beats losing your trips.
 [`BackupRulesTest`](../app/src/test/kotlin/dev/sebastiano/clockblocker/opus/BackupRulesTest.kt) checks the lists
 against `StoreFiles` and the SharedPreferences names, so a renamed or new store can't drop out of backups silently.
 
