@@ -34,21 +34,18 @@ import java.util.UUID
 /** What the trips list renders. */
 data class TripsUiState(
     val loading: Boolean = true,
-    val inProgress: List<TripSummary> = emptyList(),
+    /** The active or next upcoming trip shown on the Now tab, or null when only past trips (or none) exist. */
+    val nowTrip: TripSummary? = null,
+    /** Upcoming trips following [nowTrip]. */
     val upcoming: List<TripSummary> = emptyList(),
+    /** Completed trips, most recent first. */
     val past: List<TripSummary> = emptyList(),
     /** Target of the FAB menu's "Return trip" shortcut, if any. */
     val returnCandidate: TripSummary? = null,
     /** What the app bar's sky shows; null while loading. */
     val sky: TripsSky? = null,
 ) {
-    val isEmpty: Boolean get() = !loading && inProgress.isEmpty() && upcoming.isEmpty() && past.isEmpty()
-
-    fun section(phase: TripPhase): List<TripSummary> = when (phase) {
-        TripPhase.InProgress -> inProgress
-        TripPhase.Upcoming -> upcoming
-        TripPhase.Past -> past
-    }
+    val isEmpty: Boolean get() = !loading && nowTrip == null && upcoming.isEmpty() && past.isEmpty()
 }
 
 /** One-off things the list screen reacts to (navigation, snackbars). */
@@ -62,8 +59,8 @@ sealed interface TripsEvent {
 }
 
 /**
- * Trips list: every trip with its plan, grouped into In progress / Upcoming / Past and re-evaluated as time
- * passes (the [Ticker]), plus delete-with-undo, duplicate and the demo trip.
+ * Trips list: every trip with its plan, partitioned into the Now trip, following Upcoming trips and Past trips,
+ * re-evaluated as time passes (the [Ticker]), plus delete-with-undo, duplicate and the demo trip.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Inject
@@ -88,14 +85,15 @@ class TripsViewModel(
         val summaries = pairs.map { (trip, plan) ->
             TripSummaries.summarize(trip, plan, now, today, titles.suggest(trip))
         }
-        val sections = TripSummaries.sections(summaries)
+        val partitioned = TripSummaries.partition(summaries)
+        val inProgress = summaries.filter { it.phase == TripPhase.InProgress }
         TripsUiState(
             loading = false,
-            inProgress = sections.getValue(TripPhase.InProgress),
-            upcoming = sections.getValue(TripPhase.Upcoming),
-            past = sections.getValue(TripPhase.Past),
+            nowTrip = partitioned.nowTrip,
+            upcoming = partitioned.upcoming,
+            past = partitioned.past,
             returnCandidate = TripSummaries.returnCandidate(summaries),
-            sky = TripSummaries.sky(sections.getValue(TripPhase.InProgress), now, zone),
+            sky = TripSummaries.sky(inProgress, now, zone),
         )
     }
         .distinctUntilChanged()

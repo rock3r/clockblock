@@ -177,6 +177,43 @@ class GlobeGeoTest {
         GlobeGeo.sunElevation(sub, tokyo) shouldBeLessThan 0.0
     }
 
+    @Test
+    fun `routeStops keeps each airport once, even when disconnected trips share a hub`() {
+        val lhr = GlobeStop(london, "LHR")
+        val lis = GlobeStop(lisbon, "LIS")
+        val hnd = GlobeStop(tokyo, "HND")
+        val syd = GlobeStop(sydney, "SYD")
+        val stops = routeStops(listOf(GlobeLeg(lis, hnd), GlobeLeg(lhr, syd), GlobeLeg(hnd, lhr)))
+        stops shouldBe listOf(lis, hnd, lhr, syd)
+    }
+
+    @Test
+    fun `placeStopLabels spreads out labels for nearby stops so their scrims do not overlap`() {
+        // Three nearby European stops (like LHR, CDG, LIS on a 280x280 canvas).
+        val placements = placeStopLabels(
+            stops = listOf(
+                StopLabelInput(ox = 92f, oy = 132f, width = 28f, height = 16f),
+                StopLabelInput(ox = 76f, oy = 144f, width = 24f, height = 16f),
+                StopLabelInput(ox = 96f, oy = 137f, width = 30f, height = 16f),
+            ),
+            canvasWidth = 280f,
+            canvasHeight = 280f,
+            dotRadius = 3.5f,
+            gap = 9.5f,
+            pad = 4f,
+        )
+        placements.size shouldBe 3
+        for (i in placements.indices) {
+            for (j in i + 1 until placements.size) {
+                val a = placements[i]
+                val b = placements[j]
+                val overlapX = (minOf(a.scrimRight, b.scrimRight) - maxOf(a.scrimLeft, b.scrimLeft)).coerceAtLeast(0f)
+                val overlapY = (minOf(a.scrimBottom, b.scrimBottom) - maxOf(a.scrimTop, b.scrimTop)).coerceAtLeast(0f)
+                (overlapX * overlapY) shouldBe 0f
+            }
+        }
+    }
+
     // endregion
 }
 

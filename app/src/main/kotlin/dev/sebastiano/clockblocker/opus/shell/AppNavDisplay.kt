@@ -1,15 +1,7 @@
 package dev.sebastiano.clockblocker.opus.shell
 
-import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.layout.PaneScaffoldDirective
-import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
-import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
-import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -25,10 +17,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.navigation.AboutRoute
-import dev.sebastiano.clockblocker.opus.navigation.AppRoute
 import dev.sebastiano.clockblocker.opus.navigation.AppNavigator
+import dev.sebastiano.clockblocker.opus.navigation.AppRoute
 import dev.sebastiano.clockblocker.opus.navigation.LicensesRoute
 import dev.sebastiano.clockblocker.opus.navigation.NowRoute
 import dev.sebastiano.clockblocker.opus.navigation.OnboardingRoute
@@ -39,41 +30,19 @@ import dev.sebastiano.clockblocker.opus.navigation.TripEditorRoute
 import dev.sebastiano.clockblocker.opus.navigation.TripsRoute
 import dev.sebastiano.clockblocker.opus.navigation.rememberAppTransitions
 
-/** Scene key shared by the trips list and plan detail entries of the list-detail layout. */
-private const val TripsSceneKey = "trips"
-
 /**
  * The app's `NavDisplay`: decorates each back stack separately (saveable state + its own `ViewModelStore` per
- * entry), shows home + the selected destination, lays Trips/Plan out as list-detail when [directive] allows two
- * panes, and animates everything with [rememberAppTransitions].
- *
- * @param isTwoPane whether the list and detail panes are side by side (then Plan has no up arrow and the list
- *   highlights the open trip).
+ * entry), shows home + the selected destination, and animates everything with [rememberAppTransitions].
  */
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun AppNavDisplay(
     navigator: AppNavigator,
     destinations: AppDestinations,
     hasTrips: Boolean,
-    directive: PaneScaffoldDirective,
-    isTwoPane: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val transitions = rememberAppTransitions()
     val currentHasTrips by rememberUpdatedState(hasTrips)
-    val listDetailStrategy = rememberListDetailSceneStrategy<NavKey>(
-        backNavigationBehavior = BackNavigationBehavior.PopLatest,
-        directive = directive,
-        // A hairline in the gap between the panes so the trips header and the plan's sky header read as two
-        // framed panes rather than one screen with a hole in it. Decorative only: it is not draggable.
-        paneExpansionDragHandle = { PaneDivider() },
-    )
-    val paneMotion = ListDetailSceneStrategy.paneAnimation(
-        enterTransition = transitions.paneEnter(),
-        exitTransition = transitions.paneExit(),
-        boundsAnimationSpec = ClockblockTheme.motion.navigationSpatial(),
-    )
 
     val provider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         entry<OnboardingRoute> {
@@ -88,33 +57,26 @@ fun AppNavDisplay(
                 onEditTrip = guard.of { id: String -> navigator.openTripEditor(tripId = id) },
                 onCreateReturnTrip = guard.of { id: String -> navigator.openTripEditor(returnOfTripId = id) },
                 onNewTrip = guard { navigator.openTripEditor() },
+                onOpenTrips = guard { navigator.select(TopLevelDestination.Trips) },
             )
         }
-        entry<TripsRoute>(
-            metadata = ListDetailSceneStrategy.listPane(
-                sceneKey = TripsSceneKey,
-                detailPlaceholder = {
-                    val guard = rememberNavigationGuard()
-                    destinations.PlanPlaceholder(onNewTrip = guard { navigator.openTripEditor() })
-                },
-            ) + paneMotion,
-        ) {
+        entry<TripsRoute> {
             val guard = rememberNavigationGuard()
-            val openTripId = (navigator.backStacks.getValue(TopLevelDestination.Trips).last() as? PlanRoute)?.tripId
             destinations.Trips(
-                selectedTripId = if (isTwoPane) openTripId else null,
+                selectedTripId = null,
                 onOpenTrip = guard.of { id: String -> navigator.openPlan(id) },
                 onNewTrip = guard { navigator.openTripEditor() },
                 onOpenSettings = guard { navigator.select(TopLevelDestination.Settings) },
                 onEditTrip = guard.of { id: String -> navigator.openTripEditor(tripId = id) },
                 onCreateReturnTrip = guard.of { id: String -> navigator.openTripEditor(returnOfTripId = id) },
+                onOpenNow = guard { navigator.select(TopLevelDestination.Now) },
             )
         }
-        entry<PlanRoute>(metadata = ListDetailSceneStrategy.detailPane(sceneKey = TripsSceneKey) + paneMotion) { route ->
+        entry<PlanRoute> { route ->
             val guard = rememberNavigationGuard()
             destinations.Plan(
                 tripId = route.tripId,
-                onBack = if (isTwoPane) null else guard { navigator.goBack() },
+                onBack = guard { navigator.goBack() },
                 onEditTrip = guard.of { id: String -> navigator.openTripEditor(tripId = id) },
                 onCreateReturnTrip = guard.of { id: String -> navigator.openTripEditor(returnOfTripId = id) },
                 onNewTrip = guard { navigator.openTripEditor() },
@@ -166,7 +128,6 @@ fun AppNavDisplay(
     NavDisplay(
         entries = navigator.destinationsInUse.flatMap { entriesByDestination.getValue(it) },
         modifier = modifier,
-        sceneStrategies = listOf(listDetailStrategy),
         transitionSpec = { transitions.forNavigation(navigator.lastDirection, isPop = false) },
         popTransitionSpec = { transitions.forNavigation(navigator.lastDirection, isPop = true) },
         predictivePopTransitionSpec = { swipeEdge -> transitions.predictiveBack(swipeEdge) },
@@ -190,15 +151,6 @@ private fun NavEntry<NavKey>.scopedTo(route: NavKey, destination: TopLevelDestin
             base.Content()
         }
     }
-}
-
-/** The hairline between the list and detail panes (see [AppNavDisplay]). */
-@Composable
-private fun PaneDivider() {
-    VerticalDivider(
-        modifier = Modifier.fillMaxHeight().testTag(ShellTestTags.PaneDivider),
-        color = MaterialTheme.colorScheme.outlineVariant,
-    )
 }
 
 /**

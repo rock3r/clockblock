@@ -7,10 +7,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.MotionDurationScale
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -40,24 +43,45 @@ internal fun rememberHeaderAmbient(enabled: Boolean): HeaderAmbient {
         ambient.sessionMillis = -1L
         if (!active) return@LaunchedEffect
         fun currentScale(): Float = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-        val initialScale = currentScale()
-        if (initialScale <= 0f) return@LaunchedEffect
-        try {
-            delay((AmbientFirstDelayMillis * initialScale).toLong())
+        suspend fun awaitPositiveScale(): Float {
             while (true) {
-                var lastFrame = withFrameMillis { it }
-                var elapsed = 0f
-                while (elapsed < AmbientSessionMillis) {
-                    val scale = currentScale()
-                    if (scale <= 0f) return@LaunchedEffect
-                    val dt = withFrameMillis { now -> (now - lastFrame).also { lastFrame = now } }
-                    elapsed += dt / scale
-                    ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
-                }
+                val scale = currentScale()
+                if (scale > 0f) return scale
                 ambient.sessionMillis = -1L
-                val restScale = currentScale()
-                if (restScale <= 0f) return@LaunchedEffect
-                delay((AmbientRestMillis * restScale).toLong())
+                withTimeoutOrNull(AmbientFirstDelayMillis) {
+                    snapshotFlow { currentScale() }.first { it > 0f }
+                }
+            }
+        }
+        try {
+            while (true) {
+                val initialScale = awaitPositiveScale()
+                delay((AmbientFirstDelayMillis * initialScale).toLong())
+                if (currentScale() <= 0f) continue
+                while (currentScale() > 0f) {
+                    var lastFrame = withFrameMillis { it }
+                    var elapsed = 0f
+                    var cancelledByScale = false
+                    while (elapsed < AmbientSessionMillis) {
+                        if (currentScale() <= 0f) {
+                            cancelledByScale = true
+                            break
+                        }
+                        val dt = withFrameMillis { now -> (now - lastFrame).also { lastFrame = now } }
+                        val scale = currentScale()
+                        if (scale <= 0f) {
+                            cancelledByScale = true
+                            break
+                        }
+                        elapsed += dt / scale
+                        ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
+                    }
+                    ambient.sessionMillis = -1L
+                    if (cancelledByScale) break
+                    val restScale = currentScale()
+                    if (restScale <= 0f) break
+                    delay((AmbientRestMillis * restScale).toLong())
+                }
             }
         } finally {
             ambient.sessionMillis = -1L

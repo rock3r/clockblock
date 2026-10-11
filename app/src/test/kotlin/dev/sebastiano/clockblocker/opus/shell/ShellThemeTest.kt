@@ -48,10 +48,11 @@ class ShellThemeTest {
             onOpenSettings: () -> Unit,
             onEditTrip: (tripId: String) -> Unit,
             onCreateReturnTrip: (outboundTripId: String) -> Unit,
+            onOpenNow: () -> Unit,
         ) {
             variant = ClockblockTheme.variant
             calm = ClockblockTheme.motion.isCalm
-            FakeDestinations.Trips(selectedTripId, onOpenTrip, onNewTrip, onOpenSettings, onEditTrip, onCreateReturnTrip)
+            FakeDestinations.Trips(selectedTripId, onOpenTrip, onNewTrip, onOpenSettings, onEditTrip, onCreateReturnTrip, onOpenNow)
         }
     }
 

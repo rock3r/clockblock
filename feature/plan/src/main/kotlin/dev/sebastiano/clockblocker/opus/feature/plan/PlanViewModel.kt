@@ -48,9 +48,9 @@ sealed interface PlanUiState {
 
     /**
      * Nothing to show. [missing] = a specific trip was asked for and no longer exists (deleted elsewhere); otherwise
-     * there is simply no current or upcoming trip.
+     * there is simply no current or upcoming trip ([pastTripCount] counts any past trips still stored).
      */
-    data class NoPlan(val missing: Boolean) : PlanUiState
+    data class NoPlan(val missing: Boolean, val pastTripCount: Int = 0) : PlanUiState
 
     /**
      * A plan, at [now].
@@ -108,7 +108,11 @@ class PlanViewModel(
     val state: StateFlow<PlanUiState> = planFlow
         .distinctUntilChanged()
         .flatMapLatest { plan ->
-            if (plan == null) flowOf(PlanUiState.NoPlan(missing = tripId != null)) else readyStates(plan)
+            when {
+                plan != null -> readyStates(plan)
+                tripId != null -> flowOf(PlanUiState.NoPlan(missing = true))
+                else -> tripRepository.trips.map { PlanUiState.NoPlan(missing = false, pastTripCount = it.size) }
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlanUiState.Loading)
 

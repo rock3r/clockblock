@@ -4,7 +4,12 @@
     <string name="plan_loading">Working out your plan</string>
     <string name="plan_empty_title">No trip on the horizon</string>
     <string name="plan_empty_body">Add a flight and Clockblock works out when to see light, sleep and nap so you land on local time.</string>
+    <plurals name="plan_empty_past_body">
+        <item quantity="one">No active or upcoming trips. Your past trip is in Trips, or plan your next flight to get a light and sleep schedule.</item>
+        <item quantity="other">No active or upcoming trips. Your %1$d past trips are in Trips, or plan your next flight to get a light and sleep schedule.</item>
+    </plurals>
     <string name="plan_new_trip">Plan a trip</string>
+    <string name="plan_open_trips">See past trips</string>
     <string name="plan_missing_title">This trip is gone</string>
     <string name="plan_missing_body">It may have been deleted. Your other trips are safe.</string>
     <string name="plan_pane_title">Pick a trip or plan a new one</string>

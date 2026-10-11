@@ -891,6 +891,22 @@ class PlanContentTest {
     }
 
     @Test
+    fun `no current plan with past trips links to Trips`() {
+        var openedTrips = 0
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                PlanContent(
+                    PlanUiState.NoPlan(missing = false, pastTripCount = 2),
+                    PlanActions(onOpenTrips = { openedTrips++ }),
+                )
+            }
+        }
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.plan_empty_past_body, 2, 2)).assertIsDisplayed()
+        compose.onNodeWithTag(PlanTags.OpenTrips).performClick()
+        openedTrips shouldBe 1
+    }
+
+    @Test
     fun `the header shows a countdown to the next action within a day, a date further out, and nothing after the last`() {
         var state by mutableStateOf<PlanUiState>(midAdaptation)
         compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }

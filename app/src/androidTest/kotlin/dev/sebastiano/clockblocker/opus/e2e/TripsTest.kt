@@ -9,15 +9,19 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanTags
 import dev.sebastiano.clockblocker.opus.feature.plan.R as PlanR
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
+import dev.sebastiano.clockblocker.opus.feature.trips.list.TripPhase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.LocalDate
+import java.time.ZoneId
 
 /** Creating trips (by hand and the demo) and acting on the plan's Now card. */
 @RunWith(AndroidJUnit4::class)
@@ -60,9 +64,12 @@ class TripsTest : ClockblockE2eTest() {
         awaitTag(PlanTags.NowCard).assertIsDisplayed()
         awaitText("Tokyo")
 
+        // Back on Trips: the single upcoming trip lives on Now, and Trips points there.
         device.pressBack()
         awaitTag("route_trips").assertIsDisplayed()
-        await(hasTestTagPrefix("trip_card_") and hasAnyDescendant(hasText("Tokyo", substring = true))).assertIsDisplayed()
+        awaitTag(TripsTestTags.UpcomingEmptyState)
+            .assert(hasAnyDescendant(hasText("Tokyo", substring = true)))
+            .assertIsDisplayed()
         val trips = runBlocking { graph.tripRepository.trips.first() }
         assertEquals(listOf("LIS" to "HND"), trips.map { it.origin.code to it.destination.code })
     }
@@ -89,6 +96,11 @@ class TripsTest : ClockblockE2eTest() {
         compose.waitUntil(DefaultTimeoutMillis) { runBlocking { graph.tripRepository.trips.first() }.size == 2 }
         val trips = runBlocking { graph.tripRepository.trips.first() }
         assertEquals(listOf("LIS" to "HND", "HND" to "LIS"), trips.map { it.origin.code to it.destination.code })
+
+        // Back on Trips: the outbound trip is on Now, and the return trip sits in Upcoming on Trips.
+        device.pressBack()
+        awaitTag("route_trips").assertIsDisplayed()
+        await(hasTestTagPrefix("trip_card_") and hasAnyDescendant(hasText("Lisbon", substring = true))).assertIsDisplayed()
     }
 
     @Test
@@ -103,7 +115,9 @@ class TripsTest : ClockblockE2eTest() {
         awaitText("London")
 
         device.pressBack()
-        awaitTag(TripsTestTags.tripCard("demo-try-sfo-lhr")).assertIsDisplayed()
+        awaitTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
+        awaitTag(TripsTestTags.UpcomingEmptyNow).performClick()
+        awaitTag("route_now").assertIsDisplayed()
     }
 
     @Test
@@ -121,5 +135,27 @@ class TripsTest : ClockblockE2eTest() {
         compose.waitUntil(DefaultTimeoutMillis) {
             runBlocking { graph.adviceLogRepository.logs(active.trip.id).first() }.any { it.outcome == AdviceOutcome.Done }
         }
+    }
+
+    @Test
+    fun pastTripsOpenFromNowAndShowPastGlobeSheet() {
+        seedOnboarded()
+        val pastDay = LocalDate.now(ZoneId.systemDefault()).minusDays(20)
+        seedTrip(DemoData.sfoToLhr(pastDay, id = "past-sfo-lhr"))
+        launch()
+
+        // With only a past trip, Now shows its empty state and offers to open Trips.
+        awaitTag("route_now", LongTimeoutMillis).assertIsDisplayed()
+        awaitTag(PlanTags.OpenTrips, LongTimeoutMillis).scrollIntoViewAndClick()
+
+        // Trips shows the Upcoming empty state above the Past trips section.
+        awaitTag("route_trips").assertIsDisplayed()
+        awaitTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
+        awaitTag(TripsTestTags.tripCard("past-sfo-lhr")).scrollToIfScrollable().assertIsDisplayed()
+
+        // Tapping the Past trips header opens the globe sheet with all past routes and stats.
+        awaitTag(TripsTestTags.section(TripPhase.Past.name)).scrollIntoViewAndClick()
+        awaitTag(TripsTestTags.PastGlobeSheet).assertIsDisplayed()
+        awaitTag(TripsTestTags.PastGlobe).assertIsDisplayed()
     }
 }

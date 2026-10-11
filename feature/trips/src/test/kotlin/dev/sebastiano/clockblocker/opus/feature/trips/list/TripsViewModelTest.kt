@@ -38,25 +38,26 @@ class TripsViewModelTest {
     }
 
     @Test
-    fun `groups trips into sections with their plans`() = runTest {
+    fun `partitions the first upcoming trip onto Now and keeps the rest in upcoming`() = runTest {
         viewModel().state.test {
             val state = awaitLoaded()
-            state.inProgress.shouldBeEmpty()
-            state.upcoming.map { it.id } shouldContainExactly listOf(DemoData.SfoLhrId, DemoData.LhrSydId)
-            state.upcoming.first().status shouldBe TripStatus.StartsIn(3)
+            state.nowTrip?.id shouldBe DemoData.SfoLhrId
+            state.nowTrip?.status shouldBe TripStatus.StartsIn(3)
+            state.upcoming.map { it.id } shouldContainExactly listOf(DemoData.LhrSydId)
             state.returnCandidate shouldBe null
         }
     }
 
     @Test
-    fun `re-evaluates sections as time passes`() = runTest {
+    fun `re-evaluates partition as time passes`() = runTest {
         viewModel().state.test {
             awaitLoaded()
             clock.set(Instant.parse("2026-06-17T12:00:00Z"))
             val state = awaitItem()
-            state.inProgress.map { it.id } shouldContainExactly listOf(DemoData.SfoLhrId)
-            state.inProgress.single().status shouldBe TripStatus.Day(2, 4)
-            state.inProgress.single().adaptation.shouldNotBeNull()
+            state.nowTrip?.id shouldBe DemoData.SfoLhrId
+            state.nowTrip?.status shouldBe TripStatus.Day(2, 4)
+            state.nowTrip?.adaptation.shouldNotBeNull()
+            state.upcoming.map { it.id } shouldContainExactly listOf(DemoData.LhrSydId)
             state.returnCandidate?.id shouldBe DemoData.SfoLhrId
         }
     }

@@ -41,19 +41,14 @@ object FakeDestinations : AppDestinations {
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
         onNewTrip: () -> Unit,
+        onOpenTrips: (() -> Unit)?,
     ) {
         val id = tripId ?: "now"
         FakeScreen("screen_plan_$id", if (tripId == null) "Now" else "Plan $tripId", MaterialTheme.colorScheme.tertiaryContainer) {
             if (onBack != null) Button(onClick = onBack, modifier = Modifier.testTag("plan_up")) { Text("Up") }
+            if (onOpenTrips != null) Button(onClick = onOpenTrips, modifier = Modifier.testTag("plan_open_trips")) { Text("Trips") }
             Button(onClick = { onEditTrip(tripId ?: "current") }, modifier = Modifier.testTag("plan_edit")) { Text("Edit") }
             Counter("plan_counter_$id")
-        }
-    }
-
-    @Composable
-    override fun PlanPlaceholder(onNewTrip: () -> Unit) {
-        FakeScreen("screen_placeholder", "Pick a trip", MaterialTheme.colorScheme.surfaceContainerHigh) {
-            Button(onClick = onNewTrip, modifier = Modifier.testTag("placeholder_new")) { Text("New trip") }
         }
     }
 
@@ -65,11 +60,13 @@ object FakeDestinations : AppDestinations {
         onOpenSettings: () -> Unit,
         onEditTrip: (tripId: String) -> Unit,
         onCreateReturnTrip: (outboundTripId: String) -> Unit,
+        onOpenNow: () -> Unit,
     ) {
         FakeScreen("screen_trips", "Trips", MaterialTheme.colorScheme.secondaryContainer) {
             Text("selected=${selectedTripId ?: "none"}", modifier = Modifier.testTag("trips_selected"))
             Button(onClick = { onOpenTrip("a") }, modifier = Modifier.testTag("trips_open_a")) { Text("Trip A") }
             Button(onClick = { onOpenTrip("b") }, modifier = Modifier.testTag("trips_open_b")) { Text("Trip B") }
+            Button(onClick = onOpenNow, modifier = Modifier.testTag("trips_open_now")) { Text("Go to Now") }
             Button(onClick = onNewTrip, modifier = Modifier.testTag("trips_new")) { Text("New trip") }
         }
     }

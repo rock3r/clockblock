@@ -6,10 +6,11 @@ it. If you want to know why a block is there, tap **Why?**.
 
 ## Opening the plan
 
-- The **Now** tab shows the plan for the trip that matters right now: the one in progress, or else the next one.
-- On the **Trips** tab, tap any trip card to open its plan.
-
-On a tablet or a wide screen, the trips list and the plan appear side by side, with a thin line between them.
+- The **Now** tab shows the plan for the trip that matters right now: the one in progress, or else the next
+  upcoming one. When all your trips are in the past, **Now** offers to plan your next trip or open **Trips** to
+  look back at past plans.
+- On the **Trips** tab, tap any upcoming or past trip card to open its plan full screen. Use the back button in the
+  top bar (or the system back gesture) to return to **Trips**.
 
 ## The plan screen
 

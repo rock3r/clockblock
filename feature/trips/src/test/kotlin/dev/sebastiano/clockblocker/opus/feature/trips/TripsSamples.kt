@@ -46,14 +46,15 @@ object TripsSamples {
         val summaries = trips.map { trip ->
             TripSummaries.summarize(trip, planner.plan(trip, DemoData.profile, now), now, today, titles.suggest(trip))
         }
-        val sections = TripSummaries.sections(summaries)
+        val partitioned = TripSummaries.partition(summaries)
+        val inProgress = summaries.filter { it.phase == TripPhase.InProgress }
         return TripsUiState(
             loading = false,
-            inProgress = sections.getValue(TripPhase.InProgress),
-            upcoming = sections.getValue(TripPhase.Upcoming),
-            past = sections.getValue(TripPhase.Past),
+            nowTrip = partitioned.nowTrip,
+            upcoming = partitioned.upcoming,
+            past = partitioned.past,
             returnCandidate = TripSummaries.returnCandidate(summaries),
-            sky = TripSummaries.sky(sections.getValue(TripPhase.InProgress), now, ZoneOffset.UTC),
+            sky = TripSummaries.sky(inProgress, now, ZoneOffset.UTC),
         )
     }
 

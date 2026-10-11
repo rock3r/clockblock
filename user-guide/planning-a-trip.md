@@ -10,21 +10,23 @@ a plan straight away. You can change the trip at any time, and the plan follows.
 With no trips, the screen says "Where to next?". Tap **Plan a trip** to add your own, or **Try a demo trip** to
 see an example plan for a flight from San Francisco to London a few days from now.
 
-Once you have trips, they're grouped as **In progress**, **Upcoming** and **Past**. Each card shows the airport
-codes with the route drawn as an arc between them, the flight times, any stops ("1 stop · via SIN"), how many hours
-the time changes ("+8 h east"), and either the day of the plan ("Day 2 of 4") or when it starts ("Starts in 8
-days"). Upcoming trips also say about how many days the plan needs to adapt you ("~5 days to adapt"). Trips in
-progress show how far your body clock has adapted, and while you're in the air the plane on the arc shows how far
-along the flight is.
+Your current or next trip lives on the **Now** tab. The **Trips** tab holds any later **Upcoming** trips and your
+**Past trips**. Each card shows the airport codes with the route drawn as an arc between them, the cities or trip
+title, the flight times and any stops on one line ("Thu, Jun 25, 21:35 → Sat, Jun 27, 06:05 · 1 stop · via SIN"),
+how many hours the time changes ("+8 h east"), when the plan starts ("Starts in 8 days") or ended ("Ended 15d
+ago"), and about how many days the plan needs to adapt you ("~5 days to adapt") or how the trip finished
+("Adapted", "Stayed on home time"). Past trips are toned down at the bottom of the list. Tap the **Past trips**
+heading to open a globe with all your past routes drawn across it, along with your total distance, airports
+visited, hours of time-zone shift and estimated days of jet lag saved.
 
-During a trip, the sky behind the screen title follows your body clock, and the subtitle shows your body clock
+During a trip, the sky behind the **Trips** title follows your body clock, and the subtitle shows your body clock
 time.
 
 To add another trip, tap the **New trip** button in the corner. It offers **New trip**, **Return from** the
 destination of the trip you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a
 phone in landscape, a **+** button sits in the top bar instead, so it never covers a trip card.
 
-<img src="images/add-menu.png" alt="The Trips screen with the add menu open: New trip, Return from London and Try a demo trip." width="280" />
+<img src="images/add-menu.png" alt="The Trips screen with Upcoming and Past trips, and the add menu open: New trip, Return from London and Try a demo trip." width="280" /> <img src="images/past-trips-globe.png" alt="The past-trips sheet over the Trips screen, headed Where you've been, 2 trips · 3 flights, with a dark globe showing the flight arcs to London, Singapore and Sydney and four stat cards: 4 airports visited, 25,793 km distance flown, 17 h time zones crossed and ~7 days jet lag saved." width="280" />
 
 ## Adding flights
 

@@ -7,7 +7,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
@@ -90,7 +89,8 @@ fun ClockblockAppRoot(
 
 /**
  * Adaptive chrome around [AppNavDisplay]: a short navigation bar on compact windows and a navigation rail on
- * wider ones (M3 Expressive `NavigationSuiteScaffold`), hidden during onboarding and in the trip editor.
+ * wider ones (M3 Expressive `NavigationSuiteScaffold`), hidden during onboarding, in the trip editor and on a
+ * pushed trip plan.
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -101,8 +101,6 @@ fun ClockblockShell(
     modifier: Modifier = Modifier,
 ) {
     val adaptiveInfo = currentWindowAdaptiveInfoV2()
-    val directive = calculatePaneScaffoldDirective(adaptiveInfo)
-    val isTwoPane = directive.maxHorizontalPartitions > 1
     val suiteType = suiteTypeFor(
         default = NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo),
         minWidthDp = adaptiveInfo.windowSizeClass.minWidthDp,
@@ -111,13 +109,14 @@ fun ClockblockShell(
     )
 
     val route = navigator.currentRoute
-    val showSuite = route !is OnboardingRoute && route !is TripEditorRoute
+    val showSuite = route !is OnboardingRoute && route !is TripEditorRoute && route !is PlanRoute
     val suiteState = rememberNavigationSuiteScaffoldState(
         if (showSuite) NavigationSuiteScaffoldValue.Visible else NavigationSuiteScaffoldValue.Hidden,
     )
     LaunchedEffect(showSuite) {
-        // Entering the editor or onboarding is already one motion (the screen transition); collapsing the suite
-        // at the same time would be a second event, so it disappears instantly. Coming back, it may slide in.
+        // Entering a pushed detail screen, editor or onboarding is already one motion (the screen transition);
+        // collapsing the suite at the same time would be a second event, so it disappears instantly. Coming back,
+        // it may slide in.
         if (showSuite) suiteState.show() else suiteState.snapTo(NavigationSuiteScaffoldValue.Hidden)
     }
 
@@ -151,8 +150,6 @@ fun ClockblockShell(
             navigator = navigator,
             destinations = destinations,
             hasTrips = hasTrips,
-            directive = directive,
-            isTwoPane = isTwoPane,
         )
     }
 }

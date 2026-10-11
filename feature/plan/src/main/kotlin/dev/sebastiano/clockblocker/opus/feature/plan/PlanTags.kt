@@ -6,6 +6,7 @@ object PlanTags {
     const val Loading = "plan_loading"
     const val Empty = "plan_empty"
     const val NewTrip = "plan_new_trip"
+    const val OpenTrips = "plan_open_trips"
     const val Header = "plan_header"
     const val HeaderSky = "plan_header_sky"
     const val NextAction = "plan_next_action"
