@@ -154,6 +154,12 @@ class PlanContentTest {
         repeat(8) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
+
+        // Back from the end: it stays (no hide for the first 48 dp of the way back, then a return).
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY - 20f, endY = centerY + 20f, durationMillis = 500) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
     }
 
     @Test

@@ -60,6 +60,7 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -577,6 +578,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         val eligible = expanded || screen.list.firstVisibleItemIndex > nowIndex
                         eligible && (!toolbarScroll.hidden || !railList.canScrollForward)
                     }
+                }
+                // The end brings it back for good: the way back up starts counting from there, so the toolbar
+                // doesn't drop out again for the first 48 dp.
+                LaunchedEffect(railList, toolbarScroll) {
+                    snapshotFlow { railList.canScrollForward }.collect { canScroll -> if (!canScroll) toolbarScroll.show() }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
                     val scrim = MaterialTheme.colorScheme.surface
