@@ -6,6 +6,7 @@ import dev.sebastiano.clockblocker.opus.core.circadian.displayZonesAt
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
+import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.Trip
@@ -103,6 +104,23 @@ object WidgetStateMapper {
         trip.legs.forEach { add(it.origin); add(it.destination) }
         add(trip.origin)
         add(trip.destination)
+    }
+
+    /**
+     * [state] with the Now notification's own pick (#49): its [headline] as the current block, its [next] window as
+     * what starts next (the only upcoming row), and what was logged for the headline. The notification's actions act
+     * on that headline, and its documents must name the same advice; the widgets pick differently (plan order, with
+     * moments), the notification puts sleep first and leaves moments to their reminders.
+     */
+    fun forNowNotification(state: WidgetState.Active, headline: Advice?, next: Advice?, outcome: AdviceOutcome?): WidgetState.Active {
+        val zone = ZoneId.of(state.displayZoneId)
+        return state.copy(
+            current = headline?.toSlot(zone),
+            next = next?.toSlot(zone),
+            upcoming = listOfNotNull(next?.toSlot(zone)),
+            currentOutcome = outcome?.takeIf { headline != null },
+            outcomeKnown = true,
+        )
     }
 
     /**
