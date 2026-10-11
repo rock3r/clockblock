@@ -94,6 +94,15 @@ internal fun Resources.formatDuration(duration: Duration): String {
 @ReadOnlyComposable
 internal fun formatDuration(duration: Duration): String = LocalContext.current.resources.formatDuration(duration)
 
+/**
+ * A timeline row's time line: the [range] and its [duration] on one line ("22:45 – 01:00 · 2 h 15 min"). Each half
+ * keeps its spaces unbreakable, so a narrow row (large font, 12-hour clock) wraps only between the two.
+ */
+internal fun railTimeLine(range: String, duration: String?): String {
+    fun String.unbroken() = replace(' ', '\u00A0')
+    return if (duration.isNullOrBlank()) range.unbroken() else range.unbroken() + " · " + duration.unbroken()
+}
+
 /** "−1" with a true minus sign for pre-trip day indices. */
 internal fun signedIndex(index: Int): String = if (index < 0) "\u2212${-index}" else "+$index"
 

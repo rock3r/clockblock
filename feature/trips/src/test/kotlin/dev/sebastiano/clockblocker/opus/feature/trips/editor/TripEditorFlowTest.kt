@@ -5,6 +5,8 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -158,9 +160,19 @@ class TripEditorFlowTest : TripsScreenshotTest() {
     }
 
     @Test
+    fun theGeneratedTitleWaitsBehindRename() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        tag(TripsTestTags.EditorTitle).assertDoesNotExist()
+        tag(TripsTestTags.EditorRename).performScrollTo().performClick()
+        settle()
+        tag(TripsTestTags.EditorTitle).assertIsFocused()
+    }
+
+    @Test
     fun closingWithUnsavedChangesAsksBeforeDiscarding() {
         open(TripEditorArgs(tripId = DemoData.LhrSydId))
-        tag(TripsTestTags.EditorTitle).performScrollTo().performTextInput("Work trip ")
+        tag(TripsTestTags.EditorRename).performScrollTo().performClick()
+        tag(TripsTestTags.EditorTitle).performTextInput("Work trip ")
         settle()
 
         tag(TripsTestTags.EditorClose).performClick()

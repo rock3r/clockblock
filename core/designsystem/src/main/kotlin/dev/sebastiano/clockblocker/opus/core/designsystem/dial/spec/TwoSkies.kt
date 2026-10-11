@@ -27,6 +27,15 @@ object TwoSkies {
     /** The place above the local time on the full dial, in units of side / 328. */
     private val CentrePlaceText = TextSpec(9f, weight = 600, caps = true, tracking = 0.14f, tabular = false)
 
+    /** The rim narration's smallest size, in dp: legible on the smallest full dial (250 dp, where 10 units are 7.6 dp). */
+    internal const val NarrationFloor = 9f
+
+    /** The rim narration's largest size, in units of side / 328: the band between the advice lane and the face's edge. */
+    internal const val NarrationMax = 14f
+
+    /** How far the rim narration grows with the font scale (1.3: it already starts as the dial's smallest text). */
+    internal const val MaxRimGrowth = 1.3f
+
     /** The hub's width at the place's line (hub radius 74, line 34 above the centre), less a little air. */
     private const val CentrePlaceMaxWidth = 118f
 
@@ -76,6 +85,7 @@ object TwoSkies {
             ahead = DialGeometry.minuteDelta(0f, bodyAheadMinutes - state.clockChangeAt(scrubMinutes)),
             mode = mode,
             grow = textGrowth.coerceIn(1f, 1.15f),
+            rimGrow = textGrowth.coerceIn(1f, MaxRimGrowth),
             namePlace = namePlace,
             minText = minText,
             labelText = labelText,
@@ -128,6 +138,8 @@ object TwoSkies {
         val ahead: Float,
         val mode: BodyRingMode,
         val grow: Float,
+        /** Growth of the rim narration with the font scale: more than the readouts, since it is the smallest text. */
+        val rimGrow: Float,
         val namePlace: Boolean,
         val minText: Float,
         val labelText: Float,
@@ -178,7 +190,7 @@ object TwoSkies {
                 ops += DialOp.Text(labels.numeral(hour), x, y, numeral, p.inkMuted, part = DialPart.Numeral)
             }
 
-            advice(laneR, laneW, discR = 10f * k, nextDiscR = 8f * k, rimR = rimR, sayK = k)
+            advice(laneR, laneW, discR = 10f * k, nextDiscR = 8f * k, rimAt = rimR, sayK = k)
             nowMark(outerR + ringW / 2f + 3.5f * k, 2.4f * k)
             needle(innerR - ringW / 2f - 2f * k, outerR + ringW / 2f + 2.5f * k, 3f * k, tip = 4.5f * k)
 
@@ -225,7 +237,7 @@ object TwoSkies {
                     otherHalfRingLabel(labels.body(), innerR, ringW, bodyNight, bodyText)?.takeUnless { it.clashes(other) }
                 }
             bodyLabel?.let { ops += it }
-            advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimR = null, sayK = k)
+            advice(laneR, laneW, discR = 6.5f * k, nextDiscR = null, rimAt = null, sayK = k)
             nowMark(outerR + ringW / 2f + 2.2f * k, 1.5f * k)
             needle(innerR - ringW / 2f - 1f * k, outerR + ringW / 2f + 1.5f * k, 2.2f * k, tip = null)
             val local = localTime(cy - 5f * k, TextSpec(20f * k * grow, weight = 480), markerSize = 7f * k * grow, maxWidth = 62f * k)
@@ -370,17 +382,27 @@ object TwoSkies {
         }
 
         /**
+         * The rim narration's size on a full dial in units of [k] (side / 328): 10, but at least [NarrationFloor] dp
+         * on the smallest full dials, grown with the font scale ([rimGrow], up to [MaxRimGrowth]), and never more than
+         * [NarrationMax] so it stays in the band between the advice lane and the face's edge. A longer narration
+         * still fits round the rim; the "then …" that follows it is the part that gives way when it no longer does.
+         */
+        fun narrationSize(k: Float): Float = minOf(maxOf(10f * k, NarrationFloor) * rimGrow, NarrationMax * k)
+
+        /**
          * The advice in focus: the block under the hand as one arc on the lane with its glyph at the start (or,
          * when nothing is on, the next block), and on the full dial its narration along the rim.
          */
-        fun advice(laneR: Float, laneW: Float, discR: Float, nextDiscR: Float?, rimR: Float?, sayK: Float) {
+        fun advice(laneR: Float, laneW: Float, discR: Float, nextDiscR: Float?, rimAt: Float?, sayK: Float) {
+            // Grown narration moves out by half its growth, keeping clear of the advice lane and its glyphs.
+            val rimR = rimAt?.let { it + (narrationSize(sayK) - 10f * sayK) / 2f }
             val current = focus.current
             val next = focus.next
             val shown = current ?: next ?: return
             val start = DialGeometry.angleForMinute(shown.startMinute)
             if (shown.sweepMinutes > 0f) adviceArc(laneR, laneW, shown, washPast = current != null)
             glyph(shown, laneR, start, discR)
-            val say = TextSpec(10f * sayK, weight = 650)
+            val say = TextSpec(narrationSize(sayK), weight = 650)
             val label = labels.advice(shown.type)
             val text = when {
                 current != null && current.sweepMinutes > 0f -> labels.until(label, labels.fullTime(current.narratedEndMinute))
@@ -400,7 +422,7 @@ object TwoSkies {
             val glyphDeg = if (kotlin.math.abs(nextDeg - endDeg) < 4f) nextDeg + 4f else nextDeg
             nextDiscR?.let { glyph(next, laneR, glyphDeg, it) }
             if (rimR == null) return
-            val thenSpec = TextSpec(10f * sayK, weight = 550, tabular = false)
+            val thenSpec = TextSpec(narrationSize(sayK), weight = 550, tabular = false)
             // "then …" only when it really follows: advice that starts before the block in focus ends (sleep inside
             // a long flight) is narrated with its start instead, so the rim never puts them in the wrong order.
             val nextLabel = labels.advice(next.type)

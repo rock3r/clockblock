@@ -35,7 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -223,7 +223,11 @@ private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boo
                     )
                 }
             }
-            .clip(RoundedCornerShape(PillCorner))
+            // The ripple follows the pill's current shape (a capsule once selected), read in the layer phase too.
+            .graphicsLayer {
+                shape = RoundedCornerShape(corner)
+                clip = true
+            }
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .semantics {
                 contentDescription = description
