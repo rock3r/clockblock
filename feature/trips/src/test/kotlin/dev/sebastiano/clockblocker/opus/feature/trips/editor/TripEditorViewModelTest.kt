@@ -110,11 +110,16 @@ class TripEditorViewModelTest {
     }
 
     @Test
-    fun `editing a picked airport's text clears the pick`() = runTest(main.dispatcher) {
+    fun `typing in the search keeps the current airport until another one is picked`() = runTest(main.dispatcher) {
+        // The search sheet can be dismissed half-typed: the ticket keeps what it had.
         val vm = viewModel()
         vm.onPlaceSelected(from0, DemoData.LIS)
-        vm.onPlaceQueryChange(from0, "Lisbo")
-        vm.state.value.legs[0].origin.place.shouldBeNull()
+        vm.openPlaceSearch(from0)
+        vm.onPlaceQueryChange(from0, "Lond")
+        vm.state.value.legs[0].origin.place shouldBe DemoData.LIS
+        vm.dismissSearch()
+        vm.state.value.legs[0].origin.place shouldBe DemoData.LIS
+        vm.state.value.search.shouldBeNull()
     }
 
     @Test
@@ -272,10 +277,13 @@ class TripEditorViewModelTest {
         }
     }
 
+    // region Return flight
+
     @Test
     fun `return departure is stored in the destination's local time`() = runTest(main.dispatcher) {
         val vm = viewModel()
         vm.fillLisbonTokyo()
+        vm.onReturnFlightChange(true)
         vm.onReturnDateChange(LocalDate.of(2026, 7, 4))
         vm.onReturnTimeChange(LocalTime.of(9, 15))
         vm.eventFlow.test {
@@ -284,6 +292,153 @@ class TripEditorViewModelTest {
             trips.current.single { it.id == saved.tripId }.returnDeparture shouldBe Instant.parse("2026-07-04T00:15:00Z")
         }
     }
+
+    @Test
+    fun `turning on the return flight suggests a week after landing, at the outbound's time of day`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyo() // Lands 2 July, left at 10:00.
+        vm.state.value.offersReturnFlight shouldBe true
+        vm.onReturnFlightChange(true)
+        val form = vm.state.value.form
+        form.returnFlight shouldBe true
+        form.returnDate shouldBe LocalDate.of(2026, 7, 9)
+        form.returnTime shouldBe LocalTime.of(10, 0)
+        vm.state.value.createsReturnTrip shouldBe true
+        vm.state.value.canSave shouldBe true
+    }
+
+    @Test
+    fun `a new trip with a return flight saves the return trip too, reversed and linked`() = runTest(main.dispatcher) {
+        val before = trips.current.size
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.onReturnFlightChange(true)
+        vm.onReturnDateChange(LocalDate.of(2026, 7, 9))
+        vm.onReturnTimeChange(LocalTime.of(11, 30))
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current shouldHaveSize before + 2
+            val outbound = trips.current.single { it.id == saved.tripId }
+            val back = trips.current.single { it.id != saved.tripId && it.legs.first().origin == DemoData.HND }
+            back.legs.single().destination shouldBe DemoData.LIS
+            back.legs.single().departureLocal shouldBe LocalDateTime.of(2026, 7, 9, 11, 30)
+            back.title shouldBe "Tokyo → Lisbon"
+            outbound.returnDeparture shouldBe back.departure
+        }
+    }
+
+    @Test
+    fun `a return flight that flies you home starts on home time`() = runTest(main.dispatcher) {
+        // Home is Los Angeles: SFO → LHR and back. The return lands home, so its body clock starts on home time
+        // (the same default as Create return trip, #145).
+        val vm = viewModel()
+        vm.onPlaceSelected(from0, DemoData.SFO)
+        vm.onPlaceSelected(to0, DemoData.LHR)
+        vm.onDepartureDateChange(0, LocalDate.of(2026, 7, 1))
+        vm.onDepartureTimeChange(0, LocalTime.of(19, 30))
+        vm.onReturnFlightChange(true)
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId.shouldBeNull()
+            val back = trips.current.single { it.legs.first().origin == DemoData.LHR && it.legs.last().destination == DemoData.SFO && it.id != DemoData.SfoLhrId }
+            back.bodyClockStartZoneId shouldBe "America/Los_Angeles"
+        }
+    }
+
+    @Test
+    fun `a return flight that leaves before you land blocks saving`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyo() // Lands 2 July 07:30 in Tokyo.
+        vm.onReturnFlightChange(true)
+        vm.onReturnDateChange(LocalDate.of(2026, 7, 2))
+        vm.onReturnTimeChange(LocalTime.of(6, 0))
+        vm.state.value.returnLeavesBeforeArrival shouldBe true
+        vm.state.value.canSave shouldBe false
+        vm.state.value.saveBlocker shouldBe SaveBlocker.ReturnBeforeArrival
+        vm.onReturnTimeChange(LocalTime.of(20, 0))
+        vm.state.value.canSave shouldBe true
+        vm.state.value.saveBlocker.shouldBeNull()
+    }
+
+    @Test
+    fun `a return flight needs a date before saving`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.onReturnFlightChange(true) // Nothing to suggest a date from yet.
+        vm.state.value.form.returnDate.shouldBeNull()
+        vm.fillLisbonTokyo()
+        vm.state.value.canSave shouldBe false
+        vm.state.value.saveBlocker shouldBe SaveBlocker.ReturnDateMissing
+        vm.onReturnDateChange(LocalDate.of(2026, 7, 10))
+        vm.state.value.canSave shouldBe true
+    }
+
+    @Test
+    fun `turning the return flight off forgets it`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.onReturnFlightChange(true)
+        vm.onReturnFlightChange(false)
+        val form = vm.state.value.form
+        form.returnFlight shouldBe false
+        form.returnDate.shouldBeNull()
+        form.returnTime.shouldBeNull()
+        val before = trips.current.size
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current shouldHaveSize before + 1
+            trips.current.single { it.id == saved.tripId }.returnDeparture.shouldBeNull()
+        }
+    }
+
+    @Test
+    fun `editing a trip that already flies back keeps the switch on and adds no second return trip`() = runTest(main.dispatcher) {
+        val outbound = trips.current.single { it.id == DemoData.SfoLhrId }
+        trips.upsert(outbound.copy(returnDeparture = Instant.parse("2026-06-25T12:00:00Z")))
+        val vm = viewModel(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        vm.state.value.form.returnFlight shouldBe true
+        vm.state.value.createsReturnTrip shouldBe false
+        vm.state.value.dirty shouldBe false
+        vm.onReturnTimeChange(LocalTime.of(15, 0))
+        val before = trips.current.size
+        vm.eventFlow.test {
+            vm.save()
+            awaitItem()
+            trips.current shouldHaveSize before
+        }
+    }
+
+    @Test
+    fun `editing a one-way trip and turning the return flight on adds the return trip`() = runTest(main.dispatcher) {
+        val vm = viewModel(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        vm.state.value.form.returnFlight shouldBe false
+        vm.onReturnFlightChange(true)
+        vm.state.value.createsReturnTrip shouldBe true
+        val before = trips.current.size
+        vm.eventFlow.test {
+            vm.save()
+            awaitItem()
+            trips.current shouldHaveSize before + 1
+        }
+    }
+
+    @Test
+    fun `a return trip doesn't offer a return flight of its own`() = runTest(main.dispatcher) {
+        val vm = viewModel(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId))
+        vm.state.value.offersReturnFlight shouldBe false
+    }
+
+    @Test
+    fun `an incomplete trip says what's missing`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.state.value.saveBlocker shouldBe SaveBlocker.Incomplete
+        vm.fillLisbonTokyo(arrivalDate = LocalDate.of(2026, 7, 1))
+        vm.state.value.saveBlocker shouldBe SaveBlocker.Errors
+    }
+
+    // endregion
 
     @Test
     fun `I'm delayed is offered from 48 h before departure and shifts the leg`() = runTest(main.dispatcher) {
@@ -346,10 +501,10 @@ class TripEditorViewModelTest {
     }
 
     @Test
-    fun `an estimate is withdrawn when an airport is cleared`() = runTest(main.dispatcher) {
+    fun `an estimate is withdrawn when both ends are the same airport`() = runTest(main.dispatcher) {
         val vm = viewModel()
         vm.fillLisbonTokyoDeparture()
-        vm.onPlaceQueryChange(to0, "Toky")
+        vm.onPlaceSelected(to0, DemoData.LIS)
         val leg = vm.state.value.legs[0]
         leg.arrivalLocal.shouldBeNull()
         leg.arrivalEstimated shouldBe false
@@ -379,10 +534,10 @@ class TripEditorViewModelTest {
     // region Popular airports
 
     @Test
-    fun `focusing an empty airport field offers popular airports, minus the other end`() = runTest(main.dispatcher) {
+    fun `opening the search offers popular airports, minus the other end`() = runTest(main.dispatcher) {
         val vm = viewModel()
         vm.onPlaceSelected(from0, DemoData.LHR)
-        vm.onPlaceFieldFocused(to0)
+        vm.openPlaceSearch(to0)
         advanceUntilIdle()
         val popular = vm.state.value.search.shouldNotBeNull()
         popular.field shouldBe to0
@@ -390,17 +545,20 @@ class TripEditorViewModelTest {
         popular.query shouldBe ""
         popular.results.map { it.code }.take(3) shouldContainExactly listOf("JFK", "LAX", "SFO")
         popular.results.none { it.code == "LHR" } shouldBe true
-        // Enter on an empty field never picks a suggestion.
+        // Enter on an empty query never picks a suggestion.
         vm.pickTopResult(to0) shouldBe false
     }
 
     @Test
-    fun `focusing a filled field offers nothing`() = runTest(main.dispatcher) {
+    fun `opening the search for an airport already picked offers popular airports too`() = runTest(main.dispatcher) {
         val vm = viewModel()
         vm.onPlaceSelected(from0, DemoData.LHR)
-        vm.onPlaceFieldFocused(from0)
+        vm.openPlaceSearch(from0)
+        // The sheet opens at once, before the popular list has loaded.
+        vm.state.value.search.shouldNotBeNull().field shouldBe from0
         advanceUntilIdle()
-        vm.state.value.search.shouldBeNull()
+        vm.state.value.search.shouldNotBeNull().popular shouldBe true
+        vm.state.value.legs[0].origin.place shouldBe DemoData.LHR
     }
 
     @Test
@@ -444,7 +602,7 @@ class TripEditorViewModelTest {
         advanceUntilIdle()
         vm.state.value.preview.shouldNotBeNull().strategy shouldBe AdaptationStrategy.StayOnHomeTime
 
-        vm.onPlaceQueryChange(to0, "Toky")
+        vm.addLeg() // An empty connection: the draft can't be planned any more.
         vm.state.value.preview.shouldBeNull()
     }
 

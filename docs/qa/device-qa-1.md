@@ -123,7 +123,8 @@ Infrastructure issues found while getting the suite green are listed at the end.
 
 **Fix:**
 - `TimeRow` measures at `IntrinsicSize.Min` and both `PickerField`s `fillMaxHeight()`.
-- See [`LegCard.kt`](../../feature/trips/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/trips/editor/LegCard.kt) (`TimeRow`).
+- See `LegCard.kt` (`TimeRow`). The ticket editor later replaced these fields with date and time chips, in
+  [`LegTicket.kt`](../../feature/trips/src/main/kotlin/dev/sebastiano/clockblocker/opus/feature/trips/editor/LegTicket.kt).
 - Roborazzi goldens are unchanged.
 
 ![Before: mismatched field heights](img/editor-field-heights-before.png)

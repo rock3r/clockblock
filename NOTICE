@@ -51,6 +51,15 @@ IANA Time Zone Database (https://www.iana.org/time-zones)
 Details: licenses/DATA_ATTRIBUTION.md
 
 -------------------------------------------------------------------------------------------------------------
+Code
+-------------------------------------------------------------------------------------------------------------
+
+Prime Meridian, from m3e-vibes (https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian)
+  Copyright 2026 Chris Sinco. Licensed under the Apache License, Version 2.0.
+  The trip editor's ticket silhouette (core/designsystem/.../component/TicketShape.kt) is adapted from it; the
+  file keeps the original attribution in its header.
+
+-------------------------------------------------------------------------------------------------------------
 Process credits
 -------------------------------------------------------------------------------------------------------------
 

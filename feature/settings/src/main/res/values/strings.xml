@@ -186,6 +186,8 @@
     <string name="licenses_section_libraries">Libraries</string>
     <string name="licenses_app_name">Clockblock</string>
     <string name="licenses_app_detail">Source code, illustrations and docs.</string>
+    <string name="licenses_prime_meridian">Prime Meridian</string>
+    <string name="licenses_prime_meridian_detail">The trip editor\'s ticket shape is adapted from it. © Chris Sinco.</string>
     <string name="licenses_google_sans_flex">Google Sans Flex</string>
     <string name="licenses_google_sans_flex_detail">The interface typeface. © Google LLC.</string>
     <string name="licenses_fraunces">Fraunces</string>

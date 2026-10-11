@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.e2e
 
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasAnyDescendant
@@ -64,6 +65,30 @@ class TripsTest : ClockblockE2eTest() {
         await(hasTestTagPrefix("trip_card_") and hasAnyDescendant(hasText("Tokyo", substring = true))).assertIsDisplayed()
         val trips = runBlocking { graph.tripRepository.trips.first() }
         assertEquals(listOf("LIS" to "HND"), trips.map { it.origin.code to it.destination.code })
+    }
+
+    @Test
+    fun returnFlightSwitchSavesTheReturnTripToo() {
+        seedOnboarded()
+        launch(deepLink = "clockblock://trips/new")
+        awaitTag("route_trip_editor", LongTimeoutMillis)
+
+        pickPlace(TripsTestTags.editorFrom(0), "lis", "LIS")
+        pickPlace(TripsTestTags.editorTo(0), "hnd", "HND")
+        awaitGone(TripsTestTags.EditorPlaceSheet)
+        openPicker(TripsTestTags.editorDepartureDate(0))
+        pickDateInOpenPicker(departureDay())
+        confirmTimePicker(TripsTestTags.editorDepartureTime(0))
+
+        // Return flight on: a week after landing is suggested, and the main action builds both trips.
+        awaitTag(TripsTestTags.EditorReturnSwitch).scrollIntoViewAndClick()
+        awaitTag(TripsTestTags.EditorReturnDate).scrollToIfScrollable().assertIsDisplayed()
+        awaitTag(TripsTestTags.EditorSave).assertIsEnabled().assert(hasText("Build my plan")).performClick()
+
+        awaitTag("route_plan", LongTimeoutMillis).assertIsDisplayed()
+        compose.waitUntil(DefaultTimeoutMillis) { runBlocking { graph.tripRepository.trips.first() }.size == 2 }
+        val trips = runBlocking { graph.tripRepository.trips.first() }
+        assertEquals(listOf("LIS" to "HND", "HND" to "LIS"), trips.map { it.origin.code to it.destination.code })
     }
 
     @Test
