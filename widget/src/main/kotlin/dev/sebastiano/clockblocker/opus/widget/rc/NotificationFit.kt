@@ -91,9 +91,11 @@ internal object NotificationFit {
 
     /**
      * "Next: Sleep at 20:30 · 12:30 in Lisbon", then shorter places. Like [untilOptions], never without the other zone's
-     * time when there is one (the row is left out instead).
+     * time when there is one (the row is left out instead). Without [time], just "Next: Sleep": in free time the until
+     * line above already gives its start in both zones.
      */
-    fun nextOptions(context: Context, item: UpcomingText): List<String> {
+    fun nextOptions(context: Context, item: UpcomingText, time: Boolean = true): List<String> {
+        if (!time) return listOf(context.getString(R.string.widget_notification_next, item.label))
         val at = context.getString(R.string.widget_starts_at, item.label, item.time.glued())
         val forms = if (item.secondaryOptions.isEmpty()) {
             listOf(at)
@@ -109,10 +111,14 @@ internal object NotificationFit {
         for (glyph in listOf(true, false)) {
             val textWidth = (widthDp - if (glyph) COLLAPSED_GLYPH_DP + COLLAPSED_GLYPH_GAP_DP else 0).toFloat()
             val title = TextFit.fit(context, texts.title, textWidth, TITLE_SP, TITLE_MIN_SP, semibold = true) ?: continue
-            // The until line shrinks before the label does, and goes before the glyph does.
-            val line = firstFit(context, lines, textWidth, COLLAPSED_LINE_SP, LINE_MIN_SP, maxLines = 1)
-                ?.takeIf { title.heightDp + LINE_GAP_DP + it.heightDp <= available }
-            return CollapsedNotificationFit(glyph, title, line)
+            // The until line shrinks before the label does (at large font scales the label gives up some size so both
+            // fit the row's height), and goes before the glyph does.
+            val line = firstFit(context, lines, textWidth, COLLAPSED_LINE_SP, LINE_MIN_SP, maxLines = 1) ?: return CollapsedNotificationFit(glyph, title, null)
+            val titles = (title.sp downTo TITLE_MIN_SP).asSequence().mapNotNull { sp ->
+                TextFit.fit(context, texts.title, textWidth, sp, TITLE_MIN_SP, semibold = true)
+            }
+            val both = titles.firstOrNull { it.heightDp + LINE_GAP_DP + line.heightDp <= available }
+            return if (both != null) CollapsedNotificationFit(glyph, both, line) else CollapsedNotificationFit(glyph, title, null)
         }
         // A single word wider than the slot at the smallest size: ellipsized rather than broken.
         return CollapsedNotificationFit(false, TextFit.measure(context, texts.title, widthDp.toFloat(), TITLE_MIN_SP, semibold = true), null)
@@ -131,7 +137,7 @@ internal object NotificationFit {
         val countdownHeight = if (countdown != null) TextFit.measure(context, "0", widthDp.toFloat(), COUNTDOWN_SP).heightDp else 0f
         val nextItem = texts.upcoming.firstOrNull()
         val next = nextItem?.let { item ->
-            firstFit(context, nextOptions(context, item), (widthDp - NEXT_GLYPH_DP - NEXT_GLYPH_GAP_DP).toFloat(), LINE_SP, LINE_MIN_SP, maxLines = 2)
+            firstFit(context, nextOptions(context, item, time = progress), (widthDp - NEXT_GLYPH_DP - NEXT_GLYPH_GAP_DP).toFloat(), LINE_SP, LINE_MIN_SP, maxLines = 2)
                 ?.let { NextFit(item, it) }
         }
         val header = max(EXPANDED_GLYPH_DP.toFloat(), title.heightDp + (line?.let { LINE_GAP_DP + it.heightDp } ?: 0f))

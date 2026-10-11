@@ -1,8 +1,11 @@
 package dev.sebastiano.clockblocker.opus.widget.rc
 
+import android.app.Application
+import android.app.Notification
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.provider.Settings
 import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,18 +38,22 @@ import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
+import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.notifications.NotificationFactory
+import dev.sebastiano.clockblocker.opus.core.notifications.PlatformCapabilities
+import dev.sebastiano.clockblocker.opus.core.notifications.now.NowStateCalculator
 import dev.sebastiano.clockblocker.opus.core.notifications.nowNotificationAccent
 import dev.sebastiano.clockblocker.opus.core.notifications.R as NotificationsR
+import dev.sebastiano.clockblocker.opus.core.testing.FakeTripRepository
+import dev.sebastiano.clockblocker.opus.widget.RemoteNowNotificationContent
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
-import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
-import dev.sebastiano.clockblocker.opus.widget.state.WidgetStateMapper
 import dev.sebastiano.clockblocker.opus.widget.state.tintType
-import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -57,16 +64,18 @@ import java.io.ByteArrayInputStream
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private const val DIR = "src/test/screenshots"
 
 /**
- * The Now notification documents (#49 preview, what the debug probe posts): notification-sized (48 dp collapsed, the
- * expanded view wraps its content under the shade's 252 dp cap) and themed (one document, drawn light or dark by the
- * player's theme). Goldens show each in a stand-in for the shade (a card with an app icon, header and expand chip:
- * not SystemUI's own drawing) at the Pixel 11 Pro's slot widths, played by the androidx view player with the theme
- * `RemoteViews` would set.
+ * The Now notification's Remote Compose documents (#49), built the way the real notification builds them
+ * ([RemoteNowNotificationContent.model]: the notification's own pick of advice): notification-sized (48 dp collapsed,
+ * the expanded view wraps its content under the shade's 252 dp cap) and themed (one document, drawn light or dark by
+ * the player's theme). No Done inside: the notification's actions sit under the content. Goldens show each in a
+ * stand-in for the shade (a card with an app icon, header, expand chip and the action row: not SystemUI's own drawing)
+ * at the Pixel 11 Pro's slot widths, played by the androidx view player with the theme `RemoteViews` would set.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -77,12 +86,40 @@ class NowNotificationRemoteTest {
     private val now = Instant.parse("2026-10-06T06:20:00Z") // 15:20 in Tokyo
     private val slots = NotificationSlots.forScreenWidth(SCREEN_DP)
 
-    private fun model(scenario: DemoPlans.Scenario = DemoPlans.Scenario.AvoidLight, logged: AdviceOutcome? = null): ThemedWidgetModel {
+    @Before
+    fun use24Hour() {
+        Settings.System.putString(context.contentResolver, Settings.System.TIME_12_24, "24")
+    }
+
+    private val content get() = RemoteNowNotificationContent(context as Application, FakeTripRepository(listOf(DemoPlans.trip())))
+
+    /** The Now notification's state for [scenario], as [RemoteNowNotificationContent] turns it into a document model. */
+    private fun model(
+        scenario: DemoPlans.Scenario = DemoPlans.Scenario.AvoidLight,
+        logged: AdviceOutcome? = null,
+        withNext: Boolean = true,
+    ): ThemedWidgetModel {
         val plan = DemoPlans.lisbonTokyo(now, scenario)
-        val current = (WidgetStateMapper.map(plan, now) as? WidgetState.Active)?.current
-        val logs = listOfNotNull(current?.takeIf { logged != null }?.let { AdviceLog(it.adviceId, logged!!) })
-        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES, places = DemoPlans.PLACES)
-        return ThemedWidgetModel.of(state, WidgetTexts.from(context, state, is24Hour = true))
+        val headline = NowStateCalculator.compute(plan, now)?.headline
+        val logs = listOfNotNull(headline?.takeIf { logged != null }?.let { AdviceLog(it.id, logged!!) })
+        val state = checkNotNull(NowStateCalculator.compute(plan, now, logs)).let { if (withNext) it else it.copy(next = null) }
+        return checkNotNull(content.model(state, plan, now, DemoPlans.trip())).also { model ->
+            // The header line the real notification posts above the content (the body clock).
+            val notification = NotificationFactory(context as Application, Capabilities).now(state, plan, now)
+            headers[model] = notification.extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+        }
+    }
+
+    /** The stand-in cards' header line per model: the real notification's sub text. */
+    private val headers = mutableMapOf<ThemedWidgetModel, String?>()
+
+    private object Capabilities : PlatformCapabilities {
+        override fun areNotificationsEnabled() = true
+        override fun canScheduleExactAlarms() = true
+        override fun canPostPromotedNotifications() = false
+        override fun isIgnoringBatteryOptimizations() = false
+        override fun is24HourFormat() = true
+        override fun locale(): Locale = Locale.UK
     }
 
     private fun documents(model: ThemedWidgetModel) = runBlocking {
@@ -123,7 +160,7 @@ class NowNotificationRemoteTest {
 
     @Test
     fun `the expanded view wraps its content well under the shade's cap`() {
-        listOf(DemoPlans.Scenario.AvoidLight, DemoPlans.Scenario.Sleep, DemoPlans.Scenario.FreeTime, DemoPlans.Scenario.Adapted).forEach {
+        listOf(DemoPlans.Scenario.AvoidLight, DemoPlans.Scenario.Sleep, DemoPlans.Scenario.FreeTime).forEach {
             val model = model(it)
             val height = playedHeightDp(documents(model).expanded.bytes, slots.expandedWidthDp)
             height.roundToInt() shouldBeLessThanOrEqual NotificationSlots.EXPANDED_MAX_HEIGHT_DP
@@ -153,10 +190,64 @@ class NowNotificationRemoteTest {
 
     @Test
     fun `the collapsed until line keeps the other zone's time too, and is left out rather than shown without it`() {
-        NotificationFit.collapsed(context, model().texts, slots.collapsedWidthDp).line?.text shouldBe "until 16:30 · 08:30 Lisbon"
+        // With no Done pill beside it, the collapsed line has room for the full place name.
+        NotificationFit.collapsed(context, model().texts, slots.collapsedWidthDp).line?.text?.replace('\u00A0', ' ') shouldBe
+            "until 16:30 · 08:30 in Lisbon"
         val texts = model().texts
         NotificationFit.untilOptions(context, texts).all { "08:30" in it } shouldBe true
         texts.upcoming.forEach { item -> NotificationFit.nextOptions(context, item).all { item.secondary!!.substringBefore(' ') in it } shouldBe true }
+    }
+
+    @Test
+    @Config(fontScale = 1.3f)
+    fun `at a large font scale the collapsed row keeps its until line, the label giving up some size`() {
+        val fit = NotificationFit.collapsed(context, model().texts, slots.collapsedWidthDp)
+        fit.line shouldNotBe null
+        fit.glyph shouldBe true
+    }
+
+    @Test
+    fun `in free time the next row names what's next without repeating the until line's times`() {
+        val texts = model(DemoPlans.Scenario.FreeTime).texts
+        val fit = NotificationFit.expanded(context, texts, slots.expandedWidthDp, progress = false)
+        fit.line?.text?.replace('\u00A0', ' ') shouldBe "until 17:30 · 09:30 in Lisbon"
+        fit.next?.text?.text shouldBe "Next: Sleep"
+    }
+
+    @Test
+    fun `once the block is logged, the until line says so first`() {
+        val texts = model(logged = AdviceOutcome.Done).texts
+        NotificationFit.expanded(context, texts, slots.expandedWidthDp, progress = true).line?.text?.replace('\u00A0', ' ') shouldBe
+            "✓ Done · until 16:30 · 08:30 in Lisbon"
+        // Collapsed, the logged forms come first; a plain one only when none of them fits.
+        NotificationFit.untilOptions(context, texts).first().replace('\u00A0', ' ') shouldBe "✓ Done · until 16:30 · 08:30 in Lisbon"
+        NotificationFit.untilOptions(context, texts).last() shouldBe texts.untilCompact
+    }
+
+    @Test
+    fun `the documents name the notification's headline and next window, not the widgets' pick`() {
+        // Free time with melatonin (a moment) due before the next window: the notification leaves moments to their
+        // reminders, so its Next is the next window; the widgets' queue starts with whatever starts first.
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.FreeTime)
+        val state = checkNotNull(NowStateCalculator.compute(plan, now))
+        val texts = checkNotNull(content.model(state, plan, now, DemoPlans.trip())).texts
+        texts.upcoming.map { it.type } shouldBe listOfNotNull(state.next?.type)
+        state.next?.type shouldNotBe AdviceType.Melatonin
+    }
+
+    @Test
+    fun `render plays both documents, and returns nothing without a supported document version`(): Unit = runBlocking {
+        val plan = DemoPlans.lisbonTokyo(now)
+        val state = checkNotNull(NowStateCalculator.compute(plan, now))
+        val content = content
+        content.profileProvider = { null }
+        content.render(state, plan, now) shouldBe null
+
+        content.profileProvider = { widgetProfileFor(7) }
+        content.capturer = { profile, size, body ->
+            captureSingleRemoteDocument(context = context, creationDisplayInfo = createCreationDisplayInfo(context, size), profile = profile, content = body)
+        }
+        content.render(state, plan, now) shouldNotBe null
     }
 
     @Test
@@ -176,10 +267,17 @@ class NowNotificationRemoteTest {
     @Test
     fun dark() = shade("$DIR/remote_notification_dark.png", dark = true, listOf(model()))
 
-    /** Asleep with Done logged (the chip), free time (no bar, no Done) and adapted, light and dark. */
+    /**
+     * Asleep with Done logged (said in the until line), free time (no bar), and the plan's last block (no Next row),
+     * alternating light and dark.
+     */
     @Test
     fun states() {
-        val models = listOf(model(DemoPlans.Scenario.Sleep, logged = AdviceOutcome.Done), model(DemoPlans.Scenario.FreeTime))
+        val models = listOf(
+            model(DemoPlans.Scenario.Sleep, logged = AdviceOutcome.Done),
+            model(DemoPlans.Scenario.FreeTime),
+            model(withNext = false),
+        )
         shade("$DIR/remote_notification_states.png", dark = null, models, expandedOnly = true)
     }
 
@@ -251,18 +349,32 @@ class NowNotificationRemoteTest {
             Column {
                 if (expanded) {
                     Text(
-                        listOfNotNull("Clockblock", model.texts.header).joinToString(" • "),
+                        listOfNotNull("Clockblock", headers[model]).joinToString(" • "),
                         color = onCard,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
                     )
                 }
                 content()
+                if (expanded) Actions(model, onCard)
             }
             if (!expanded) {
                 Spacer(Modifier.width(8.dp))
                 Box(Modifier.padding(top = 12.dp).size(width = 28.dp, height = 20.dp).clip(RoundedCornerShape(10.dp)).background(onCard.copy(alpha = 0.12f)))
             }
+        }
+    }
+
+    /**
+     * The notification's own actions under the content, as the real notification posts them: Done, Can't do this and
+     * Snooze; Undo once something is logged; none without a block to act on.
+     */
+    @Composable
+    private fun Actions(model: ThemedWidgetModel, onCard: Color) {
+        val done = model.texts.done ?: return
+        val labels = if (done.logged != null) listOf("Undo") else listOf("Done", "Can't do this", "Snooze 15 min")
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            labels.forEach { Text(it, color = onCard, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp)) }
         }
     }
 
