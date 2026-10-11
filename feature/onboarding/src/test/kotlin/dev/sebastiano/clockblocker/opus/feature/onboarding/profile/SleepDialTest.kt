@@ -11,7 +11,12 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
@@ -86,13 +92,13 @@ class SleepDialTest : ClockblockScreenshotTest() {
     fun pills_follow_the_window_and_say_what_a_tap_does() {
         var window by mutableStateOf(SleepWindow.Default)
         setContent { SleepDial(window, { window = it }) }
-        compose.onNodeWithTag(SleepDialTags.BedtimePill).assert(hasText("Bedtime")).assert(hasText("23:00"))
-        compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasText("Wake")).assert(hasText("07:00"))
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assert(hasText("Bedtime")).assert(hasTime("23:00"))
+        compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasText("Wake")).assert(hasTime("07:00"))
         compose.onNodeWithTag(SleepDialTags.BedtimePill).fetchSemanticsNode().config[SemanticsActions.OnClick].label shouldBe "set bedtime"
         compose.onNodeWithTag(SleepDialTags.WakePill).assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
         // A TalkBack nudge on a handle shows up in its pill.
         compose.onNodeWithTag(SleepDialTags.Wake).performSemanticsAction(SemanticsActions.SetProgress) { it(7 * 60f + 15f) }
-        compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasText("07:15"))
+        compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasTime("07:15"))
         compose.onNodeWithTag(SleepDialTags.Duration).assert(hasText("8 h 15 m"))
     }
 
@@ -147,7 +153,7 @@ class SleepDialTest : ClockblockScreenshotTest() {
         val line = hasText("24.2 hours", substring = true)
         compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput {
             val c = center
-            val r = 126f * minOf(width, height) / 320f
+            val r = 122f * minOf(width, height) / 320f
             fun at(minute: Float): Offset {
                 val a = Math.toRadians(DialGeometry.angleForMinute(minute).toDouble())
                 return Offset(c.x + r * cos(a).toFloat(), c.y + r * sin(a).toFloat())
@@ -169,4 +175,107 @@ class SleepDialTest : ClockblockScreenshotTest() {
         compose.onNode(line).assertDoesNotExist()
         compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput { up() }
     }
+
+    // --- Two schedules -----------------------------------------------------------------------------------------
+
+    private val work = SleepWindow(LocalTime.of(23, 0), LocalTime.of(7, 0))
+    private val daysOff = SleepWindow(LocalTime.of(0, 30), LocalTime.of(9, 15))
+
+    @Test
+    fun two_schedules_linked() = snap("sleep_dial_two_linked") {
+        SleepDial(work, null, {}, {}, Modifier.padding(16.dp))
+    }
+
+    @Test
+    fun two_schedules_work_days() = snap("sleep_dial_two_work_days") {
+        SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp))
+    }
+
+    @Test
+    fun two_schedules_days_off() {
+        setContent { SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp)) }
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
+        capture("sleep_dial_two_days_off")
+    }
+
+    @Test
+    fun two_schedules_dark() {
+        setContent(darkTheme = true) { SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp)) }
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
+        capture("sleep_dial_two_days_off_dark")
+    }
+
+    /** The owner's layout check: the toggle in the centre and the handles against the outer ring at font scale 1.3. */
+    @Test
+    @Config(qualifiers = "w360dp-h740dp-xxhdpi")
+    fun two_schedules_compact_large_font() = snap("sleep_dial_two_compact_fontscale_1_3", fontScale = 1.3f) {
+        SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp))
+    }
+
+    @Test
+    fun two_schedules_12_hour_large_font() = snap("sleep_dial_two_12h_fontscale_1_5", fontScale = 1.5f, is24Hour = false) {
+        SleepDial(SleepWindow(LocalTime.of(22, 55), LocalTime.of(10, 55)), daysOff, {}, {}, Modifier.padding(16.dp))
+    }
+
+    /** One frame of the swap with motion on: the rings mid-way through trading radius and thickness. */
+    @Test
+    fun two_schedules_swap_mid() {
+        setContent(reduceMotion = false) { SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp)) }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
+        compose.mainClock.advanceTimeBy(120)
+        compose.captureRoboImageInvalidated("src/test/screenshots/sleep_dial_two_swap_mid.png")
+    }
+
+    @Test
+    fun the_toggle_is_two_tabs_and_switches_what_the_pills_and_handles_edit() {
+        var editedWork by mutableStateOf(work)
+        var editedDaysOff by mutableStateOf<SleepWindow?>(daysOff)
+        setContent { SleepDial(editedWork, editedDaysOff, { editedWork = it }, { editedDaysOff = it }) }
+        compose.onNodeWithTag(SleepDialTags.WorkDays)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
+            .assertIsSelected()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsNotSelected().performClick()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsSelected()
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assert(hasTime("00:30"))
+        compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasTime("09:15"))
+        compose.onNodeWithTag(SleepDialTags.Wake).performSemanticsAction(SemanticsActions.SetProgress) { it(9 * 60f + 30f) }
+        editedDaysOff shouldBe SleepWindow(LocalTime.of(0, 30), LocalTime.of(9, 30))
+        editedWork shouldBe work
+    }
+
+    @Test
+    fun linked_days_off_show_work_days_until_a_handle_moves_them() {
+        var editedWork by mutableStateOf(work)
+        var editedDaysOff by mutableStateOf<SleepWindow?>(null)
+        setContent { SleepDial(editedWork, editedDaysOff, { editedWork = it }, { editedDaysOff = it }) }
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assert(hasTime("23:00"))
+        editedDaysOff shouldBe null
+        val actions = compose.onNodeWithTag(SleepDialTags.Bedtime).fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        compose.runOnIdle { actions.first { it.label == "15 minutes later" }.action() }
+        editedDaysOff shouldBe SleepWindow(LocalTime.of(23, 15), LocalTime.of(7, 0))
+        editedWork shouldBe work
+    }
+
+    @Test
+    fun tapping_the_outer_ring_switches_schedule() {
+        setContent { SleepDial(work, daysOff, {}, {}) }
+        compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput {
+            val r = 151f * minOf(width, height) / 320f
+            val a = Math.toRadians(DialGeometry.angleForMinute(15 * 60f).toDouble())
+            click(Offset(center.x + r * cos(a).toFloat(), center.y + r * sin(a).toFloat()))
+        }
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsSelected()
+    }
+
+    @Test
+    fun a_single_schedule_dial_has_no_toggle() {
+        setContent { SleepDial(SleepWindow.Default, {}) }
+        compose.onNodeWithTag(SleepDialTags.WorkDays).assertDoesNotExist()
+        compose.onNodeWithText("of sleep").assertIsDisplayed()
+    }
+
+    /** The pills' times are morphing text: they carry the time as their content description. */
+    private fun hasTime(time: String) = hasAnyDescendant(hasContentDescription(time)) or hasContentDescription(time)
 }

@@ -11,9 +11,9 @@ how to back it up.
 | Setting | What it does |
 |---|---|
 | Home time zone | Where home is. Search for a city or airport. When a trip leaves from a city on a different time, the trip editor lets you start its plan from home time instead ([Starting away from home](planning-a-trip.md#starting-away-from-home)). |
-| Usual sleep | Your normal bedtime and wake-up time, on the same dial as setup. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
+| Usual sleep | Your work-day bedtime and wake-up time. The editor is the same dial as setup, with your days off on its other schedule. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
 | Chronotype | Lark, owl or in between. |
-| Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#5-your-tools). |
+| Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#4-your-tools). |
 | How hard the plan pushes | Gentle, Balanced or Max. |
 
 ## Appearance and reminders

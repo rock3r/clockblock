@@ -236,6 +236,12 @@ class ReceiversAndPermissionsTest {
     }
 
     @Test
+    fun `exact alarms are requestable where the manifest asks for them`() {
+        // This module's manifest asks for SCHEDULE_EXACT_ALARM (the oss app flavour removes it for USE_EXACT_ALARM).
+        AndroidPlatformCapabilities(context).canRequestExactAlarms() shouldBe true
+    }
+
+    @Test
     fun `channels are named from resources and their ids are stable`() {
         NotificationChannels.ensureCreated(context)
 

@@ -10,4 +10,6 @@ dependencies {
     implementation(projects.core.notifications)
     // rememberLauncherForActivityResult (POST_NOTIFICATIONS) and predictive back between steps.
     implementation(libs.androidx.activity.compose)
+    // Morphing text for the sleep dial's bedtime and wake times (vendored, MIT).
+    implementation(projects.thirdParty.torph)
 }

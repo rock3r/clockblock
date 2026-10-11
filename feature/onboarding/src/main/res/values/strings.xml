@@ -34,7 +34,9 @@
 
     <!-- 3. Sleep. -->
     <string name="sleep_headline">When do you usually sleep?</string>
-    <string name="sleep_body">Drag the moon to bedtime and the sun to wake-up. Your usual nights, not your best ones.</string>
+    <string name="sleep_body">Drag the moon and the sun to your usual nights. Days off are the ones you wake up without an alarm.</string>
+    <string name="sleep_work_days">Work days</string>
+    <string name="sleep_days_off">Days off</string>
     <string name="sleep_bedtime">Bedtime</string>
     <string name="sleep_wake">Wake</string>
     <string name="sleep_pick_bedtime">set bedtime</string>
@@ -61,9 +63,14 @@
     <string name="sleep_egg_caption">your body\'s day</string>
     <string name="sleep_egg_line">Your body\'s day is about 24.2 hours (Czeisler 1999). That\'s why flying west feels easier.</string>
 
-    <!-- 4. Chronotype. -->
-    <string name="chronotype_headline">Lark, owl, or in between?</string>
-    <string name="chronotype_body">On a free day with nothing planned, when would you naturally get going?</string>
+    <!-- 3b. The chronotype worked out from the two usual nights (part of step 3 in the count). -->
+    <string name="chronotype_reveal_kicker">From your sleep</string>
+    <string name="chronotype_reveal_kicker_picked">Your pick</string>
+    <string name="chronotype_reveal_midpoint">Allowing for catch-up sleep, your nights off are centred on %1$s.</string>
+    <string name="chronotype_reveal_plan">Your plans start from your work-day sleep and this rhythm. You can change both in Settings.</string>
+    <string name="chronotype_reveal_other">Doesn\'t sound like me</string>
+    <string name="chronotype_sheet_title">Which sounds more like you?</string>
+    <string name="chronotype_suggested">What your sleep suggests</string>
     <string name="chronotype_definite_morning">Early bird</string>
     <string name="chronotype_definite_morning_description">Up with the sun, fading by 10\u00A0pm.</string>
     <string name="chronotype_moderate_morning">Morning person</string>
@@ -82,7 +89,7 @@
     <string name="chronotype_helper_cancel">Cancel</string>
     <string name="chronotype_helper_source">Based on the Munich ChronoType Questionnaire (Roenneberg 2004), corrected for weekend lie-ins.</string>
 
-    <!-- 5. Tools. -->
+    <!-- 4. Tools. -->
     <string name="tools_headline">Your tools</string>
     <string name="tools_body">Pick what you\'re happy to use. You can change any of this later in Settings.</string>
     <string name="tool_caffeine">Caffeine</string>
@@ -110,17 +117,21 @@
     <string name="effort_balanced_description">The research-backed pace. A good default for most trips.</string>
     <string name="effort_max_description">The Balanced pace. For eastward shifts of 8 to 12 hours, it tries both directions on the model and switches if the other one is more than a day faster.</string>
 
-    <!-- 6. Reminders. -->
+    <!-- 5. Reminders. -->
     <string name="reminders_headline">Reminders that actually arrive</string>
     <string name="reminders_body">One quiet nudge before each change, timed to the minute. Never while you\'re meant to be asleep, except to wake you.</string>
-    <string name="reminders_notifications">Notifications</string>
-    <string name="reminders_notifications_description">So the plan can tell you when to see light, avoid it or sleep.</string>
+    <string name="reminders_preview_description">A sample reminder: See bright light, with how long is left and what comes next.</string>
+    <string name="reminders_preview_caption">A sample. Yours follow your own plan.</string>
+    <!-- The sample's body clock offset and its other zone's city (the sample trip is Lisbon to Tokyo). -->
+    <string name="reminders_preview_body_offset">7\u00A0h</string>
+    <string name="reminders_preview_other_city">Lisbon</string>
+    <string name="reminders_allow_notifications">Allow notifications</string>
+    <string name="reminders_notifications_allowed">Notifications allowed</string>
+    <string name="reminders_notifications_off">Notifications are off. You can turn them on in Android\'s settings.</string>
     <string name="reminders_exact">Exact timing</string>
     <string name="reminders_exact_description">Without it, Android may deliver reminders up to 10\u00A0minutes late.</string>
-    <string name="reminders_allow">Allow</string>
     <string name="reminders_open_settings">Open settings</string>
     <string name="reminders_granted">Allowed</string>
-    <string name="reminders_allow_finish">Allow and finish</string>
     <string name="reminders_maybe_later">Maybe later</string>
     <string name="reminders_later_note">You can turn reminders on any time in Settings.</string>
     <string name="reminders_art_description">A suitcase with a clock on its side</string>

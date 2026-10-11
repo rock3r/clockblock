@@ -64,6 +64,7 @@ private val Sections: List<Pair<Int, List<Credit>>> = listOf(
         Credit(R.string.licenses_androidx, R.string.licenses_androidx_detail, R.string.license_apache2, "https://developer.android.com/jetpack/androidx"),
         Credit(R.string.licenses_kotlin, R.string.licenses_kotlin_detail, R.string.license_apache2, "https://kotlinlang.org"),
         Credit(R.string.licenses_metro, R.string.licenses_metro_detail, R.string.license_apache2, "https://github.com/ZacSweers/metro"),
+        Credit(R.string.licenses_torph, R.string.licenses_torph_detail, R.string.license_mit, "https://github.com/c5inco/torph-compose"),
     ),
 )
 

@@ -45,6 +45,7 @@ data class SleepWindow(
 @Serializable
 data class UserProfile(
     val homeZoneId: String,
+    /** Usual sleep on work days: the planner's habitual sleep. */
     val sleep: SleepWindow = SleepWindow.Default,
     val chronotype: Chronotype = Chronotype.Intermediate,
     val useMelatonin: Boolean = false,
@@ -53,4 +54,13 @@ data class UserProfile(
     /** Start shifting the body clock before departure (pre-flight adjustment days). */
     val adjustBeforeDeparture: Boolean = true,
     val intensity: Intensity = Intensity.Balanced,
-)
+    /**
+     * Usual sleep on days off (the nights you wake up without an alarm), or `null` while it's linked to [sleep]
+     * (the same nights). It only feeds the chronotype estimate (MCTQ); plans start from [sleep]. Profiles saved
+     * before this field existed load with it `null`.
+     */
+    val daysOffSleep: SleepWindow? = null,
+) {
+    /** Days-off sleep, falling back to work-day sleep while the two are linked. */
+    val daysOff: SleepWindow get() = daysOffSleep ?: sleep
+}

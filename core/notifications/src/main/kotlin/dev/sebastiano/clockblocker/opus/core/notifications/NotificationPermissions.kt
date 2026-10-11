@@ -21,6 +21,11 @@ data class NotificationPermissionState(
     val promotedAllowed: Boolean,
     /** Exempt from battery optimisation (helps on aggressive OEM builds). Optional. */
     val batteryOptimizationIgnored: Boolean,
+    /**
+     * The user can grant exact alarms in system settings: this build asks for `SCHEDULE_EXACT_ALARM` (builds outside
+     * Google Play get `USE_EXACT_ALARM` at install instead) and the device has the "Alarms & reminders" screen.
+     */
+    val exactAlarmsRequestable: Boolean = true,
 ) {
     /** True when reminders are fully dependable; the UI shows a one-tap fix card otherwise (design §3.4). */
     val isReliable: Boolean get() = notificationsGranted && exactAlarmsAllowed
@@ -74,6 +79,7 @@ class AndroidNotificationPermissions(
         exactAlarmsAllowed = capabilities.canScheduleExactAlarms(),
         promotedAllowed = capabilities.canPostPromotedNotifications(),
         batteryOptimizationIgnored = capabilities.isIgnoringBatteryOptimizations(),
+        exactAlarmsRequestable = capabilities.canRequestExactAlarms(),
     )
 
     override val runtimePermission: String = Manifest.permission.POST_NOTIFICATIONS

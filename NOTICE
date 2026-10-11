@@ -59,6 +59,11 @@ Prime Meridian, from m3e-vibes (https://github.com/c5inco/m3e-vibes/tree/main/ap
   The trip editor's ticket silhouette (core/designsystem/.../component/TicketShape.kt) is adapted from it; the
   file keeps the original attribution in its header.
 
+Torph for Jetpack Compose (third-party/torph, vendored source)
+  Copyright (c) 2026 Chris Sinco (https://github.com/c5inco/torph-compose)
+  An unofficial port of torph, Copyright (c) 2025 Lochie Axon (https://github.com/lochie/torph).
+  Both licensed under the MIT License: third-party/torph/LICENSE and third-party/torph/NOTICE.
+
 -------------------------------------------------------------------------------------------------------------
 Process credits
 -------------------------------------------------------------------------------------------------------------

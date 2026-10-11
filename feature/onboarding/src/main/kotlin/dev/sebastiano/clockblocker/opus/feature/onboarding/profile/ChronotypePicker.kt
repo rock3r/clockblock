@@ -75,6 +75,8 @@ object ChronotypeTags {
 /**
  * Five selectable chronotype cards, Early bird → Night owl, each with a little sky showing when that person's day
  * naturally peaks. Radio-group semantics; selection changes colour only (a 100+/day-safe state change).
+ *
+ * @param suggested the chronotype the user's night suggests, labelled as such (onboarding's "Doesn't sound like me").
  */
 @Composable
 fun ChronotypePicker(
@@ -82,12 +84,14 @@ fun ChronotypePicker(
     onSelect: (Chronotype) -> Unit,
     modifier: Modifier = Modifier,
     onNotSure: (() -> Unit)? = null,
+    suggested: Chronotype? = null,
 ) {
     Column(modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
         Chronotype.entries.forEachIndexed { index, chronotype ->
             ChronotypeCard(
                 chronotype = chronotype,
                 selected = chronotype == selected,
+                suggested = chronotype == suggested,
                 onClick = { onSelect(chronotype) },
                 shape = segmentedShape(index, Chronotype.entries.size),
             )
@@ -102,7 +106,13 @@ fun ChronotypePicker(
 }
 
 @Composable
-private fun ChronotypeCard(chronotype: Chronotype, selected: Boolean, onClick: () -> Unit, shape: androidx.compose.ui.graphics.Shape) {
+private fun ChronotypeCard(
+    chronotype: Chronotype,
+    selected: Boolean,
+    suggested: Boolean,
+    onClick: () -> Unit,
+    shape: androidx.compose.ui.graphics.Shape,
+) {
     val colors = MaterialTheme.colorScheme
     val motion = ClockblockTheme.motion
     val container by animateColorAsState(if (selected) colors.secondaryContainer else colors.surfaceContainer, motion.colour(), label = "chronoContainer")
@@ -125,6 +135,14 @@ private fun ChronotypeCard(chronotype: Chronotype, selected: Boolean, onClick: (
             Column(Modifier.weight(1f)) {
                 Text(chronotype.label(), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
                 Text(chronotype.description(), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                if (suggested) {
+                    Text(
+                        stringResource(R.string.chronotype_suggested),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.primary,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
             Spacer(Modifier.width(12.dp))
             Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {

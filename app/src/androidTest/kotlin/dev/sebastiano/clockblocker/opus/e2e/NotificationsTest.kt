@@ -12,7 +12,9 @@ import dev.sebastiano.clockblocker.opus.core.notifications.NotificationIds
 import dev.sebastiano.clockblocker.opus.core.notifications.NowNotificationSurface
 import dev.sebastiano.clockblocker.opus.core.notifications.NowRendering
 import dev.sebastiano.clockblocker.opus.core.notifications.R as NotificationsR
+import dev.sebastiano.clockblocker.opus.feature.onboarding.NotificationPreviewTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.RemindersTags
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanTags
 import dev.sebastiano.clockblocker.opus.feature.settings.SettingsTags
 import dev.sebastiano.clockblocker.opus.shell.ShellTestTags
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
@@ -40,12 +43,16 @@ import java.util.regex.Pattern
 class NotificationsTest : ClockblockE2eTest() {
 
     @Test
-    fun a_firstRunAllowAndFinishGrantsNotificationsThroughSystemDialog() {
+    fun a_firstRunAllowFromTheCardGrantsNotificationsThroughSystemDialog() {
         assumeFalse("POST_NOTIFICATIONS is already granted (not a fresh install): the system dialog can't be shown", notificationsGranted)
         launch()
         val choices = walkOnboardingToReminders()
 
-        awaitTag(OnboardingTags.Finish).performClick()
+        // The step's only Allow is on the card, under the notification preview; the bottom bar just has Maybe later.
+        awaitTag(NotificationPreviewTags.Card).assertExists()
+        awaitTag(OnboardingTags.MaybeLater).assertIsDisplayed()
+        assertFalse("no Finish before notifications are handled", exists(OnboardingTags.Finish))
+        awaitTag(RemindersTags.AllowNotifications).scrollToIfScrollable().performClick()
         val allowButton = By.res(Pattern.compile(".*:id/permission_allow_button"))
         assertNotNull("system notification permission dialog", device.wait(Until.findObject(allowButton), LongTimeoutMillis))
         // On a cold CI emulator a tap that lands while the dialog is still settling can be dropped, leaving the
@@ -61,6 +68,12 @@ class NotificationsTest : ClockblockE2eTest() {
             "our app back in front (foreground: ${device.currentPackageName})",
             device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), LongTimeoutMillis),
         )
+
+        // Back on the step: notifications allowed, and Exact timing offered only where it can still be granted.
+        awaitTag(RemindersTags.NotificationsAllowed, LongTimeoutMillis)
+        val exactOffered = exists(RemindersTags.ExactAlarmRow)
+        assertEquals("exact timing offered exactly when it isn't allowed yet", !exactAlarmsAllowed, exactOffered)
+        awaitTag(OnboardingTags.Finish).performClick()
 
         awaitTag("route_trips", LongTimeoutMillis).assertIsDisplayed()
         assertTrue(notificationsGranted)

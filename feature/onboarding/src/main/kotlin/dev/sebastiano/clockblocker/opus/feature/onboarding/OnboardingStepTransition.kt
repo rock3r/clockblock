@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
  * - **Next / Back buttons**: shared axis X, a 30 dp slide mirrored in RTL, on `navigationSpatial()` (Standard,
  *   no bounce, snaps under reduced motion) with the sequenced `navigationFadeOut()` → `navigationFadeIn()`.
  *   A step leaves toward the edge the next one comes from, and Back plays exactly the reverse.
+ * - **Sleep → chronotype reveal**: a fade-through with the reveal growing in on the container spring (see [reveal]).
  * - **Predictive back**: the gesture *seeks* the transition to the previous step: the current step shrinks to
  *   90 % and drifts back toward the forward edge it entered from (whichever edge the swipe started on) while
  *   fading on `colour()`, revealing the previous step underneath. Committing continues from where the finger
@@ -64,7 +66,23 @@ internal class OnboardingStepTransition(
     /** The [ContentTransform] for a step change from [from] to [to]. */
     fun transitionFor(from: OnboardingStep, to: OnboardingStep): ContentTransform {
         val forward = to.ordinal > from.ordinal
-        return if (!forward && gestureBack) predictiveBack() else sharedAxis(if (forward) forwardSign else -forwardSign)
+        return when {
+            !forward && gestureBack -> predictiveBack()
+            from == OnboardingStep.Sleep && to == OnboardingStep.Chronotype -> reveal()
+            else -> sharedAxis(if (forward) forwardSign else -forwardSign)
+        }
+    }
+
+    /**
+     * Sleep → the chronotype it gives: a rare moment, so the reveal may use the Expressive container spring. The dial
+     * fades away (`navigationFadeOut()`) while the reveal fades in and grows from 92 % (`navigationFadeIn()`,
+     * `containerSpatial()`); the reveal's own art and words then play in sequence. Reduce motion: the scale snaps and
+     * only the fades remain.
+     */
+    private fun reveal(): ContentTransform {
+        val enter = fadeIn(motion.navigationFadeIn()) + scaleIn(motion.containerSpatial(), initialScale = RevealScale)
+        val exit = fadeOut(motion.navigationFadeOut())
+        return ContentTransform(enter, exit, sizeTransform = SizeTransform(clip = false))
     }
 
     private fun sharedAxis(sign: Int): ContentTransform {
@@ -109,6 +127,7 @@ internal class OnboardingStepTransition(
 
     private companion object {
         const val PredictiveBackScale = 0.9f
+        const val RevealScale = 0.92f
     }
 }
 
