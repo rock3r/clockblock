@@ -296,7 +296,6 @@ private fun SleepDialImpl(
 
     val sleepRole = advice[AdviceType.Sleep]
     val sunColor = advice[AdviceType.SeeBrightLight].color
-    val sunGlyph = advice[AdviceType.SeeBrightLight].onColor
     val sunPath = remember { MaterialShapes.Sunny.toPath().asComposePath().normalised() }
 
     // A held handle grows a little (a rare setup surface, so the container spring may bounce); snaps when reduced.
@@ -429,7 +428,7 @@ private fun SleepDialImpl(
                 painter.face(colors.surfaceContainerLow, colors.outlineVariant)
                 painter.ticks(colors.outline, colors.onSurfaceVariant, measurer, textStyles.timeLabel, formatter.is24Hour, density.fontScale)
                 val ringColors = RingColors(colors.surfaceContainerHigh, sleepRole.color, sleepRole.onColor)
-                val handles = HandleColors(colors.surfaceContainerLowest, colors.primary, colors.onPrimary, sunColor, sunGlyph, colors.primary, art.shadow)
+                val handles = HandleColors(colors.surfaceContainerLowest, colors.primary, colors.onPrimary, sunColor, colors.primary, art.shadow)
                 fun picture(p: Float, workWindow: SleepWindow, daysOffWindow: SleepWindow, editedDaysOff: Boolean, live: Boolean, alpha: Float) {
                     painter.schedules(
                         swap = p,
@@ -677,35 +676,47 @@ internal fun formatDuration(resources: Resources, minutes: Int): String =
 private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val motion = ClockblockTheme.motion
-    Row(modifier.clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup()) {
-        SleepSchedule.entries.forEach { option ->
-            val isSelected = option == selected
-            val fill by animateColorAsState(if (isSelected) colors.secondaryContainer else Color.Transparent, motion.colour(), label = "scheduleTab")
-            val ink by animateColorAsState(if (isSelected) colors.onSecondaryContainer else colors.onSurfaceVariant, motion.colour(), label = "scheduleTabInk")
-            Box(
-                Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(option) })
-                    .testTag(if (option == SleepSchedule.WorkDays) SleepDialTags.WorkDays else SleepDialTags.DaysOff)
-                    .padding(4.dp)
-                    .clip(CircleShape)
-                    .drawBehind { drawRect(fill) },
-                contentAlignment = Alignment.Center,
-            ) {
-                val label = MaterialTheme.typography.labelLarge
-                BasicText(
-                    text = stringResource(if (option == SleepSchedule.WorkDays) R.string.sleep_work_days else R.string.sleep_days_off),
-                    style = label.copy(textAlign = TextAlign.Center),
-                    color = { ink },
-                    maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = label.fontSize),
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
-                )
+    val measurer = rememberTextMeasurer(cacheSize = 4)
+    val density = LocalDensity.current
+    val labels = SleepSchedule.entries.associateWith {
+        stringResource(if (it == SleepSchedule.WorkDays) R.string.sleep_work_days else R.string.sleep_days_off)
+    }
+    BoxWithConstraints(modifier) {
+        // Both labels share one size, fitted to the wider of the two in half the toggle (minus the tab's paddings).
+        val labelStyle = MaterialTheme.typography.labelLarge
+        val segmentPx = with(density) { (maxWidth / 2 - ToggleInset * 2 - ToggleLabelPadding * 2).roundToPx() }
+        val style = remember(measurer, labelStyle, labels, segmentPx) { measurer.fitted(labelStyle, labels.values.toList(), segmentPx, 8.sp) }
+        Row(Modifier.fillMaxWidth().clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup()) {
+            SleepSchedule.entries.forEach { option ->
+                val isSelected = option == selected
+                val fill by animateColorAsState(if (isSelected) colors.primary else Color.Transparent, motion.colour(), label = "scheduleTab")
+                val ink by animateColorAsState(if (isSelected) colors.onPrimary else colors.onSurfaceVariant, motion.colour(), label = "scheduleTabInk")
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(option) })
+                        .testTag(if (option == SleepSchedule.WorkDays) SleepDialTags.WorkDays else SleepDialTags.DaysOff)
+                        .padding(ToggleInset)
+                        .clip(CircleShape)
+                        .drawBehind { drawRect(fill) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText(
+                        text = labels.getValue(option),
+                        style = style.copy(textAlign = TextAlign.Center),
+                        color = { ink },
+                        maxLines = 1,
+                        modifier = Modifier.padding(horizontal = ToggleLabelPadding, vertical = 8.dp),
+                    )
+                }
             }
         }
     }
 }
+
+private val ToggleInset = 4.dp
+private val ToggleLabelPadding = 6.dp
 
 /**
  * A bedtime or wake readout under the dial: glyph and label over the time, as one button that opens the time
@@ -897,7 +908,7 @@ private class SleepDialPainter(val scope: DrawScope, val u: Float) {
         val wake = bed + SleepDialMath.durationMinutes(edited) + extraWakeMinutes
         val k = (editedRing.width / TrackWidth).coerceIn(0f, 1.2f)
         handle(bed, editedRing.radius, Handle.Moon, bedGrow * k, focused == SleepHandle.Bedtime, handles.ring, handles.moon, handles.onMoon, handles, sunPath, alpha)
-        handle(wake, editedRing.radius, Handle.Sun, wakeGrow * k, focused == SleepHandle.Wake, handles.ring, handles.sun, handles.onSun, handles, sunPath, alpha)
+        handle(wake, editedRing.radius, Handle.Sun, wakeGrow * k, focused == SleepHandle.Wake, handles.ring, handles.sun, handles.ring, handles, sunPath, alpha)
     }
 
     /** One schedule: its track, the sleep arc and, while the ring is thick enough, the arc's star dots. */
@@ -1011,7 +1022,6 @@ private class HandleColors(
     val moon: Color,
     val onMoon: Color,
     val sun: Color,
-    val onSun: Color,
     val focus: Color,
     val shadow: Color,
 )

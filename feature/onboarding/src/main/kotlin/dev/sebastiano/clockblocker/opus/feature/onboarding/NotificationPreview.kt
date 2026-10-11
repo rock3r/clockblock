@@ -202,7 +202,7 @@ private fun Glyph(icon: Int, container: Color, onContainer: Color, sizeDp: Int) 
 /** The notification's own action buttons, as the shade draws them under the content. */
 @Composable
 private fun Actions() {
-    FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         listOf(NotificationsR.string.action_done, NotificationsR.string.action_cant_do, NotificationsR.string.action_snooze).forEach {
             Text(stringResource(it), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(vertical = 6.dp))
         }

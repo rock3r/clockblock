@@ -132,7 +132,7 @@ fun ChronotypeReveal(
     val artBlock: @Composable (Dp) -> Unit = { size ->
         ChronotypeRevealArt(chronotype, entrance = { art.value }, modifier = Modifier.size(size))
     }
-    val words: @Composable ColumnScope.(TextAlign, Alignment.Horizontal) -> Unit = { align, horizontal ->
+    val words: @Composable ColumnScope.(TextAlign, Alignment.Horizontal, Boolean) -> Unit = { align, horizontal, compact ->
         Column(
             Modifier.fillMaxWidth().graphicsLayer {
                 alpha = wordsAlpha.value
@@ -140,7 +140,7 @@ fun ChronotypeReveal(
             },
             horizontalAlignment = horizontal,
         ) {
-            RevealWords(chronotype, picked, midSleep, align)
+            RevealWords(chronotype, picked, midSleep, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
                 onClick = { showSheet = true },
@@ -150,11 +150,13 @@ fun ChronotypeReveal(
     }
     if (wide) BoxWithConstraints(modifier.fillMaxSize()) {
         val artSize = minOf(260.dp, maxHeight * 0.6f)
+        // Phones in landscape: a smaller name, so the link stays in view without scrolling.
+        val short = maxHeight < ShortPaneHeight
         Row(Modifier.fillMaxSize().padding(horizontal = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(0.42f), contentAlignment = Alignment.Center) { artBlock(artSize) }
             Spacer(Modifier.width(40.dp))
-            Column(Modifier.weight(0.58f).verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
-                words(TextAlign.Start, Alignment.Start)
+            Column(Modifier.weight(0.58f).verticalScroll(rememberScrollState()).padding(vertical = if (short) 8.dp else 24.dp)) {
+                words(TextAlign.Start, Alignment.Start, short)
             }
         }
     } else {
@@ -164,7 +166,7 @@ fun ChronotypeReveal(
         ) {
             artBlock(RevealArtSize)
             Spacer(Modifier.size(28.dp))
-            words(TextAlign.Center, Alignment.CenterHorizontally)
+            words(TextAlign.Center, Alignment.CenterHorizontally, false)
         }
     }
 
@@ -194,7 +196,7 @@ fun ChronotypeReveal(
 }
 
 @Composable
-private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, align: TextAlign) {
+private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, align: TextAlign, compact: Boolean) {
     val colors = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     Text(
@@ -204,17 +206,17 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
         textAlign = align,
         modifier = Modifier.fillMaxWidth(),
     )
-    Spacer(Modifier.size(8.dp))
+    Spacer(Modifier.size(if (compact) 4.dp else 8.dp))
     Text(
         chronotype.label(),
-        style = ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
+        style = if (compact) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
         color = colors.onSurface,
         textAlign = align,
         modifier = Modifier.fillMaxWidth().semantics { heading() }.testTag(ChronotypeRevealTags.Name),
     )
-    Spacer(Modifier.size(12.dp))
+    Spacer(Modifier.size(if (compact) 4.dp else 12.dp))
     Text(chronotype.description(), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, textAlign = align, modifier = Modifier.fillMaxWidth())
-    Spacer(Modifier.size(16.dp))
+    Spacer(Modifier.size(if (compact) 8.dp else 16.dp))
     val small: TextStyle = MaterialTheme.typography.bodyMedium
     Text(
         stringResource(R.string.chronotype_reveal_midpoint, formatter.format(midSleep)),
@@ -332,6 +334,7 @@ private val Stars = listOf(
 private val StarColor = Color(0xFFFFF4D6)
 private val MoonColor = Color(0xFFF3EBD3)
 private val RevealArtSize = 200.dp
+private val ShortPaneHeight = 480.dp
 private val RevealCorner = 32.dp
 private val WordsRise = 24.dp
 private const val WordsStartAt = 0.7f
