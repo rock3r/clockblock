@@ -1,5 +1,9 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.geometry.Offset
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
@@ -91,6 +95,41 @@ class PlanContentTest {
 
     private val midAdaptation = ready(PlanFixtures.MidAdaptation)
     private val activeId get() = midAdaptation.moment.active!!.id
+
+    @Test
+    fun `Show the world swaps the dial for the globe, says where you are, and Back to the dial returns`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.onNodeWithTag(PlanTags.World).assertExists()
+        compose.onNodeWithTag(PlanTags.WorldCaption).assertTextContains("It's", substring = true)
+        compose.onNodeWithTag(PlanTags.World).performCustomAccessibilityActionWithLabel("Back to the dial")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.Dial).assertExists()
+    }
+
+    @Test
+    fun `pinching out on the dial shows the world, pinching in on it returns`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.Dial).performTouchInput {
+            pinch(center - Offset(20f, 0f), center - Offset(150f, 0f), center + Offset(20f, 0f), center + Offset(150f, 0f))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertExists()
+        compose.onNodeWithTag(PlanTags.World).performTouchInput {
+            pinch(center - Offset(150f, 0f), center - Offset(20f, 0f), center + Offset(150f, 0f), center + Offset(20f, 0f))
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertDoesNotExist()
+    }
+
+    @Test
+    fun `one finger on the dial still scrubs, and never opens the world`() {
+        show(midAdaptation)
+        compose.onNodeWithTag(PlanTags.Dial).performTouchInput { swipe(centerRight, bottomCenter) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertDoesNotExist()
+    }
 
     @Test
     fun `Done logs the active block`() {

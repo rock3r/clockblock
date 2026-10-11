@@ -180,8 +180,9 @@ refresh the bundled airport dataset.
   [mwgg/Airports](https://github.com/mwgg/Airports) (MIT).
 - Time zones: the [IANA tz database](https://www.iana.org/time-zones) (public domain), through `java.time`.
 - Motion review process: [rock3r/android-ux-skills](https://github.com/rock3r/android-ux-skills) (Apache-2.0).
-- The trip editor's ticket shape is adapted from Chris Sinco's
+- The trip editor's ticket shape and the route globe are adapted from Chris Sinco's
   [Prime Meridian](https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian) (Apache-2.0).
+- Globe land: [Natural Earth](https://www.naturalearthdata.com) 1:110m (public domain).
 
 Full attributions are in [NOTICE](NOTICE) and in the app under About → Licences.
 

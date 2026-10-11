@@ -93,11 +93,13 @@ object RouteGlobeDefaults {
     val SmallSize: Dp = 180.dp
 
     /**
-     * Loads the land dots now, on the calling thread. The globe otherwise loads them off the main thread on first
-     * use (drawing the sea meanwhile); screenshot tests call this so the capture has the land.
+     * Loads the land dots and builds the sea grid now, on the calling thread. The globe otherwise loads the land off
+     * the main thread on first use (drawing the sea meanwhile). Screens that may show a globe call this off the main
+     * thread ahead of time (so its first frame does no setup); screenshot tests call it so the capture has the land.
      */
     fun preload(context: Context) {
         LandDots.load(context)
+        SeaGrid.size
     }
 }
 
@@ -113,8 +115,9 @@ object RouteGlobeDefaults {
  *   itinerary still reads as one line.
  * - [showLabels]: airport codes beside the visible stops, on a scrim (the full-size view; too small in a card).
  * - [marker]: a dot for where the traveller is.
- * - Taps: on an arc → [onLegClick] with its index; anywhere else → [onClick]. TalkBack gets [contentDescription]
- *   (the trip in words), [onClick] as the click action and one custom action per leg ([legActionLabel]).
+ * - Taps: on an arc → [onLegTap] with its index (by default [onLegClick]); anywhere else → [onClick]. TalkBack gets
+ *   [contentDescription] (the trip in words), [onClick] as the click action and one custom action per leg
+ *   ([legActionLabel], calling [onLegClick]).
  *
  * Drawing happens entirely in the draw phase from precomputed unit vectors, into reused buffers, paths and paints:
  * a turning globe doesn't recompose or allocate per frame.
@@ -129,6 +132,7 @@ fun RouteGlobe(
     showLabels: Boolean = false,
     marker: GeoPoint? = null,
     onLegClick: ((Int) -> Unit)? = null,
+    onLegTap: ((Int) -> Unit)? = onLegClick,
     onClick: (() -> Unit)? = null,
     onClickLabel: String? = null,
     legActionLabel: (Int) -> String = { "" },
@@ -168,7 +172,7 @@ fun RouteGlobe(
     val labelStyle = TextStyle(color = GlobePalette.Label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     val labels: List<TextLayoutResult>? = if (showLabels) remember(stops, measurer) { stops.map { measurer.measure(it.label, labelStyle) } } else null
 
-    val currentOnLegClick by rememberUpdatedState(onLegClick)
+    val currentOnLegTap by rememberUpdatedState(onLegTap)
     val currentOnClick by rememberUpdatedState(onClick)
     val currentSamples by rememberUpdatedState(samples)
 
@@ -190,8 +194,8 @@ fun RouteGlobe(
                     val x = (tap.x - size.width / 2f) / radius
                     val y = -(tap.y - size.height / 2f) / radius
                     val view = GlobeView(latitude.value.toDouble(), longitude.value.toDouble())
-                    val hit = currentOnLegClick?.let { GlobeGeo.hitLeg(x.toDouble(), y.toDouble(), currentSamples, view, (TapTolerance.toPx() / radius).toDouble()) }
-                    if (hit != null) currentOnLegClick?.invoke(hit) else currentOnClick?.invoke()
+                    val hit = currentOnLegTap?.let { GlobeGeo.hitLeg(x.toDouble(), y.toDouble(), currentSamples, view, (TapTolerance.toPx() / radius).toDouble()) }
+                    if (hit != null) currentOnLegTap?.invoke(hit) else currentOnClick?.invoke()
                 }
             },
     ) {

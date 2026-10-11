@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -321,6 +322,16 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         settle()
         tag(TripsTestTags.editorLeg(1)).assertIsSelected()
         tag(TripsTestTags.editorLeg(0)).assertIsNotSelected()
+    }
+
+    @Test
+    fun tappingTheMiddleOfTheGlobeOpensItEvenOnTheActiveFlight() {
+        // The globe frames the active flight, so its arc runs through the middle, where people tap to open it.
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        tag(TripsTestTags.EditorGlobe).performScrollTo().performTouchInput { click(center) }
+        settle()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeSheet).assertExists()
+        tag(TripsTestTags.editorLeg(0)).assertIsSelected()
     }
 
     @Test

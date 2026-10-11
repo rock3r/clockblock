@@ -17,6 +17,8 @@ object PlanTags {
     const val NightSafeChip = "plan_night_safe"
     const val Moon = "plan_moon"
     const val Dial = "plan_dial"
+    const val World = "plan_world"
+    const val WorldCaption = "plan_world_caption"
     const val NowCard = "plan_now_card"
     const val NowWhy = "plan_now_why"
     const val Done = "plan_done"

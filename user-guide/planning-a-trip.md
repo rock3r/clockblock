@@ -61,6 +61,19 @@ When the flights are complete, **Your shift** under the flights shows what the p
 time changes and in which direction ("+9 h east"), and about how many days it takes to adapt with the plan compared
 with no plan ("About 4 days with the plan, 7 without"). It updates as you edit.
 
+<img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-size globe in a sheet over the editor, headed Your route, London to Sydney via Singapore, 10 hours east. The globe labels LHR and SIN beside their dots on the bright arc; the arc to Sydney fades off the right edge. Under it: Tap a flight to go to its ticket." width="280" />
+
+Once a flight has both airports, **Your shift** also shows a small globe with your route. Each flight is an arc
+along the shortest path over the Earth, and each airport is a dot. The shaded half of the globe is where it's night
+right now. With more than one flight, the globe turns to the flight you're editing and draws it brighter than the
+others. Tap one of the other flights on the globe to scroll to its ticket. When a route wraps round the world, the
+flights on the far side show through the globe as faint dashes.
+
+Tap anywhere else on the globe to see it full size. The full-size globe labels each airport with its code.
+Tap a flight there to go to its ticket, or swipe the sheet down (or go back) to close it. With TalkBack, the globe
+reads out the trip, for example "Lisbon to Tokyo via Doha, 9 hours east". With more than one flight it also offers
+an action per flight, such as **Go to flight 2: Doha to Tokyo**.
+
 If you stay at a stop for three days or more, the plan treats that stop as a destination of its own and adapts
 you to it before the next flight.
 

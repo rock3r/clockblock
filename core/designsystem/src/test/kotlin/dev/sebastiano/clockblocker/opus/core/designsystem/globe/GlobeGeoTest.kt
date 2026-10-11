@@ -179,3 +179,14 @@ class GlobeGeoTest {
 
     // endregion
 }
+
+class PinchTest {
+    @Test
+    fun `fingers spreading by a third are a pinch out, closing by a quarter a pinch in, anything less nothing`() {
+        pinchOf(100f, 131f) shouldBe Pinch.Out
+        pinchOf(100f, 76f) shouldBe Pinch.In
+        pinchOf(100f, 110f).shouldBeNull()
+        pinchOf(100f, 90f).shouldBeNull()
+        pinchOf(0f, 50f).shouldBeNull()
+    }
+}

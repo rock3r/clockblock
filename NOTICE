@@ -56,8 +56,13 @@ Code
 
 Prime Meridian, from m3e-vibes (https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian)
   Copyright 2026 Chris Sinco. Licensed under the Apache License, Version 2.0.
-  The trip editor's ticket silhouette (core/designsystem/.../component/TicketShape.kt) is adapted from it; the
-  file keeps the original attribution in its header.
+  The trip editor's ticket silhouette (core/designsystem/.../component/TicketShape.kt) and the route globe
+  (core/designsystem/.../globe/GlobeGeo.kt and RouteGlobe.kt, adapted from its Geo.kt and HalftoneGlobe.kt) are
+  adapted from it; those files keep the original attribution in their headers. The globe's land dot grid
+  (core/designsystem/src/main/assets/land_dots.bin) also comes from it.
+
+Natural Earth (https://www.naturalearthdata.com)
+  The 1:110m land outlines behind the globe's land dot grid. Public domain. Made with Natural Earth.
 
 -------------------------------------------------------------------------------------------------------------
 Process credits

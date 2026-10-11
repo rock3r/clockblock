@@ -174,6 +174,27 @@
     <string name="plan_toolbar_label">Plan tools</string>
 
     <!-- Why sheet -->
+    <!-- The world behind the dial (pinch out). -->
+    <string name="plan_world_action">Show the world</string>
+    <string name="plan_world_back">Back to the dial</string>
+    <string name="plan_world_dark">It\'s %1$s and dark in %2$s</string>
+    <string name="plan_world_light">It\'s %1$s and light in %2$s</string>
+    <string name="plan_world_in_air_dark">In the air to %2$s, where it\'s %1$s and dark</string>
+    <string name="plan_world_in_air_light">In the air to %2$s, where it\'s %1$s and light</string>
+    <string name="plan_world_route">%1$s to %2$s</string>
+    <string name="plan_world_route_via">%1$s to %2$s via %3$s</string>
+    <plurals name="plan_world_hours_east">
+        <item quantity="one">%1$d hour east</item>
+        <item quantity="other">%1$d hours east</item>
+    </plurals>
+    <plurals name="plan_world_hours_west">
+        <item quantity="one">%1$d hour west</item>
+        <item quantity="other">%1$d hours west</item>
+    </plurals>
+    <string name="plan_world_hours_east_fraction">%1$.1f hours east</string>
+    <string name="plan_world_hours_west_fraction">%1$.1f hours west</string>
+    <string name="plan_why_globe_hint">Tip: pinch out on the dial to see your route on the globe.</string>
+
     <string name="plan_why_heading">Why</string>
     <string name="plan_why_how">How</string>
     <string name="plan_why_skip">If you skip it</string>

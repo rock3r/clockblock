@@ -44,6 +44,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Natural Earth
+
+- Data: <https://www.naturalearthdata.com> (1:110m land), sampled into the dot grid
+  `core/designsystem/src/main/assets/land_dots.bin` that the route globe draws. The file comes from Chris Sinco's
+  Prime Meridian (see NOTICE).
+- License: **Public Domain**. "All versions of Natural Earth raster + vector map data found on this website are in
+  the public domain." Credit is given as a courtesy: *Made with Natural Earth.*
+
 ## Time zone rules
 
 Offsets are never stored; they are computed at run time from the device's tz database (IANA tzdb, public

@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.background
@@ -83,6 +84,27 @@ class PlanScreenshotTest {
 
     @Test
     fun preTrip() = snap("pre_trip") { PlanContent(ready(PlanFixtures.PreTrip), actions) }
+
+    /** The world behind the dial (pinch out, or TalkBack's Show the world): mid-flight, the plane's spot marked. */
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun world() {
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(ApplicationProvider.getApplicationContext())
+        snap("world", capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_world.png")
+    }
+
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun worldDark() {
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(ApplicationProvider.getApplicationContext())
+        snap("world_dark", darkTheme = true, capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_dark.png")
+    }
 
     @Test
     fun inFlight() = snap("in_flight") { PlanContent(ready(PlanFixtures.InFlight), actions) }

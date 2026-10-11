@@ -103,8 +103,10 @@ internal fun routeDescription(route: EditorRoute, summary: ShiftSummary?): Strin
 }
 
 /**
- * The globe in the Your shift card: small, no labels. A tap on an arc picks that flight's ticket ([onLegClick] with
- * the editor's leg index); a tap anywhere else opens the full-size view ([onExpand]).
+ * The globe in the Your shift card: small, no labels. A tap on another flight's arc picks that flight's ticket
+ * ([onLegClick] with the editor's leg index); a tap anywhere else, including on the active flight (whose arc runs
+ * through the middle of the framed view, where people tap to open it), opens the full-size view ([onExpand]).
+ * TalkBack's per-flight actions always go to the ticket.
  */
 @Composable
 internal fun EditorGlobe(
@@ -116,12 +118,14 @@ internal fun EditorGlobe(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val active = route.globeIndexOf(activeLeg).takeIf { route.legs.size > 1 }
     RouteGlobe(
         legs = route.legs,
         instant = now,
         contentDescription = description,
-        activeLeg = route.globeIndexOf(activeLeg).takeIf { route.legs.size > 1 },
+        activeLeg = active,
         onLegClick = { onLegClick(route.legIndices[it]) },
+        onLegTap = { if (it == active || route.legs.size == 1) onExpand() else onLegClick(route.legIndices[it]) },
         onClick = onExpand,
         onClickLabel = stringResource(R.string.globe_expand),
         legActionLabel = legLabels(route)::get,

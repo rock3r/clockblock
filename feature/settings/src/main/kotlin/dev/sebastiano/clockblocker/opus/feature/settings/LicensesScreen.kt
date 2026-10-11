@@ -59,6 +59,7 @@ private val Sections: List<Pair<Int, List<Credit>>> = listOf(
         Credit(R.string.licenses_ourairports, R.string.licenses_ourairports_detail, R.string.license_public_domain, "https://ourairports.com/data/"),
         Credit(R.string.licenses_mwgg, R.string.licenses_mwgg_detail, R.string.license_mit, "https://github.com/mwgg/Airports"),
         Credit(R.string.licenses_tzdb, R.string.licenses_tzdb_detail, R.string.license_public_domain, "https://www.iana.org/time-zones"),
+        Credit(R.string.licenses_natural_earth, R.string.licenses_natural_earth_detail, R.string.license_public_domain, "https://www.naturalearthdata.com"),
     ),
     R.string.licenses_section_libraries to listOf(
         Credit(R.string.licenses_androidx, R.string.licenses_androidx_detail, R.string.license_apache2, "https://developer.android.com/jetpack/androidx"),
