@@ -149,6 +149,11 @@ internal fun TripCard(
                     TripMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, actions = actions)
                 }
             }
+            val routeCities = stringResource(
+                R.string.trip_route_cities,
+                summary.trip.origin.cityLabel,
+                summary.trip.destination.cityLabel,
+            )
             Spacer(Modifier.height(6.dp))
             Text(
                 summary.title,
@@ -157,6 +162,17 @@ internal fun TripCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(end = 12.dp),
             )
+            if (summary.title != routeCities) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    routeCities,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
+            }
             Spacer(Modifier.height(4.dp))
             ScheduleAndStopsLine(summary = summary, modifier = Modifier.padding(end = 12.dp))
             Spacer(Modifier.height(12.dp))

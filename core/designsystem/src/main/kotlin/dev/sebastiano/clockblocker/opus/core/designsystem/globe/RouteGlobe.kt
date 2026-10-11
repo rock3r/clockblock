@@ -184,7 +184,7 @@ fun RouteGlobe(
                     role = Role.Button
                     onClick(label = onClickLabel) { onClick(); true }
                 }
-                if (onLegClick != null && legs.size > 1) {
+                if (onLegClick != null && (legs.size > 1 || (onClick == null && legs.isNotEmpty()))) {
                     customActions = legs.indices.map { i -> CustomAccessibilityAction(legActionLabel(i)) { onLegClick(i); true } }
                 }
             }

@@ -186,12 +186,16 @@ internal fun PastTripsGlobeSheetContent(
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(12.dp))
+        val singleTripId = stats.legTripIds.singleOrNull()
+        val singleLegLabel = legLabels.singleOrNull()
         RouteGlobe(
             legs = stats.legs,
             instant = now,
             contentDescription = description,
             showLabels = true,
             onLegClick = { index -> onOpenTrip(stats.legTripIds[index]) },
+            onClick = singleTripId?.let { tripId -> { onOpenTrip(tripId) } },
+            onClickLabel = singleLegLabel,
             legActionLabel = { legLabels[it] },
             modifier = Modifier
                 .widthIn(max = 280.dp)

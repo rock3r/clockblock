@@ -90,6 +90,24 @@ class TripsContentTest : TripsScreenshotTest() {
     }
 
     @Test
+    fun singlePastTripOnGlobeExposesClickActionToOpenPlan() {
+        show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
+        compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(TripsTestTags.section(TripPhase.Past.name)))
+        compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).performClick()
+        compose.onNodeWithTag(TripsTestTags.PastGlobe).performClick()
+        calls shouldContainExactly listOf("open:${TripsSamples.lisbonTokyo.id}")
+    }
+
+    @Test
+    fun customTitledTripCardShowsOriginAndDestinationCities() {
+        val renamed = DemoData.lhrToSydneyViaSingapore().copy(title = "Summer holiday")
+        show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), renamed)))
+        val card = hasTestTag(TripsTestTags.tripCard(renamed.id))
+        compose.onNode(hasText("Summer holiday") and hasAnyAncestor(card), useUnmergedTree = true).assertIsDisplayed()
+        compose.onNode(hasText("London → Sydney") and hasAnyAncestor(card), useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
     fun fabMenuOffersNewReturnAndDemoTrips() {
         show()
         compose.onNodeWithTag(TripsTestTags.Fab).performClick()

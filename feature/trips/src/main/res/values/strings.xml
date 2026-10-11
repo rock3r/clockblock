@@ -100,6 +100,7 @@
         <item quantity="one">%1$d\u00A0stop</item>
         <item quantity="other">%1$d\u00A0stops</item>
     </plurals>
+    <string name="trip_route_cities">%1$s → %2$s</string>
     <string name="trip_time_at">%1$s, %2$s</string>
     <string name="trip_schedule_line">%1$s → %2$s · %3$s</string>
     <string name="trip_departs_description">Departs %1$s, %2$s local time in %3$s</string>
