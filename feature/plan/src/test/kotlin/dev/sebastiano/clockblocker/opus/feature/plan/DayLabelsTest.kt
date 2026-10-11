@@ -88,6 +88,22 @@ class DayLabelsTest {
     }
 
     @Test
+    fun `crossing the date line to an earlier calendar date keeps the landing weekday`() {
+        // Auckland Mon 15 Jun 09:00 (+12) → Honolulu Sun 14 Jun 19:30 (−10).
+        val auckland = ZoneId.of("Pacific/Auckland")
+        val honolulu = ZoneId.of("Pacific/Honolulu")
+        val out = flight(
+            "f",
+            ZonedDateTime.of(2026, 6, 15, 9, 0, 0, 0, auckland),
+            ZonedDateTime.of(2026, 6, 14, 19, 30, 0, 0, honolulu),
+        )
+        val d = PlanDay(0, DayKind.Travel, LocalDate.of(2026, 6, 15), auckland.id, listOf(out))
+        val zones: (Instant) -> ZoneId = { at -> if (at.isBefore(out.end)) auckland else honolulu }
+        dayDates(d, zones) shouldBe (LocalDate.of(2026, 6, 15) to LocalDate.of(2026, 6, 14))
+        dayWeekdays(d, zones, Locale.UK) shouldBe "Mon\u2013Sun"
+    }
+
+    @Test
     fun `a travel day without flights falls back to its own date`() {
         dayWeekdays(day(0, DayKind.Travel, LocalDate.of(2026, 6, 15)), zoneAt(Instant.MAX), Locale.UK) shouldBe "Mon"
     }

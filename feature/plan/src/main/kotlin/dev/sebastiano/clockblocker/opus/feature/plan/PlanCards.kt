@@ -355,16 +355,25 @@ internal fun StayOnHomeCard(plan: JetLagPlan, modifier: Modifier = Modifier) {
 
 /**
  * Before the first plan day: when it starts. What comes first (and when) is the header's "Next" line, so the card
- * doesn't say it twice. Takes the Now card's place.
+ * doesn't say it twice, unless the header stays collapsed on a short window ([next]). Takes the Now card's place.
  */
 @Composable
-internal fun UpcomingCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modifier = Modifier) {
+internal fun UpcomingCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modifier = Modifier, next: HeaderNext? = null) {
     val first = plan.days.firstOrNull()
     StoryCard(
         title = stringResource(R.string.plan_upcoming_title, first?.date?.let(::formatDayDate).orEmpty()),
         body = stringResource(if (moment.upNext.isNotEmpty()) R.string.plan_upcoming_body else R.string.plan_free_time_body),
         art = { SuitcaseOClockArt(Modifier.size(96.dp), animated = false) },
         modifier = modifier.testTag(PlanTags.NowCard),
+        footer = next?.let {
+            {
+                Text(
+                    "${it.headline} \u00B7 ${it.detail}",
+                    style = ClockblockTheme.textStyles.timeLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
     )
 }
 

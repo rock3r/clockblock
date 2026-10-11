@@ -533,9 +533,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         } else {
             null
         }
+        val headerNext = rememberHeaderNext(plan, state.now)
         val sections = PlanSections(
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
+            upcomingNext = headerNext.takeIf { shortWindow },
         )
         // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date
         // (the place can change within a zone and a date, e.g. a same-day flight inside one zone).
@@ -543,7 +545,6 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
         val daylight = remember(shownPlace, shown.zone, shownDate) { headerDaylight(shownPlace, shown.zone, shownDate) }
         val route = state.trip?.let { trip -> HeaderRoute(trip.origin.displayCode, trip.destination.displayCode) }
-        val headerNext = rememberHeaderNext(plan, state.now)
         Scaffold(
             modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
             topBar = {
@@ -862,6 +863,7 @@ private class PlanSections(
     val anchor: Instant = state.now,
     val anchorZone: ZoneId = state.moment.zone,
     val strip: DayStripModel? = null,
+    val upcomingNext: HeaderNext? = null,
 ) {
     val heroKeys: List<String> = buildList {
         if (strip?.first == true) add(KeyDays)
@@ -1033,7 +1035,7 @@ private class PlanSections(
                 modifier = modifier,
             )
             shown.stage == PlanStage.Complete -> CompleteCard(state.plan, state.outcomes, modifier)
-            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier)
+            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier, next = upcomingNext)
             else -> FreeTimeCard(shown, previewing, modifier, previewDay = previewDay)
         }
     }

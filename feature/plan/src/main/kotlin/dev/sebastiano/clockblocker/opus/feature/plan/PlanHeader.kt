@@ -207,6 +207,7 @@ internal fun PlanHeader(
                     HeaderNavRow(
                         title = title,
                         subtitle = subtitle.takeIf { shortWindow },
+                        next = next.takeIf { shortWindow },
                         collapsedFraction = collapsedFraction,
                         nightSafe = nightSafe,
                         canEdit = canEdit,
@@ -270,12 +271,13 @@ private fun HeaderLayout(
 
 /**
  * The status bar's room and the navigation row: back, the trip's name (fading in as the header collapses; always
- * there on short windows, with the [subtitle] under it), the Night-safe chip and the menu.
+ * there on short windows, with the [subtitle] and [next] action under it), the Night-safe chip and the menu.
  */
 @Composable
 private fun HeaderNavRow(
     title: String,
     subtitle: String?,
+    next: HeaderNext?,
     collapsedFraction: () -> Float,
     nightSafe: Boolean,
     canEdit: Boolean,
@@ -306,7 +308,15 @@ private fun HeaderNavRow(
         ) {
             Text(title, style = MaterialTheme.typography.titleMediumEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.labelMedium, color = LocalContentColor.current.copy(alpha = 0.82f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val line = if (next != null) "$subtitle \u00B7 ${next.headline} \u00B7 ${next.detail}" else subtitle
+                Text(
+                    line,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LocalContentColor.current.copy(alpha = 0.82f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (next != null) Modifier.testTag(PlanTags.NextAction) else Modifier,
+                )
             }
         }
         if (nightSafe) NightSafeChip()

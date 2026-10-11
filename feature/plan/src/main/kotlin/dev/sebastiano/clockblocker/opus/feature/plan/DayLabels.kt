@@ -25,7 +25,7 @@ internal fun dayWeekdays(day: PlanDay, zoneAt: (Instant) -> ZoneId, locale: Loca
     return weekdaySpan(from, to, locale)
 }
 
-/** "Sun", or "Mon–Tue" when [to] is a later date than [from]. */
+/** "Sun", or "Mon–Tue" when [to] is a different date from [from]. */
 internal fun weekdaySpan(from: LocalDate, to: LocalDate, locale: Locale = Locale.getDefault()): String {
     val format = WeekdayFormat.withLocale(locale)
     return if (from == to) format.format(from) else format.format(from) + "\u2013" + format.format(to)
@@ -40,7 +40,7 @@ internal fun dayDates(day: PlanDay, zoneAt: (Instant) -> ZoneId): Pair<LocalDate
     // The zone just before take-off and just after landing: the instants themselves sit on the switch.
     val from = takeOff.atZone(zoneAt(takeOff.minusSeconds(1))).toLocalDate()
     val to = landing.atZone(zoneAt(landing.plusSeconds(1))).toLocalDate()
-    return from to maxOf(from, to)
+    return from to to
 }
 
 private val WeekdayFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE")

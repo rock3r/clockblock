@@ -932,6 +932,18 @@ class PlanContentTest {
     }
 
     @Test
+    @Config(qualifiers = "w800dp-h400dp-xhdpi")
+    fun `short window - the collapsed header and the upcoming card keep the first action`() {
+        show(ready(Instant.parse("2026-06-10T16:00:00Z")))
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertTextContains("Thu 11 Jun 20:00", substring = true)
+            .assertTextContains("04:00 London +1", substring = true)
+        compose.onNode(hasText("Thu 11 Jun 20:00", substring = true) and hasAnyAncestor(hasTestTag(PlanTags.NowCard)))
+            .assertExists()
+    }
+
+    @Test
     fun `header ambient waits before starting a session and resets when disabled`() {
         compose.mainClock.autoAdvance = false
         var enabled by mutableStateOf(true)
