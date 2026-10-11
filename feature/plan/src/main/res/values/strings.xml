@@ -20,7 +20,6 @@
     <string name="plan_export_done">Saved. Open it with your calendar app.</string>
     <string name="plan_export_failed">Couldn\'t save the calendar file</string>
     <string name="plan_share_chooser">Share plan</string>
-    <string name="plan_day_pre_trip">Pre-trip day %1$s</string>
     <string name="plan_day_travel">Travel day</string>
     <string name="plan_day_adapting">Day %1$d · Adapting</string>
     <string name="plan_day_adapted">Day %1$d · Adapted</string>
@@ -30,6 +29,15 @@
     <string name="plan_body_ahead">body %1$s ahead</string>
     <string name="plan_body_in_sync">body in sync</string>
     <string name="plan_body_thinks">Your body thinks it\'s %1$s</string>
+    <!-- The header's next action. Within a day: "Next: Avoid caffeine in 1 h 20 min", then "14:00 · 22:00 London". -->
+    <string name="plan_next_soon">Next: %1$s in %2$s</string>
+    <!-- Further off: "Next: See bright light, Thu 11 Jun 20:00", then "04:00 London +1". -->
+    <string name="plan_next_later">Next: %1$s, %2$s</string>
+    <string name="plan_next_when">at %1$s · %2$s</string>
+    <!-- TalkBack for the next action, both lines as one. -->
+    <string name="plan_next_description">%1$s. %2$s</string>
+    <!-- The route's airport codes in the header, for TalkBack: "From S F O to L H R". -->
+    <string name="plan_route_codes">From %1$s to %2$s</string>
     <string name="plan_night_safe_chip">Night-safe</string>
     <string name="plan_night_safe_description">Night-safe mode: the screen is dimmed because your plan says rest</string>
 
@@ -39,8 +47,10 @@
     <!-- Now card heading while another day is previewed: "Day 3 at 11:00". -->
     <string name="plan_previewing_day">%1$s at %2$s</string>
     <!-- Day strip: short pill labels. -->
-    <string name="plan_strip_pre">Pre %1$s</string>
-    <string name="plan_strip_travel">Travel</string>
+    <!-- TalkBack for the travel day pill's plane. -->
+    <string name="plan_strip_travel">Travel day</string>
+    <!-- TalkBack: an overnight travel day's two dates, "Mon 15 Jun to Tue 16 Jun". -->
+    <string name="plan_strip_dates">%1$s to %2$s</string>
     <string name="plan_strip_today">Today</string>
     <!-- TalkBack for a day pill: "Day 2, Wed 17 Jun, today, body 3½ h behind". -->
     <string name="plan_strip_pill_description">%1$s, %2$s, %3$s</string>
@@ -83,6 +93,16 @@
 
     <!-- Adaptation -->
     <string name="plan_adapted_percent">%1$d%% adapted</string>
+    <!-- Days before the flight, in the header, the timeline's day headers and TalkBack ("2 days before your flight"). -->
+    <plurals name="plan_days_before_flight">
+        <item quantity="one">The day before your flight</item>
+        <item quantity="other">%1$d days before your flight</item>
+    </plurals>
+    <!-- Short form for a preview heading: "2 days before at 11:00". -->
+    <plurals name="plan_days_before_short">
+        <item quantity="one">The day before</item>
+        <item quantity="other">%1$d days before</item>
+    </plurals>
     <plurals name="plan_days_to_go">
         <item quantity="one">about %d day to go</item>
         <item quantity="other">about %d days to go</item>
@@ -135,7 +155,7 @@
     <string name="plan_stay_home_title">Short trip: staying on home time</string>
     <string name="plan_stay_home_body">You\'re back before your body could settle, so the plan keeps your clock on %1$s time. Sleep on home hours where you can, and use light to stay sharp.</string>
     <string name="plan_upcoming_title">Your plan starts %1$s</string>
-    <string name="plan_upcoming_body">Nothing to do yet. First up: %1$s, %2$s at %3$s.</string>
+    <string name="plan_upcoming_body">Nothing to do until then.</string>
     <string name="plan_complete_title">Trip complete</string>
     <string name="plan_complete_body">Done\u00A0%1$d · Skipped\u00A0%2$d · Couldn\'t\u00A0do\u00A0%3$d</string>
     <string name="plan_complete_adapted">You landed on %1$s time. Safe travels home.</string>
@@ -148,11 +168,10 @@
     </plurals>
     <string name="plan_hide_earlier">Hide earlier days</string>
     <string name="plan_rail_now">Now · %1$s</string>
-    <string name="plan_day_kind_pre">Pre-trip</string>
+    <string name="plan_day_kind_pre">Head start</string>
     <string name="plan_day_kind_travel">Travel</string>
     <string name="plan_day_kind_arrival">Arrival</string>
     <string name="plan_day_kind_adapted">Adapted</string>
-    <string name="plan_day_header_pre">Pre-trip %1$s</string>
     <string name="plan_day_header_travel">Travel day</string>
     <string name="plan_day_header_day">Day %1$d</string>
     <string name="plan_day_header_adapted">Day %1$d · Adapted</string>

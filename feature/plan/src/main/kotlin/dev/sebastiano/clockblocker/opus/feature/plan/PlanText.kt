@@ -106,12 +106,12 @@ internal fun railTimeLine(range: String, duration: String?): String {
 /** "−1" with a true minus sign for pre-trip day indices. */
 internal fun signedIndex(index: Int): String = if (index < 0) "\u2212${-index}" else "+$index"
 
-/** Header subtitle part 1: "Pre-trip day −1", "Travel day", "Day 2 · Adapting", "Starts Sat 13 Jun"… */
+/** Header subtitle part 1: "The day before your flight", "Travel day", "Day 2 · Adapting", "Starts Sat 13 Jun"… */
 @Composable
 @ReadOnlyComposable
 internal fun stageLabel(moment: PlanMoment, firstDayDate: LocalDate?): String = when (moment.stage) {
     PlanStage.Upcoming -> stringResource(R.string.plan_day_upcoming, firstDayDate?.let(::formatDayDate).orEmpty())
-    PlanStage.PreTrip -> stringResource(R.string.plan_day_pre_trip, signedIndex(moment.day?.index ?: -1))
+    PlanStage.PreTrip -> daysBeforeFlight(-(moment.day?.index ?: -1))
     PlanStage.Travel -> stringResource(R.string.plan_day_travel)
     PlanStage.Adapting -> stringResource(R.string.plan_day_adapting, moment.day?.index ?: 1)
     PlanStage.Adapted -> stringResource(R.string.plan_day_adapted, moment.day?.index ?: 1)
@@ -132,9 +132,9 @@ internal fun Resources.bodyShiftLabel(bodyAheadHours: Float): String = when (bod
 @ReadOnlyComposable
 internal fun bodyShiftLabel(bodyAheadHours: Float): String = LocalContext.current.resources.bodyShiftLabel(bodyAheadHours)
 
-/** Day header title: "Pre-trip −2", "Travel day", "Day 2", "Day 4 · Adapted". */
+/** Day header title: "2 days before your flight", "Travel day", "Day 2", "Day 4 · Adapted". */
 internal fun Resources.dayTitle(day: PlanDay): String = when (day.kind) {
-    DayKind.PreTrip -> getString(R.string.plan_day_header_pre, signedIndex(day.index))
+    DayKind.PreTrip -> daysBeforeFlight(-day.index)
     DayKind.Travel -> getString(R.string.plan_day_header_travel)
     DayKind.Arrival -> getString(R.string.plan_day_header_day, day.index)
     DayKind.Adapted -> getString(R.string.plan_day_header_adapted, day.index)
@@ -144,12 +144,19 @@ internal fun Resources.dayTitle(day: PlanDay): String = when (day.kind) {
 @ReadOnlyComposable
 internal fun dayTitle(day: PlanDay): String = LocalContext.current.resources.dayTitle(day)
 
-/** Short day name for the day strip and previews: "Pre −2", "Travel day" ("Travel" in a pill), "Day 2". */
-internal fun Resources.dayShortTitle(day: PlanDay, pill: Boolean = false): String = when (day.kind) {
-    DayKind.PreTrip -> getString(R.string.plan_strip_pre, signedIndex(day.index))
-    DayKind.Travel -> getString(if (pill) R.string.plan_strip_travel else R.string.plan_day_header_travel)
+/** Short day name for previews ("2 days before at 11:00"): "2 days before", "Travel day", "Day 2". */
+internal fun Resources.dayShortTitle(day: PlanDay): String = when (day.kind) {
+    DayKind.PreTrip -> (-day.index).let { getQuantityString(R.plurals.plan_days_before_short, it, it) }
+    DayKind.Travel -> getString(R.string.plan_day_header_travel)
     DayKind.Arrival, DayKind.Adapted -> getString(R.string.plan_day_header_day, day.index)
 }
+
+/** "2 days before your flight", "The day before your flight" (no "pre-trip" jargon). */
+internal fun Resources.daysBeforeFlight(days: Int): String = getQuantityString(R.plurals.plan_days_before_flight, days, days)
+
+@Composable
+@ReadOnlyComposable
+internal fun daysBeforeFlight(days: Int): String = LocalContext.current.resources.daysBeforeFlight(days)
 
 private val DayDateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM")
 

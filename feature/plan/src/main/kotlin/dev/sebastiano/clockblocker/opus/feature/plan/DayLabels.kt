@@ -21,8 +21,13 @@ internal fun dayStripNumber(day: PlanDay): String? = if (day.kind == DayKind.Tra
  * "Mon–Tue". A travel day without flights reads its own date's weekday.
  */
 internal fun dayWeekdays(day: PlanDay, zoneAt: (Instant) -> ZoneId, locale: Locale = Locale.getDefault()): String {
-    val format = WeekdayFormat.withLocale(locale)
     val (from, to) = dayDates(day, zoneAt)
+    return weekdaySpan(from, to, locale)
+}
+
+/** "Sun", or "Mon–Tue" when [to] is a later date than [from]. */
+internal fun weekdaySpan(from: LocalDate, to: LocalDate, locale: Locale = Locale.getDefault()): String {
+    val format = WeekdayFormat.withLocale(locale)
     return if (from == to) format.format(from) else format.format(from) + "\u2013" + format.format(to)
 }
 
