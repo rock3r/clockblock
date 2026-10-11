@@ -37,6 +37,9 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.foundation.shape.RoundedCornerShape
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.labelRes
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -109,6 +112,20 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.MoreOutcomes).performClick()
         compose.onNodeWithTag(PlanTags.Skipped).performClick()
         logged shouldBe listOf(activeId to AdviceOutcome.Skipped)
+    }
+
+    @Test
+    fun `a day pill clips its touch ripple to its current shape`() {
+        show(midAdaptation)
+        compose.waitForIdle()
+        // Selected (today): a capsule, so the ripple must be clipped to the capsule, not to the resting 16 dp corner.
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(34.dp)))
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(16.dp)))
+        // A pick moves the capsule (and the clip) to the picked pill.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(34.dp)))
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(16.dp)))
     }
 
     @Test

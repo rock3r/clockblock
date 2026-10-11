@@ -13,8 +13,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
-import com.github.takahirom.roborazzi.captureRoboImage
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
@@ -252,17 +250,6 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.dayPill(-1)).performClick()
         compose.waitForIdle()
         compose.captureRoboImageInvalidated("src/test/screenshots/plan_day_picked_dark.png")
-    }
-
-    /** Today's pill held down: the press ripple fills the selected capsule and stops at its rounded ends. */
-    @Test
-    fun dayPillPressed() {
-        snap("day_pill_pressed", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
-        compose.waitForIdle()
-        compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag(PlanTags.dayPill(2)).performTouchInput { down(Offset(width - 8f, height / 2f)) }
-        compose.mainClock.advanceTimeBy(1_000)
-        compose.onNodeWithTag(PlanTags.dayPill(2)).captureRoboImage("src/test/screenshots/plan_day_pill_pressed.png")
     }
 
     /** Font scale 1.3: the dial's rim narration grows with the text around it. */
