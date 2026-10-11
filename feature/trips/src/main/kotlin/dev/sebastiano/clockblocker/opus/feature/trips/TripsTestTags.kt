@@ -42,6 +42,9 @@ object TripsTestTags {
     const val EditorReturnSwitch = "editor_return_switch"
     const val EditorPlaceSheet = "editor_place_sheet"
     const val EditorPlaceSearch = "editor_place_search"
+    const val EditorGlobe = "editor_globe"
+    const val EditorGlobeSheet = "editor_globe_sheet"
+    const val EditorGlobeFull = "editor_globe_full"
 
     fun editorLeg(index: Int) = "editor_leg_$index"
     fun editorFrom(index: Int) = "editor_from_$index"

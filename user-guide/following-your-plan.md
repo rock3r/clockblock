@@ -70,6 +70,17 @@ now**.
 While you drag, the timeline highlights the block under the needle. On a tablet, if that block is off screen, the
 timeline also scrolls to it.
 
+#### The world behind the dial
+
+<img src="images/world.png" alt="The plan for London to Sydney on day 3, with the dial swapped for a dark globe. The route runs as an orange arc from Singapore, labelled SIN, to Sydney, labelled SYD, with the earlier leg from London fading in from the top. Most of the globe is in night shade. A line on the globe says: It's 05:35 and dark in Sydney." width="280" />
+
+Pinch out on the dial with two fingers to see your trip on a globe. The globe shows the route, a dot where you are
+at the dial's time (now, or the day you picked in the day strip), and the night side of the Earth at that time. A
+line on the globe says the time where you are and whether it's dark,
+for example "It's 03:10 and dark in Tokyo", or where you're flying to when you're in the air. Pinch in, or go
+back, to return to the dial. With TalkBack, the dial offers **Show the world**, and the globe offers **Back to the
+dial**.
+
 ### The Now card
 
 The card shows:
