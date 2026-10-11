@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.MotionDurationScale
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlinx.coroutines.delay
 import kotlin.coroutines.coroutineContext
 
@@ -34,22 +35,29 @@ internal class HeaderAmbient {
 @Composable
 internal fun rememberHeaderAmbient(enabled: Boolean): HeaderAmbient {
     val ambient = remember { HeaderAmbient() }
-    LaunchedEffect(enabled) {
+    val active = enabled && !ClockblockTheme.motion.reduceMotion
+    LaunchedEffect(active) {
         ambient.sessionMillis = -1L
-        if (!enabled) return@LaunchedEffect
-        val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-        if (scale <= 0f) return@LaunchedEffect
+        if (!active) return@LaunchedEffect
+        fun currentScale(): Float = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+        val initialScale = currentScale()
+        if (initialScale <= 0f) return@LaunchedEffect
         try {
-            delay((AmbientFirstDelayMillis * scale).toLong())
+            delay((AmbientFirstDelayMillis * initialScale).toLong())
             while (true) {
-                val start = withFrameMillis { it }
-                var elapsed = 0L
+                var lastFrame = withFrameMillis { it }
+                var elapsed = 0f
                 while (elapsed < AmbientSessionMillis) {
-                    elapsed = withFrameMillis { ((it - start) / scale).toLong() }
-                    ambient.sessionMillis = elapsed.coerceAtMost(AmbientSessionMillis)
+                    val scale = currentScale()
+                    if (scale <= 0f) return@LaunchedEffect
+                    val dt = withFrameMillis { now -> (now - lastFrame).also { lastFrame = now } }
+                    elapsed += dt / scale
+                    ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
                 }
                 ambient.sessionMillis = -1L
-                delay((AmbientRestMillis * scale).toLong())
+                val restScale = currentScale()
+                if (restScale <= 0f) return@LaunchedEffect
+                delay((AmbientRestMillis * restScale).toLong())
             }
         } finally {
             ambient.sessionMillis = -1L

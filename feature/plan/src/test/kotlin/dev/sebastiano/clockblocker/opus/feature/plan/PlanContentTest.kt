@@ -945,8 +945,8 @@ class PlanContentTest {
     }
 
     @Test
-    @Config(qualifiers = "w800dp-h400dp-xhdpi")
-    fun `short window - the collapsed header and the upcoming card keep the first action`() {
+    @Config(qualifiers = "w500dp-h400dp-xhdpi")
+    fun `short window - the collapsed header and the upcoming card keep the first action, and the list scrolls`() {
         show(ready(Instant.parse("2026-06-10T16:00:00Z")))
         compose.onNodeWithTag(PlanTags.NextAction)
             .assertIsDisplayed()
@@ -954,16 +954,20 @@ class PlanContentTest {
             .assertTextContains("04:00 London +1", substring = true)
         compose.onNode(hasText("Thu 11 Jun 20:00", substring = true) and hasAnyAncestor(hasTestTag(PlanTags.NowCard)))
             .assertExists()
+        // Touch-scrolling the list on a short window is not swallowed by the collapsed app bar.
+        repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NowCard).assertIsNotDisplayed()
     }
 
     @Test
-    fun `header ambient waits before starting a session and resets when disabled`() {
+    fun `header ambient waits before starting a session and reacts to reduceMotion`() {
         compose.mainClock.autoAdvance = false
-        var enabled by mutableStateOf(true)
+        var reduceMotion by mutableStateOf(false)
         lateinit var ambient: HeaderAmbient
         compose.setContent {
-            ClockblockTheme(dynamicColor = false, reduceMotion = false) {
-                ambient = rememberHeaderAmbient(enabled)
+            ClockblockTheme(dynamicColor = false, reduceMotion = reduceMotion) {
+                ambient = rememberHeaderAmbient(enabled = true)
             }
         }
         ambient.sessionMillis shouldBe -1L
@@ -973,9 +977,16 @@ class PlanContentTest {
         compose.mainClock.advanceTimeBy(500)
         (ambient.sessionMillis > 0L) shouldBe true
 
-        enabled = false
+        // Turning on Reduce motion stops the running session.
+        reduceMotion = true
         Snapshot.sendApplyNotifications()
         compose.mainClock.advanceTimeByFrame()
         ambient.sessionMillis shouldBe -1L
+
+        // Turning Reduce motion back off starts the ambient timer again.
+        reduceMotion = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
+        (ambient.sessionMillis > 0L) shouldBe true
     }
 }

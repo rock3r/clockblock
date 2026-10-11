@@ -259,7 +259,8 @@ private fun HeaderLayout(
         val collapsedHeight = nav.height
         val expandedHeight = collapsedHeight + (block?.height ?: 0)
         val limit = (collapsedHeight - expandedHeight).toFloat()
-        if (!shortWindow && state.heightOffsetLimit != limit) state.heightOffsetLimit = limit
+        if (state.heightOffsetLimit != limit) state.heightOffsetLimit = limit
+        if (shortWindow && state.heightOffset != 0f) state.heightOffset = 0f
         val height = if (shortWindow) collapsedHeight else (expandedHeight + state.heightOffset).roundToInt().coerceIn(collapsedHeight, expandedHeight)
         layout(width, height) {
             block?.placeRelative(0, collapsedHeight)
