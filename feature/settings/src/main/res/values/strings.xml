@@ -187,7 +187,7 @@
     <string name="licenses_app_name">Clockblock</string>
     <string name="licenses_app_detail">Source code, illustrations and docs.</string>
     <string name="licenses_prime_meridian">Prime Meridian</string>
-    <string name="licenses_prime_meridian_detail">The trip editor\'s ticket shape is adapted from it. © Chris Sinco.</string>
+    <string name="licenses_prime_meridian_detail">The trip editor\'s ticket shape and the route globe are adapted from it. © Chris Sinco.</string>
     <string name="licenses_google_sans_flex">Google Sans Flex</string>
     <string name="licenses_google_sans_flex_detail">The interface typeface. © Google LLC.</string>
     <string name="licenses_fraunces">Fraunces</string>
@@ -200,6 +200,8 @@
     <string name="licenses_mwgg_detail">Airport time zones. © mwgg and contributors.</string>
     <string name="licenses_tzdb">IANA Time Zone Database</string>
     <string name="licenses_tzdb_detail">Every time zone rule, via java.time.</string>
+    <string name="licenses_natural_earth">Natural Earth</string>
+    <string name="licenses_natural_earth_detail">The land on the route globe. Made with Natural Earth.</string>
     <string name="licenses_androidx">AndroidX and Jetpack Compose</string>
     <string name="licenses_androidx_detail">Compose, Material 3, Navigation 3, DataStore, Lifecycle. © The Android Open Source Project.</string>
     <string name="licenses_kotlin">Kotlin and kotlinx</string>

@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.e2e
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -12,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pinch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
@@ -30,7 +33,7 @@ import dev.sebastiano.clockblocker.opus.feature.plan.R as PlanR
 
 /**
  * The plan screen: the Why sheet from the rail (with the light response curve on a light block), the rail's
- * check-off circles, the floating toolbar and exporting to a calendar file.
+ * check-off circles, the world behind the dial (pinch out), the floating toolbar and exporting to a calendar file.
  */
 @RunWith(AndroidJUnit4::class)
 class PlanInteractionsTest : ClockblockE2eTest() {
@@ -102,6 +105,30 @@ class PlanInteractionsTest : ClockblockE2eTest() {
         awaitTag(LightResponseCurveTags.Curve)
             .performCustomAccessibilityActionWithLabel(context.getString(DesignR.string.light_curve_action_later))
         compose.waitUntil(DefaultTimeoutMillis) { awaitTag(LightResponseCurveTags.Curve).stateDescription != before }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun pinchingOutOnTheDialShowsTheWorld() {
+        seedOnboarded()
+        val active = graph.seedTripWithActiveAdvice()
+        launch(deepLink = "clockblock://plan/${active.trip.id}")
+        awaitTag(PlanTags.NowCard, LongTimeoutMillis)
+
+        // Two fingers spreading from the dial's centre open the world; Back returns to the dial.
+        awaitTag(PlanTags.Dial).performTouchInput {
+            pinch(center - Offset(20f, 0f), center - Offset(width / 3f, 0f), center + Offset(20f, 0f), center + Offset(width / 3f, 0f))
+        }
+        awaitTag(PlanTags.World)
+        awaitTag(PlanTags.WorldCaption).assertIsDisplayed()
+        device.pressBack()
+        awaitGone(PlanTags.World)
+        awaitTag(PlanTags.Screen).assertIsDisplayed()
+
+        // TalkBack: Show the world on the dial, Back to the dial on the globe.
+        awaitTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_action))
+        awaitTag(PlanTags.World).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_back))
+        awaitGone(PlanTags.World)
     }
 
     @Test
