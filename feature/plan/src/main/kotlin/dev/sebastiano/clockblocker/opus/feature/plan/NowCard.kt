@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -51,7 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
-import dev.sebastiano.clockblocker.opus.core.designsystem.advice.labelRes
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.shortInstruction
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.DualTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.AdviceArt
@@ -88,7 +86,6 @@ internal fun NowCard(
     val advice = moment.active ?: return
     val role = ClockblockTheme.adviceColors[advice.type]
     val formatter = rememberTimeFormatter()
-    val resources = LocalContext.current.resources
     val heading = if (previewing) {
         previewHeading(formatter.formatFull(moment.instant.atZone(moment.zone).toLocalTime()), previewDay)
     } else {
@@ -167,14 +164,10 @@ internal fun NowCard(
                 )
             }
             if (moment.concurrent.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.plan_also_now, moment.concurrent.map { it.type.labelString(resources) }.joinToString(", ")),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = role.onContainer.copy(alpha = 0.8f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Spacer(Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    moment.concurrent.forEach { AlsoNowRow(it.type, prefixColor = role.onContainer.copy(alpha = 0.8f)) }
+                }
             }
             Spacer(Modifier.height(14.dp))
             // "until 21:00 · 10:00 San Francisco" and Done | ▾ share one row (no dead space under the illustration,
@@ -439,8 +432,25 @@ internal fun OutcomeBadge(outcome: AdviceOutcome, modifier: Modifier = Modifier)
     }
 }
 
-private fun AdviceType.labelString(resources: android.content.res.Resources): String =
-    resources.getString(labelRes)
+/**
+ * Another block that is on at the same time as the card's ("Also now · Avoid caffeine"): its glyph at rest and its
+ * label, one row each, so it reads as advice rather than a footnote (labels, never an icon alone).
+ */
+@Composable
+private fun AlsoNowRow(type: AdviceType, prefixColor: Color) {
+    val label = type.label()
+    val description = stringResource(R.string.plan_also_now, label)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.testTag(PlanTags.alsoNow(type.name)).clearAndSetSemantics { contentDescription = description },
+    ) {
+        AdviceGlyph(type, active = false, size = 28.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(stringResource(R.string.plan_also_now_prefix), style = MaterialTheme.typography.labelLarge, color = prefixColor)
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
 
 /** "At 11:00", or "Day 3 at 11:00" when the preview is on another day. */
 @Composable

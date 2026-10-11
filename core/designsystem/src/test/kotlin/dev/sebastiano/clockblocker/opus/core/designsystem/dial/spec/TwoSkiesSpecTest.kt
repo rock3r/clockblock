@@ -469,6 +469,31 @@ class TwoSkiesSpecTest {
         (DialGeometry.angleDelta(say.centerDeg, then.centerDeg) < 0f) shouldBe true
     }
 
+    private fun narration(side: Float = 328f, growth: Float = 1f): DialOp.CurvedText =
+        TwoSkies.spec(tokyo, palette, labels, side, side, textGrowth = growth).ops
+            .filterIsInstance<DialOp.CurvedText>()
+            .first { it.part == DialPart.Narration }
+
+    @Test
+    fun `the rim narration grows with the font scale, up to 1_3 times`() {
+        narration().spec.size shouldBe 10f
+        narration(growth = 1.3f).spec.size shouldBe (13f plusOrMinus 0.001f)
+        // Larger font scales stop at 1.3×: past that the band round the rim has no more room.
+        narration(growth = 2f).spec.size shouldBe (13f plusOrMinus 0.001f)
+    }
+
+    @Test
+    fun `the smallest full dial keeps the rim narration legible`() {
+        // 250 dp: 10 units would be 7.6 dp.
+        narration(side = 250f).spec.size shouldBe TwoSkies.NarrationFloor
+    }
+
+    @Test
+    fun `the rim narration never outgrows the band between the lane and the face's edge`() {
+        val k = 250f / 328f
+        narration(side = 250f, growth = 1.3f).spec.size shouldBe (TwoSkies.NarrationMax * k plusOrMinus 0.001f)
+    }
+
     @Test
     fun `body time is slanted and local time upright`() {
         val ops = spec().ops.filterIsInstance<DialOp.Text>()

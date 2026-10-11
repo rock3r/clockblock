@@ -56,8 +56,8 @@ or "in sync".
 
 The needle points at the time shown. Outside the rings, an arc shows the block under the needle, with its name and
 when it ends ("See bright light until 15:00") and what comes next. When nothing is on, it shows the next block and
-when it starts. On a small phone, the dial is simpler: the rings say only the city and "Body", and the Now card
-below gives the details.
+when it starts. This text grows with your font size, up to a point, so it stays readable with larger text. On a
+small phone, the dial is simpler: the rings say only the city and "Body", and the Now card below gives the details.
 
 The dial follows the clock on the wall. On the night the clocks change, a block from 01:00 to 04:00 covers three
 hours of the dial, even though only two hours pass when the clocks go forward.
@@ -76,7 +76,8 @@ The card shows:
 
 - "NOW" and how much time is left in the block.
 - What to do, in large text (for example **Sleep** or **Avoid caffeine**), and a short tip.
-- Other blocks that are also active, such as "Also now: Avoid caffeine".
+- Other blocks that are also active, each on its own row with its symbol and name, such as "Also now · Avoid
+  caffeine".
 - When it ends: "until 15:00", with the same moment in your other time zone next to it ("07:00 Los Angeles").
 
 When you've done it, tap **Done**, at the bottom right of the card. The small arrow next to Done offers **Skipped**, **Can't do this** and
@@ -109,7 +110,8 @@ claims it's faster. See [the science](../docs/science.md) for details.
 <img src="images/timeline.png" alt="The Your plan timeline at the end of the travel day: Avoid light 22:45 to 01:00, marked In flight, with a Peak fatigue chip inside it, then a divider saying Switching to Tokyo time, UTC+9, +8 h from Lisbon. Below, Day 1, Thu 8 Oct, marked Arrival, with Sleep 09:00 to 10:00 and See bright light 10:00 to 15:00. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
-adapted. Each block shows its local time and, underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
+adapted. Each block shows its local time and how long it lasts on one line ("22:45 – 01:00 · 2 h 15 min") and,
+underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
 earlier days** to see them. Tap any block to read why it's there.
 
 A few details help you read it:
@@ -124,7 +126,8 @@ A few details help you read it:
   started yet have no circle.
 
 The toolbar at the bottom jumps to **Now**, lets you pick any day of the plan (**Day**), or opens **Why?** for the
-current block.
+current block. It appears once the Now card has scrolled away. While you scroll on through the plan it slides out
+of the way, and it comes back when you scroll back up or reach the end of the plan.
 
 ## Why is this in my plan?
 

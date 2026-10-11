@@ -79,6 +79,7 @@
     <string name="plan_duration_m">%1$d min</string>
     <string name="plan_up_next">Up next</string>
     <string name="plan_also_now">Also now: %1$s</string>
+    <string name="plan_also_now_prefix">Also now</string>
 
     <!-- Adaptation -->
     <string name="plan_adapted_percent">%1$d%% adapted</string>

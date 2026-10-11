@@ -63,4 +63,7 @@ object PlanTags {
 
     /** An "Up next" row. */
     fun upNext(adviceId: String) = "plan_up_next_$adviceId"
+
+    /** The Now card's "Also now" row for another block of this type that is on too. */
+    fun alsoNow(type: String) = "plan_also_now_$type"
 }
