@@ -81,7 +81,7 @@ Below the flights, **Trip details** has these settings:
 | Home time | Keeps your body clock on the time it starts on. Best for quick trips. |
 
 In the plan, "home time" means the time your body clock is on when you leave: the first departure airport's time,
-unless you pick **Home** under **Body clock when you leave**.
+unless **Home** is picked under **Body clock when you leave**.
 
 If every time zone change on the trip is under two hours, Auto and Adapt don't make a body clock plan: you only
 get flight advice and a few nights of sleep times.
@@ -96,11 +96,20 @@ leaving from a city on a different time from your home time zone (Settings → H
 
 | Choice | When to pick it |
 |---|---|
-| Departure city (the default) | You live there, or you've been there long enough to get over jet lag. |
+| Departure city | You live there, or you've been there long enough to get over jet lag. |
 | Home (your home city) | You only just got to the departure city, and your body is still on home time. |
 
 For example, if you live in Los Angeles, flew to New York two days ago and fly on to Paris tomorrow, pick **Home**:
 the plan then shifts you from Los Angeles time to Paris time.
+
+On a new trip, the app picks one for you from the route. A trip back home (its last flight lands somewhere on your
+home time, like London to San Francisco for someone who lives in Los Angeles) starts on **Home**, because after a
+short stay away your body is probably still on home time. Any other trip starts on **Departure city**. Pick the
+other one if it fits you better: once you've picked, changing the flights doesn't change it again. A saved trip
+keeps what it was saved with.
+
+A trip that leaves from home doesn't show this choice. If it's a round trip, add your return flight under **Flying
+back** and **Auto** keeps you on home time when you're back within 72 hours.
 
 ## Return trips
 
@@ -108,7 +117,8 @@ the plan then shifts you from Los Angeles time to Paris time.
 
 To plan the way home, open the trip's menu (the three dots on its card) and choose **Create return trip**, or tap
 **New trip** in the corner and then **Return from** the destination. The app reverses the route and suggests times. Check them against your
-ticket before you save.
+ticket before you save. When the return flies you home, its body clock starts on home time (see
+[Starting away from home](#starting-away-from-home)).
 
 ## Changing a trip
 

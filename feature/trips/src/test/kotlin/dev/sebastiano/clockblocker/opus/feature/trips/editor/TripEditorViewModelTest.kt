@@ -552,5 +552,121 @@ class TripEditorViewModelTest {
         trips.current.single { it.id == DemoData.LhrSydId }.bodyClockStartZoneId.shouldBeNull()
     }
 
+    /** LHR 2026-07-01 11:00 → SFO 14:00: for this Los Angeles resident, a flight back home. */
+    private fun TripEditorViewModel.fillLondonSanFrancisco() {
+        onPlaceSelected(from0, DemoData.LHR)
+        onPlaceSelected(to0, DemoData.SFO)
+        onDepartureDateChange(0, LocalDate.of(2026, 7, 1))
+        onDepartureTimeChange(0, LocalTime.of(11, 0))
+        onArrivalDateChange(0, LocalDate.of(2026, 7, 1))
+        onArrivalTimeChange(0, LocalTime.of(14, 0))
+    }
+
+    @Test
+    fun `a trip that ends at home starts on home time by default, and saves it`() = runTest(main.dispatcher) {
+        val vm = viewModel() // Home: Los Angeles.
+        vm.fillLondonSanFrancisco()
+        val choice = vm.state.value.bodyClockStart.shouldNotBeNull()
+        choice.fromHome shouldBe true
+        choice.homeZoneId shouldBe "America/Los_Angeles"
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            // Stored explicitly, so the trip doesn't depend on how a missing value is read later.
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId shouldBe "America/Los_Angeles"
+        }
+    }
+
+    @Test
+    fun `a trip that ends anywhere else starts in the departure city by default`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+
+        // Same for a flight that only gets closer to home: New York isn't on Los Angeles time.
+        val closer = viewModel()
+        closer.fillLondonSanFrancisco()
+        closer.onPlaceSelected(to0, DemoData.JFK)
+        closer.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+    }
+
+    @Test
+    fun `the default follows the trip's shape until the user picks`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLondonSanFrancisco()
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe true
+        vm.onPlaceSelected(to0, DemoData.HND)
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+        vm.onPlaceSelected(to0, DemoData.LAX) // Another airport on home time.
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe true
+    }
+
+    @Test
+    fun `a connection that flies on from home isn't a trip back home`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLondonSanFrancisco()
+        vm.addLeg()
+        vm.onPlaceSelected(PlaceFieldRef(1, LegEnd.Destination), DemoData.HND)
+        vm.onDepartureDateChange(1, LocalDate.of(2026, 7, 1))
+        vm.onDepartureTimeChange(1, LocalTime.of(17, 0))
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+    }
+
+    @Test
+    fun `the user's pick wins over the default and survives later edits`() = runTest(main.dispatcher) {
+        val vm = viewModel()
+        vm.fillLondonSanFrancisco()
+        vm.onBodyClockStartChange(fromHome = false)
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+        vm.onPlaceSelected(to0, DemoData.HND)
+        vm.onPlaceSelected(to0, DemoData.SFO)
+        vm.onDepartureTimeChange(0, LocalTime.of(12, 0))
+        vm.onTitleChange("Home again")
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId.shouldBeNull()
+        }
+
+        // And the other way round: Home picked on a trip that doesn't end at home stays Home.
+        val other = viewModel()
+        other.fillLisbonTokyo()
+        other.onBodyClockStartChange(fromHome = true)
+        other.onPlaceSelected(to0, DemoData.SIN)
+        other.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe true
+    }
+
+    @Test
+    fun `the return of a trip from home starts on home time`() = runTest(main.dispatcher) {
+        val vm = viewModel(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId)) // LHR → SFO.
+        vm.state.value.mode shouldBe EditorMode.Return
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe true
+        vm.state.value.dirty shouldBe false
+        vm.eventFlow.test {
+            vm.save()
+            val saved = awaitItem().shouldBeInstanceOf<TripEditorEvent.Saved>()
+            trips.current.single { it.id == saved.tripId }.bodyClockStartZoneId shouldBe "America/Los_Angeles"
+        }
+    }
+
+    @Test
+    fun `a saved trip back home keeps the start it was saved with`() = runTest(main.dispatcher) {
+        // Saved before this default existed (or with Departure city picked): null stays the departure city.
+        val saved = ReturnTripFactory(clock, TripTitleSuggester())
+            .create(trips.current.single { it.id == DemoData.SfoLhrId }, newId = { "lhr-sfo" })
+        saved.bodyClockStartZoneId.shouldBeNull()
+        trips.upsert(saved)
+        val vm = viewModel(TripEditorArgs(tripId = "lhr-sfo"))
+        vm.state.value.bodyClockStart.shouldNotBeNull().fromHome shouldBe false
+        vm.state.value.dirty shouldBe false
+        vm.onTitleChange("Edited")
+        vm.eventFlow.test {
+            vm.save()
+            awaitItem()
+        }
+        trips.current.single { it.id == "lhr-sfo" }.bodyClockStartZoneId.shouldBeNull()
+    }
+
     // endregion
 }

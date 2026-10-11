@@ -40,7 +40,11 @@ alone doesn't say: someone who has spent three weeks in New York is on New York 
 and someone who landed there yesterday isn't. So the default assumes the traveller is entrained where they start,
 which is right for anyone flying out from home and for long stays. The trip editor offers "Body clock when you
 leave" (departure city or home) only when the home zone and the first departure city are on different UTC offsets
-at departure, and stores the home zone's IANA id when the user picks home.
+at departure, and stores the home zone's IANA id when home is picked. On a new or return trip, until the user picks,
+the editor preselects home when the trip comes back home (its last flight lands on the home zone's offset at
+arrival), since after a short stay away the body is probably still on home time, and the departure city otherwise.
+Save stores the preselected choice like a picked one, so null keeps meaning the departure city and trips saved
+earlier plan as before.
 
 The same offset is the "home" of everything downstream: the per-segment Δ in §3 (so a trip within one zone still
 gets a plan when the body clock starts elsewhere), the cycle planner's starting body offset, home-time mode, the

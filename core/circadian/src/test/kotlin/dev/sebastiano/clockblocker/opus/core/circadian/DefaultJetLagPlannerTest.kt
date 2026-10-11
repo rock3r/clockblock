@@ -226,6 +226,17 @@ class DefaultJetLagPlannerTest {
     }
 
     @Test
+    fun `a round trip entered as one trip, back within 72 h, never moves the body clock`() {
+        // HOME → away → HOME as one trip: the stay is a stop, not a segment, and the trip ends where it started.
+        val out = leg("1", LHR, JFK, "2026-05-02T10:00", "2026-05-02T13:00")
+        val back = leg("2", JFK, LHR, "2026-05-04T18:00", "2026-05-05T06:00")
+        val plan = planner.plan(trip(out, back), profile(LHR), NOW)
+        plan.direction shouldBe ShiftDirection.None
+        plan.phase.map { it.bodyUtcOffsetMinutes }.distinct() shouldBe listOf(60) // BST all along
+        plan.allAdvice.none { it.type == AdviceType.SeeBrightLight || it.type == AdviceType.Melatonin } shouldBe true
+    }
+
+    @Test
     fun `strategy override wins over stay length`() {
         val long = sfoLhr.copy(strategyOverride = AdaptationStrategy.StayOnHomeTime)
         planner.plan(long, profile(SFO), NOW).strategy shouldBe AdaptationStrategy.StayOnHomeTime

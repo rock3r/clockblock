@@ -96,14 +96,24 @@ data class EditorForm(
     val returnDate: LocalDate? = null,
     val returnTime: LocalTime? = null,
     val strategy: AdaptationStrategy? = null,
-    /** [dev.sebastiano.clockblocker.opus.core.model.Trip.bodyClockStartZoneId]: null = the departure city. */
+    /**
+     * [dev.sebastiano.clockblocker.opus.core.model.Trip.bodyClockStartZoneId]: null = the departure city. Only read
+     * once [bodyClockStartPicked]; until then the editor suggests a start from the trip's shape.
+     */
     val bodyClockStartZoneId: String? = null,
+    /**
+     * The body clock start is settled: the user picked it, or it came with a saved trip. False on a new or return
+     * trip until the user picks, so the default follows the route (Home for a trip back home, see
+     * [BodyClockStartChoice]).
+     */
+    val bodyClockStartPicked: Boolean = false,
 )
 
 /**
  * "Body clock when you leave": offered when home and the first departure city are on different UTC offsets at
  * departure, so the choice changes the plan. [homeZoneId] is what the Home option stores: the trip's saved zone if
- * it has one, else the profile's home zone.
+ * it has one, else the profile's home zone. Until the user picks, Home is preselected for a trip back home (its last
+ * flight lands on home time), since the body is likely still on home time; otherwise the departure city.
  */
 data class BodyClockStartChoice(
     val departure: Place,
