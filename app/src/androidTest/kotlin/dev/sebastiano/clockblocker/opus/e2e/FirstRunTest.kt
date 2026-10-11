@@ -3,7 +3,9 @@ package dev.sebastiano.clockblocker.opus.e2e
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyDescendant
@@ -20,6 +22,7 @@ import dev.sebastiano.clockblocker.opus.feature.onboarding.HomeZoneTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingStep
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R as OnboardingR
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeRevealTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsTags
@@ -30,12 +33,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * First run from cleared data: all six onboarding steps, then the app lands on Trips (no trips yet). The variant
+ * First run from cleared data: all five onboarding steps (and the chronotype reveal), then the app lands on Trips (no
+ * trips yet). The variant
  * that grants notifications through the system dialog lives in [NotificationsTest] (it must run before anything
  * grants the permission).
  */
@@ -83,6 +88,8 @@ data class OnboardingChoices(val bedtimeBefore: String?, val bedtimeAfter: Strin
     fun assertSaved(profile: UserProfile) {
         assertEquals("Europe/Lisbon", profile.homeZoneId)
         assertEquals(Chronotype.ModerateEvening, profile.chronotype)
+        assertNotNull("days off set on their own", profile.daysOffSleep)
+        assertNotEquals("days off differ from work days", profile.sleep, profile.daysOffSleep)
         assertTrue("melatonin opted in after the safety note", profile.useMelatonin)
         assertEquals(Intensity.Gentle, profile.intensity)
         assertNotEquals("bedtime moved", bedtimeBefore, bedtimeAfter)
@@ -91,8 +98,9 @@ data class OnboardingChoices(val bedtimeBefore: String?, val bedtimeAfter: Strin
 }
 
 /**
- * Welcome → home zone (search "lis", pick Lisbon) → sleep (both dial handles moved through their accessibility
- * actions, as TalkBack would) → chronotype → tools (melatonin behind its safety note, effort) → reminders.
+ * Welcome → home zone (search "lis", pick Lisbon) → sleep (both work-day handles moved through their accessibility
+ * actions, as TalkBack would, then a later wake-up on days off) → the chronotype reveal (another one picked from the
+ * "Doesn't sound like me" sheet) → tools (melatonin behind its safety note, effort) → reminders.
  */
 @OptIn(ExperimentalTestApi::class)
 fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
@@ -118,11 +126,21 @@ fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
     val wakeMinute = wake.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].current
     wake.performSemanticsAction(SemanticsActions.SetProgress) { setProgress -> setProgress(wakeMinute - 30f) }
     val wakeAfter = awaitTag(SleepDialTags.Wake).stateDescription
+    // Days off: the tab switches the handles to the other ring; a lie-in unlinks them from work days.
+    awaitTag(SleepDialTags.DaysOff).scrollToIfScrollable().performClick()
+    awaitTag(SleepDialTags.DaysOff).assertIsSelected()
+    val daysOffWake = awaitTag(SleepDialTags.Wake)
+    val daysOffMinute = daysOffWake.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].current
+    daysOffWake.performSemanticsAction(SemanticsActions.SetProgress) { setProgress -> setProgress(daysOffMinute + 90f) }
     awaitTag(OnboardingTags.Next).performClick()
 
-    // Chronotype.
+    // The chronotype worked out from those nights, then another one picked from the sheet.
     awaitTag(OnboardingTags.step(OnboardingStep.Chronotype))
+    awaitTag(ChronotypeRevealTags.Name).assertIsDisplayed()
+    awaitTag(ChronotypeRevealTags.Other).scrollToIfScrollable().performClick()
     awaitTag(ChronotypeTags.option(Chronotype.ModerateEvening)).scrollToIfScrollable().performClick()
+    awaitGone(ChronotypeRevealTags.Sheet)
+    awaitTag(ChronotypeRevealTags.Name).assert(hasText("Evening person"))
     awaitTag(OnboardingTags.Next).performClick()
 
     // Tools: tapping melatonin first opens the safety note instead of switching it on.

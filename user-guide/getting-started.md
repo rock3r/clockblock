@@ -1,6 +1,6 @@
 # Getting started
 
-The first time you open Clockblock, it asks six short questions. Your answers set where your body clock
+The first time you open Clockblock, it asks five short questions. Your answers set where your body clock
 starts and how hard the plan pushes. It takes about two minutes, and you can change every answer later in
 Settings.
 
@@ -12,9 +12,9 @@ Settings.
 Clockblock isn't in an app store yet. To install it, build it from the source code (see the
 [project README](../README.md#build-and-test)).
 
-## The six setup steps
+## The five setup steps
 
-From step 2 on, the top shows "Step N of 6". Use **Back** to go to the previous step. **Skip** (not on the last
+From step 2 on, the top shows "Step N of 5". Use **Back** to go to the previous step. **Skip** (not on the last
 step) keeps your answers so far and the defaults for the rest, and jumps to the last step.
 
 ### 1. Welcome
@@ -26,7 +26,7 @@ body. Tap **Get started**.
 
 ### 2. Where's home?
 
-<img src="images/home-zone.png" alt="Step 2 of 6, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and lists Lisbon Humberto Delgado first, then Lismore, Budapest Liszt Ferenc and more, each with its local time and GMT offset." width="280" />
+<img src="images/home-zone.png" alt="Step 2 of 5, Where's home: the current home time zone is Rome, marked Phone's time zone. The search field contains lis and lists Lisbon Humberto Delgado first, then Lismore, Budapest Liszt Ferenc and more, each with its local time and GMT offset." width="280" />
 
 The app picks your phone's time zone and marks it "Phone's time zone". If home is somewhere else, search for a
 city or a three-letter airport code and pick the right place. You can change it later in Settings.
@@ -37,26 +37,36 @@ that city, or still on home time. See [Starting away from home](planning-a-trip.
 
 ### 3. When do you usually sleep?
 
-<img src="images/sleep.png" alt="Step 3 of 6, When do you usually sleep: a round dial with a moon at bedtime and a sun at wake-up, 8 hours of sleep in the middle. Below the dial, two buttons: Bedtime 23:00 and Wake 07:00." width="280" />
+<img src="images/sleep.png" alt="Step 3 of 5, When do you usually sleep: a round dial with a moon at bedtime and a sun at wake-up on the inner ring, and a thinner, paler ring outside it for the other schedule. In the middle, 7 h 45 m and a Work days | Days off switch. Below the dial, two buttons: Bedtime 23:30 and Wake 07:15." width="280" />
 
-Drag the moon to your usual bedtime and the sun to your usual wake-up time. Use your normal nights, not your best
-ones. The app uses this to estimate where your body clock is today.
+Drag the moon to your usual bedtime and the sun to your usual wake-up time. The dial holds two schedules:
 
-Under the dial, the **Bedtime** and **Wake** buttons show the two times and follow the dial as you drag. To enter
-an exact time instead, tap either one: a time picker opens. Its keyboard button lets you type the time. If the
-time you pick would make the night shorter than an hour, the other end moves to keep one hour of sleep.
+- **Work days**: your usual nights before work or other early commitments. Plans start from these.
+- **Days off**: the nights you wake up without an alarm.
 
-### 4. Lark, owl, or in between?
+Switch between them with **Work days | Days off** in the middle of the dial, or tap the thin outer ring: it shows
+the other schedule. Days off start as a copy of work days; move a Days off handle to set them on their own. If your
+nights are the same every day, leave Days off alone.
 
-<img src="images/chronotype.png" alt="Step 4 of 6, Lark, owl, or in between: five options from Early bird to Night owl, with Morning person selected, and a link Not sure? Work it out from your free days." width="280" />
+Under the dial, the **Bedtime** and **Wake** buttons show the times of the schedule you're editing and follow the
+dial as you drag. To enter an exact time instead, tap either one: a time picker opens. Its keyboard button lets you
+type the time. If the time you pick would make the night shorter than an hour, the other end moves to keep one hour
+of sleep.
 
-Choose the option that matches you on a free day with nothing planned: Early bird, Morning person, Somewhere in
-between, Evening person or Night owl. If you're not sure, tap **Not sure? Work it out from your free days**.
-The app asks when you fall asleep and wake up with no alarm, and suggests an answer.
+#### Your chronotype
 
-### 5. Your tools
+<img src="images/chronotype.png" alt="Step 3 of 5, still: a small sky with the sun low on its path, From your sleep, Morning person, Mornings are your best hours, the time your nights off are centred on, and a Doesn't sound like me link." width="280" />
 
-<img src="images/tools.png" alt="Step 5 of 6, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max, and the note: The research-backed pace. A good default for most trips." width="280" />
+When you tap **Next**, the app works out your chronotype from those two schedules: Early bird, Morning person,
+Somewhere in between, Evening person or Night owl. It uses the middle of your nights off, allowing for catch-up sleep
+after the working week (the Munich ChronoType Questionnaire's method).
+
+If it doesn't fit, tap **Doesn't sound like me** and pick another. The one your sleep suggests is marked. The screen
+then says **Your pick**, and changing your nights later doesn't override it.
+
+### 4. Your tools
+
+<img src="images/tools.png" alt="Step 4 of 5, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max, and the note: The research-backed pace. A good default for most trips." width="280" />
 
 Pick what you're happy to use. Each switch has the symbol of the advice it adds to your plan. When a switch is
 on, its row takes that advice's colour.
@@ -84,23 +94,27 @@ Melatonin suggestions stay off until you read the safety note and tick **I've re
 applies to me**. The plan only suggests a small dose (0.5 mg of fast-release melatonin), and only to shift your
 clock earlier. Melatonin is a medicine in many countries. Check with a doctor or pharmacist first.
 
-### 6. Reminders that actually arrive
+### 5. Reminders that actually arrive
 
-<img src="images/reminders.png" alt="Step 6 of 6, Reminders that actually arrive: a Notifications row with an Allow button and an Exact timing row with an Open settings button. Buttons at the bottom: Maybe later and Allow and finish." width="280" />
+<img src="images/reminders.png" alt="Step 5 of 5, Reminders that actually arrive: a sample reminder as it looks in the notification shade, See bright light with how long is left and what comes next, then an Allow notifications button. At the bottom, Back and Maybe later." width="280" />
 
 The app can remind you just before each change in your plan. It never sends a reminder while you're meant to be
 asleep, except the one that wakes you.
 
-- **Notifications** lets the app show reminders at all.
-- **Exact timing** lets reminders arrive on the minute. Without it, Android may deliver them up to 10 minutes
-  late, and while the phone is idle (Doze) usually up to about an hour late. Android doesn't promise a limit.
+The card shows a sample of the reminder that stays in your notification shade while a plan runs. Tap **Allow
+notifications** under it to let the app show reminders. Android asks you to confirm.
 
-Tap **Allow and finish**, or **Maybe later** to finish without allowing notifications. If notifications are
-already allowed, the buttons are **Back** and **Finish**. You can grant the permissions any time from Settings →
-**What Android allows**.
+Once notifications are allowed, the bottom button becomes **Finish**. If your phone still needs it, an **Exact
+timing** row then appears: it lets reminders arrive on the minute. Without it, Android may deliver them up to
+10 minutes late, and while the phone is idle (Doze) usually up to about an hour late. Android doesn't promise a
+limit. Tap **Open settings** to allow it, or skip it.
 
-If you installed the app from outside Google Play, exact timing is allowed when you install it, so **Exact timing**
-already says "Allowed" and reminders arrive on the minute.
+If you installed the app from outside Google Play, exact timing is allowed when you install it, so the row never
+appears.
+
+**Maybe later** finishes setup without asking. If you said no when Android asked, the card offers **Open settings**
+instead, and the bottom button is **Finish**. You can grant the permissions any time from Settings → **What Android
+allows**.
 
 ## What's next
 

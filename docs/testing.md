@@ -70,8 +70,8 @@ They drive the real app, with real DataStore files and real notifications.
 | Test class | What it covers |
 |---|---|
 | `SmokeTest` | The app starts on the right first screen, and shows the navigation after onboarding |
-| `FirstRunTest` | All onboarding steps, finished without the permission prompt ("Maybe later", or "Finish" when notifications are already allowed); skipping ahead and stepping back |
-| `NotificationsTest` | "Allow and finish" grants notifications through the system dialog; the test reminder appears in the shade and opens the plan; the Now notification keeps its Remote Compose content in the shade, and its Done action logs the outcome |
+| `FirstRunTest` | All onboarding steps (work-day and days-off sleep, the chronotype reveal and its "Doesn't sound like me" sheet), finished without the permission prompt ("Maybe later", or "Finish" when notifications are already allowed); skipping ahead and stepping back |
+| `NotificationsTest` | "Allow notifications" on the Reminders card grants notifications through the system dialog, then Exact timing is offered only if it isn't allowed yet; the test reminder appears in the shade and opens the plan; the Now notification keeps its Remote Compose content in the shade, and its Done action logs the outcome |
 | `TripsTest` | Creating a trip with the pickers and fixing a validation error; the demo trip; Done on the Now card logs the outcome |
 | `EditorConfigChangesTest` | The trip editor keeps its input across rotation and a large font |
 | `PlanInteractionsTest` | A timeline block opens the Why sheet and the toolbar jumps back to now; a light block's Why sheet shows the light response curve, and its "Later hour" action moves the readout; a timeline check-off circle logs Done, and Undo or unticking clears it; calendar export opens the file picker |

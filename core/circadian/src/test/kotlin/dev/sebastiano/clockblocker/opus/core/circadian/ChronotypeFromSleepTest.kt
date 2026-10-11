@@ -2,6 +2,8 @@ package dev.sebastiano.clockblocker.opus.core.circadian
 
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import io.kotest.matchers.doubles.plusOrMinus
+import io.kotest.matchers.doubles.shouldBeLessThan
+import io.kotest.matchers.doubles.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -14,19 +16,22 @@ import org.junit.jupiter.api.Test
 import java.time.LocalTime
 
 /**
- * Onboarding asks one question, the ideal night's sleep on a day off, and works the chronotype out from it: MCTQ
- * mid-sleep on free days (MSF), with no sleep-debt correction (there is no work-day sleep to correct against).
+ * Onboarding asks for the usual sleep on work days and on days off, and works the chronotype out from them: MCTQ
+ * mid-sleep on free days corrected for catch-up sleep (MSF_sc), mapped onto the app's five chronotypes.
  */
-class FreeDayChronotypeTest {
+class ChronotypeFromSleepTest {
 
     @Test
-    fun `typical ideal nights land on the expected chronotype`() {
-        fromNight(21, 0, 5, 0) shouldBe Chronotype.DefiniteMorning // MSF 01:00
-        fromNight(22, 0, 6, 0) shouldBe Chronotype.ModerateMorning // MSF 02:00
-        fromNight(23, 0, 7, 0) shouldBe Chronotype.Intermediate // MSF 03:00 (the app's default night)
-        fromNight(0, 0, 8, 0) shouldBe Chronotype.Intermediate // MSF 04:00
-        fromNight(1, 30, 9, 30) shouldBe Chronotype.ModerateEvening // MSF 05:30
-        fromNight(3, 0, 11, 0) shouldBe Chronotype.DefiniteEvening // MSF 07:00
+    fun `typical schedules land on the expected chronotype`() {
+        // Days off linked to work days: nothing to correct, plain mid-sleep.
+        chronotype(work = 21 to 5, off = 21 to 5) shouldBe Chronotype.DefiniteMorning // 01:00
+        chronotype(work = 22 to 6, off = 22 to 6) shouldBe Chronotype.ModerateMorning // 02:00
+        chronotype(work = 23 to 7, off = 23 to 7) shouldBe Chronotype.Intermediate // 03:00, the default nights
+        chronotype(work = 1 to 9, off = 2 to 10) shouldBe Chronotype.ModerateEvening // 06:00
+        chronotype(work = 2 to 10, off = 3 to 11) shouldBe Chronotype.DefiniteEvening // 07:00
+        // A lie-in on days off is mostly catch-up sleep: 01:00–10:00 after 23:00–07:00 weeks is 05:09, not 05:30.
+        chronotype(work = 23 to 7, off = 1 to 10) shouldBe Chronotype.ModerateEvening
+        chronotype(work = 23 to 7, off = 0 to 9) shouldBe Chronotype.Intermediate // 04:09
     }
 
     @Test
@@ -67,19 +72,30 @@ class FreeDayChronotypeTest {
     }
 
     @Test
-    fun `a free-day night maps through its uncorrected mid-sleep`() = runTest {
+    fun `with the same nights on work days and days off, the correction changes nothing`() = runTest {
         checkAll(Arb.int(0 until 24 * 60), Arb.int(60..(22 * 60))) { onsetMinute, durationMinutes ->
             val onset = LocalTime.of(onsetMinute / 60, onsetMinute % 60)
             val hours = durationMinutes / 60.0
-            val msf = Chronotypes.mctqMidSleepFreeDays(onset, hours)
-            msf shouldBe (CircadianMath.mod24(onsetMinute / 60.0 + hours / 2) plusOrMinus 1e-9)
-            Chronotypes.fromFreeDaySleep(onset, hours) shouldBe Chronotypes.fromMidSleep(msf)
+            Chronotypes.mctqMsfSc(onset, hours, hours) shouldBe (Chronotypes.mctqMidSleepFreeDays(onset, hours) plusOrMinus 1e-9)
         }
     }
 
-    private fun fromNight(bedH: Int, bedM: Int, wakeH: Int, wakeM: Int): Chronotype {
-        val bed = LocalTime.of(bedH, bedM)
-        val minutes = ((wakeH * 60 + wakeM) - (bedH * 60 + bedM)).mod(24 * 60)
-        return Chronotypes.fromFreeDaySleep(bed, minutes / 60.0)
+    @Test
+    fun `catch-up sleep only ever moves mid-sleep earlier, by at most half the lie-in`() = runTest {
+        checkAll(Arb.int(0 until 24 * 60), Arb.int(60..(16 * 60)), Arb.int(60..(16 * 60))) { onsetMinute, freeMinutes, workMinutes ->
+            val onset = LocalTime.of(onsetMinute / 60, onsetMinute % 60)
+            val free = freeMinutes / 60.0
+            val work = workMinutes / 60.0
+            val msf = Chronotypes.mctqMidSleepFreeDays(onset, free)
+            val sc = Chronotypes.mctqMsfSc(onset, free, work)
+            val earlier = CircadianMath.mod24(msf - sc + 12.0) - 12.0 // signed, in (-12, 12]
+            earlier shouldBeGreaterThanOrEqual -1e-9
+            earlier shouldBeLessThan maxOf(0.0, (free - work) / 2) + 1e-9
+        }
+    }
+
+    private fun chronotype(work: Pair<Int, Int>, off: Pair<Int, Int>): Chronotype {
+        fun hours(night: Pair<Int, Int>) = (night.second - night.first).mod(24).toDouble()
+        return Chronotypes.fromMidSleep(Chronotypes.mctqMsfSc(LocalTime.of(off.first, 0), hours(off), hours(work)))
     }
 }

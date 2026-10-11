@@ -596,7 +596,11 @@ are copies of them.
 
 ## Permissions
 
-Onboarding asks for notifications and exact timing ("Reminders that actually arrive"). Settings shows the current
+Onboarding asks for notifications from its last step ("Reminders that actually arrive"), right under a sample of the
+Now notification: the real Remote Compose document for the widgets' sample plan (`NowNotificationContent.preview`),
+played in the app, or the standard notification's look where Remote Compose can't play. Once notifications are allowed
+it offers exact timing as an optional row, only where the user could still grant it
+(`NotificationPermissionState.exactAlarmsRequestable` and not yet allowed). Settings shows the current
 state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
 fix it. The summary starts (and re-opens) expanded whenever `NotificationPermissionState.isReliable` is false;
 Live Updates and battery optimisation are optional extras and never force it open. Everything still works
@@ -606,8 +610,8 @@ Exact alarms depend on the build's `distribution` flavour. The `play` build (Goo
 `SCHEDULE_EXACT_ALARM`, which starts denied on new installs, so the user grants it in "Alarms & reminders". The
 `oss` build (outside Google Play) declares `USE_EXACT_ALARM` instead
 ([`app/src/oss/AndroidManifest.xml`](../app/src/oss/AndroidManifest.xml)). It is granted at install and
-`AlarmManager.canScheduleExactAlarms()` returns true, so the scheduler always arms exact alarms and the exact
-timing row shows "Allowed". Google Play only accepts `USE_EXACT_ALARM` from alarm and calendar apps, so
+`AlarmManager.canScheduleExactAlarms()` returns true, so the scheduler always arms exact alarms, onboarding never
+offers the exact timing row, and Settings' row shows "Allowed". Google Play only accepts `USE_EXACT_ALARM` from alarm and calendar apps, so
 `DistributionManifestTest` checks that it never reaches the play manifest.
 
 | Permission | Why | Who controls it | Without it |

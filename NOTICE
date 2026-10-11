@@ -67,6 +67,11 @@ Circadian science
 Libraries
 -------------------------------------------------------------------------------------------------------------
 
+Torph for Jetpack Compose (third-party/torph, vendored source)
+  Copyright (c) 2026 Chris Sinco (https://github.com/c5inco/torph-compose)
+  An unofficial port of torph, Copyright (c) 2025 Lochie Axon (https://github.com/lochie/torph).
+  Both licensed under the MIT License: third-party/torph/LICENSE and third-party/torph/NOTICE.
+
 The app is built on open-source libraries (AndroidX / Jetpack Compose, Kotlin and kotlinx, Metro, and others),
 each under its own licence, as declared in gradle/libs.versions.toml and listed in the app's licences screen.
 

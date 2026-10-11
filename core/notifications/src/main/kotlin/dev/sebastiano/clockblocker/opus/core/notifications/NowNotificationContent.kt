@@ -20,6 +20,13 @@ interface NowNotificationContent {
      */
     suspend fun render(state: NowState, plan: JetLagPlan, now: Instant): NowContentViews?
 
+    /**
+     * The expanded content for a sample plan (made-up advice, no user data) at [now], [widthDp] wide and with no click
+     * action: onboarding's Reminders step shows it as a preview. Null when this device can't play it; may throw. The
+     * caller then draws the standard notification's look instead.
+     */
+    suspend fun preview(now: Instant, widthDp: Int): RemoteViews? = null
+
     /** No Remote Compose content: the standard notification. The default until `:widget` contributes its own. */
     object None : NowNotificationContent {
         override suspend fun render(state: NowState, plan: JetLagPlan, now: Instant): NowContentViews? = null

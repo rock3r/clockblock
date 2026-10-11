@@ -251,6 +251,19 @@ class NowNotificationRemoteTest {
     }
 
     @Test
+    fun `the onboarding preview plays the sample plan, and nothing without a supported document version`(): Unit = runBlocking {
+        val content = content
+        content.profileProvider = { null }
+        content.preview(now, 280) shouldBe null
+
+        content.profileProvider = { widgetProfileFor(7) }
+        content.capturer = { profile, size, body ->
+            captureSingleRemoteDocument(context = context, creationDisplayInfo = createCreationDisplayInfo(context, size), profile = profile, content = body)
+        }
+        content.preview(now, 280) shouldNotBe null
+    }
+
+    @Test
     fun `both documents follow the theme on their own`() {
         val docs = documents(model())
         (document(docs.collapsed.bytes).themedColors.size > 0) shouldBe true

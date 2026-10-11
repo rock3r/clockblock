@@ -591,6 +591,22 @@ DLMO  = T0 − 7 h
 - Show users that the estimate is uncertain (±1.5 h). This is the main reason the plan's windows are deliberately broad.
 - Kantermann & Eastman 2018 (Chronobiol Int 35:280, doi 10.1080/07420528.2017.1400979) give additional evidence on the reliability of the phase estimate.
 
+### 8.3 What the app asks
+
+Onboarding asks for the usual sleep on **work days** and on **days off** (the nights you wake up without an alarm), on
+one dial; days off start as a copy of work days. It then works the chronotype out instead of asking for it:
+
+- **MSF_sc** from the two nights (§8.1): days-off onset and duration, corrected against work-day duration. With the
+  two nights the same there is nothing to correct, and MSF_sc = MSF.
+- **Five bands**, nested inside the planner's tertiles so the five-level answer never disagrees with the three classes:
+  before 02:00 Early bird, before 03:00 Morning person, 03:00–05:00 Somewhere in between, up to 06:00 Evening person,
+  later Night owl. Mid-sleeps in the evening (18:00–24:00) count as very early.
+- The user sees the result and can pick another chronotype ("Doesn't sound like me"). A picked chronotype stays when
+  the nights change.
+
+Plans keep using **work-day** sleep as the habitual sleep (onset and wake in §8.2): days-off sleep only feeds the
+chronotype. Profiles saved before days-off sleep existed keep their sleep as work-day sleep, with days off linked.
+
 ---
 
 ## 9. Short trips

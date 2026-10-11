@@ -5,7 +5,9 @@ import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
+import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
+import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
@@ -33,6 +35,7 @@ import org.robolectric.annotation.Config
 import java.io.File
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneOffset
 
 @RunWith(RobolectricTestRunner::class)
@@ -186,6 +189,33 @@ class DataStoreRepositoriesTest {
         scope.coroutineContext[Job]!!.cancelAndJoin()
         advanceUntilIdle()
         profiles(file).profile.first()?.intensity shouldBe Intensity.Max
+    }
+
+    @Test
+    fun profileSavedBeforeDaysOffSleepKeepsItsSleepAsWorkDaysWithDaysOffLinked() = runTest {
+        // A profile.json as written before days-off sleep existed.
+        val file = File(tmp.root, "profile.json")
+        file.writeText(
+            """{"schemaVersion":1,"profile":{"homeZoneId":"Europe/Lisbon","sleep":{"bedtime":"00:30","wake":"08:15"},""" +
+                """"chronotype":"ModerateEvening","useMelatonin":false,"useCaffeine":true,"canSleepOnPlanes":true,""" +
+                """"adjustBeforeDeparture":true,"intensity":"Balanced"}}""",
+        )
+        val loaded = profiles(file).profile.first()!!
+        loaded.sleep shouldBe SleepWindow(LocalTime.of(0, 30), LocalTime.of(8, 15))
+        loaded.daysOffSleep.shouldBeNull()
+        loaded.daysOff shouldBe loaded.sleep
+        loaded.chronotype shouldBe Chronotype.ModerateEvening
+    }
+
+    @Test
+    fun daysOffSleepRoundTrips() = runTest {
+        val file = File(tmp.root, "profile.json")
+        val scope = storeScope()
+        val daysOff = SleepWindow(LocalTime.of(1, 0), LocalTime.of(10, 0))
+        profiles(file, scope).save(DemoData.profile.copy(daysOffSleep = daysOff))
+        scope.coroutineContext[Job]!!.cancelAndJoin()
+        advanceUntilIdle()
+        profiles(file).profile.first()?.daysOffSleep shouldBe daysOff
     }
 
     // endregion

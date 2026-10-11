@@ -21,7 +21,12 @@ import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeRevealTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performSemanticsAction
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsTags
 import android.content.Context
@@ -45,13 +50,16 @@ private class RecordingActions : OnboardingActions {
     override fun selectPlace(place: Place) { calls += "place:${place.code}" }
     override fun useDeviceZone() { calls += "deviceZone" }
     override fun sleepChange(window: SleepWindow) { calls += "sleep" }
+    override fun daysOffSleepChange(window: SleepWindow) { calls += "daysOff" }
     override fun chronotypeChange(chronotype: Chronotype) { calls += "chronotype:${chronotype.name}" }
     override fun profileChange(profile: UserProfile) { calls += "profile" }
     override fun melatoninChange(enabled: Boolean) { calls += "melatonin:$enabled" }
     override fun acknowledgeMelatonin(acknowledged: Boolean) { calls += "ack:$acknowledged" }
     override fun intensityChange(intensity: Intensity) { calls += "intensity:${intensity.name}" }
-    override fun requestNotifications(thenFinish: Boolean) { calls += "notifications:$thenFinish" }
+    override fun requestNotifications() { calls += "notifications" }
+    override fun openNotificationSettings() { calls += "notificationSettings" }
     override fun openExactAlarmSettings() { calls += "exact" }
+    override fun loadNotificationPreview(widthDp: Int) = Unit
     override fun finish() { calls += "finish" }
 }
 
@@ -101,10 +109,31 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun `picking a chronotype card reports it`() {
-        show(onboardingState(OnboardingStep.Chronotype))
+    fun `the reveal names the chronotype and doesn't sound like me opens the sheet to pick another`() {
+        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London")))
+        compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Somewhere in between"))
+        compose.onNodeWithText("From your sleep").assertIsDisplayed()
+        compose.onNodeWithTag(ChronotypeRevealTags.Other).performScrollTo().performClick()
+        compose.onNodeWithTag(ChronotypeRevealTags.Sheet).assertExists()
+        compose.onNodeWithText("What your sleep suggests").assertExists()
         compose.onNodeWithTag(ChronotypeTags.option(Chronotype.DefiniteEvening)).performScrollTo().performClick()
         actions.calls shouldContainExactly listOf("chronotype:DefiniteEvening")
+    }
+
+    @Test
+    fun `a picked chronotype says so on the reveal`() {
+        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London", chronotype = Chronotype.DefiniteEvening)))
+        compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Night owl"))
+        compose.onNodeWithText("Your pick").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the sleep step edits work days and, from the toggle, days off`() {
+        show(onboardingState(OnboardingStep.Sleep))
+        compose.onNodeWithTag(SleepDialTags.Wake).performSemanticsAction(SemanticsActions.SetProgress) { it(7 * 60f + 15f) }
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performScrollTo().performClick()
+        compose.onNodeWithTag(SleepDialTags.Wake).performSemanticsAction(SemanticsActions.SetProgress) { it(7 * 60f + 30f) }
+        actions.calls shouldContainExactly listOf("sleep", "daysOff")
     }
 
     @Test
@@ -125,35 +154,43 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun `finish asks for notifications first, maybe later just finishes`() {
+    fun `notifications are asked from the card, maybe later finishes without asking`() {
         show(onboardingState(OnboardingStep.Reminders))
         compose.onNodeWithTag(OnboardingTags.Skip).assertIsNotEnabled()
-        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
+        compose.onNodeWithTag(OnboardingTags.Finish).assertDoesNotExist()
+        compose.onNodeWithTag(NotificationPreviewTags.Card).assertExists()
+        // No Remote Compose player here: the card draws the standard notification's look.
+        compose.onNodeWithTag(NotificationPreviewTags.Remote).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.ExactAlarmRow).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.AllowNotifications).performScrollTo().performClick()
         compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
-        compose.onNodeWithTag(RemindersTags.ExactAlarm).performClick()
-        actions.calls shouldContainExactly listOf("notifications:true", "finish", "exact")
+        actions.calls shouldContainExactly listOf("notifications", "finish")
     }
 
     @Test
-    fun `finish goes straight through when notifications are already allowed`() {
-        show(onboardingState(OnboardingStep.Reminders, notificationsGranted = true))
-        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
-        actions.calls shouldContainExactly listOf("finish")
-    }
-
-    @Test
-    fun `once notifications are allowed, the last step offers Back instead of Maybe later (#101)`() {
+    fun `once notifications are allowed, exact timing follows as an option and the step finishes normally`() {
         show(onboardingState(OnboardingStep.Reminders, notificationsGranted = true))
         compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.NotificationsAllowed).assertExists()
+        compose.onNodeWithTag(RemindersTags.ExactAlarm).performScrollTo().performClick()
+        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
         compose.onNodeWithTag(OnboardingTags.Back).performClick()
-        actions.calls shouldContainExactly listOf("back")
+        actions.calls shouldContainExactly listOf("exact", "finish", "back")
     }
 
     @Test
-    fun `before notifications are allowed, the last step offers Maybe later and no Back`() {
-        show(onboardingState(OnboardingStep.Reminders))
-        compose.onNodeWithTag(OnboardingTags.MaybeLater).assertExists()
-        compose.onNodeWithTag(OnboardingTags.Back).assertDoesNotExist()
+    fun `where exact alarms come with the install, exact timing is never offered`() {
+        show(onboardingState(OnboardingStep.Reminders, notificationsGranted = true, exactAlarmsAllowed = true))
+        compose.onNodeWithTag(RemindersTags.ExactAlarmRow).assertDoesNotExist()
+    }
+
+    @Test
+    fun `after a refusal the card points to Android's settings and the step can finish`() {
+        show(onboardingState(OnboardingStep.Reminders, notificationsAsked = true))
+        compose.onNodeWithTag(RemindersTags.AllowNotifications).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.NotificationSettings).performScrollTo().performClick()
+        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
+        actions.calls shouldContainExactly listOf("notificationSettings", "finish")
     }
 
     private var step by mutableStateOf(OnboardingStep.Chronotype)
@@ -215,7 +252,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     @Test
     fun `the headline sits at the same height on every question step at a large font`() = assertHeadlineRhythm(fontScale = 1.5f)
 
-    /** Steps 2 to 5 share one header (art, headline, body): stepping through them never moves the headline. */
+    /** The question steps share one header (art, headline, body): stepping through them never moves the headline. */
     private fun assertHeadlineRhythm(fontScale: Float) {
         var step by mutableStateOf(OnboardingStep.HomeZone)
         setContent(fontScale = fontScale) { OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize()) }
@@ -223,7 +260,6 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         val tops = listOf(
             OnboardingStep.HomeZone to R.string.home_headline,
             OnboardingStep.Sleep to R.string.sleep_headline,
-            OnboardingStep.Chronotype to R.string.chronotype_headline,
             OnboardingStep.Tools to R.string.tools_headline,
         ).map { (target, headline) ->
             step = target

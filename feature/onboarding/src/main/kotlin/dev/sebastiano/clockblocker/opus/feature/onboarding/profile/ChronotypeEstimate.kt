@@ -16,18 +16,10 @@ object ChronotypeEstimate {
     data class Result(val chronotype: Chronotype, val midSleep: LocalTime)
 
     /**
-     * Onboarding's inference: the chronotype of someone whose ideal night on a day off is [ideal]. This is plain
-     * mid-sleep on free days (MSF): with no work-day sleep there is nothing to correct oversleep against.
-     */
-    fun fromIdealNight(ideal: SleepWindow): Result {
-        val msf = Chronotypes.mctqMidSleepFreeDays(ideal.bedtime, ideal.duration.toMinutes() / 60.0)
-        return Result(Chronotypes.fromMidSleep(msf), midSleepTime(msf))
-    }
-
-    /**
-     * Settings' "Not sure?" helper: free-day sleep corrected for oversleep (MSF_sc) against the usual sleep.
+     * The chronotype from both usual nights: mid-sleep on days off corrected for catch-up sleep against work days
+     * (MCTQ MSF_sc). With the two nights the same (days off linked) there is nothing to correct: plain MSF.
      *
-     * @param free usual sleep on free days.
+     * @param free usual sleep on days off (no alarm).
      * @param work usual sleep on work days, for the oversleep correction.
      */
     fun estimate(free: SleepWindow, work: SleepWindow): Result {

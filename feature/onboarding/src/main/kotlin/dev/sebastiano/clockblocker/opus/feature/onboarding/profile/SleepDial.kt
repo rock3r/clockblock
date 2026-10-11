@@ -3,6 +3,8 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 import android.content.res.Resources
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -11,10 +13,14 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -111,7 +117,6 @@ import androidx.compose.ui.unit.isFinite
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingMetricText
-import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingTimeText
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
@@ -127,6 +132,10 @@ import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
+import androidx.compose.animation.core.SpringSpec
+import des.c5inco.torph.compose.MorphEase
+import des.c5inco.torph.compose.TextMorph
 
 /** Test tags for the e2e suite. */
 object SleepDialTags {
@@ -138,21 +147,51 @@ object SleepDialTags {
     const val BedtimePill = "sleep_dial_bedtime_pill"
     const val WakePill = "sleep_dial_wake_pill"
     const val PickerConfirm = "sleep_dial_picker_confirm"
+    const val WorkDays = "sleep_dial_work_days"
+    const val DaysOff = "sleep_dial_days_off"
 }
 
 private enum class EggState { Hidden, Peek, Note }
 
+/** Which of the user's two usual nights the dial is editing. */
+enum class SleepSchedule { WorkDays, DaysOff }
+
 /**
- * The sleep-arc dial picker: a 24 h ring (noon at the top, midnight at the bottom, like the Two Clocks dial) with
- * a moon handle for bedtime and a sun handle for wake-up. Drag a handle to move it, or the arc to slide the whole
- * window. Values snap to 5 minutes with a `CLOCK_TICK` haptic every 15.
+ * The sleep-arc dial picker for one night: [SleepDial] with no second schedule (no toggle, no outer ring).
+ */
+@Composable
+fun SleepDial(
+    window: SleepWindow,
+    onWindowChange: (SleepWindow) -> Unit,
+    modifier: Modifier = Modifier,
+    easterEggEnabled: Boolean = true,
+    maxDialSize: Dp = DefaultMaxDialSize,
+    maxHeight: Dp = Dp.Infinity,
+) = SleepDialImpl(window, null, twoSchedules = false, onWindowChange, onWindowChange, modifier, easterEggEnabled, maxDialSize, maxHeight)
+
+/**
+ * The sleep-arc dial picker for both usual nights: work days and days off (the nights you wake up without an alarm),
+ * on a 24 h ring (noon at the top, midnight at the bottom, like the Two Clocks dial). The schedule being edited is the
+ * full ring, with a moon handle for bedtime and a sun handle for wake-up (they sit on the arc and grow while held);
+ * the other one is the narrower, dimmed ring outside it. A "Work days | Days off" toggle in the centre (tab
+ * semantics), or a tap on the outer ring, swaps them: the two rings trade radius and thickness on the Expressive
+ * container spring, while their arcs keep their angles (the times are data and never bounce). Under reduce motion
+ * the swap cross-fades instead.
  *
- * Under the dial, a bedtime pill and a wake pill show the two times (with AM/PM in 12-hour mode). They follow the
- * dial live while dragging (no roll, the value changes every frame) and roll their changed digits on discrete
- * changes (TalkBack, keyboard, the egg's rubber band). Tapping a pill opens a time picker for an exact minute.
+ * [daysOff] is `null` while it is linked to [work] (the same nights): the outer ring then shows the same arc, and the
+ * first change made on Days off unlinks it through [onDaysOffChange].
+ *
+ * Drag a handle to move it, or the arc to slide the whole window. Values snap to 5 minutes with a `CLOCK_TICK` haptic
+ * every 15.
+ *
+ * Under the dial, a bedtime pill and a wake pill show the edited schedule's two times (with AM/PM in 12-hour mode).
+ * They follow the dial live while dragging and morph on discrete changes (TalkBack, keyboard, a picked time, the
+ * egg's rubber band, a schedule switch), with torph's morphing text on the data spring. Tapping a pill opens a time
+ * picker for an exact minute.
  *
  * Accessibility: each handle is its own adjustable node (TalkBack swipe up/down or the custom actions move it by
- * 15 minutes) and is keyboard-focusable (arrow keys ±15 minutes); the pills are buttons that open the picker.
+ * 15 minutes) and is keyboard-focusable (arrow keys ±15 minutes); the pills are buttons that open the picker. The
+ * outer ring is left out of accessibility: the toggle reaches it.
  *
  * Easter egg **24.2** (design.md §2.7 #4, when [easterEggEnabled]): push the wake handle past a full day and
  * "24:12" peeks out with the Czeisler line before the arc rubber-bands back. Under reduce motion the peek and the
@@ -162,23 +201,41 @@ private enum class EggState { Hidden, Peek, Note }
  * shrinks the ring further so the ring plus the time pills fit that height (the pills are measured, so this holds
  * at any font scale); the ring never goes below 140 dp for it, and the hint line under the pills may scroll.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SleepDial(
-    window: SleepWindow,
-    onWindowChange: (SleepWindow) -> Unit,
+    work: SleepWindow,
+    daysOff: SleepWindow?,
+    onWorkChange: (SleepWindow) -> Unit,
+    onDaysOffChange: (SleepWindow) -> Unit,
     modifier: Modifier = Modifier,
     easterEggEnabled: Boolean = true,
     maxDialSize: Dp = DefaultMaxDialSize,
     maxHeight: Dp = Dp.Infinity,
+) = SleepDialImpl(work, daysOff, twoSchedules = true, onWorkChange, onDaysOffChange, modifier, easterEggEnabled, maxDialSize, maxHeight)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SleepDialImpl(
+    work: SleepWindow,
+    daysOff: SleepWindow?,
+    twoSchedules: Boolean,
+    onWorkChange: (SleepWindow) -> Unit,
+    onDaysOffChange: (SleepWindow) -> Unit,
+    modifier: Modifier,
+    easterEggEnabled: Boolean,
+    maxDialSize: Dp,
+    maxHeight: Dp,
 ) {
+    var schedule by rememberSaveable { mutableStateOf(SleepSchedule.WorkDays) }
+    val editingDaysOff = twoSchedules && schedule == SleepSchedule.DaysOff
+    val window = if (editingDaysOff) daysOff ?: work else work
+    val onWindowChange = if (editingDaysOff) onDaysOffChange else onWorkChange
     val colors = MaterialTheme.colorScheme
     val advice = ClockblockTheme.adviceColors
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val textStyles = ClockblockTheme.textStyles
     val art = ClockblockTheme.artColors
-    val sky = ClockblockTheme.sky
     val formatter = rememberTimeFormatter()
     val view = LocalView.current
     val density = LocalDensity.current
@@ -190,6 +247,29 @@ fun SleepDial(
     val currentOnChange by rememberUpdatedState(onWindowChange)
     val currentReduce by rememberUpdatedState(reduce)
     val currentEggEnabled by rememberUpdatedState(easterEggEnabled)
+    val currentTwoSchedules by rememberUpdatedState(twoSchedules)
+    val currentWork by rememberUpdatedState(work)
+    val currentDaysOff by rememberUpdatedState(daysOff ?: work)
+    val currentEditingDaysOff by rememberUpdatedState(editingDaysOff)
+
+    // The schedule swap: 0 = work days on the inner ring, 1 = days off. The rings trade radius and thickness on the
+    // container spring (Expressive by day); their angles never animate. Under reduce motion the geometry snaps and
+    // [swapFade] cross-fades the old picture into the new one.
+    val swap = remember { Animatable(if (editingDaysOff) 1f else 0f) }
+    val swapFade = remember { Animatable(1f) }
+    var fadeFrom by remember { mutableStateOf<SwapPicture?>(null) }
+    fun switchTo(next: SleepSchedule) {
+        if (!currentTwoSchedules || next == schedule) return
+        if (currentReduce) {
+            fadeFrom = SwapPicture(swap.value, currentWork, currentDaysOff, currentEditingDaysOff)
+            scope.launch { swapFade.snapTo(0f); swapFade.animateTo(1f, motion.colour()); fadeFrom = null }
+        }
+        schedule = next
+    }
+    LaunchedEffect(editingDaysOff, reduce) {
+        val target = if (editingDaysOff) 1f else 0f
+        if (reduce) swap.snapTo(target) else swap.animateTo(target, motion.containerSpatial())
+    }
 
     /** Raw minutes pushed past the longest window; drawn with resistance. */
     val overshoot = remember { Animatable(0f) }
@@ -216,7 +296,17 @@ fun SleepDial(
 
     val sleepRole = advice[AdviceType.Sleep]
     val sunColor = advice[AdviceType.SeeBrightLight].color
+    val sunGlyph = advice[AdviceType.SeeBrightLight].onColor
     val sunPath = remember { MaterialShapes.Sunny.toPath().asComposePath().normalised() }
+
+    // A held handle grows a little (a rare setup surface, so the container spring may bounce); snaps when reduced.
+    val bedGrow = remember { Animatable(1f) }
+    val wakeGrow = remember { Animatable(1f) }
+    LaunchedEffect(activeHandle) {
+        val held = activeHandle
+        launch { bedGrow.animateTo(if (held == SleepHandle.Bedtime || held == SleepHandle.Both) HeldHandleScale else 1f, motion.containerSpatial()) }
+        launch { wakeGrow.animateTo(if (held == SleepHandle.Wake || held == SleepHandle.Both) HeldHandleScale else 1f, motion.containerSpatial()) }
+    }
 
     fun nudge(handle: SleepHandle, delta: Int) {
         currentOnChange(SleepDialMath.nudge(currentWindow, handle, delta))
@@ -248,7 +338,18 @@ fun SleepDial(
                             val c = Offset(size.width / 2f, size.height / 2f)
                             val u = min(size.width, size.height) / 320f
                             val r = (down.position - c).getDistance()
-                            if (r < (TrackRadius - TrackWidth) * u || r > (TrackRadius + TrackWidth) * u) return@awaitEachGesture
+                            if (r < (TrackRadius - TrackWidth) * u || r > (TrackRadius + TrackWidth / 2f + HandleSlop) * u) {
+                                // A tap on the other schedule's ring switches to it (the toggle does the same).
+                                val onOuterRing = r >= (OuterRingRadius - OuterRingWidth / 2f - 1f) * u &&
+                                    r <= (OuterRingRadius + OuterRingWidth / 2f + OuterRingSlop) * u
+                                if (currentTwoSchedules && onOuterRing) {
+                                    down.consume()
+                                    if (waitForUpOrCancellation() != null) {
+                                        switchTo(if (currentEditingDaysOff) SleepSchedule.WorkDays else SleepSchedule.DaysOff)
+                                    }
+                                }
+                                return@awaitEachGesture
+                            }
                             var lastAngle = DialGeometry.angleOf(down.position.x - c.x, down.position.y - c.y)
                             val start = currentWindow
                             val handle = SleepDialMath.pick(DialGeometry.minuteForAngle(lastAngle), start, PickToleranceMinutes)
@@ -324,18 +425,32 @@ fun SleepDial(
             ) {
                 // Animated values are read here, in the draw phase only.
                 val u = size.minDimension / 320f
-                val w = currentWindow
-                val bed = SleepDialMath.minuteOf(w.bedtime).toFloat()
-                val sweep = SleepDialMath.durationMinutes(w) + wakeReturn.value + resisted(overshoot.value)
                 val painter = SleepDialPainter(this, u)
                 painter.face(colors.surfaceContainerLow, colors.outlineVariant)
-                painter.skyRing(sky)
-                painter.track(colors.surfaceContainerHigh)
                 painter.ticks(colors.outline, colors.onSurfaceVariant, measurer, textStyles.timeLabel, formatter.is24Hour, density.fontScale)
-                painter.marks(sunPath, sunColor, sleepRole.color)
-                painter.arc(bed, sweep, sleepRole.color, sleepRole.onColor)
-                painter.handle(bed, Handle.Moon, activeHandle == SleepHandle.Bedtime || activeHandle == SleepHandle.Both, focusedHandle == SleepHandle.Bedtime, colors.surfaceContainerLowest, sleepRole.color, colors.primary, art.shadow, sunPath)
-                painter.handle(bed + sweep, Handle.Sun, activeHandle == SleepHandle.Wake || activeHandle == SleepHandle.Both, focusedHandle == SleepHandle.Wake, colors.surfaceContainerLowest, sunColor, colors.primary, art.shadow, sunPath)
+                val ringColors = RingColors(colors.surfaceContainerHigh, sleepRole.color, sleepRole.onColor)
+                val handles = HandleColors(colors.surfaceContainerLowest, colors.primary, colors.onPrimary, sunColor, sunGlyph, colors.primary, art.shadow)
+                fun picture(p: Float, workWindow: SleepWindow, daysOffWindow: SleepWindow, editedDaysOff: Boolean, live: Boolean, alpha: Float) {
+                    painter.schedules(
+                        swap = p,
+                        twoSchedules = currentTwoSchedules,
+                        work = workWindow,
+                        daysOff = daysOffWindow,
+                        editedDaysOff = editedDaysOff,
+                        extraWakeMinutes = if (live) wakeReturn.value + resisted(overshoot.value) else 0f,
+                        bedGrow = bedGrow.value,
+                        wakeGrow = wakeGrow.value,
+                        focused = focusedHandle,
+                        rings = ringColors,
+                        handles = handles,
+                        sunPath = sunPath,
+                        alpha = alpha,
+                    )
+                }
+                val from = fadeFrom
+                val f = swapFade.value
+                if (from != null && f < 1f) picture(from.swap, from.work, from.daysOff, from.editedDaysOff, live = false, alpha = 1f - f)
+                picture(swap.value, currentWork, currentDaysOff, currentEditingDaysOff, live = true, alpha = if (from != null) f else 1f)
             }
 
             // Centre readout: duration, or the 24:12 peek. Both lines step down in size on small dials (the
@@ -345,12 +460,14 @@ fun SleepDial(
             val durationStyle = remember(measurer, textStyles.timeHeadline, durationTemplate, centreWidthPx, density) {
                 measurer.fitted(textStyles.timeHeadline.copy(fontSize = 30.sp), listOf(durationTemplate), centreWidthPx, 12.sp)
             }
-            Box(Modifier.align(Alignment.Center).width(with(density) { centreWidthPx.toDp() })) {
+            Column(
+                Modifier.align(Alignment.Center).width(with(density) { centreWidthPx.toDp() }),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 AnimatedContent(
                     targetState = egg == EggState.Peek,
                     transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
                     label = "sleepCentre",
-                    modifier = Modifier.align(Alignment.Center),
                 ) { peek ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         if (peek) {
@@ -371,14 +488,21 @@ fun SleepDial(
                                 modifier = Modifier.testTag(SleepDialTags.Duration),
                             )
                         }
-                        val caption = MaterialTheme.typography.labelLarge
-                        BasicText(
-                            text = stringResource(if (peek) R.string.sleep_egg_caption else R.string.sleep_duration_caption),
-                            style = caption.copy(color = colors.onSurfaceVariant, textAlign = TextAlign.Center),
-                            maxLines = 1,
-                            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = caption.fontSize),
-                        )
+                        // With two schedules the toggle under the duration names the night; the caption makes room.
+                        if (peek || !twoSchedules) {
+                            val caption = MaterialTheme.typography.labelLarge
+                            BasicText(
+                                text = stringResource(if (peek) R.string.sleep_egg_caption else R.string.sleep_duration_caption),
+                                style = caption.copy(color = colors.onSurfaceVariant, textAlign = TextAlign.Center),
+                                maxLines = 1,
+                                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = caption.fontSize),
+                            )
+                        }
                     }
+                }
+                if (twoSchedules) {
+                    Spacer(Modifier.size(6.dp))
+                    ScheduleToggle(schedule, ::switchTo, Modifier.fillMaxWidth())
                 }
             }
 
@@ -458,7 +582,7 @@ fun SleepDial(
                     onClick = { picking = SleepHandle.Bedtime },
                     tag = SleepDialTags.BedtimePill,
                     modifier = Modifier.weight(1f),
-                ) { drawPath(crescent(size.minDimension / 2f, center), sleepRole.color) }
+                ) { drawPath(crescent(size.minDimension / 2f, center), colors.primary) }
                 SleepTimePill(
                     label = stringResource(R.string.sleep_wake),
                     time = window.wake,
@@ -546,6 +670,44 @@ internal fun formatDuration(resources: Resources, minutes: Int): String =
     }
 
 /**
+ * "Work days | Days off": which schedule the dial edits. Tabs for TalkBack ("Work days, selected"); the selected
+ * one is filled. Labels shrink to fit the dial's centre rather than wrap.
+ */
+@Composable
+private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val motion = ClockblockTheme.motion
+    Row(modifier.clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup()) {
+        SleepSchedule.entries.forEach { option ->
+            val isSelected = option == selected
+            val fill by animateColorAsState(if (isSelected) colors.secondaryContainer else Color.Transparent, motion.colour(), label = "scheduleTab")
+            val ink by animateColorAsState(if (isSelected) colors.onSecondaryContainer else colors.onSurfaceVariant, motion.colour(), label = "scheduleTabInk")
+            Box(
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(option) })
+                    .testTag(if (option == SleepSchedule.WorkDays) SleepDialTags.WorkDays else SleepDialTags.DaysOff)
+                    .padding(4.dp)
+                    .clip(CircleShape)
+                    .drawBehind { drawRect(fill) },
+                contentAlignment = Alignment.Center,
+            ) {
+                val label = MaterialTheme.typography.labelLarge
+                BasicText(
+                    text = stringResource(if (option == SleepSchedule.WorkDays) R.string.sleep_work_days else R.string.sleep_days_off),
+                    style = label.copy(textAlign = TextAlign.Center),
+                    color = { ink },
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = label.fontSize),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
  * A bedtime or wake readout under the dial: glyph and label over the time, as one button that opens the time
  * picker. TalkBack reads it as "Bedtime, 23:00, button, double-tap to set bedtime".
  */
@@ -578,10 +740,34 @@ private fun SleepTimePill(
                 Spacer(Modifier.width(6.dp))
                 Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            RollingTimeText(time, style = timeStyle, color = colors.onSurface, animateChanges = animateChanges)
+            MorphingTime(time, style = timeStyle, color = colors.onSurface, animateChanges = animateChanges)
         }
     }
 }
+
+/**
+ * A pill's time as torph's morphing text (vendored in `:third-party:torph`): changed digits roll by place value and
+ * the rest glides, on the data spring (Standard, no bounce: a time is data). It follows a drag live ([animateChanges]
+ * false) and snaps under reduce motion, the system's (`respectReducedMotion`) or the app's.
+ */
+@Composable
+private fun MorphingTime(time: LocalTime, style: TextStyle, color: Color, animateChanges: Boolean) {
+    val formatter = rememberTimeFormatter()
+    val motion = ClockblockTheme.motion
+    val ease = remember(motion) { motion.dataSpatial<Float>().toMorphEase() }
+    TextMorph(
+        text = formatter.formatFull(time),
+        style = style,
+        color = color,
+        ease = ease ?: MorphEase.Curve(),
+        disabled = !animateChanges || motion.reduceMotion || ease == null,
+        respectReducedMotion = true,
+    )
+}
+
+/** A spring token as torph's spring (stiffness, damping coefficient c = 2ζ√k, unit mass); null for a snap. */
+private fun androidx.compose.animation.core.FiniteAnimationSpec<Float>.toMorphEase(): MorphEase? =
+    (this as? SpringSpec<Float>)?.let { MorphEase.Spring(stiffness = it.stiffness, damping = 2f * it.dampingRatio * sqrt(it.stiffness), mass = 1f) }
 
 /**
  * M3 time picker in a dialog for one end of the window; 12/24 h follows the system setting. The mode toggle
@@ -680,17 +866,68 @@ private class SleepDialPainter(val scope: DrawScope, val u: Float) {
         drawCircle(outline.copy(alpha = 0.5f), FaceRadius * u, c, style = Stroke(1f * u))
     }
 
-    /** A thin day/night ring outside the track, so noon reads as day and midnight as night at a glance. */
-    fun skyRing(sky: SkyPalette) = with(scope) {
-        val stops = (0..48).map { i ->
-            val fraction = i / 48f
-            fraction to sky.gradientAt(DialGeometry.minuteForAngle(fraction * 360f) / 60f).top
-        }.toTypedArray()
-        drawCircle(Brush.sweepGradient(*stops, center = c), SkyRingRadius * u, c, style = Stroke(SkyRingWidth * u))
+    /**
+     * Both schedules for a [swap] position (0 = work days on the inner ring, 1 = days off). The other schedule is
+     * drawn first, the edited one on top with its handles; the handles scale with their ring's thickness, so they
+     * travel in with it during a swap. Only radius, thickness and emphasis change with [swap]: each arc keeps its
+     * angles.
+     */
+    fun schedules(
+        swap: Float,
+        twoSchedules: Boolean,
+        work: SleepWindow,
+        daysOff: SleepWindow,
+        editedDaysOff: Boolean,
+        extraWakeMinutes: Float,
+        bedGrow: Float,
+        wakeGrow: Float,
+        focused: SleepHandle?,
+        rings: RingColors,
+        handles: HandleColors,
+        sunPath: Path,
+        alpha: Float,
+    ) {
+        val workRing = RingGeometry.at(if (twoSchedules) swap else 0f)
+        val daysOffRing = RingGeometry.at(1f - swap)
+        val (edited, editedRing) = if (editedDaysOff) daysOff to daysOffRing else work to workRing
+        val (other, otherRing) = if (editedDaysOff) work to workRing else daysOff to daysOffRing
+        if (twoSchedules) ring(other, otherRing, 0f, rings, alpha)
+        ring(edited, editedRing, extraWakeMinutes, rings, alpha)
+        val bed = SleepDialMath.minuteOf(edited.bedtime).toFloat()
+        val wake = bed + SleepDialMath.durationMinutes(edited) + extraWakeMinutes
+        val k = (editedRing.width / TrackWidth).coerceIn(0f, 1.2f)
+        handle(bed, editedRing.radius, Handle.Moon, bedGrow * k, focused == SleepHandle.Bedtime, handles.ring, handles.moon, handles.onMoon, handles, sunPath, alpha)
+        handle(wake, editedRing.radius, Handle.Sun, wakeGrow * k, focused == SleepHandle.Wake, handles.ring, handles.sun, handles.onSun, handles, sunPath, alpha)
     }
 
-    fun track(color: Color) = with(scope) {
-        drawCircle(color, TrackRadius * u, c, style = Stroke(TrackWidth * u))
+    /** One schedule: its track, the sleep arc and, while the ring is thick enough, the arc's star dots. */
+    private fun ring(window: SleepWindow, geometry: RingGeometry, extraWakeMinutes: Float, colors: RingColors, alpha: Float) = with(scope) {
+        val r = geometry.radius * u
+        val a = alpha * geometry.emphasis
+        drawCircle(colors.track, r, c, style = Stroke(geometry.width * u), alpha = alpha)
+        val start = SleepDialMath.minuteOf(window.bedtime).toFloat()
+        val sweep = SleepDialMath.durationMinutes(window) + extraWakeMinutes
+        drawArc(
+            color = colors.arc,
+            startAngle = DialGeometry.angleForMinute(start),
+            sweepAngle = sweep / DialGeometry.MinutesPerDay * 360f,
+            useCenter = false,
+            topLeft = Offset(c.x - r, c.y - r),
+            size = Size(2 * r, 2 * r),
+            style = Stroke(geometry.width * ArcRatio * u, cap = StrokeCap.Round),
+            alpha = a,
+        )
+        // Star dots (the Sleep pattern), kept clear of the handles; only once the ring is wide enough to hold them.
+        val k = geometry.width / TrackWidth
+        if (k < StarsMinScale) return@with
+        var m = 45f
+        var i = 0
+        while (m < sweep - 45f) {
+            val offset = (if (i % 2 == 0) -5f else 5f) * k
+            drawCircle(colors.stars, (if (i % 3 == 0) 1.6f else 1.1f) * k * u, pointOn(c.x, c.y, start + m, r + offset * u), alpha = 0.55f * a)
+            m += 38f
+            i++
+        }
     }
 
     fun ticks(
@@ -713,74 +950,104 @@ private class SleepDialPainter(val scope: DrawScope, val u: Float) {
                 cap = StrokeCap.Round,
             )
         }
-        // 06 and 18 as numerals; noon and midnight get a sun and a moon (see marks()).
+        // Plain numerals at the four quarters. No sun or moon marks: the handles are the sun and the moon.
         val numeral = style.copy(fontSize = (10f * u / density / fontScale).sp, color = label.copy(alpha = 0.85f))
-        listOf(6, 18).forEach { h ->
-            val text = if (is24Hour) "%02d".format(h) else if (h == 6) "6a" else "6p"
+        listOf(0, 6, 12, 18).forEach { h ->
+            val text = if (is24Hour) "%02d".format(h) else TwelveHourNumerals.getValue(h)
             val layout = measurer.measure(text, numeral)
             val p = point(h * 60f, inner - 20f)
             drawText(layout, topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f))
         }
     }
 
-    fun marks(sunPath: Path, sun: Color, moon: Color) = with(scope) {
-        val inner = TrackRadius - TrackWidth / 2f - 24f
-        drawSun(sunPath, point(720f, inner), 12f * u, sun)
-        drawPath(crescent(5.5f * u, point(0f, inner)), moon)
-    }
-
-    fun arc(startMinute: Float, sweepMinutes: Float, color: Color, dots: Color) = with(scope) {
-        val r = TrackRadius * u
-        drawArc(
-            color = color,
-            startAngle = DialGeometry.angleForMinute(startMinute),
-            sweepAngle = sweepMinutes / DialGeometry.MinutesPerDay * 360f,
-            useCenter = false,
-            topLeft = Offset(c.x - r, c.y - r),
-            size = Size(2 * r, 2 * r),
-            style = Stroke(ArcWidth * u, cap = StrokeCap.Round),
-        )
-        // Star dots (the Sleep pattern), kept clear of the handles.
-        var m = 45f
-        var i = 0
-        while (m < sweepMinutes - 45f) {
-            val offset = if (i % 2 == 0) -5f else 5f
-            drawCircle(dots.copy(alpha = 0.55f), (if (i % 3 == 0) 1.6f else 1.1f) * u, point(startMinute + m, TrackRadius + offset))
-            m += 38f
-            i++
-        }
-    }
-
-    fun handle(
+    /**
+     * A handle sitting on the arc (after Prime Meridian's sleep dial): a filled [fill] disc with the moon or sun in
+     * [glyph], inside a [ring] of the dial's surface so it reads against the arc and the track. [scale] covers both
+     * the hold (it grows while held) and the swap (it travels in with its ring).
+     */
+    private fun handle(
         minute: Float,
+        radius: Float,
         kind: Handle,
-        active: Boolean,
+        scale: Float,
         focused: Boolean,
-        disc: Color,
+        ring: Color,
+        fill: Color,
         glyph: Color,
-        accent: Color,
-        shadow: Color,
+        colors: HandleColors,
         sunPath: Path,
+        alpha: Float,
     ) = with(scope) {
-        val p = point(minute, TrackRadius)
-        if (active) drawCircle(accent.copy(alpha = 0.16f), (HandleRadius + 8f) * u, p)
-        translate(1.6f * u, 1.6f * u) { drawCircle(shadow, HandleRadius * u, p) }
-        drawCircle(disc, HandleRadius * u, p)
-        if (focused) drawCircle(accent, (HandleRadius + 4f) * u, p, style = Stroke(2.5f * u))
+        if (scale <= 0.01f) return@with
+        val p = point(minute, radius)
+        val outer = HandleRadius * scale * u
+        translate(1.4f * u, 1.4f * u) { drawCircle(colors.shadow, outer, p, alpha = alpha) }
+        drawCircle(ring, outer, p, alpha = alpha)
+        drawCircle(fill, HandleFillRadius * scale * u, p, alpha = alpha)
+        if (focused) drawCircle(colors.focus, outer + 3f * u, p, style = Stroke(2.5f * u), alpha = alpha)
         when (kind) {
-            Handle.Moon -> drawPath(crescent(8.5f * u, p), glyph)
-            Handle.Sun -> drawSun(sunPath, p, 22f * u, glyph)
+            Handle.Moon -> drawPath(crescent(8.5f * scale * u, p), glyph, alpha = alpha)
+            Handle.Sun -> drawSun(sunPath, p, 21f * scale * u, glyph.copy(alpha = glyph.alpha * alpha))
         }
     }
 }
 
+/** Where a schedule's ring sits: [radius] and [width] in dial units, [emphasis] its arc's opacity. */
+private data class RingGeometry(val radius: Float, val width: Float, val emphasis: Float) {
+    companion object {
+        /** 0 = the edited ring (inside, full width), 1 = the other one (outside, narrow, dimmed). Springs may overshoot. */
+        fun at(t: Float) = RingGeometry(
+            radius = TrackRadius + (OuterRingRadius - TrackRadius) * t,
+            width = (TrackWidth + (OuterRingWidth - TrackWidth) * t).coerceAtLeast(1f),
+            emphasis = (1f + (OuterRingEmphasis - 1f) * t).coerceIn(OuterRingEmphasis, 1f),
+        )
+    }
+}
+
+private class RingColors(val track: Color, val arc: Color, val stars: Color)
+
+private class HandleColors(
+    val ring: Color,
+    val moon: Color,
+    val onMoon: Color,
+    val sun: Color,
+    val onSun: Color,
+    val focus: Color,
+    val shadow: Color,
+)
+
+/** The picture a reduce-motion swap cross-fades from. */
+private class SwapPicture(val swap: Float, val work: SleepWindow, val daysOff: SleepWindow, val editedDaysOff: Boolean)
+
+private val TwelveHourNumerals = mapOf(0 to "12a", 6 to "6a", 12 to "12p", 18 to "6p")
+
 private const val FaceRadius = 157f
-private const val SkyRingRadius = 151f
-private const val SkyRingWidth = 6f
-private const val TrackRadius = 126f
-private const val TrackWidth = 38f
-private const val ArcWidth = 32f
-private const val HandleRadius = 17f
+
+/** The edited schedule's ring. */
+private const val TrackRadius = 122f
+private const val TrackWidth = 34f
+
+/** The arc's share of its ring's width. */
+private const val ArcRatio = 28f / 34f
+
+/** The other schedule's ring: outside, narrower and dimmed (it replaced the old day/night sky ring). */
+private const val OuterRingRadius = 151f
+private const val OuterRingWidth = 9f
+private const val OuterRingEmphasis = 0.5f
+
+/** Below this share of the full width, a ring has no room for star dots. */
+private const val StarsMinScale = 0.6f
+
+/** Touch slop around the edited ring's outer edge (the handles reach a little past it) and around the outer ring. */
+private const val HandleSlop = 6f
+private const val OuterRingSlop = 8f
+
+/** Handle ring radius (a little wider than the track, like Prime Meridian's) and its filled disc. */
+private const val HandleRadius = 21.5f
+private const val HandleFillRadius = 18f
+
+/** How much a handle grows while it's held: it stays clear of the outer ring (146.5) at 145.7. */
+private const val HeldHandleScale = 1.1f
 private const val PickToleranceMinutes = 55f
 private const val MaxVisualOvershoot = 30f
 private const val ShortSleepMinutes = 5 * 60

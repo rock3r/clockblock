@@ -79,15 +79,4 @@ object Chronotypes {
             else -> Chronotype.DefiniteEvening
         }
     }
-
-    /**
-     * The chronotype of someone whose ideal night on a free day starts at [sleepOnsetFree] and lasts
-     * [sleepDurationFreeHours]: [fromMidSleep] of the plain MCTQ mid-sleep on free days ([mctqMidSleepFreeDays]).
-     *
-     * Onboarding asks only for that night, so there is no work-day sleep to correct against: this is MSF, not
-     * MSF_sc. Free-day sleep that catches up on a week's sleep debt runs long, which moves its midpoint later, so the
-     * answer can lean a little late for people who sleep in on days off; the user can pick another chronotype.
-     */
-    fun fromFreeDaySleep(sleepOnsetFree: LocalTime, sleepDurationFreeHours: Double): Chronotype =
-        fromMidSleep(mctqMidSleepFreeDays(sleepOnsetFree, sleepDurationFreeHours))
 }
