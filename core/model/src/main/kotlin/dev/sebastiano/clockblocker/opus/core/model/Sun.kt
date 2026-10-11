@@ -12,6 +12,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tan
 
+/** Where the sun is overhead, in degrees (north and east positive). */
+data class SubsolarPoint(val latitude: Double, val longitude: Double)
+
 /** The sun on one local date at one place. */
 sealed interface SunDay {
     /** When the sun is highest: the middle of the day, even when it never rises. */
@@ -87,6 +90,26 @@ object Sun {
             position = position(at)
         }
         return at
+    }
+
+    /**
+     * Where on Earth the sun is overhead at [at] (degrees, north and east positive): latitude = the declination,
+     * longitude from the time of day and the equation of time. Drives the globe's day/night terminator.
+     */
+    fun subsolarPoint(at: Instant): SubsolarPoint {
+        val position = position(at)
+        val utcMinutes = Math.floorMod(at.epochSecond, 86_400L) / 60.0 + at.nano / 60e9
+        val longitude = -(utcMinutes + position.equationOfTimeMinutes - 720.0) / 4.0
+        val wrapped = ((longitude + 180.0).mod(360.0)) - 180.0
+        return SubsolarPoint(deg(position.declination), wrapped)
+    }
+
+    /** The sun's height above the horizon in degrees at [latitude], [longitude] when it is overhead at [subsolar]. */
+    fun elevation(subsolar: SubsolarPoint, latitude: Double, longitude: Double): Double {
+        val lat = rad(latitude)
+        val dec = rad(subsolar.latitude)
+        val sinElevation = sin(lat) * sin(dec) + cos(lat) * cos(dec) * cos(rad(longitude - subsolar.longitude))
+        return deg(asin(sinElevation.coerceIn(-1.0, 1.0)))
     }
 
     private fun cosHourAngle(latitude: Double, position: Position): Double =

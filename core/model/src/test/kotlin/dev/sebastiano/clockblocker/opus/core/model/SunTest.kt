@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.core.model
 
 import io.kotest.matchers.longs.shouldBeLessThanOrEqual
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
@@ -138,6 +139,32 @@ class SunTest {
                 is SunDay.AlwaysUp, is SunDay.AlwaysDown -> (abs(latitude) > 60.0) shouldBe true
             }
         }
+    }
+
+    @Test
+    fun `the sun is overhead near the Greenwich meridian at noon UTC, over the tropic of Cancer at the June solstice`() {
+        val subsolar = Sun.subsolarPoint(java.time.Instant.parse("2026-06-21T12:00:00Z"))
+        subsolar.latitude shouldBe (23.44 plusOrMinus 0.05)
+        // The equation of time is about −1.7 min then: solar noon at Greenwich is 12:01.7, so at 12:00 the sun is
+        // still a little east of 0°.
+        subsolar.longitude shouldBe (0.43 plusOrMinus 0.1)
+    }
+
+    @Test
+    fun `the subsolar point moves 15 degrees west an hour and sits south of the equator in December`() {
+        val noon = Sun.subsolarPoint(java.time.Instant.parse("2026-12-21T12:00:00Z"))
+        val later = Sun.subsolarPoint(java.time.Instant.parse("2026-12-21T18:00:00Z"))
+        noon.latitude shouldBe (-23.44 plusOrMinus 0.05)
+        (noon.longitude - later.longitude) shouldBe (90.0 plusOrMinus 0.1)
+        Sun.subsolarPoint(java.time.Instant.parse("2026-12-22T00:00:00Z")).longitude.let { kotlin.math.abs(it) } shouldBe (180.0 plusOrMinus 1.0)
+    }
+
+    @Test
+    fun `elevation is 90 under the sun, minus 90 at its antipode and zero a quarter of the way round`() {
+        val sub = SubsolarPoint(10.0, 20.0)
+        Sun.elevation(sub, 10.0, 20.0) shouldBe (90.0 plusOrMinus 1e-6)
+        Sun.elevation(sub, -10.0, -160.0) shouldBe (-90.0 plusOrMinus 1e-6)
+        Sun.elevation(SubsolarPoint(0.0, 0.0), 0.0, 90.0) shouldBe (0.0 plusOrMinus 1e-6)
     }
 
     private fun minutesApart(a: LocalDateTime, b: LocalDateTime): Long = abs(Duration.between(a, b).toSeconds()) / 60

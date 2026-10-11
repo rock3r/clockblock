@@ -1,6 +1,11 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
@@ -294,5 +299,36 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         open(TripEditorArgs(tripId = DemoData.SfoLhrId)) // San Francisco is on Los Angeles time.
         tag(TripsTestTags.EditorBodyClockStartHome).assertDoesNotExist()
         compose.onNodeWithText("Body clock when you leave").assertDoesNotExist()
+    }
+
+    @Test
+    fun theGlobeOpensFullSize() {
+        open(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        tag(TripsTestTags.EditorGlobe).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeSheet).assertExists()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeFull).assertExists()
+    }
+
+    @Test
+    fun aFlightOnTheGlobeGoesToItsTicket() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId)) // LHR → SIN → SYD.
+        tag(TripsTestTags.editorLeg(0)).assertIsSelected()
+        val globe = tag(TripsTestTags.EditorGlobe).performScrollTo()
+        globe.assertContentDescriptionContains("London to Sydney via Singapore", substring = true)
+        val action = globe.fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == "Go to flight 2: Singapore to Sydney" }
+        compose.runOnIdle { action.action() }
+        settle()
+        tag(TripsTestTags.editorLeg(1)).assertIsSelected()
+        tag(TripsTestTags.editorLeg(0)).assertIsNotSelected()
+    }
+
+    @Test
+    fun touchingATicketMakesItTheOneTheGlobeShows() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        tag(TripsTestTags.editorDepartureDate(1)).performScrollTo()
+        tag(TripsTestTags.editorLeg(1)).performTouchInput { down(center); up() }
+        settle()
+        tag(TripsTestTags.editorLeg(1)).assertIsSelected()
     }
 }

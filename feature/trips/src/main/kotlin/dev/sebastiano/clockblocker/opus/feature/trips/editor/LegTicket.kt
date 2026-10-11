@@ -5,6 +5,16 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +67,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -107,14 +118,31 @@ internal fun LegTicket(
     onPick: (PickerTarget) -> Unit,
     onPickPlace: (PlaceFieldRef) -> Unit,
     modifier: Modifier = Modifier,
+    active: Boolean = false,
+    handle: TicketHandle? = null,
+    onActive: () -> Unit = {},
 ) {
+    val currentOnActive by rememberUpdatedState(onActive)
     val dates = rememberDateFormatter()
     val times = rememberTimeFormatter()
     val hasArrivalError = issues.any { it.severity == IssueSeverity.Error && it is TripIssue.ArrivalNotAfterDeparture }
     val density = LocalDensity.current
     var stubHeight by remember { mutableStateOf(0.dp) }
 
-    Column(modifier.fillMaxWidth()) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .then(if (handle != null) Modifier.bringIntoViewRequester(handle.bringIntoView) else Modifier)
+            // Any touch on the ticket, or focus inside it, makes it the active one (the globe follows). Observed on
+            // the way in, never consumed, so the ticket's own controls work as before.
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    currentOnActive()
+                }
+            }
+            .onFocusChanged { if (it.hasFocus) currentOnActive() },
+    ) {
         if (legCount > 1) {
             Row(Modifier.padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -129,13 +157,19 @@ internal fun LegTicket(
             }
         }
         Surface(
-            modifier = Modifier.fillMaxWidth().testTag(TripsTestTags.editorLeg(index)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(TripsTestTags.editorLeg(index))
+                // With a connection, TalkBack hears which ticket the globe is showing.
+                .then(if (legCount > 1) Modifier.semantics { selected = active } else Modifier),
             shape = TicketShape(stubHeight = stubHeight, corner = TicketCorner, notch = TicketNotch),
             color = MaterialTheme.colorScheme.surfaceContainer,
+            // With a connection, the ticket the globe highlights is outlined too, so the two read as one choice.
+            border = if (active) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         ) {
             Column {
                 Column(Modifier.padding(start = TicketPadding, end = TicketPadding, top = 16.dp, bottom = 16.dp)) {
-                    RouteRow(index, leg, onPickPlace, onSwap = { actions.swapPlaces(index) })
+                    RouteRow(index, leg, onPickPlace, onSwap = { actions.swapPlaces(index) }, fromFocus = handle?.focus)
                     Spacer(Modifier.height(16.dp))
                     TimeRow(
                         caption = stringResource(R.string.editor_departs),
@@ -201,6 +235,12 @@ internal fun LegTicket(
     }
 }
 
+/** What the editor needs to reach a ticket from the globe: scroll it into view and focus its first control. */
+internal class TicketHandle {
+    val bringIntoView = BringIntoViewRequester()
+    val focus = FocusRequester()
+}
+
 private val TicketCorner = 28.dp
 private val TicketNotch = 12.dp
 private val TicketPadding = 20.dp
@@ -216,7 +256,13 @@ private const val TicketPlanePosition = 0.5f
  * two codes, with the swap button centred under it, between the city names.
  */
 @Composable
-private fun RouteRow(index: Int, leg: LegDraft, onPickPlace: (PlaceFieldRef) -> Unit, onSwap: () -> Unit) {
+private fun RouteRow(
+    index: Int,
+    leg: LegDraft,
+    onPickPlace: (PlaceFieldRef) -> Unit,
+    onSwap: () -> Unit,
+    fromFocus: FocusRequester? = null,
+) {
     val density = LocalDensity.current
     val from = leg.origin.place
     val to = leg.destination.place
@@ -248,6 +294,7 @@ private fun RouteRow(index: Int, leg: LegDraft, onPickPlace: (PlaceFieldRef) -> 
                     alignEnd = false,
                     tag = TripsTestTags.editorFrom(index),
                     onClick = { onPickPlace(PlaceFieldRef(index, LegEnd.Origin)) },
+                    focusRequester = fromFocus,
                 )
             },
             {
@@ -307,6 +354,7 @@ private fun RouteEnd(
     alignEnd: Boolean,
     tag: String,
     onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
 ) {
     val motion = ClockblockTheme.motion
     val colors = MaterialTheme.colorScheme
@@ -316,6 +364,7 @@ private fun RouteEnd(
     val description = listOfNotNull(label, city, place?.displayCode?.let(::spellOut)).joinToString(", ")
     Column(
         Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .clip(MaterialTheme.shapes.large)
             .clickable(onClickLabel = actionLabel, role = Role.Button, onClick = onClick)
             .testTag(tag)
