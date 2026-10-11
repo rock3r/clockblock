@@ -223,6 +223,7 @@ class OnboardingViewModelTest {
         vm.state.value.profile.chronotype shouldBe Chronotype.DefiniteEvening
         vm.state.value.profile.daysOffSleep.shouldBeNull()
         vm.state.value.chronotypePicked.shouldBeFalse()
+        vm.state.value.showsPick.shouldBeFalse()
         vm.setSleep(SleepWindow(LocalTime.of(21, 30), LocalTime.of(5, 30)))
         vm.state.value.profile.chronotype shouldBe Chronotype.DefiniteMorning
         vm.state.value.inferred.midSleep shouldBe LocalTime.of(1, 30)
@@ -259,8 +260,29 @@ class OnboardingViewModelTest {
         profiles.set(UserProfile("Asia/Tokyo", chronotype = Chronotype.DefiniteEvening))
         val vm = viewModel()
         vm.state.value.chronotypePicked.shouldBeTrue()
+        vm.state.value.showsPick.shouldBeTrue()
         vm.setSleep(SleepWindow(LocalTime.of(22, 0), LocalTime.of(6, 0)))
         vm.state.value.profile.chronotype shouldBe Chronotype.DefiniteEvening
+    }
+
+    @Test
+    fun `a replayed chronotype that matches the nights still isn't overwritten when they change`() = runTest {
+        profiles.set(UserProfile("Asia/Tokyo", chronotype = Chronotype.Intermediate)) // the default nights say the same
+        val vm = viewModel()
+        vm.state.value.showsPick.shouldBeFalse()
+        vm.setSleep(SleepWindow(LocalTime.of(3, 0), LocalTime.of(11, 0)))
+        vm.state.value.profile.chronotype shouldBe Chronotype.Intermediate
+        vm.state.value.showsPick.shouldBeTrue()
+    }
+
+    @Test
+    fun `dragging the nights through the picked chronotype's band doesn't hand it back to the nights`() = runTest {
+        val vm = viewModel()
+        vm.setChronotype(Chronotype.ModerateMorning)
+        vm.setSleep(SleepWindow(LocalTime.of(22, 0), LocalTime.of(6, 0))) // passes through Morning person (02:00)
+        vm.setSleep(SleepWindow(LocalTime.of(3, 0), LocalTime.of(11, 0)))
+        vm.state.value.profile.chronotype shouldBe Chronotype.ModerateMorning
+        vm.state.value.chronotypePicked.shouldBeTrue()
     }
 
     @Test

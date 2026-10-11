@@ -138,7 +138,7 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
         }
         OnboardingStep.Chronotype -> ChronotypeReveal(
             chronotype = state.profile.chronotype,
-            picked = state.chronotypePicked,
+            picked = state.showsPick,
             suggested = state.inferred.chronotype,
             midSleep = state.inferred.midSleep,
             onPick = actions::chronotypeChange,

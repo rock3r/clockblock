@@ -122,7 +122,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
 
     @Test
     fun `a picked chronotype says so on the reveal`() {
-        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London", chronotype = Chronotype.DefiniteEvening)))
+        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London", chronotype = Chronotype.DefiniteEvening), chronotypePicked = true))
         compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Night owl"))
         compose.onNodeWithText("Your pick").assertIsDisplayed()
     }

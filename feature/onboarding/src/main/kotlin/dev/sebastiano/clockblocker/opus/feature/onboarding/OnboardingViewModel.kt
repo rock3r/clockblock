@@ -68,6 +68,8 @@ enum class OnboardingStep {
  * @property homePlace the place picked in search, or `null` when the zone came from the device or a saved profile.
  * @property usingDeviceZone the draft zone is the phone's own.
  * @property melatoninAcknowledged the user has read and accepted the melatonin safety note.
+ * @property chronotypePicked the user chose the chronotype (in the reveal's sheet, or in a profile saved before this
+ *   flow): the nights no longer set it. Choosing the suggested one hands it back to the nights.
  * @property notificationsAsked the notification permission prompt has answered at least once in this flow.
  * @property notificationPreview the real Now notification's content for a sample plan, when this device can play it;
  *   `null` draws the standard notification's look.
@@ -83,6 +85,7 @@ data class OnboardingUiState(
     val results: ImmutableList<Place> = persistentListOf(),
     val melatoninAcknowledged: Boolean = false,
     val permissions: NotificationPermissionState,
+    val chronotypePicked: Boolean = false,
     val notificationsAsked: Boolean = false,
     val exactTimingOffered: Boolean = false,
     val notificationPreview: RemoteViews? = null,
@@ -97,8 +100,8 @@ data class OnboardingUiState(
     /** What the two usual nights say about the chronotype (MCTQ mid-sleep on days off, corrected for catch-up sleep). */
     val inferred: ChronotypeEstimate.Result get() = profile.inferredChronotype()
 
-    /** The chronotype differs from what the nights say: the user picked it (or a replayed profile had it). */
-    val chronotypePicked: Boolean get() = profile.chronotype != inferred.chronotype
+    /** The reveal says "Your pick": a chosen chronotype that differs from what the nights say. */
+    val showsPick: Boolean get() = chronotypePicked && profile.chronotype != inferred.chronotype
 
     /** Reminders is done with: notifications are allowed, or the prompt has answered. Next becomes Finish. */
     val remindersHandled: Boolean get() = permissions.notificationsGranted || notificationsAsked
@@ -154,7 +157,9 @@ class OnboardingViewModel(
         viewModelScope.launch {
             val saved = profiles.profile.first() ?: return@launch
             if (!touched) {
-                _state.update { it.copy(profile = saved, melatoninAcknowledged = saved.useMelatonin) }
+                // A saved chronotype was chosen by the user (the old question step, the sheet, or Settings):
+                // changing the nights while replaying never overwrites it.
+                _state.update { it.copy(profile = saved, melatoninAcknowledged = saved.useMelatonin, chronotypePicked = true) }
             }
         }
         viewModelScope.launch {
@@ -221,14 +226,16 @@ class OnboardingViewModel(
     fun setDaysOffSleep(window: SleepWindow) = editSleep { it.copy(daysOffSleep = window) }
 
     /** A sleep edit; the chronotype follows the nights unless the user picked one ([OnboardingUiState.chronotypePicked]). */
-    private fun editSleep(change: (UserProfile) -> UserProfile) = edit { p ->
-        val follows = p.chronotype == p.inferredChronotype().chronotype
-        val next = change(p)
-        if (follows) next.copy(chronotype = next.inferredChronotype().chronotype) else next
+    private fun editSleep(change: (UserProfile) -> UserProfile) {
+        val picked = _state.value.chronotypePicked
+        edit { p -> change(p).let { next -> if (picked) next else next.copy(chronotype = next.inferredChronotype().chronotype) } }
     }
 
     /** A chronotype picked on the reveal's "Doesn't sound like me" sheet (picking the inferred one follows the nights again). */
-    fun setChronotype(chronotype: Chronotype) = edit { it.copy(chronotype = chronotype) }
+    fun setChronotype(chronotype: Chronotype) {
+        edit { it.copy(chronotype = chronotype) }
+        _state.update { it.copy(chronotypePicked = chronotype != it.profile.inferredChronotype().chronotype) }
+    }
 
     fun setIntensity(intensity: Intensity) = edit { it.copy(intensity = intensity) }
 

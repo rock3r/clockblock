@@ -30,6 +30,7 @@ internal fun onboardingState(
     melatoninAcknowledged: Boolean = false,
     notificationsAsked: Boolean = false,
     exactAlarmsAllowed: Boolean = false,
+    chronotypePicked: Boolean = false,
 ) = OnboardingUiState(
     step = step,
     profile = profile,
@@ -44,6 +45,7 @@ internal fun onboardingState(
         batteryOptimizationIgnored = false,
     ),
     notificationsAsked = notificationsAsked,
+    chronotypePicked = chronotypePicked,
     now = DemoData.Now,
 )
 
@@ -101,7 +103,7 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun chronotypePicked() = step(
         "onboarding_3b_chronotype_picked",
-        onboardingState(OnboardingStep.Chronotype, profile = SampleSleepProfile.copy(chronotype = Chronotype.ModerateMorning)),
+        onboardingState(OnboardingStep.Chronotype, profile = SampleSleepProfile.copy(chronotype = Chronotype.ModerateMorning), chronotypePicked = true),
     )
 
     @Test fun chronotypeSheet() {

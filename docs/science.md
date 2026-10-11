@@ -602,7 +602,8 @@ one dial; days off start as a copy of work days. It then works the chronotype ou
   before 02:00 Early bird, before 03:00 Morning person, 03:00–05:00 Somewhere in between, up to 06:00 Evening person,
   later Night owl. Mid-sleeps in the evening (18:00–24:00) count as very early.
 - The user sees the result and can pick another chronotype ("Doesn't sound like me"). A picked chronotype stays when
-  the nights change.
+  the nights change, and so does the saved one when setup is replayed from Settings; picking the suggested one hands
+  it back to the nights.
 
 Plans keep using **work-day** sleep as the habitual sleep (onset and wake in §8.2): days-off sleep only feeds the
 chronotype. Profiles saved before days-off sleep existed keep their sleep as work-day sleep, with days off linked.
