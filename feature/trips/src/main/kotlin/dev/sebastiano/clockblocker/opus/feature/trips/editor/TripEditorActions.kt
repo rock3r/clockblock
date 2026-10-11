@@ -20,7 +20,9 @@ interface TripEditorActions {
     fun onArrivalTimeChange(legIndex: Int, time: LocalTime)
     fun onReturnDateChange(date: LocalDate)
     fun onReturnTimeChange(time: LocalTime)
-    fun clearReturn()
+
+    /** The Return flight switch: on suggests a date (a week after landing), off forgets it. */
+    fun onReturnFlightChange(on: Boolean)
     fun onStrategyChange(strategy: AdaptationStrategy?)
 
     /** "Body clock when you leave": [fromHome] true = still on home time, false = on the departure city's. */
@@ -33,8 +35,8 @@ interface TripEditorActions {
     fun onPlaceQueryChange(field: PlaceFieldRef, query: String)
     fun onPlaceSelected(field: PlaceFieldRef, place: Place)
 
-    /** An airport field gained focus: an empty one offers popular airports. */
-    fun onPlaceFieldFocused(field: PlaceFieldRef)
+    /** Opens the airport search for [field] (the ticket's code was tapped), starting with popular airports. */
+    fun openPlaceSearch(field: PlaceFieldRef)
 
     /** Swaps a leg's From and To. */
     fun swapPlaces(legIndex: Int)
@@ -52,7 +54,7 @@ interface TripEditorActions {
         override fun onArrivalTimeChange(legIndex: Int, time: LocalTime) = Unit
         override fun onReturnDateChange(date: LocalDate) = Unit
         override fun onReturnTimeChange(time: LocalTime) = Unit
-        override fun clearReturn() = Unit
+        override fun onReturnFlightChange(on: Boolean) = Unit
         override fun onStrategyChange(strategy: AdaptationStrategy?) = Unit
         override fun onBodyClockStartChange(fromHome: Boolean) = Unit
         override fun addLeg() = Unit
@@ -62,7 +64,7 @@ interface TripEditorActions {
         override fun delayLeg(legIndex: Int, delay: Duration) = Unit
         override fun onPlaceQueryChange(field: PlaceFieldRef, query: String) = Unit
         override fun onPlaceSelected(field: PlaceFieldRef, place: Place) = Unit
-        override fun onPlaceFieldFocused(field: PlaceFieldRef) = Unit
+        override fun openPlaceSearch(field: PlaceFieldRef) = Unit
         override fun swapPlaces(legIndex: Int) = Unit
         override fun pickTopResult(field: PlaceFieldRef): Boolean = false
         override fun dismissSearch() = Unit

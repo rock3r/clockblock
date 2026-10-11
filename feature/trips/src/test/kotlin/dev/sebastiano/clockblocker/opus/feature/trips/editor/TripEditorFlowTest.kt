@@ -5,7 +5,8 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
@@ -141,13 +142,15 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         tag(TripsTestTags.editorLeg(1)).performScrollTo()
         tag(TripsTestTags.editorFrom(1)).assertTextContains("Tokyo", substring = true)
 
-        tag(TripsTestTags.editorTo(1)).performScrollTo().performTextInput("syd")
+        tag(TripsTestTags.editorTo(1)).performScrollTo().performClick()
+        settle()
+        tag(TripsTestTags.EditorPlaceSearch).performTextInput("syd")
         settle()
         tag(TripsTestTags.placeResult("SYD")).performScrollTo().performClick()
         settle()
         tag(TripsTestTags.editorTo(1)).assertTextContains("Sydney", substring = true)
-        // Picking the destination moves on (or just drops focus), so the keyboard doesn't linger over the dates.
-        tag(TripsTestTags.editorTo(1)).assertIsNotFocused()
+        // Picking the destination closes the sheet, back on the ticket.
+        compose.onNodeWithTag(TripsTestTags.EditorPlaceSheet).assertDoesNotExist()
 
         tag(TripsTestTags.editorRemoveLeg(1)).performScrollTo().performClick()
         settle()
@@ -182,8 +185,74 @@ class TripEditorFlowTest : TripsScreenshotTest() {
     @Test
     fun newTripCannotBeSavedUntilComplete() {
         open()
-        tag(TripsTestTags.EditorSave).assertIsNotEnabled()
+        tag(TripsTestTags.EditorSave).assertIsNotEnabled().assertTextEquals("Build my plan")
+        // The bar says why, right above the disabled button.
+        tag(TripsTestTags.EditorSaveHint).assertTextEquals("Add airports and times for every flight.")
         tag(TripsTestTags.editorLeg(0)).assertExists()
+    }
+
+    @Test
+    fun editingSaysSaveChanges() {
+        open(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        tag(TripsTestTags.EditorSave).assertIsEnabled().assertTextEquals("Save changes")
+        compose.onNodeWithTag(TripsTestTags.EditorSaveHint).assertDoesNotExist()
+    }
+
+    @Test
+    fun aNewRouteIsTwoPicksInOneSheet() {
+        open()
+        tag(TripsTestTags.editorFrom(0)).performClick()
+        settle()
+        compose.onNodeWithText("Flying from").assertExists()
+        tag(TripsTestTags.EditorPlaceSearch).performTextInput("lis")
+        settle()
+        tag(TripsTestTags.placeResult("LIS")).performScrollTo().performClick()
+        settle()
+
+        // From is set, To is empty: the same sheet asks for it next.
+        compose.onNodeWithText("Flying to").assertExists()
+        tag(TripsTestTags.EditorPlaceSearch).performTextInput("hnd")
+        settle()
+        tag(TripsTestTags.placeResult("HND")).performScrollTo().performClick()
+        settle()
+
+        compose.onNodeWithTag(TripsTestTags.EditorPlaceSheet).assertDoesNotExist()
+        tag(TripsTestTags.editorFrom(0)).assertTextContains("Lisbon", substring = true)
+        tag(TripsTestTags.editorTo(0)).assertTextContains("Tokyo", substring = true)
+    }
+
+    @Test
+    fun theFlightHeadingOnlyShowsWithAConnection() {
+        open()
+        compose.onNodeWithText("Flight 1").assertDoesNotExist()
+        tag(TripsTestTags.EditorAddLeg).performScrollTo().performClick()
+        settle()
+        compose.onNodeWithText("Flight 1").performScrollTo().assertExists()
+        compose.onNodeWithText("Flight 2").performScrollTo().assertExists()
+    }
+
+    @Test
+    fun anOvernightFlightSaysPlusOneDay() {
+        open(TripEditorArgs(tripId = DemoData.SfoLhrId)) // SFO 19:30 → LHR 13:50 the next day.
+        tag(TripsTestTags.editorDayOffset(0)).performScrollTo().assertContentDescriptionEquals("Lands the next day")
+    }
+
+    @Test
+    fun turningOnTheReturnFlightAddsTheReturnTripOnSave() {
+        open(TripEditorArgs(tripId = DemoData.SfoLhrId))
+        val before = trips.current.size
+        tag(TripsTestTags.EditorReturnSwitch).performScrollTo().assertIsOff().performClick()
+        settle()
+        tag(TripsTestTags.EditorReturnSwitch).assertIsOn()
+        // A week after landing (Tue 16 Jun), at the outbound's time of day.
+        tag(TripsTestTags.EditorReturnDate).performScrollTo().assertContentDescriptionContains("Jun 23", substring = true)
+        compose.onNodeWithText("Added to your trips as a trip of its own when you build your plan.").assertExists()
+
+        tag(TripsTestTags.EditorSave).performClick()
+        settle()
+        trips.current.size shouldBe before + 1
+        val back = trips.current.single { it.legs.first().origin == DemoData.LHR && it.id != DemoData.LhrSydId }
+        back.legs.last().destination shouldBe DemoData.SFO
     }
 
     @Test
