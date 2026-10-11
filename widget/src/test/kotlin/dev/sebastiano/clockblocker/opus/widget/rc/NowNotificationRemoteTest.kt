@@ -152,6 +152,14 @@ class NowNotificationRemoteTest {
     }
 
     @Test
+    fun `the collapsed until line keeps the other zone's time too, and is left out rather than shown without it`() {
+        NotificationFit.collapsed(context, model().texts, slots.collapsedWidthDp).line?.text shouldBe "until 16:30 · 08:30 Lisbon"
+        val texts = model().texts
+        NotificationFit.untilOptions(context, texts).all { "08:30" in it } shouldBe true
+        texts.upcoming.forEach { item -> NotificationFit.nextOptions(context, item).all { item.secondary!!.substringBefore(' ') in it } shouldBe true }
+    }
+
+    @Test
     fun `both documents follow the theme on their own`() {
         val docs = documents(model())
         (document(docs.collapsed.bytes).themedColors.size > 0) shouldBe true

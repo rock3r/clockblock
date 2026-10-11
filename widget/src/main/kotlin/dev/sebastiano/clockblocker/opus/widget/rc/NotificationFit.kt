@@ -72,24 +72,33 @@ internal object NotificationFit {
 
     /**
      * The until line, longest first: "until 20:30 · 12:30 in Lisbon", then shorter place names, then the code form
-     * ("until 20:30 · 12:30 LIS"), then "until 20:30" alone. Without a block it is the subtitle ("You're adapted
-     * to Tokyo", "Plan one").
+     * ("until 20:30 · 12:30 LIS"). Never the local time alone: with a secondary zone every form keeps its time
+     * (product rule), and the line is left out when none fits. Without a secondary zone it is "until 20:30"; without
+     * a block, the subtitle ("You're adapted to Tokyo", "Plan one").
      */
     fun untilOptions(context: Context, texts: WidgetTexts): List<String> {
         val until = texts.subtitleLines.firstOrNull() ?: return emptyList()
+        if (texts.secondaryOptions.isEmpty()) return listOf(until)
         val withZone = texts.secondaryOptions.map { context.getString(R.string.widget_until_compact, until.glued(), it.glued()) }
-        return (withZone + listOfNotNull(texts.untilCompact) + until).distinct()
+        return (withZone + listOfNotNull(texts.untilCompact)).distinct()
     }
 
-    /** "Next: Sleep at 20:30 · 12:30 in Lisbon", then shorter places, then without the other zone. */
+    /**
+     * "Next: Sleep at 20:30 · 12:30 in Lisbon", then shorter places. Like [untilOptions], never without the other zone's
+     * time when there is one (the row is left out instead).
+     */
     fun nextOptions(context: Context, item: UpcomingText): List<String> {
         val at = context.getString(R.string.widget_starts_at, item.label, item.time.glued())
-        val forms = item.secondaryOptions.map { context.getString(R.string.widget_until_compact, at, it.glued()) } + at
+        val forms = if (item.secondaryOptions.isEmpty()) {
+            listOf(at)
+        } else {
+            item.secondaryOptions.map { context.getString(R.string.widget_until_compact, at, it.glued()) }
+        }
         return forms.map { context.getString(R.string.widget_notification_next, it) }
     }
 
     fun collapsed(context: Context, texts: WidgetTexts, widthDp: Int): CollapsedNotificationFit {
-        val done = done(context, texts)
+        val done = done(context, texts, COLLAPSED_DONE_H_PAD_DP)
         val doneRoom = done?.let { it.widthDp + COLLAPSED_DONE_GAP_DP } ?: 0
         val lines = untilOptions(context, texts)
         val available = (NotificationSlots.COLLAPSED_HEIGHT_DP - 2 * COLLAPSED_V_PAD_DP).toFloat()
@@ -122,7 +131,7 @@ internal object NotificationFit {
             firstFit(context, nextOptions(context, item), (widthDp - NEXT_GLYPH_DP - NEXT_GLYPH_GAP_DP).toFloat(), LINE_SP, LINE_MIN_SP, maxLines = 2)
                 ?.let { NextFit(item, it) }
         }
-        val done = done(context, texts)
+        val done = done(context, texts, DONE_H_PAD_DP)
 
         val header = max(EXPANDED_GLYPH_DP.toFloat(), title.heightDp + (line?.let { LINE_GAP_DP + it.heightDp } ?: 0f))
         val progressHeight = if (progress) max(PROGRESS_BAR_DP.toFloat(), countdownHeight) + PROGRESS_TOP_DP else 0f
@@ -145,10 +154,10 @@ internal object NotificationFit {
     }
 
     /** Done (or the logged chip, "✓ Done"): its label at [DONE_SP] and the pill around it, at least a 48 dp target. */
-    private fun done(context: Context, texts: WidgetTexts): DoneFit? {
+    private fun done(context: Context, texts: WidgetTexts, hPadDp: Int): DoneFit? {
         val done = texts.done ?: return null
         val label = TextFit.measure(context, done.label, Float.MAX_VALUE / 4, DONE_SP, semibold = true)
-        return DoneFit(label, max(DONE_MIN_WIDTH_DP, ceil(label.widthDp + 2 * DONE_H_PAD_DP + TextFit.SAFETY_DP).toInt()))
+        return DoneFit(label, max(DONE_MIN_WIDTH_DP, ceil(label.widthDp + 2 * hPadDp + TextFit.SAFETY_DP).toInt()))
     }
 
     private fun firstFit(context: Context, options: List<String>, widthDp: Float, maxSp: Int, minSp: Int, maxLines: Int): Fitted? {
@@ -173,8 +182,8 @@ internal object NotificationFit {
 }
 
 internal const val COLLAPSED_V_PAD_DP = 2
-internal const val COLLAPSED_GLYPH_DP = 32
-internal const val COLLAPSED_GLYPH_GAP_DP = 12
+internal const val COLLAPSED_GLYPH_DP = 28
+internal const val COLLAPSED_GLYPH_GAP_DP = 10
 internal const val COLLAPSED_DONE_GAP_DP = 8
 internal const val COLLAPSED_DONE_PILL_DP = 36
 internal const val EXPANDED_GLYPH_DP = 40
@@ -188,4 +197,7 @@ internal const val NEXT_GLYPH_DP = 24
 internal const val NEXT_GLYPH_GAP_DP = 10
 internal const val DONE_ROW_TOP_DP = 6
 internal const val DONE_H_PAD_DP = 20
+
+/** Collapsed, Done is narrower so the until line keeps the other zone's time beside it. */
+internal const val COLLAPSED_DONE_H_PAD_DP = 14
 internal const val DONE_MIN_WIDTH_DP = 64
