@@ -86,6 +86,9 @@ class NowNotificationRemoteTest {
     private val now = Instant.parse("2026-10-06T06:20:00Z") // 15:20 in Tokyo
     private val slots = NotificationSlots.forScreenWidth(SCREEN_DP)
 
+    /** The players' clock (the shade's); the preview tests move it on from the capture. */
+    private var playerNow = now
+
     @Before
     fun use24Hour() {
         Settings.System.putString(context.contentResolver, Settings.System.TIME_12_24, "24")
@@ -136,7 +139,7 @@ class NowNotificationRemoteTest {
 
     private fun document(bytes: ByteArray): RemoteDocument {
         @Suppress("RestrictedApiAndroidX") // test-only: pin the player clock so the countdown and bar are stable
-        return RemoteDocument(ByteArrayInputStream(bytes), SystemClock(Clock.fixed(now, zone)))
+        return RemoteDocument(ByteArrayInputStream(bytes), SystemClock(Clock.fixed(playerNow, zone)))
     }
 
     /** The height the platform-like view player gives [bytes] at [widthDp] under the shade's cap, after a first draw. */
@@ -261,6 +264,29 @@ class NowNotificationRemoteTest {
             captureSingleRemoteDocument(context = context, creationDisplayInfo = createCreationDisplayInfo(context, size), profile = profile, content = body)
         }
         content.preview(now, 280) shouldNotBe null
+    }
+
+    /** 01:40 in Tokyo, 17:40 in Lisbon: someone's evening, when an unpinned sample would read "until 05:00". */
+    private val evening = Instant.parse("2026-10-06T16:40:00Z")
+
+    @Test
+    fun `the onboarding preview is pinned to mid-afternoon in Tokyo, its countdown running on from the real clock`() {
+        val model = checkNotNull(content.previewModel(evening))
+        val state = model.state as dev.sebastiano.clockblocker.opus.widget.state.WidgetState.Active
+        state.capturedAt shouldBe Instant.parse("2026-10-07T06:20:00Z") // 15:20 in Tokyo, that day
+        state.hostClockFrom shouldBe evening
+        val fit = NotificationFit.expanded(context, model.texts, slots.expandedWidthDp, progress = true)
+        fit.line?.text?.replace('\u00A0', ' ') shouldBe "until 18:00 · 10:00 in Lisbon"
+        fit.title.text shouldBe "See bright light"
+    }
+
+    /** The preview played ten minutes after it was captured in someone's evening: still daytime, 2h 30m left. */
+    @Test
+    fun preview() {
+        val model = checkNotNull(content.previewModel(evening))
+        headers[model] = "Body 7 h behind"
+        playerNow = evening.plusSeconds(10 * 60)
+        shade("$DIR/remote_notification_preview.png", dark = false, listOf(model), expandedOnly = true)
     }
 
     @Test

@@ -752,14 +752,14 @@ internal fun countdownMinutes(model: WidgetModel): Int? {
 internal fun countdownText(model: WidgetModel, compact: Boolean = false): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
-    return HostText.countdown(total, DialMath.minuteOfDay(state.capturedAt, 0), compact)
+    return HostText.countdown(total, DialMath.minuteOfDay(state.hostClockFrom, 0), compact)
 }
 
 /** The live countdown in words for the spoken description ("1 hour 10 minutes left"); null without one. */
 internal fun spokenCountdown(model: WidgetModel): RemoteString? {
     val total = countdownMinutes(model) ?: return null
     val state = model.state as WidgetState.Active
-    return HostText.countdownSpoken(total, DialMath.minuteOfDay(state.capturedAt, 0), model.texts.countdownWords)
+    return HostText.countdownSpoken(total, DialMath.minuteOfDay(state.hostClockFrom, 0), model.texts.countdownWords)
 }
 
 /**

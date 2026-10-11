@@ -598,7 +598,8 @@ are copies of them.
 
 Onboarding asks for notifications from its last step ("Reminders that actually arrive"), right under a sample of the
 Now notification: the real Remote Compose document for the widgets' sample plan (`NowNotificationContent.preview`),
-played in the app, or the standard notification's look where Remote Compose can't play. Once notifications are allowed
+pinned to mid-afternoon in Tokyo so it always reads as daytime (its countdown then runs on with the real clock), played
+in the app, or the standard notification's look where Remote Compose can't play. Once notifications are allowed
 it offers exact timing as an optional row, only where the user could still grant it
 (`NotificationPermissionState.exactAlarmsRequestable` and not yet allowed). Settings shows the current
 state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
