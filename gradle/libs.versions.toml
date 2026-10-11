@@ -21,6 +21,7 @@ material = "1.14.0"
 
 # Widgets
 remoteCompose = "1.0.0-alpha20"
+aboutLibraries = "15.2.0"
 
 # Data
 datastore = "1.2.1"
@@ -80,6 +81,7 @@ androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecy
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 
+aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
 androidx-compose-remote-creation-compose = { module = "androidx.compose.remote:remote-creation-compose", version.ref = "remoteCompose" }
 androidx-compose-remote-creation = { module = "androidx.compose.remote:remote-creation", version.ref = "remoteCompose" }
 androidx-compose-remote-core = { module = "androidx.compose.remote:remote-core", version.ref = "remoteCompose" }
@@ -140,6 +142,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
+aboutlibraries-android = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibraries" }
 
 # Convention plugins (build-logic)
 clockblock-android-application = { id = "clockblock.android.application" }

@@ -92,6 +92,6 @@ removed may stay in your calendar, so delete the old events after a big change.
 
 - **Replay setup** walks you through the first-run questions again.
 - **About Clockblock** explains how the plan works, lists the research it's based on, and shows the version
-  and the open-source licences. Tap a licence to open the project's web page.
+  and the open-source licences: every library, font and data source the app uses. Tap one to read its licence.
 
 Next: [Questions and answers](faq.md).

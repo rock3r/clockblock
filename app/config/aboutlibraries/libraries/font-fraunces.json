@@ -1,0 +1,9 @@
+{
+  "uniqueId": "font:fraunces",
+  "name": "Fraunces",
+  "description": "The editorial serif (variable, subset).",
+  "website": "https://github.com/undercasetype/Fraunces",
+  "developers": [{ "name": "The Fraunces Project Authors (Undercase Type)" }],
+  "licenses": ["OFL-1.1"],
+  "tag": "font"
+}

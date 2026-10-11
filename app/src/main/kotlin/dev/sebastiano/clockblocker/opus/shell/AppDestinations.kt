@@ -8,6 +8,9 @@ import dev.sebastiano.clockblocker.opus.feature.plan.PlanEmptyPane
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanScreen
 import dev.sebastiano.clockblocker.opus.feature.settings.AboutScreen
 import dev.sebastiano.clockblocker.opus.feature.settings.LicensesScreen
+import dev.sebastiano.clockblocker.opus.R
+import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
+import androidx.compose.runtime.getValue
 import dev.sebastiano.clockblocker.opus.feature.settings.SettingsScreen
 import dev.sebastiano.clockblocker.opus.feature.trips.TripEditorScreen
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreen
@@ -139,6 +142,8 @@ object FeatureDestinations : AppDestinations {
 
     @Composable
     override fun Licenses(onBack: () -> Unit) {
-        LicensesScreen(onBack = onBack)
+        // Collected at build time by the AboutLibraries plugin (app/build.gradle.kts), read off the main thread.
+        val libraries by produceLibraries(R.raw.aboutlibraries)
+        LicensesScreen(libraries = libraries, onBack = onBack)
     }
 }

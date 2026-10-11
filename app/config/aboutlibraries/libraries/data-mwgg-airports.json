@@ -1,0 +1,15 @@
+{
+  "uniqueId": "data:mwgg-airports",
+  "name": "mwgg/Airports",
+  "description": "The time zone of each airport in the offline airport search. Copyright (c) 2014 mwgg.",
+  "website": "https://github.com/mwgg/Airports",
+  "developers": [
+    {
+      "name": "mwgg and contributors"
+    }
+  ],
+  "licenses": [
+    "MIT"
+  ],
+  "tag": "data"
+}
