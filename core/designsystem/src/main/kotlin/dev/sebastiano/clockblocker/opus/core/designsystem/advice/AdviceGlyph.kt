@@ -15,10 +15,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
@@ -99,6 +103,8 @@ private val MinOutline = 1.25.dp
  * - **Reduced motion**: the morph snaps to its end state and the ambient cycle never plays.
  *
  * @param headingDegrees for [AdviceType.Flight]: the plane's heading (0 = east, clockwise).
+ * @param icon optional icon drawn inside the shape in place of the polygon mark and pattern overlay (used by the
+ *   preference toggles, where the shape still morphs on activation and the icon names the tool).
  */
 @Composable
 fun AdviceGlyph(
@@ -107,6 +113,7 @@ fun AdviceGlyph(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     headingDegrees: Float = -45f,
+    icon: Painter? = null,
 ) {
     val role = ClockblockTheme.adviceColors[type]
     val motion = ClockblockTheme.motion
@@ -134,6 +141,11 @@ fun AdviceGlyph(
         },
         animationSpec = motion.colour(),
         label = "glyphFill",
+    )
+    val iconColor by animateColorAsState(
+        targetValue = if (active && !outlineOnly) role.onColor else role.onContainer,
+        animationSpec = motion.colour(),
+        label = "glyphIcon",
     )
     val ambient = rememberAmbientPhase(type, enabled = active && !reduce)
     val baseRotation = if (type == AdviceType.Flight) headingDegrees + 90f else AdviceShapes.baseRotation(type)
@@ -177,15 +189,17 @@ fun AdviceGlyph(
         // Pattern overlay grows with the morph so the active glyph keeps its colour-blind carrier.
         val patternAlpha = p.coerceIn(0f, 1f)
         if (patternAlpha > 0f) {
-            clipPath(shape) {
-                when (type.pattern) {
-                    AdvicePattern.Hatch -> drawHatch(role.onColor.copy(alpha = 0.45f * patternAlpha), 4.5.dp, 1.4.dp)
-                    AdvicePattern.StarDots -> drawStarDots(role.onColor.copy(alpha = 0.7f * patternAlpha), 7.dp, 0.8.dp)
-                    AdvicePattern.RoundDots -> if (type == AdviceType.OptionalNap) {
-                        drawRoundDots(role.onColor.copy(alpha = 0.35f * patternAlpha), 5.dp, 1.1.dp)
+            if (icon == null) {
+                clipPath(shape) {
+                    when (type.pattern) {
+                        AdvicePattern.Hatch -> drawHatch(role.onColor.copy(alpha = 0.45f * patternAlpha), 4.5.dp, 1.4.dp)
+                        AdvicePattern.StarDots -> drawStarDots(role.onColor.copy(alpha = 0.7f * patternAlpha), 7.dp, 0.8.dp)
+                        AdvicePattern.RoundDots -> if (type == AdviceType.OptionalNap) {
+                            drawRoundDots(role.onColor.copy(alpha = 0.35f * patternAlpha), 5.dp, 1.1.dp)
+                        }
+                        AdvicePattern.Strike -> drawStrike(role.color.copy(alpha = patternAlpha), 2.5.dp, 0.22f)
+                        else -> Unit
                     }
-                    AdvicePattern.Strike -> drawStrike(role.color.copy(alpha = patternAlpha), 2.5.dp, 0.22f)
-                    else -> Unit
                 }
             }
             // Pale fills (e.g. See some light on its cream container) get a deeper same-hue edge so the shape
@@ -197,21 +211,34 @@ fun AdviceGlyph(
                 }
             }
         }
-        // Inactive mark: the shape as an icon inside the circular container.
-        val markAlpha = (1f - p).coerceIn(0f, 1f)
-        if (markAlpha > 0f) {
-            val markColor = role.onContainer.copy(alpha = markAlpha)
-            val markRotation = baseRotation * (1f - q)
-            val m = if (q <= 0f) {
-                mark.toPath(0f, this.size, markRotation, 0.5f, markPath)
-            } else {
-                pixelMark.toPath(q, this.size, markRotation, 0.5f, markPath)
+        if (icon != null) {
+            val side = this.size.minDimension * 0.5f
+            val iconSize = Size(side, side)
+            translate(
+                left = (this.size.width - side) / 2f,
+                top = (this.size.height - side) / 2f,
+            ) {
+                with(icon) {
+                    draw(iconSize, colorFilter = ColorFilter.tint(iconColor))
+                }
             }
-            if (outlineOnly) {
-                drawPath(m, markColor, style = Stroke(width = 1.6.dp.toPx()))
-                clipPath(shape) { drawStrike(markColor, 1.8.dp, 0.3f) }
-            } else {
-                drawPath(m, markColor)
+        } else {
+            // Inactive mark: the shape as an icon inside the circular container.
+            val markAlpha = (1f - p).coerceIn(0f, 1f)
+            if (markAlpha > 0f) {
+                val markColor = role.onContainer.copy(alpha = markAlpha)
+                val markRotation = baseRotation * (1f - q)
+                val m = if (q <= 0f) {
+                    mark.toPath(0f, this.size, markRotation, 0.5f, markPath)
+                } else {
+                    pixelMark.toPath(q, this.size, markRotation, 0.5f, markPath)
+                }
+                if (outlineOnly) {
+                    drawPath(m, markColor, style = Stroke(width = 1.6.dp.toPx()))
+                    clipPath(shape) { drawStrike(markColor, 1.8.dp, 0.3f) }
+                } else {
+                    drawPath(m, markColor)
+                }
             }
         }
     }

@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
@@ -98,6 +99,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.circadian.usualLowestPoint
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
@@ -116,7 +118,7 @@ import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationPermissionState
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeHelperDialog
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeEstimate
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSky
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
@@ -126,6 +128,7 @@ import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDial
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialMath
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolSwitchRow
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsEditor
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.description
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.formatDuration
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.label
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.segmentedShape
@@ -141,6 +144,7 @@ import java.time.format.FormatStyle
 /** Test tags for the e2e suite. */
 object SettingsTags {
     const val List = "settings_list"
+    const val You = "settings_you"
     const val Home = "settings_home"
     const val HomeSearch = "settings_home_search"
     const val Sleep = "settings_sleep"
@@ -367,7 +371,7 @@ private fun SettingsEvent.message(context: Context): String = with(context.resou
     }
 }
 
-private enum class ProfileEditor { None, Home, Sleep, Chronotype }
+private enum class ProfileEditor { None, You, Home, Sleep, Chronotype }
 
 /**
  * Stateless Settings UI: a large flexible app bar over grouped, segmented rows. Profile edits open focused
@@ -464,6 +468,19 @@ fun SettingsContent(
     if (profile != null) {
         when (editor) {
             ProfileEditor.None -> Unit
+            ProfileEditor.You -> EditorDialog(onDismiss = { editor = ProfileEditor.None }) {
+                YouEditor(
+                    initialSleep = profile.sleep,
+                    initialDaysOff = profile.daysOffSleep,
+                    initialChronotype = profile.chronotype,
+                    onSave = { work, daysOff, chronotype ->
+                        actions.updateProfile { it.copy(sleep = work, daysOffSleep = daysOff, chronotype = chronotype) }
+                        editor = ProfileEditor.None
+                    },
+                    onCancel = { editor = ProfileEditor.None },
+                    easterEggs = state.easterEggs,
+                )
+            }
             ProfileEditor.Home -> {
                 val close = { actions.clearHomeSearch(); editor = ProfileEditor.None }
                 EditorDialog(onDismiss = close) {
@@ -494,6 +511,7 @@ fun SettingsContent(
                 ChronotypeEditor(
                     initial = profile.chronotype,
                     workSleep = profile.sleep,
+                    daysOffSleep = profile.daysOffSleep,
                     onSave = { chronotype -> actions.updateProfile { it.copy(chronotype = chronotype) }; editor = ProfileEditor.None },
                     onCancel = { editor = ProfileEditor.None },
                 )
@@ -567,40 +585,20 @@ private fun ProfileSection(
     now: Instant,
     onEdit: (ProfileEditor) -> Unit,
 ) {
-    val formatter = rememberTimeFormatter()
     val zone = remember(profile.homeZoneId) { ZoneId.of(profile.homeZoneId) }
     SectionHeader(stringResource(R.string.settings_section_profile))
     SettingsGroup {
+        YouCard(
+            profile = profile,
+            onClick = { onEdit(ProfileEditor.You) },
+            shape = segmentedShape(0, 2),
+        )
         SettingsRow(
             title = stringResource(R.string.settings_home),
             supporting = stringResource(R.string.settings_home_value, zone.cityName(), gmtOffsetLabel(zone, now)),
             onClick = { onEdit(ProfileEditor.Home) },
-            shape = segmentedShape(0, 3),
+            shape = segmentedShape(1, 2),
             tag = SettingsTags.Home,
-        )
-        SettingsRow(
-            title = stringResource(R.string.settings_sleep),
-            supporting = stringResource(
-                R.string.settings_sleep_value,
-                formatter.format(profile.sleep.bedtime),
-                formatter.format(profile.sleep.wake),
-                formatDuration(SleepDialMath.durationMinutes(profile.sleep)),
-            ),
-            onClick = { onEdit(ProfileEditor.Sleep) },
-            shape = segmentedShape(1, 3),
-            tag = SettingsTags.Sleep,
-        )
-        SettingsRow(
-            title = stringResource(R.string.settings_chronotype),
-            supporting = profile.chronotype.label(),
-            onClick = { onEdit(ProfileEditor.Chronotype) },
-            shape = segmentedShape(2, 3),
-            tag = SettingsTags.Chronotype,
-            trailing = {
-                ChronotypeSky(profile.chronotype, Modifier.size(36.dp))
-                Spacer(Modifier.width(8.dp))
-                Icon(painterResource(R.drawable.settings_ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            },
         )
     }
     SectionHeader(stringResource(R.string.settings_tools))
@@ -620,6 +618,109 @@ private fun ProfileSection(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             onCard = true,
         )
+    }
+}
+
+/**
+ * The "You" hero card at the top of Settings: chronotype sky illustration, chronotype name and description,
+ * work-day (and days-off) sleep window, body's lowest point (CBTmin), and an edit badge. Tapping opens [YouEditor].
+ */
+@Composable
+private fun YouCard(
+    profile: UserProfile,
+    onClick: () -> Unit,
+    shape: Shape,
+) {
+    val colors = MaterialTheme.colorScheme
+    val formatter = rememberTimeFormatter()
+    val editLabel = stringResource(R.string.settings_you_edit)
+    val daysOff = profile.daysOffSleep?.takeIf { it != profile.sleep }
+    val duration = formatDuration(SleepDialMath.durationMinutes(profile.sleep))
+    val sleepSummary = if (daysOff != null) {
+        stringResource(
+            R.string.settings_you_sleep_with_days_off,
+            formatter.format(profile.sleep.bedtime),
+            formatter.format(profile.sleep.wake),
+            duration,
+            formatter.format(daysOff.bedtime),
+            formatter.format(daysOff.wake),
+        )
+    } else {
+        stringResource(
+            R.string.settings_you_sleep,
+            formatter.format(profile.sleep.bedtime),
+            formatter.format(profile.sleep.wake),
+            duration,
+        )
+    }
+    val lowestPointSummary = stringResource(
+        R.string.settings_you_lowest_point,
+        formatter.format(profile.usualLowestPoint()),
+    )
+
+    Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .clip(shape)
+                .clickable(onClickLabel = editLabel, onClick = onClick)
+                .semantics(mergeDescendants = true) { role = Role.Button }
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .testTag(SettingsTags.You),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ChronotypeSky(profile.chronotype, Modifier.size(64.dp), cornerRadius = 18.dp)
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        profile.chronotype.label(),
+                        style = ClockblockTheme.textStyles.editorialTitle,
+                        color = colors.onSurface,
+                    )
+                    Text(
+                        profile.chronotype.description(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = colors.secondaryContainer,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painterResource(R.drawable.settings_ic_edit),
+                            contentDescription = editLabel,
+                            tint = colors.onSecondaryContainer,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.size(14.dp))
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = colors.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        sleepSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurface,
+                    )
+                    Text(
+                        lowestPointSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1154,20 +1255,99 @@ private val OptionalSleepWindowSaver = androidx.compose.runtime.saveable.Saver<S
     restore = { if (it.size < 2) null else SleepWindow(java.time.LocalTime.ofSecondOfDay(it[0].toLong()), java.time.LocalTime.ofSecondOfDay(it[1].toLong())) },
 )
 
-/** Chronotype editor: the five cards plus the "Not sure?" helper, on a draft. */
+private enum class YouEditorTab { Sleep, Chronotype }
+
+/**
+ * Combined sleep + chronotype editor opened from [YouCard]: a connected toggle switches between the two-schedule
+ * sleep dial and the chronotype picker (whose suggested badge updates live from the draft sleep schedules).
+ */
 @Composable
-internal fun ChronotypeEditor(initial: Chronotype, workSleep: SleepWindow, onSave: (Chronotype) -> Unit, onCancel: () -> Unit) {
+internal fun YouEditor(
+    initialSleep: SleepWindow,
+    initialDaysOff: SleepWindow?,
+    initialChronotype: Chronotype,
+    onSave: (work: SleepWindow, daysOff: SleepWindow?, chronotype: Chronotype) -> Unit,
+    onCancel: () -> Unit,
+    easterEggs: Boolean = false,
+) {
+    var tab by rememberSaveable { mutableStateOf(YouEditorTab.Sleep) }
+    var draftSleep by rememberSaveable(stateSaver = SleepWindowSaver) { mutableStateOf(initialSleep) }
+    var draftDaysOff by rememberSaveable(stateSaver = OptionalSleepWindowSaver) { mutableStateOf(initialDaysOff) }
+    var draftChronotype by rememberSaveable { mutableStateOf(initialChronotype) }
+    val suggested = remember(draftSleep, draftDaysOff) {
+        ChronotypeEstimate.estimate(draftDaysOff ?: draftSleep, draftSleep).chronotype
+    }
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        ConnectedChoice(
+            options = YouEditorTab.entries,
+            selected = tab,
+            onSelect = { tab = it },
+            label = {
+                stringResource(
+                    when (it) {
+                        YouEditorTab.Sleep -> R.string.settings_sleep
+                        YouEditorTab.Chronotype -> R.string.settings_chronotype
+                    },
+                )
+            },
+            tag = {
+                when (it) {
+                    YouEditorTab.Sleep -> SettingsTags.Sleep
+                    YouEditorTab.Chronotype -> SettingsTags.Chronotype
+                }
+            },
+        )
+        Spacer(Modifier.size(16.dp))
+        when (tab) {
+            YouEditorTab.Sleep -> {
+                EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
+                Spacer(Modifier.size(16.dp))
+                val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+                val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
+                SleepDial(
+                    work = draftSleep,
+                    daysOff = draftDaysOff,
+                    onWorkChange = { draftSleep = it },
+                    onDaysOffChange = { draftDaysOff = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    easterEggEnabled = easterEggs,
+                    maxDialSize = maxDial,
+                )
+            }
+            YouEditorTab.Chronotype -> {
+                EditorTitle(stringResource(R.string.settings_chronotype_dialog_title))
+                Spacer(Modifier.size(16.dp))
+                ChronotypePicker(
+                    selected = draftChronotype,
+                    onSelect = { draftChronotype = it },
+                    suggested = suggested,
+                )
+            }
+        }
+        Spacer(Modifier.size(16.dp))
+        EditorButtons(onCancel = onCancel, onSave = { onSave(draftSleep, draftDaysOff, draftChronotype) })
+    }
+}
+
+/** Chronotype editor: the five cards with a suggested badge from the user's sleep schedules, on a draft. */
+@Composable
+internal fun ChronotypeEditor(
+    initial: Chronotype,
+    workSleep: SleepWindow,
+    onSave: (Chronotype) -> Unit,
+    onCancel: () -> Unit,
+    daysOffSleep: SleepWindow? = null,
+) {
     var draft by rememberSaveable { mutableStateOf(initial) }
-    var helper by rememberSaveable { mutableStateOf(false) }
+    val suggested = remember(workSleep, daysOffSleep) {
+        ChronotypeEstimate.estimate(daysOffSleep ?: workSleep, workSleep).chronotype
+    }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         EditorTitle(stringResource(R.string.settings_chronotype_dialog_title))
         Spacer(Modifier.size(16.dp))
-        ChronotypePicker(selected = draft, onSelect = { draft = it }, onNotSure = { helper = true })
+        ChronotypePicker(selected = draft, onSelect = { draft = it }, suggested = suggested)
         Spacer(Modifier.size(16.dp))
         EditorButtons(onCancel = onCancel, onSave = { onSave(draft) })
-    }
-    if (helper) {
-        ChronotypeHelperDialog(workSleep = workSleep, onUse = { draft = it; helper = false }, onDismiss = { helper = false })
     }
 }
 

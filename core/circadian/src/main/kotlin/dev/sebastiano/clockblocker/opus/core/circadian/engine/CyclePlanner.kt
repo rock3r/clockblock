@@ -196,7 +196,7 @@ internal class CyclePlanner(private val config: PlannerConfig) {
             var cap: Double
             if (t < dep) {
                 cap = if (direction == Direction.Advance) c.preAdvanceCap else if (c.lightBox) c.preDelayCapLightBox else c.preDelayCap
-                if (preDays == 0) cap = 0.0
+                if (k >= preDays) cap = 0.0
                 cap = min(cap, maxOf(0.0, preCapTotal - abs(phi)))
                 val tn = t + 24.0 - sgn * cap
                 if (tn < dep && sgn < 0) {

@@ -15,6 +15,13 @@ import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import dev.sebastiano.clockblocker.opus.core.model.Chronotype
+import io.kotest.assertions.withClue
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.enum
+import io.kotest.property.arbitrary.int
+import io.kotest.property.checkAll
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
@@ -147,5 +154,27 @@ class BodyClockTest {
         LocalTime.of(1, 0).isWithin(sleep) shouldBe true
         LocalTime.of(8, 59).isWithin(sleep) shouldBe true
         LocalTime.of(9, 0).isWithin(sleep) shouldBe false
+    }
+
+    @Test
+    fun `the usual lowest point is mid-sleep plus the chronotype offset`() {
+        profile(LHR, chronotype = Chronotype.Intermediate).usualLowestPoint() shouldBe LocalTime.of(4, 0)
+        profile(LHR, chronotype = Chronotype.DefiniteMorning).usualLowestPoint() shouldBe LocalTime.of(3, 30)
+        val owl = profile(LHR, chronotype = Chronotype.ModerateEvening, sleep = SleepWindow(LocalTime.of(0, 30), LocalTime.of(8, 30)))
+        owl.usualLowestPoint() shouldBe LocalTime.of(6, 0)
+    }
+
+    @Test
+    fun `the usual lowest point falls in the second half of the night, at most an hour and a half after mid-sleep`() = runTest {
+        checkAll(Arb.int(0 until 96), Arb.int(16..44), Arb.enum<Chronotype>()) { bedQuarter, quarters, chronotype ->
+            val bedtime = LocalTime.ofSecondOfDay(bedQuarter * 15 * 60L)
+            val sleep = SleepWindow(bedtime, bedtime.plusMinutes(quarters * 15L))
+            val low = profile(LHR, chronotype = chronotype, sleep = sleep).usualLowestPoint()
+            val fromBed = Math.floorMod(low.toSecondOfDay() / 60 - bedtime.toSecondOfDay() / 60, 24 * 60)
+            val half = quarters * 15 / 2
+            withClue("$sleep $chronotype -> $low") {
+                (fromBed in (half + 30 - 8)..(half + 90 + 8)) shouldBe true
+            }
+        }
     }
 }

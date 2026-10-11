@@ -168,6 +168,8 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun sleepLargeFont() = step("onboarding_3_sleep_fontscale_1_5", onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile), fontScale = 1.5f)
 
+    @Test fun toolsFont13() = step("onboarding_5_tools_fontscale_1_3", onboardingState(OnboardingStep.Tools), fontScale = 1.3f)
+
     @Test fun toolsLargeFont() = step("onboarding_5_tools_fontscale_1_5", onboardingState(OnboardingStep.Tools), fontScale = 1.5f)
 
     @Test fun toolsAllOn() = step("onboarding_5_tools_all_on", allToolsOn())

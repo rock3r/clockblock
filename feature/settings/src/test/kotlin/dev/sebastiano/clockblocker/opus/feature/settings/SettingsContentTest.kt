@@ -82,6 +82,11 @@ class SettingsContentTest {
     private val actions = RecordingSettingsActions()
 
     private fun show(state: SettingsUiState = settingsState(), extraSection: (@Composable () -> Unit)? = null) {
+        android.provider.Settings.System.putString(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+            android.provider.Settings.System.TIME_12_24,
+            "24",
+        )
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = true) {
                 SettingsContent(
@@ -206,6 +211,42 @@ class SettingsContentTest {
         actions.profile.intensity shouldBe Intensity.Max
         click(ToolsTags.Caffeine)
         actions.profile.useCaffeine shouldBe false
+        click(ToolsTags.Naps)
+        actions.profile.napsOk shouldBe false
+        click(ToolsTags.headStart(2))
+        actions.profile.headStartDays shouldBe 2
+        click(ToolsTags.headStart(0))
+        actions.profile.headStartDays shouldBe 0
+    }
+
+    @Test
+    fun `you card shows chronotype, sleep, and lowest point, and edits sleep and chronotype`() {
+        show()
+        compose.onNodeWithTag(SettingsTags.You).assertIsDisplayed()
+        compose.onNodeWithText("Somewhere in between", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Usual sleep · 23:00–07:00 (8 h)", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Body's lowest point around 04:00", substring = true).assertIsDisplayed()
+
+        click(SettingsTags.You)
+        compose.onNodeWithTag(SettingsTags.Chronotype).performClick()
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags.option(dev.sebastiano.clockblocker.opus.core.model.Chronotype.DefiniteEvening))
+            .performScrollTo()
+            .performClick()
+        compose.onNodeWithTag(SettingsTags.EditorSave).performClick()
+        actions.profile.chronotype shouldBe dev.sebastiano.clockblocker.opus.core.model.Chronotype.DefiniteEvening
+    }
+
+    @Test
+    fun `you card shows both schedules when days off sleep differs`() {
+        val withDaysOff = DemoData.profile.copy(
+            daysOffSleep = dev.sebastiano.clockblocker.opus.core.model.SleepWindow(
+                java.time.LocalTime.of(1, 0),
+                java.time.LocalTime.of(9, 0),
+            ),
+        )
+        show(settingsState(profile = withDaysOff))
+        compose.onNodeWithText("Usual sleep · 23:00–07:00 (8 h) · Days off 01:00–09:00", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Body's lowest point around 04:00", substring = true).assertIsDisplayed()
     }
 
     @Test

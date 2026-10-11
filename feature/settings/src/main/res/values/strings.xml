@@ -4,12 +4,16 @@
     <string name="settings_title">Settings</string>
     <string name="settings_back">Back</string>
 
-    <string name="settings_section_profile">Your profile</string>
+    <string name="settings_section_profile">You</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_reminders">Reminders</string>
     <string name="settings_section_data">Your data</string>
     <string name="settings_section_more">More</string>
 
+    <string name="settings_you_edit">Edit sleep and chronotype</string>
+    <string name="settings_you_sleep">Usual sleep · %1$s–%2$s (%3$s)</string>
+    <string name="settings_you_sleep_with_days_off">Usual sleep · %1$s–%2$s (%3$s) · Days off %4$s–%5$s</string>
+    <string name="settings_you_lowest_point">Body\'s lowest point around %1$s</string>
     <string name="settings_home">Home time zone</string>
     <string name="settings_home_value">%1$s · %2$s</string>
     <string name="settings_home_dialog_title">Where\'s home?</string>
@@ -21,7 +25,7 @@
     <string name="settings_sleep_dialog_title">When do you usually sleep?</string>
     <string name="settings_chronotype">Chronotype</string>
     <string name="settings_chronotype_dialog_title">Lark, owl, or in between?</string>
-    <string name="settings_tools">Tools</string>
+    <string name="settings_tools">Preferences</string>
     <string name="settings_effort">How hard the plan pushes</string>
     <string name="settings_save">Save</string>
     <string name="settings_cancel">Cancel</string>

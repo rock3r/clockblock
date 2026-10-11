@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,8 +51,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -60,32 +64,37 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import dev.sebastiano.clockblocker.opus.core.model.HeadStart
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.notifications.R as NotificationR
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 
 /** Test tags for the e2e suite. */
 object ToolsTags {
     const val Caffeine = "tool_caffeine"
     const val Planes = "tool_sleep_on_planes"
-    const val AdjustBefore = "tool_adjust_before"
+    const val Naps = "tool_naps"
     const val Melatonin = "tool_melatonin"
     const val MelatoninNote = "melatonin_note_toggle"
     const val MelatoninAck = "melatonin_ack"
+
+    /** `head_start_0` … `head_start_3`. */
+    fun headStart(days: Int): String = "head_start_$days"
 
     /** `effort_Gentle`, `effort_Balanced`, `effort_Max`. */
     fun effort(intensity: Intensity): String = "effort_${intensity.name}"
 }
 
 /**
- * The tool toggles: caffeine, sleeping on planes, pre-departure adjustment and melatonin. Melatonin is off by
+ * The preference controls: caffeine, sleeping on planes, naps, head-start days and melatonin. Melatonin is off by
  * default and sits behind an expandable safety note; it can only be switched on once the note is acknowledged
  * (tapping the switch before that opens the note instead).
  *
- * Each row leads with the glyph of the advice it unlocks (Caffeine, Sleep, See light, Melatonin). Switching a tool
- * on morphs the glyph from its resting circle into the advice shape and tints the row with that advice's container
- * colour, so the choice reads at a glance; the switch and the text label still carry it on their own (and under
- * reduce motion the morph snaps).
+ * Each row leads with the glyph of the advice it unlocks (Caffeine, Sleep, Nap, See light, Melatonin) holding its
+ * icon inside the shape. Switching a tool on morphs the glyph from its resting circle into the advice shape and tints
+ * the row with that advice's container colour, so the choice reads at a glance; the switch and the text label still
+ * carry it on their own (and under reduce motion the morph snaps).
  */
 @Composable
 fun ToolsEditor(
@@ -103,30 +112,38 @@ fun ToolsEditor(
             description = stringResource(R.string.tool_caffeine_description),
             checked = profile.useCaffeine,
             onCheckedChange = { onProfileChange(profile.copy(useCaffeine = it)) },
-            shape = segmentedShape(0, 4),
+            shape = segmentedShape(0, 5),
             tag = ToolsTags.Caffeine,
             glyph = AdviceType.Caffeine,
+            icon = painterResource(NotificationR.drawable.ic_notif_caffeine),
         )
         ToolSwitchRow(
             title = stringResource(R.string.tool_planes),
             description = stringResource(R.string.tool_planes_description),
             checked = profile.canSleepOnPlanes,
             onCheckedChange = { onProfileChange(profile.copy(canSleepOnPlanes = it)) },
-            shape = segmentedShape(1, 4),
+            shape = segmentedShape(1, 5),
             tag = ToolsTags.Planes,
             glyph = AdviceType.Sleep,
+            icon = painterResource(R.drawable.onboarding_ic_flight),
         )
         ToolSwitchRow(
-            title = stringResource(R.string.tool_adjust_before),
-            description = stringResource(R.string.tool_adjust_before_description),
-            checked = profile.adjustBeforeDeparture,
-            onCheckedChange = { onProfileChange(profile.copy(adjustBeforeDeparture = it)) },
-            shape = segmentedShape(2, 4),
-            tag = ToolsTags.AdjustBefore,
-            glyph = AdviceType.SeeLight,
+            title = stringResource(R.string.tool_naps),
+            description = stringResource(R.string.tool_naps_description),
+            checked = profile.napsOk,
+            onCheckedChange = { onProfileChange(profile.copy(napsOk = it)) },
+            shape = segmentedShape(2, 5),
+            tag = ToolsTags.Naps,
+            glyph = AdviceType.Nap,
+            icon = painterResource(NotificationR.drawable.ic_notif_nap),
+        )
+        HeadStartRow(
+            selectedDays = profile.headStartDays,
+            onSelect = { days -> onProfileChange(profile.copy(headStartDays = days)) },
+            shape = segmentedShape(3, 5),
         )
         // Melatonin's card holds the row and its safety note, so the whole card takes the tint.
-        val melatoninShape = segmentedShape(3, 4)
+        val melatoninShape = segmentedShape(4, 5)
         val melatoninColors = rememberToolRowColors(AdviceType.Melatonin, profile.useMelatonin, MaterialTheme.colorScheme.surfaceContainer)
         Column(Modifier.clip(melatoninShape).drawBehind { drawRect(melatoninColors.container()) }) {
             ToolSwitchRowContent(
@@ -143,6 +160,7 @@ fun ToolsEditor(
                 enabled = true,
                 glyph = AdviceType.Melatonin,
                 colors = melatoninColors,
+                icon = painterResource(NotificationR.drawable.ic_notif_melatonin),
             )
             MelatoninNote(
                 open = noteOpen,
@@ -153,6 +171,97 @@ fun ToolsEditor(
         }
     }
 }
+
+/**
+ * Head start: on how many days before departure the plan may start shifting the body clock (None, 1, 2 or 3 days).
+ * Leads with the See-light glyph (active whenever a head start is chosen) and a connected single-choice button group.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HeadStartRow(
+    selectedDays: Int,
+    onSelect: (Int) -> Unit,
+    shape: Shape,
+) {
+    val active = selectedDays > 0
+    val options = HeadStart.Choices
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 16.dp, end = 20.dp, top = 14.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AdviceGlyph(
+                    type = AdviceType.SeeLight,
+                    active = active,
+                    size = ToolGlyphSize,
+                    icon = painterResource(NotificationR.drawable.ic_notif_light),
+                )
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.tool_head_start),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        stringResource(R.string.tool_head_start_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.size(12.dp))
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val gap = ButtonGroupDefaults.ConnectedSpaceBetween
+                val fontScale = LocalDensity.current.fontScale
+                val perOption = (maxWidth - gap * (options.size - 1)) / options.size
+                val rows = if (perOption < HeadStartMinOptionWidth * fontScale) {
+                    options.chunked(2)
+                } else {
+                    listOf(options)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                    rows.forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                            row.forEachIndexed { index, days ->
+                                val checked = days == selectedDays
+                                val labelText = if (days == 0) {
+                                    stringResource(R.string.tool_head_start_none)
+                                } else {
+                                    pluralStringResource(R.plurals.tool_head_start_days, days, days)
+                                }
+                                ToggleButton(
+                                    checked = checked,
+                                    onCheckedChange = { onSelect(days) },
+                                    colors = ToggleButtonDefaults.colors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    ),
+                                    shapes = when (index) {
+                                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                        row.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 6.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .heightIn(min = 48.dp)
+                                        .semantics { role = Role.RadioButton }
+                                        .testTag(ToolsTags.headStart(days)),
+                                ) {
+                                    Text(
+                                        labelText,
+                                        maxLines = 1,
+                                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = LocalTextStyle.current.fontSize),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val HeadStartMinOptionWidth = 64.dp
 
 @Composable
 private fun MelatoninNote(open: Boolean, onToggle: () -> Unit, acknowledged: Boolean, onAcknowledge: (Boolean) -> Unit) {
@@ -243,6 +352,7 @@ fun ToolSwitchRow(
     enabled: Boolean = true,
     container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainer,
     glyph: AdviceType? = null,
+    icon: Painter? = null,
 ) {
     if (glyph == null) {
         Surface(shape = shape, color = container, modifier = modifier.fillMaxWidth()) {
@@ -277,6 +387,7 @@ fun ToolSwitchRow(
             enabled = enabled,
             glyph = glyph,
             colors = colors,
+            icon = icon,
             modifier = modifier.clip(shape).drawBehind { drawRect(colors.container()) },
         )
     }
@@ -325,6 +436,7 @@ internal fun ToolSwitchRowContent(
     glyph: AdviceType,
     colors: ToolRowColors,
     modifier: Modifier = Modifier,
+    icon: Painter? = null,
 ) {
     Row(
         modifier
@@ -336,7 +448,7 @@ internal fun ToolSwitchRowContent(
             .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AdviceGlyph(glyph, active = checked, size = ToolGlyphSize)
+        AdviceGlyph(glyph, active = checked, size = ToolGlyphSize, icon = icon)
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             BasicText(title, style = MaterialTheme.typography.titleMedium, color = { colors.content() })
