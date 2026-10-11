@@ -13,6 +13,8 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsSamples
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreenshotTest
@@ -91,6 +93,19 @@ class TripsContentTest : TripsScreenshotTest() {
         val fab = compose.onNodeWithTag(TripsTestTags.Fab).fetchSemanticsNode().boundsInRoot
         val firstCard = compose.onNodeWithTag(TripsTestTags.tripCard(DemoData.SfoLhrId)).fetchSemanticsNode().boundsInRoot
         (fab.bottom <= firstCard.top) shouldBe true
+    }
+
+    @Test
+    fun theLastCardScrollsClearOfTheFab() {
+        val state = TripsSamples.state()
+        show(state)
+        val last = TripsTestTags.tripCard(state.past.last().id)
+        compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(last))
+        repeat(3) { compose.onNodeWithTag(TripsTestTags.List).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        val fab = compose.onNodeWithTag(TripsTestTags.Fab).fetchSemanticsNode().boundsInRoot
+        val card = compose.onNodeWithTag(last).fetchSemanticsNode().boundsInRoot
+        (card.bottom <= fab.top) shouldBe true
     }
 
     @Test

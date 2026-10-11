@@ -24,6 +24,7 @@ object TripsTestTags {
     const val EditorClose = "editor_close"
     const val EditorAddLeg = "editor_add_leg"
     const val EditorTitle = "editor_title"
+    const val EditorRename = "editor_rename"
     const val EditorReturnDate = "editor_return_date"
     const val EditorReturnTime = "editor_return_time"
     const val EditorStrategyAuto = "editor_strategy_auto"

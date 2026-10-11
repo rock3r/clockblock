@@ -66,6 +66,12 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -279,7 +285,7 @@ internal class RailRenderer(
 )
 
 /** Emits the rail: sticky day headers, blocks and the now marker. */
-internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer, timeColumn: Dp) {
+internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer, timeColumn: Dp, timeTop: Dp) {
     rows.forEach { row ->
         when (row) {
             is RailRow.Header -> stickyHeader(row.key, contentType = "header") { DayHeader(row) }
@@ -287,7 +293,7 @@ internal fun LazyListScope.railRows(rows: List<RailRow>, renderer: RailRenderer,
             is RailRow.NowMarker -> item(row.key, contentType = "now") { NowMarkerRow(row, renderer, timeColumn) }
             is RailRow.ZoneSwitch -> item(row.key, contentType = "zone") { ZoneSwitchRow(row) }
             is RailRow.Block -> item(row.key, contentType = "block") {
-                RailBlockRow(row, renderer, timeColumn, highlighted = row.item.advice.id in renderer.highlighted)
+                RailBlockRow(row, renderer, timeColumn, timeTop, highlighted = row.item.advice.id in renderer.highlighted)
             }
         }
     }
@@ -324,6 +330,27 @@ internal fun timeColumnWidth(digits: Dp, widestMarker: Dp): Dp =
     maxOf(digits, minOf(widestMarker, digits * MaxMarkerToDigits)) + TimeColumnGap
 
 private const val MaxMarkerToDigits = 1.5f
+
+/**
+ * The time column's top padding in a block row: the text column's top padding, moved so the start time (in
+ * `timeTitle`) sits on the block title's first baseline (`titleMedium`) instead of sharing its top edge.
+ */
+@Composable
+internal fun rememberTimeColumnTop(): Dp {
+    val measurer = rememberTextMeasurer()
+    val time = ClockblockTheme.textStyles.timeTitle
+    val title = MaterialTheme.typography.titleMedium
+    val density = LocalDensity.current
+    return remember(time, title, density) {
+        with(density) {
+            val shift = measurer.measure("09", title).firstBaseline - measurer.measure("09", time).firstBaseline
+            (TextColumnTop + shift.toDp()).coerceAtLeast(0.dp)
+        }
+    }
+}
+
+/** The text column's top padding in a block row. */
+private val TextColumnTop = 12.dp
 private val TimeColumnGap = 12.dp
 
 private val CapsuleWidth = 44.dp
@@ -526,7 +553,7 @@ internal fun utcLabel(offset: ZoneOffset): String {
 }
 
 @Composable
-private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn: Dp, highlighted: Boolean) {
+private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn: Dp, timeTop: Dp, highlighted: Boolean) {
     val advice = row.item.advice
     val day = row.day
     val role = ClockblockTheme.adviceColors[advice.type]
@@ -541,10 +568,13 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     val label = advice.type.label()
     val range = formatter.range(advice.start, advice.end, day.zone, resources)
     val secondaryRange = formatter.range(advice.start, advice.end, day.secondaryZone, resources) + " " + day.secondaryZone.cityName()
-    val detail = when {
-        advice.type == AdviceType.Flight -> (flightDetails(renderer.flightRoute(advice.id), advice.detail) + formatDuration(advice.duration)).joinToString(" · ")
-        advice.type.isMoment -> advice.detail
-        else -> formatDuration(advice.duration) + (advice.detail?.let { " · $it" } ?: "")
+    // "22:45 – 01:00 · 2 h 15 min" on one line (moments have no duration); the detail (a flight's route and number,
+    // or the advice's own note) gets its own line under the other zone's times.
+    val duration = if (advice.type.isMoment) null else formatDuration(advice.duration)
+    val timeLine = railTimeLine(range, duration)
+    val detail = when (advice.type) {
+        AdviceType.Flight -> flightDetails(renderer.flightRoute(advice.id), advice.detail).joinToString(" · ").ifBlank { null }
+        else -> advice.detail
     }
     val description = blockDescription(advice, day)
     val inFlightText = stringResource(R.string.plan_in_flight)
@@ -565,13 +595,13 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             .testTag(PlanTags.block(advice.id))
             // The row speaks as one button; the blocks riding inside it (children) stay their own buttons.
             .semantics {
-                contentDescription = listOfNotNull(description, inFlightText.takeIf { row.item.inFlight }, detail, secondaryRange).joinToString(". ")
+                contentDescription = listOfNotNull(description, inFlightText.takeIf { row.item.inFlight }, duration, detail, secondaryRange).joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
     ) {
         // Time column: start time, upright = local (dial type rule). Blank when the row above starts at the same
-        // time, so the column only ever moves forward.
-        Column(Modifier.width(timeColumn).padding(top = RowGap + 6.dp).clearAndSetSemantics {}) {
+        // time, so the column only ever moves forward. Its top padding puts the time on the title's first baseline.
+        Column(Modifier.width(timeColumn).padding(top = timeTop).clearAndSetSemantics {}) {
             if (row.showTime) {
                 Text(
                     formatter.format(advice.start.atZone(day.zone).toLocalTime()),
@@ -676,11 +706,15 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                         if (row.item.inFlight) InFlightBadge(inFlightText)
                         row.item.outcome?.let { OutcomeBadge(it) }
                     }
-                    Text(range, style = ClockblockTheme.textStyles.timeLabel, color = scheme.onSurface)
+                    Text(
+                        rangeWithDuration(timeLine, scheme.onSurfaceVariant),
+                        style = ClockblockTheme.textStyles.timeLabel,
+                        color = scheme.onSurface,
+                    )
+                    Text(secondaryRange, style = SecondaryTimeStyle(), color = scheme.onSurfaceVariant)
                     if (!detail.isNullOrBlank()) {
                         Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(secondaryRange, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
                 }
                 // Check-off slot: on every row but flights (which just happen), so titles wrap at the same width down
                 // the rail; the circle itself only shows once the block has started (you can't log the future). It
@@ -714,6 +748,24 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
 }
 
 private val RailTextGap = 12.dp
+
+/** [line] ("22:45 – 01:00 · 2 h 15 min") with the part after the separator (the duration) in [quiet]. */
+private fun rangeWithDuration(line: String, quiet: Color): AnnotatedString {
+    val split = line.indexOf(" · ")
+    if (split < 0) return AnnotatedString(line)
+    return buildAnnotatedString {
+        append(line.substring(0, split))
+        withStyle(SpanStyle(color = quiet)) { append(line.substring(split)) }
+    }
+}
+
+/**
+ * The other zone's times under a block ("15:00 – 18:00 London"): body size with tabular digits, so it reads as data
+ * at full `onSurfaceVariant` contrast rather than as a faint caption.
+ */
+@Composable
+@ReadOnlyComposable
+private fun SecondaryTimeStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
 
 /**
  * A rail row's three columns, in order: time, rail (sky band and capsule) and text. The text column's own height sets
@@ -845,7 +897,7 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
                     formatter.range(advice.start, advice.end, day.zone, resources) + (advice.detail?.let { " · $it" } ?: ""),
                     style = ClockblockTheme.textStyles.timeLabel,
                 )
-                Text(secondary, style = MaterialTheme.typography.labelSmall, color = LocalContentColor.current.copy(alpha = 0.8f))
+                Text(secondary, style = SecondaryTimeStyle(), color = LocalContentColor.current.copy(alpha = 0.8f))
             }
             item.outcome?.let {
                 Spacer(Modifier.width(8.dp))

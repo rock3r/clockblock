@@ -54,12 +54,29 @@ object Chronotypes {
     /** MSF_sc tertiles (§8.2): before 03:00 → early, after 05:00 → late. */
     fun fromMsfSc(msfScHours: Double, earlyBefore: Double = 3.0, lateAfter: Double = 5.0): ChronotypeClass {
         // Mid-sleep in the evening (18:00–24:00, e.g. 23:00 for very early sleepers) counts as before midnight:
-        // map to [-6, 18), matching ChronotypeEstimate.fromMidSleepHours.
+        // map to [-6, 18), matching fromMidSleep.
         val h = CircadianMath.mod24(msfScHours + 6.0) - 6.0
         return when {
             h < earlyBefore -> ChronotypeClass.Early
             h > lateAfter -> ChronotypeClass.Late
             else -> ChronotypeClass.Neutral
+        }
+    }
+
+    /**
+     * Mid-sleep (clock hours) → one of the app's five chronotypes. The bands nest inside [fromMsfSc]'s three classes
+     * (early < 03:00 ≤ neutral ≤ 05:00 < late), so the five-level answer never disagrees with the planner about
+     * advance-vs-delay thresholds: before 02:00 Early bird, before 03:00 Morning person, up to 05:00 Somewhere in
+     * between, up to 06:00 Evening person, later Night owl. Evening mid-sleeps count as before midnight.
+     */
+    fun fromMidSleep(midSleepHours: Double): Chronotype {
+        val h = CircadianMath.mod24(midSleepHours + 6.0) - 6.0
+        return when {
+            h < 2.0 -> Chronotype.DefiniteMorning
+            h < 3.0 -> Chronotype.ModerateMorning
+            h <= 5.0 -> Chronotype.Intermediate
+            h <= 6.0 -> Chronotype.ModerateEvening
+            else -> Chronotype.DefiniteEvening
         }
     }
 }

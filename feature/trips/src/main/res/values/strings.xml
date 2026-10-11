@@ -160,6 +160,8 @@
     <string name="editor_details">Trip details</string>
     <string name="editor_trip_title">Title</string>
     <string name="editor_trip_title_hint">Suggested from your route. Change it if you like.</string>
+    <string name="editor_trip_rename">Rename</string>
+    <string name="editor_trip_title_pending">Named after your route once you pick it</string>
     <string name="editor_strategy">Body clock</string>
     <string name="editor_strategy_auto">Auto</string>
     <string name="editor_strategy_adapt">Adapt</string>

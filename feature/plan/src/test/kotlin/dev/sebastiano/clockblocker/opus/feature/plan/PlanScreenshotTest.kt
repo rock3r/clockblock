@@ -31,6 +31,10 @@ import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.ready
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanFixtures.realPlan
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import com.github.takahirom.roborazzi.captureRoboImage
+import dev.sebastiano.clockblocker.opus.core.model.Advice
+import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
+import kotlinx.collections.immutable.toImmutableList
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -272,6 +276,45 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.dayPill(-1)).performClick()
         compose.waitForIdle()
         compose.captureRoboImageInvalidated("src/test/screenshots/plan_day_picked_dark.png")
+    }
+
+    /**
+     * Every advice type as an "Also now" row (more than the planner ever stacks, to check each glyph reads on the card):
+     * glyph plus label, the flight with the timeline chip's plane.
+     */
+    @Test
+    fun nowCardAlsoNow() = snap("now_card_also_now", capture = false) { AlsoNowCard() }.also {
+        compose.onNodeWithTag(PlanTags.NowCard).captureRoboImage("src/test/screenshots/plan_now_card_also_now.png")
+    }
+
+    @Test
+    fun nowCardAlsoNowDark() = snap("now_card_also_now_dark", darkTheme = true, capture = false) { AlsoNowCard() }.also {
+        compose.onNodeWithTag(PlanTags.NowCard).captureRoboImage("src/test/screenshots/plan_now_card_also_now_dark.png")
+    }
+
+    @Composable
+    private fun AlsoNowCard() {
+        val moment = ready(PlanFixtures.MidAdaptation).moment
+        val active = moment.active!!
+        val others = AdviceType.entries.filter { it != active.type }.map { type ->
+            Advice("also-$type", type, active.start, active.end, AdviceReason.TravelMarker)
+        }
+        NowCard(
+            moment = moment.copy(concurrent = others.toImmutableList()),
+            previewing = false,
+            outcome = null,
+            flightRoute = null,
+            onOutcome = {},
+            onSnooze = {},
+            onWhy = {},
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+
+    /** Font scale 1.3: the dial's rim narration grows with the text around it. */
+    @Test
+    fun midAdaptationFontScale() = snap("mid_adaptation_font_1_3", fontScale = 1.3f) {
+        PlanContent(ready(PlanFixtures.MidAdaptation), actions)
     }
 
     @Test

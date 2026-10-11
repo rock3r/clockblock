@@ -1,8 +1,10 @@
 package dev.sebastiano.clockblocker.opus.core.notifications
 
+import android.Manifest
 import android.app.AlarmManager
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.PowerManager
 import android.text.format.DateFormat
 import androidx.core.app.AlarmManagerCompat
@@ -39,6 +41,12 @@ interface PlatformCapabilities {
     /** `SCHEDULE_EXACT_ALARM` state. */
     fun canScheduleExactAlarms(): Boolean
 
+    /**
+     * Whether the user could grant `SCHEDULE_EXACT_ALARM` in system settings: the build asks for it and the device
+     * has the screen. False in builds that get `USE_EXACT_ALARM` at install (they never need to ask).
+     */
+    fun canRequestExactAlarms(): Boolean = true
+
     /** Whether Live Updates (promoted ongoing notifications) may be posted. */
     fun canPostPromotedNotifications(): Boolean
 
@@ -59,6 +67,15 @@ class AndroidPlatformCapabilities(private val application: Application) : Platfo
 
     override fun canScheduleExactAlarms(): Boolean =
         context.getSystemService<AlarmManager>()?.let(AlarmManagerCompat::canScheduleExactAlarms) ?: false
+
+    // Only the manifest: resolving the settings screen can be hidden by package visibility, and the UI already
+    // tolerates a missing screen when it launches it.
+    override fun canRequestExactAlarms(): Boolean = runCatching {
+        context.packageManager
+            .getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()))
+            .requestedPermissions.orEmpty()
+            .contains(Manifest.permission.SCHEDULE_EXACT_ALARM)
+    }.getOrDefault(false)
 
     override fun canPostPromotedNotifications(): Boolean =
         runCatching { NotificationManagerCompat.from(context).canPostPromotedNotifications() }.getOrDefault(false)

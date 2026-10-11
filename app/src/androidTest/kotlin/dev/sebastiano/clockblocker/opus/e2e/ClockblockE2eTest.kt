@@ -133,13 +133,13 @@ abstract class ClockblockE2eTest {
 
     /**
      * Finishes onboarding on its last step without the notification prompt: "Maybe later" while notifications aren't
-     * allowed, "Finish" once they are (the step then offers Back instead of "Maybe later", #101). The permission stays
-     * granted across tests on an emulator, so either can be on screen.
+     * allowed (the prompt only starts from the step's card), "Finish" once they are. The permission stays granted
+     * across tests on an emulator, so either can be on screen.
      */
     fun finishOnboardingWithoutPrompt() {
-        awaitTag(OnboardingTags.Finish)
+        val tag = awaitAnyTag(OnboardingTags.MaybeLater, OnboardingTags.Finish)
         compose.waitForIdle()
-        awaitTag(if (exists(OnboardingTags.MaybeLater)) OnboardingTags.MaybeLater else OnboardingTags.Finish).performClick()
+        awaitTag(tag).performClick()
     }
 
     private fun awaitAny(matcher: SemanticsMatcher, timeoutMillis: Long) {
@@ -165,6 +165,10 @@ abstract class ClockblockE2eTest {
 
     val notificationsGranted: Boolean
         get() = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    /** Exact alarms allowed for this app (always, in builds outside Google Play). */
+    val exactAlarmsAllowed: Boolean
+        get() = context.getSystemService(android.app.AlarmManager::class.java).canScheduleExactAlarms()
 
     /** Grants POST_NOTIFICATIONS to this app only (granting, unlike revoking, doesn't restart the process). */
     fun grantNotifications() {

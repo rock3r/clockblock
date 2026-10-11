@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.widget
 
 import android.app.Application
+import android.widget.RemoteViews
 import androidx.compose.remote.creation.compose.capture.CapturedDocument
 import androidx.compose.remote.creation.compose.layout.RemoteComposable
 import androidx.compose.remote.creation.profile.Profile
@@ -13,6 +14,8 @@ import dev.sebastiano.clockblocker.opus.core.notifications.NotificationIntents
 import dev.sebastiano.clockblocker.opus.core.notifications.NowContentViews
 import dev.sebastiano.clockblocker.opus.core.notifications.NowNotificationContent
 import dev.sebastiano.clockblocker.opus.core.notifications.now.NowState
+import dev.sebastiano.clockblocker.opus.core.notifications.now.NowStateCalculator
+import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.rc.NotificationSlots
 import dev.sebastiano.clockblocker.opus.widget.rc.NowNotificationDocuments
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeRenderer
@@ -59,6 +62,20 @@ class RemoteNowNotificationContent(
             collapsed = RemoteComposeRenderer.remoteViews(documents.collapsed, click),
             expanded = RemoteComposeRenderer.remoteViews(documents.expanded, click),
         )
+    }
+
+    /**
+     * Onboarding's preview: the expanded document for the widgets' sample Lisbon → Tokyo plan in bright light (made-up
+     * advice, no user data), [widthDp] wide, with no click action.
+     */
+    override suspend fun preview(now: Instant, widthDp: Int): RemoteViews? {
+        val profile = profileProvider() ?: return null
+        val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.SeeBrightLight)
+        val state = NowStateCalculator.compute(plan, now) ?: return null
+        val model = model(state, plan, now, DemoPlans.trip()) ?: return null
+        val slots = NotificationSlots(collapsedWidthDp = widthDp, expandedWidthDp = widthDp)
+        val documents = NowNotificationDocuments.capture(application, model, slots) { size, content -> capturer(profile, size, content) }
+        return RemoteComposeRenderer.remoteViews(documents.expanded)
     }
 
     /** What the documents show: the widgets' render of [plan] with the notification's pick ([WidgetStateMapper.forNowNotification]). */

@@ -111,11 +111,11 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
     }
 
     @Test fun sleepEditor() = snap("settings_editor_sleep") {
-        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = {}, onCancel = {}) }
+        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = { _, _ -> }, onCancel = {}) }
     }
 
     @Test fun sleepEditorDark() = snap("settings_editor_sleep_dark", darkTheme = true) {
-        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = {}, onCancel = {}) }
+        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = { _, _ -> }, onCancel = {}) }
     }
 
     @Test fun chronotypeEditor() = snap("settings_editor_chronotype") {

@@ -66,6 +66,7 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -498,6 +499,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
     // Whether the rail is moving for the dial's scrub (not for the user). Plain: only read by the follow-up below.
     val scrubFollowing = remember { booleanArrayOf(false) }
     val timeColumn = rememberTimeColumnWidth()
+    val timeTop = rememberTimeColumnTop()
 
     // Konami code on the rail → 8-bit mode for the session (only where easter eggs are allowed).
     val eightBitOn = stringResource(R.string.plan_eight_bit_on)
@@ -568,6 +570,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 val railList = if (expanded) rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
                 val bottomPadding = padding.calculateBottomPadding() + if (shortWindow) 80.dp else 104.dp
+                val toolbarScroll = remember(density) { ToolbarScrollState(with(density) { ToolbarHideDistance.toPx() }) }
 
                 suspend fun scrollRail(rowIndex: Int, offset: Int) {
                     val index = railStart + rowIndex
@@ -576,12 +579,22 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
 
                 // One pane: the toolbar's tools (jump to now, pick a day, explain) are about the rail, and the Now
                 // card already has its own "Why?", so it only appears once the Now card has scrolled away. That
-                // also keeps it from covering the Done button at rest. One owner for its motion: this visibility
-                // (no scroll-driven exit-always on top), on the calm navigation tier rather than a bouncy spring.
+                // also keeps it from covering the Done button at rest. While the reader scrolls on through the plan
+                // it steps aside, and it comes back as soon as they scroll back (or reach the end, where the list
+                // keeps room for it). One owner for its motion: this visibility (no scroll-driven exit-always on
+                // top), on the calm navigation tier rather than a bouncy spring.
                 // Keyed on the Now card's index too: a height change can move the strip above or below it.
                 val nowIndex = heroKeys.indexOf(PlanSections.KeyNow)
-                val toolbarVisible by remember(expanded, nowIndex) {
-                    derivedStateOf { expanded || screen.list.firstVisibleItemIndex > nowIndex }
+                val toolbarVisible by remember(expanded, nowIndex, railList) {
+                    derivedStateOf {
+                        val eligible = expanded || screen.list.firstVisibleItemIndex > nowIndex
+                        eligible && (!toolbarScroll.hidden || !railList.canScrollForward)
+                    }
+                }
+                // The end brings it back for good: the way back up starts counting from there, so the toolbar
+                // doesn't drop out again for the first 48 dp.
+                LaunchedEffect(railList, toolbarScroll) {
+                    snapshotFlow { railList.canScrollForward }.collect { canScroll -> if (!canScroll) toolbarScroll.show() }
                 }
                 val toolbar: @Composable BoxScope.() -> Unit = {
                     val scrim = MaterialTheme.colorScheme.surface
@@ -592,7 +605,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                     ) {
                         // The scrim fades with the toolbar (one event): rows passing underneath read as behind it,
-                        // and at rest the last visible row is veiled rather than cut by a floating pill.
+                        // and at rest the last visible row is veiled rather than cut by a floating pill. It only
+                        // fades; the toolbar inside slides by its whole slot (its shadow above it and the bottom
+                        // insets below), so it leaves the screen completely rather than stopping half way.
                         Box(
                             Modifier
                                 .fillMaxWidth()
@@ -604,41 +619,46 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                             1f to scrim.copy(alpha = 0.94f),
                                         ),
                                     )
-                                }
-                                .padding(
-                                    top = if (shortWindow) 12.dp else 28.dp,
-                                    bottom = padding.calculateBottomPadding() + if (shortWindow) 8.dp else 16.dp,
-                                ),
-                            contentAlignment = Alignment.BottomCenter,
+                                },
                         ) {
-                            PlanToolbar(
-                                days = railDays,
-                                canWhy = shown.active != null || shown.upNext.isNotEmpty(),
-                                onNow = {
-                                    screen.preview = null
-                                    screen.pickDay(plan.tripId, null)
-                                    scope.launch {
-                                        val now = rows.nowRowIndex()
-                                        if (now >= 0) {
-                                            scrollRail(now, nowOffsetPx)
-                                        } else if (reduce) {
-                                            railList.scrollToItem(0)
-                                        } else {
-                                            railList.animateScrollToItem(0)
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .animateEnterExit(
+                                        enter = slideInVertically(motion.navigationSpatial()) { it },
+                                        exit = slideOutVertically(motion.navigationSpatial()) { it },
+                                    )
+                                    .padding(
+                                        top = if (shortWindow) 12.dp else 28.dp,
+                                        bottom = padding.calculateBottomPadding() + if (shortWindow) 8.dp else 16.dp,
+                                    ),
+                                contentAlignment = Alignment.BottomCenter,
+                            ) {
+                                PlanToolbar(
+                                    days = railDays,
+                                    canWhy = shown.active != null || shown.upNext.isNotEmpty(),
+                                    onNow = {
+                                        screen.preview = null
+                                        screen.pickDay(plan.tripId, null)
+                                        scope.launch {
+                                            val now = rows.nowRowIndex()
+                                            if (now >= 0) {
+                                                scrollRail(now, nowOffsetPx)
+                                            } else if (reduce) {
+                                                railList.scrollToItem(0)
+                                            } else {
+                                                railList.animateScrollToItem(0)
+                                            }
                                         }
-                                    }
-                                },
-                                onDay = { day ->
-                                    val key = RailRow.Header(day, isToday = false).key
-                                    if (rows.none { it.key == key }) screen.showEarlier = true
-                                    screen.pendingScrollKey = key
-                                },
-                                onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
-                                modifier = Modifier.animateEnterExit(
-                                    enter = slideInVertically(motion.navigationSpatial()) { it / 2 },
-                                    exit = slideOutVertically(motion.navigationSpatial()) { it / 2 },
-                                ),
-                            )
+                                    },
+                                    onDay = { day ->
+                                        val key = RailRow.Header(day, isToday = false).key
+                                        if (rows.none { it.key == key }) screen.showEarlier = true
+                                        screen.pendingScrollKey = key
+                                    },
+                                    onWhy = { screen.whyAdviceId = (shown.active ?: shown.upNext.firstOrNull())?.id },
+                                )
+                            }
                         }
                     }
                 }
@@ -674,7 +694,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         Box(Modifier.weight(0.54f).fillMaxHeight()) {
                             LazyColumn(
                                 state = rail,
-                                modifier = Modifier.fillMaxSize().then(railGestures).testTag(PlanTags.Rail),
+                                modifier = Modifier.fillMaxSize().nestedScroll(toolbarScroll.connection).then(railGestures).testTag(PlanTags.Rail),
                                 contentPadding = PaddingValues(bottom = bottomPadding),
                             ) {
                                 item("rail-title") {
@@ -683,7 +703,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                         Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
                                     )
                                 }
-                                railRows(rows, renderer, timeColumn)
+                                railRows(rows, renderer, timeColumn, timeTop)
                             }
                             toolbar()
                         }
@@ -739,7 +759,12 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     LazyColumn(
                         state = screen.list,
                         // Padding (not contentPadding) on top so sticky day headers pin below the header.
-                        modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).then(railGestures).testTag(PlanTags.Rail),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding())
+                            .nestedScroll(toolbarScroll.connection)
+                            .then(railGestures)
+                            .testTag(PlanTags.Rail),
                         contentPadding = PaddingValues(bottom = bottomPadding),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -750,7 +775,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                 Modifier.widthIn(max = 640.dp).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
                             )
                         }
-                        railRows(rows, renderer, timeColumn)
+                        railRows(rows, renderer, timeColumn, timeTop)
                         item("footer") { PlanFooter() }
                     }
                     toolbar()
@@ -1093,6 +1118,9 @@ private fun ToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit,
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/** How far the reader scrolls on (or back) before the floating toolbar steps aside (or returns). */
+private val ToolbarHideDistance = 48.dp
 
 /** The day strip's share of the hero (pills + padding). */
 private val StripReserve = 80.dp

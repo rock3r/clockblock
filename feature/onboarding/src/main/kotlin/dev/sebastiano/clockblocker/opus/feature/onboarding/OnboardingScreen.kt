@@ -88,13 +88,16 @@ interface OnboardingActions {
     fun selectPlace(place: Place)
     fun useDeviceZone()
     fun sleepChange(window: SleepWindow)
+    fun daysOffSleepChange(window: SleepWindow)
     fun chronotypeChange(chronotype: Chronotype)
     fun profileChange(profile: UserProfile)
     fun melatoninChange(enabled: Boolean)
     fun acknowledgeMelatonin(acknowledged: Boolean)
     fun intensityChange(intensity: Intensity)
-    fun requestNotifications(thenFinish: Boolean)
+    fun requestNotifications()
+    fun openNotificationSettings()
     fun openExactAlarmSettings()
+    fun loadNotificationPreview(widthDp: Int)
     fun finish()
 
     /** Does nothing; for previews and screenshot tests. */
@@ -106,13 +109,16 @@ interface OnboardingActions {
         override fun selectPlace(place: Place) = Unit
         override fun useDeviceZone() = Unit
         override fun sleepChange(window: SleepWindow) = Unit
+        override fun daysOffSleepChange(window: SleepWindow) = Unit
         override fun chronotypeChange(chronotype: Chronotype) = Unit
         override fun profileChange(profile: UserProfile) = Unit
         override fun melatoninChange(enabled: Boolean) = Unit
         override fun acknowledgeMelatonin(acknowledged: Boolean) = Unit
         override fun intensityChange(intensity: Intensity) = Unit
-        override fun requestNotifications(thenFinish: Boolean) = Unit
+        override fun requestNotifications() = Unit
+        override fun openNotificationSettings() = Unit
         override fun openExactAlarmSettings() = Unit
+        override fun loadNotificationPreview(widthDp: Int) = Unit
         override fun finish() = Unit
     }
 }
@@ -132,10 +138,8 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
         viewModel.refreshPermissions()
         onPauseOrDispose { }
     }
-    var finishAfterPermission by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        viewModel.refreshPermissions()
-        if (finishAfterPermission) viewModel.finish()
+        viewModel.onNotificationsResult()
     }
     val actions = remember(viewModel) {
         object : OnboardingActions {
@@ -146,16 +150,16 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             override fun selectPlace(place: Place) = viewModel.selectPlace(place)
             override fun useDeviceZone() = viewModel.useDeviceZone()
             override fun sleepChange(window: SleepWindow) = viewModel.setSleep(window)
+            override fun daysOffSleepChange(window: SleepWindow) = viewModel.setDaysOffSleep(window)
             override fun chronotypeChange(chronotype: Chronotype) = viewModel.setChronotype(chronotype)
             override fun profileChange(profile: UserProfile) = viewModel.updateProfile { profile }
             override fun melatoninChange(enabled: Boolean) = viewModel.setMelatonin(enabled)
             override fun acknowledgeMelatonin(acknowledged: Boolean) = viewModel.acknowledgeMelatoninNote(acknowledged)
             override fun intensityChange(intensity: Intensity) = viewModel.setIntensity(intensity)
-            override fun requestNotifications(thenFinish: Boolean) {
-                finishAfterPermission = thenFinish
-                permissionLauncher.launch(viewModel.runtimePermission)
-            }
+            override fun requestNotifications() = permissionLauncher.launch(viewModel.runtimePermission)
+            override fun openNotificationSettings() = launchSafely(context, viewModel.notificationSettingsIntent())
             override fun openExactAlarmSettings() = launchSafely(context, viewModel.exactAlarmSettingsIntent())
+            override fun loadNotificationPreview(widthDp: Int) = viewModel.loadNotificationPreview(widthDp)
             override fun finish() = viewModel.finish()
         }
     }
@@ -278,24 +282,26 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
                 ) { Text(stringResource(R.string.welcome_get_started), style = MaterialTheme.typography.titleMedium) }
             }
             OnboardingStep.Reminders -> {
-                val granted = state.permissions.notificationsGranted
-                // Before notifications are allowed, "Maybe later" finishes without asking. Once they are, both would
-                // just finish, so the step offers Back like the others (#101).
-                if (granted) {
-                    OnboardingBackButton(actions::back, rtl)
+                // The permission is asked from the card (one Allow, not two). Until it has been asked, the step's
+                // secondary action finishes without it; once handled, a normal Finish.
+                OnboardingBackButton(actions::back, rtl)
+                if (state.remindersHandled) {
+                    Button(
+                        onClick = actions::finish,
+                        enabled = !state.isSaving,
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+                        modifier = Modifier
+                            .heightIn(min = ButtonDefaults.MediumContainerHeight)
+                            .widthIn(min = 140.dp)
+                            .testTag(OnboardingTags.Finish),
+                    ) { Text(stringResource(R.string.onboarding_finish), style = MaterialTheme.typography.titleMedium) }
                 } else {
                     TextButton(
                         onClick = actions::finish,
                         enabled = !state.isSaving,
                         modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
-                    ) { Text(stringResource(R.string.reminders_maybe_later)) }
+                    ) { Text(stringResource(R.string.reminders_maybe_later), style = MaterialTheme.typography.titleMedium) }
                 }
-                Button(
-                    onClick = { if (granted) actions.finish() else actions.requestNotifications(thenFinish = true) },
-                    enabled = !state.isSaving,
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-                    modifier = Modifier.heightIn(min = ButtonDefaults.MediumContainerHeight).testTag(OnboardingTags.Finish),
-                ) { Text(stringResource(if (granted) R.string.onboarding_finish else R.string.reminders_allow_finish)) }
             }
             else -> {
                 OnboardingBackButton(actions::back, rtl)
@@ -312,7 +318,7 @@ private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingAct
     }
 }
 
-/** The outlined Back of the bottom bar (steps 2–5, and step 6 once notifications are allowed). */
+/** The outlined Back of the bottom bar (every step after Welcome). */
 @Composable
 private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean) {
     OutlinedButton(

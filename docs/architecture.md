@@ -59,7 +59,7 @@ features.
 | `:core:designsystem` | Android + Compose | Theme, colour, type, shapes, motion tokens, illustrations and the Two skies dial (a pure layout spec in `dial/spec` and its Compose renderer) |
 | `:core:notifications` | Android | The alarm scheduler, broadcast receivers and the Now notification (a Live Update on travel days) |
 | `:core:testing` | Android | Test rules, fakes and screenshot helpers |
-| `:feature:onboarding` | Android + Compose | The six setup steps |
+| `:feature:onboarding` | Android + Compose | The five setup steps and the chronotype reveal |
 | `:feature:trips` | Android + Compose | The trips list and the trip editor |
 | `:feature:plan` | Android + Compose | The plan screen, the Now card, the timeline and the Why sheet |
 | `:feature:settings` | Android + Compose | Settings, About and the licences screen |
@@ -141,7 +141,7 @@ Features depend on these interfaces only.
 
 | Interface | Backing store | Notes |
 |---|---|---|
-| `ProfileRepository` | `profile.json` | Home zone, usual sleep, chronotype, tools, effort level |
+| `ProfileRepository` | `profile.json` | Home zone, usual sleep on work days (the planner's) and days off (null while linked to work days; only for the chronotype), chronotype, tools, effort level |
 | `TripRepository` | `trips.json` | Trips with one or more flight legs |
 | `SettingsRepository` | `settings.json` | Theme, reminders, lead time, Night-safe |
 | `AdviceLogRepository` | `advice_logs.json` | What the user marked as Done, Skipped or "Can't do this" |

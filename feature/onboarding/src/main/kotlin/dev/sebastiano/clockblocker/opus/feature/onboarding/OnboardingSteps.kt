@@ -1,6 +1,13 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +31,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,14 +72,12 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.LittleAnd
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.PillowMoonArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SuitcaseOClockArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
-import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.WindowLightArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeHelperDialog
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeReveal
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDial
@@ -94,7 +101,10 @@ object HomeZoneTags {
 /** Test tags for the e2e suite. */
 object RemindersTags {
     const val AllowNotifications = "reminders_allow_notifications"
+    const val NotificationsAllowed = "reminders_notifications_allowed"
+    const val NotificationSettings = "reminders_notification_settings"
     const val ExactAlarm = "reminders_exact_alarm"
+    const val ExactAlarmRow = "reminders_exact_alarm_row"
 }
 
 @Composable
@@ -117,33 +127,23 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
             // The dial takes the height left under the header (measured, so it holds at any font scale), down to a
             // floor where scrolling is the better trade.
             SleepDial(
-                state.profile.sleep,
-                actions::sleepChange,
-                Modifier.fillMaxWidth().padding(top = 8.dp),
+                work = state.profile.sleep,
+                daysOff = state.profile.daysOffSleep,
+                onWorkChange = actions::sleepChange,
+                onDaysOffChange = actions::daysOffSleepChange,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 easterEggEnabled = state.easterEggs,
                 maxHeight = (availableHeight - 8.dp).coerceAtLeast(if (wide) 0.dp else CompactMinSleepControls),
             )
         }
-        OnboardingStep.Chronotype -> StepLayout(
+        OnboardingStep.Chronotype -> ChronotypeReveal(
+            chronotype = state.profile.chronotype,
+            picked = state.showsPick,
+            suggested = state.inferred.chronotype,
+            midSleep = state.inferred.midSleep,
+            onPick = actions::chronotypeChange,
             wide = wide,
-            art = { WindowLightArt(it, animated = animated) },
-            headline = stringResource(R.string.chronotype_headline),
-            body = stringResource(R.string.chronotype_body),
-        ) {
-            var showHelper by rememberSaveable { mutableStateOf(false) }
-            ChronotypePicker(
-                selected = state.profile.chronotype,
-                onSelect = actions::chronotypeChange,
-                onNotSure = { showHelper = true },
-            )
-            if (showHelper) {
-                ChronotypeHelperDialog(
-                    workSleep = state.profile.sleep,
-                    onUse = { actions.chronotypeChange(it); showHelper = false },
-                    onDismiss = { showHelper = false },
-                )
-            }
-        }
+        )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,
             art = { LittleAndOftenArt(it, animated = animated) },
@@ -466,36 +466,99 @@ private fun PlaceRow(
 /** "GMT", "GMT+2", "GMT+5:30", "GMT−3" for the zone's offset at [at]. */
 internal fun gmtLabel(zone: ZoneId, at: Instant): String = ZoneLabels.offset(zone, at)
 
+/**
+ * The Reminders step's card: a sample of the real Now notification, and the permission request right under it (the
+ * step has no Allow button of its own). Once notifications are allowed, Exact timing follows as an optional row, only
+ * where it can be granted ([OnboardingUiState.showExactTiming]).
+ */
 @Composable
 private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActions) {
+    val colors = MaterialTheme.colorScheme
+    val motion = ClockblockTheme.motion
     val permissions = state.permissions
     Column(verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
-        PermissionRow(
-            title = stringResource(R.string.reminders_notifications),
-            description = stringResource(R.string.reminders_notifications_description),
-            granted = permissions.notificationsGranted,
-            actionLabel = stringResource(R.string.reminders_allow),
-            onAction = { actions.requestNotifications(thenFinish = false) },
-            shape = segmentedShape(0, 2),
-            tag = RemindersTags.AllowNotifications,
-        )
-        PermissionRow(
-            title = stringResource(R.string.reminders_exact),
-            description = stringResource(R.string.reminders_exact_description),
-            granted = permissions.exactAlarmsAllowed,
-            actionLabel = stringResource(R.string.reminders_open_settings),
-            onAction = actions::openExactAlarmSettings,
-            shape = segmentedShape(1, 2),
-            tag = RemindersTags.ExactAlarm,
-        )
+        Surface(shape = segmentedShape(0, if (state.showExactTiming) 2 else 1), color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp)) {
+                NotificationPreview(state.notificationPreview, onContentWidth = actions::loadNotificationPreview)
+                Text(
+                    stringResource(R.string.reminders_preview_caption),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp, top = 8.dp, end = 8.dp),
+                )
+                Spacer(Modifier.size(12.dp))
+                // One slot for the three states, so the card never jumps: ask, allowed, or off after a refusal.
+                AnimatedContent(
+                    targetState = when {
+                        permissions.notificationsGranted -> NotificationAsk.Allowed
+                        state.notificationsAsked -> NotificationAsk.Off
+                        else -> NotificationAsk.Ask
+                    },
+                    transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
+                    label = "notificationAsk",
+                ) { ask ->
+                    when (ask) {
+                        NotificationAsk.Ask -> Button(
+                            onClick = actions::requestNotifications,
+                            enabled = !state.isSaving,
+                            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = ButtonDefaults.MediumContainerHeight)
+                                .testTag(RemindersTags.AllowNotifications),
+                        ) { Text(stringResource(R.string.reminders_allow_notifications), style = MaterialTheme.typography.titleMedium) }
+                        NotificationAsk.Allowed -> Row(
+                            Modifier.fillMaxWidth().heightIn(min = ButtonDefaults.MediumContainerHeight).testTag(RemindersTags.NotificationsAllowed),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(painterResource(R.drawable.onboarding_ic_check), contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.reminders_notifications_allowed), style = MaterialTheme.typography.titleMedium, color = colors.primary)
+                        }
+                        NotificationAsk.Off -> Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                            Text(stringResource(R.string.reminders_notifications_off), style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+                            Spacer(Modifier.size(8.dp))
+                            FilledTonalButton(
+                                onClick = actions::openNotificationSettings,
+                                modifier = Modifier.heightIn(min = 48.dp).testTag(RemindersTags.NotificationSettings),
+                            ) { Text(stringResource(R.string.reminders_open_settings)) }
+                        }
+                    }
+                }
+            }
+        }
+        AnimatedVisibility(
+            visible = state.showExactTiming,
+            // One tier: the row grows in place, so its fade rides the same container spring as its height.
+            enter = expandVertically(motion.containerSpatial()) + fadeIn(motion.containerSpatial()),
+            exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.containerSpatial()),
+        ) {
+            // The row appears under the card, often below the fold: bring it into view once it has grown in.
+            val exactRow = remember { BringIntoViewRequester() }
+            val grown = transition.currentState == EnterExitState.Visible && !transition.isRunning
+            LaunchedEffect(grown) { if (grown) exactRow.bringIntoView() }
+            PermissionRow(
+                title = stringResource(R.string.reminders_exact),
+                description = stringResource(R.string.reminders_exact_description),
+                granted = permissions.exactAlarmsAllowed,
+                actionLabel = stringResource(R.string.reminders_open_settings),
+                onAction = actions::openExactAlarmSettings,
+                shape = segmentedShape(1, 2),
+                tag = RemindersTags.ExactAlarm,
+                modifier = Modifier.bringIntoViewRequester(exactRow).testTag(RemindersTags.ExactAlarmRow),
+            )
+        }
     }
     Spacer(Modifier.size(16.dp))
     Text(
         stringResource(R.string.reminders_later_note),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = colors.onSurfaceVariant,
     )
 }
+
+private enum class NotificationAsk { Ask, Allowed, Off }
 
 /**
  * Mirrors the Settings permission row: "Allowed" with a check beside the text when granted, otherwise a tonal
@@ -510,9 +573,10 @@ private fun PermissionRow(
     onAction: () -> Unit,
     shape: androidx.compose.ui.graphics.Shape,
     tag: String,
+    modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = shape, color = colors.surfaceContainer, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

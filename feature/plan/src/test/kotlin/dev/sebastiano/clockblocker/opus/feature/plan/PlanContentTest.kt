@@ -36,9 +36,15 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.foundation.shape.RoundedCornerShape
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.labelRes
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -145,6 +151,54 @@ class PlanContentTest {
         compose.onNodeWithTag(PlanTags.MoreOutcomes).performClick()
         compose.onNodeWithTag(PlanTags.Skipped).performClick()
         logged shouldBe listOf(activeId to AdviceOutcome.Skipped)
+    }
+
+    @Test
+    fun `a day pill clips its touch ripple to its current shape`() {
+        show(midAdaptation)
+        compose.waitForIdle()
+        // Selected (today): a capsule, so the ripple must be clipped to the capsule, not to the resting 16 dp corner.
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(34.dp)))
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(16.dp)))
+        // A pick moves the capsule (and the clip) to the picked pill.
+        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.dayPill(3)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(34.dp)))
+        compose.onNodeWithTag(PlanTags.dayPill(2)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Shape, RoundedCornerShape(16.dp)))
+    }
+
+    @Test
+    fun `another block on at the same time gets its own labelled row on the Now card`() {
+        val inFlight = ready(PlanFixtures.InFlight)
+        val also = inFlight.moment.concurrent.first()
+        show(inFlight)
+        compose.onNodeWithTag(PlanTags.alsoNow(also.type.name))
+            .assertContentDescriptionContains(context.getString(R.string.plan_also_now, context.getString(also.type.labelRes)))
+    }
+
+    @Test
+    fun `the floating toolbar steps aside while reading on and is back at the end of the plan`() {
+        show(midAdaptation)
+        // Jumped past the Now card (not a scroll of the user's own): the toolbar is there.
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToKey("rail-day-2-${realPlan.days.single { it.index == 2 }.date}")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
+
+        // Reading on hides it (the scroll back that brings it back is ToolbarScrollTest's)...
+        compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp(startY = centerY + 150f, endY = centerY - 150f) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertDoesNotExist()
+
+        // ...until the plan ends, where the list keeps room for it.
+        repeat(8) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
+
+        // Back from the end: it stays (no hide for the first 48 dp of the way back, then a return).
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY - 20f, endY = centerY + 20f, durationMillis = 500) }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Toolbar).assertExists()
     }
 
     @Test
@@ -721,7 +775,8 @@ class PlanContentTest {
         val inView = hasStateDescription(context.getString(R.string.plan_strip_pill_in_view))
         compose.onNodeWithTag(PlanTags.dayPill(4)).assert(!inView)
 
-        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.day(4)))
+        // Day 4's header to the top of the rail (scrolling it merely into view can leave day 3 under the reading line).
+        compose.onNodeWithTag(PlanTags.Rail).performScrollToKey("rail-day-4-${realPlan.days.single { it.index == 4 }.date}")
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.dayPill(4)).assert(inView).assertIsNotSelected()
         // Today stays the strip's selection (live), and only one pill is marked.

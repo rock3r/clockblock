@@ -481,7 +481,11 @@ fun SettingsContent(
             ProfileEditor.Sleep -> EditorDialog(onDismiss = { editor = ProfileEditor.None }) {
                 SleepEditor(
                     initial = profile.sleep,
-                    onSave = { window -> actions.updateProfile { it.copy(sleep = window) }; editor = ProfileEditor.None },
+                    initialDaysOff = profile.daysOffSleep,
+                    onSave = { work, daysOff ->
+                        actions.updateProfile { it.copy(sleep = work, daysOffSleep = daysOff) }
+                        editor = ProfileEditor.None
+                    },
                     onCancel = { editor = ProfileEditor.None },
                     easterEggs = state.easterEggs,
                 )
@@ -1101,10 +1105,20 @@ private fun EditorButtons(onCancel: () -> Unit, onSave: () -> Unit) {
     }
 }
 
-/** Sleep editor: the onboarding dial on a draft; saved only on Save. */
+/**
+ * Sleep editor: the onboarding dial, both schedules (work days and days off), on drafts; saved only on Save. Days
+ * off stay linked to work days (null) until a Days-off handle moves.
+ */
 @Composable
-internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, onCancel: () -> Unit, easterEggs: Boolean = false) {
+internal fun SleepEditor(
+    initial: SleepWindow,
+    onSave: (work: SleepWindow, daysOff: SleepWindow?) -> Unit,
+    onCancel: () -> Unit,
+    initialDaysOff: SleepWindow? = null,
+    easterEggs: Boolean = false,
+) {
     var draft by rememberSaveable(stateSaver = SleepWindowSaver) { mutableStateOf(initial) }
+    var draftDaysOff by rememberSaveable(stateSaver = OptionalSleepWindowSaver) { mutableStateOf(initialDaysOff) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
         Spacer(Modifier.size(16.dp))
@@ -1112,9 +1126,17 @@ internal fun SleepEditor(initial: SleepWindow, onSave: (SleepWindow) -> Unit, on
         // so the dial shrinks to what the window height leaves after the title, times and buttons.
         val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
         val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
-        SleepDial(draft, { draft = it }, Modifier.fillMaxWidth(), easterEggEnabled = easterEggs, maxDialSize = maxDial)
+        SleepDial(
+            work = draft,
+            daysOff = draftDaysOff,
+            onWorkChange = { draft = it },
+            onDaysOffChange = { draftDaysOff = it },
+            modifier = Modifier.fillMaxWidth(),
+            easterEggEnabled = easterEggs,
+            maxDialSize = maxDial,
+        )
         Spacer(Modifier.size(16.dp))
-        EditorButtons(onCancel = onCancel, onSave = { onSave(draft) })
+        EditorButtons(onCancel = onCancel, onSave = { onSave(draft, draftDaysOff) })
     }
 }
 
@@ -1125,6 +1147,11 @@ private val SleepDialMinSize = 150.dp
 private val SleepWindowSaver = androidx.compose.runtime.saveable.Saver<SleepWindow, IntArray>(
     save = { intArrayOf(it.bedtime.toSecondOfDay(), it.wake.toSecondOfDay()) },
     restore = { SleepWindow(java.time.LocalTime.ofSecondOfDay(it[0].toLong()), java.time.LocalTime.ofSecondOfDay(it[1].toLong())) },
+)
+
+private val OptionalSleepWindowSaver = androidx.compose.runtime.saveable.Saver<SleepWindow?, IntArray>(
+    save = { window -> window?.let { intArrayOf(it.bedtime.toSecondOfDay(), it.wake.toSecondOfDay()) } ?: IntArray(0) },
+    restore = { if (it.size < 2) null else SleepWindow(java.time.LocalTime.ofSecondOfDay(it[0].toLong()), java.time.LocalTime.ofSecondOfDay(it[1].toLong())) },
 )
 
 /** Chronotype editor: the five cards plus the "Not sure?" helper, on a draft. */
