@@ -6,19 +6,29 @@ import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import java.time.LocalTime
 
 /**
- * The "Not sure?" helper: estimates a chronotype from sleep on free days (no alarm), using MCTQ mid-sleep on free
- * days corrected for oversleep (MSFsc, Roenneberg 2004; `docs/science.md` §8.1).
- *
- * The five bands nest inside the planner's three classes (`Chronotypes.fromMsfSc`: early < 03:00 ≤ neutral ≤
- * 05:00 < late), so the estimate never disagrees with the engine about advance-vs-delay thresholds.
+ * Chronotype estimates from sleep, on the MCTQ mid-sleep helpers in `:core:circadian` (Roenneberg 2004;
+ * `docs/science.md` §8.1). The five bands ([Chronotypes.fromMidSleep]) nest inside the planner's three classes
+ * (`Chronotypes.fromMsfSc`: early < 03:00 ≤ neutral ≤ 05:00 < late), so an estimate never disagrees with the engine
+ * about advance-vs-delay thresholds.
  */
 object ChronotypeEstimate {
-    /** Result of the estimate: the suggested [chronotype] and the corrected mid-sleep it came from. */
+    /** Result of an estimate: the suggested [chronotype] and the mid-sleep it came from. */
     data class Result(val chronotype: Chronotype, val midSleep: LocalTime)
 
     /**
+     * Onboarding's inference: the chronotype of someone whose ideal night on a day off is [ideal]. This is plain
+     * mid-sleep on free days (MSF): with no work-day sleep there is nothing to correct oversleep against.
+     */
+    fun fromIdealNight(ideal: SleepWindow): Result {
+        val msf = Chronotypes.mctqMidSleepFreeDays(ideal.bedtime, ideal.duration.toMinutes() / 60.0)
+        return Result(Chronotypes.fromMidSleep(msf), midSleepTime(msf))
+    }
+
+    /**
+     * Settings' "Not sure?" helper: free-day sleep corrected for oversleep (MSF_sc) against the usual sleep.
+     *
      * @param free usual sleep on free days.
-     * @param work usual sleep on work days (the window set on the Sleep step), for the oversleep correction.
+     * @param work usual sleep on work days, for the oversleep correction.
      */
     fun estimate(free: SleepWindow, work: SleepWindow): Result {
         val msfSc = Chronotypes.mctqMsfSc(
@@ -26,20 +36,12 @@ object ChronotypeEstimate {
             sleepDurationFreeHours = free.duration.toMinutes() / 60.0,
             sleepDurationWorkHours = work.duration.toMinutes() / 60.0,
         )
-        val minute = (msfSc * 60).toInt().mod(SleepDialMath.MinutesPerDay)
-        return Result(fromMidSleepHours(msfSc), SleepDialMath.timeOf(minute))
+        return Result(fromMidSleepHours(msfSc), midSleepTime(msfSc))
     }
 
-    /** Maps corrected mid-sleep (clock hours) to one of five chronotypes. */
-    fun fromMidSleepHours(msfScHours: Double): Chronotype {
-        // Evening mid-sleeps (very early sleepers) count as before midnight: map to [-6, 18).
-        val h = (msfScHours + 6.0).mod(24.0) - 6.0
-        return when {
-            h < 2.0 -> Chronotype.DefiniteMorning
-            h < 3.0 -> Chronotype.ModerateMorning
-            h <= 5.0 -> Chronotype.Intermediate
-            h <= 6.0 -> Chronotype.ModerateEvening
-            else -> Chronotype.DefiniteEvening
-        }
-    }
+    /** Maps mid-sleep (clock hours) to one of five chronotypes ([Chronotypes.fromMidSleep]). */
+    fun fromMidSleepHours(msfScHours: Double): Chronotype = Chronotypes.fromMidSleep(msfScHours)
+
+    private fun midSleepTime(hours: Double): LocalTime =
+        SleepDialMath.timeOf((hours * 60).toInt().mod(SleepDialMath.MinutesPerDay))
 }
