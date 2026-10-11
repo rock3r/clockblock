@@ -521,6 +521,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val shortWindow = maxHeight < ShortWindowMaxHeight
+        // Short windows always split when there is room: one pane there leaves the plan a sliver under
+        // the dial.
+        val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
         // Compact phones: the dial gives up size before the Now card's Done drops below the fold (issue #11). Sized
         // from the window, never from the collapsing header, so scrolling never resizes it.
         // The day strip goes above the dial when that still leaves the dial its smallest size; otherwise it
@@ -528,6 +531,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val withStrip = railDays.size > 1
         val stripFirst = withStrip && maxHeight - HeroReserve - StripReserve >= MinDialSize
         val dialSize = (maxHeight - HeroReserve - if (stripFirst) StripReserve else 0.dp).coerceIn(MinDialSize, MaxDialSize)
+        val heroWidth = (if (expanded) maxWidth * 0.46f else maxWidth).coerceAtMost(640.dp)
+        val dialSide = minOf(dialSize, (heroWidth - 48.dp).coerceAtLeast(0.dp))
         val strip = if (withStrip) {
             DayStripModel(railDays, dayOffsets, dayDates, todayIndex, first = stripFirst)
         } else {
@@ -566,18 +571,15 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     daylight = daylight,
                     route = route,
                     next = headerNext,
-                    // Compact phones draw the dial without its offset pill: the header says it there instead.
-                    showBodyShift = dialSize < FullDialMinSize,
+                    // Compact phones or narrow windows draw the dial without its offset pill: the header says it there instead.
+                    showBodyShift = dialSide < FullDialMinSize,
                     ambient = state.easterEggs,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
             containerColor = MaterialTheme.colorScheme.surface,
         ) { padding ->
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                // Short windows always split when there is room: one pane there leaves the plan a sliver under
-                // the dial.
-                val expanded = maxWidth >= TwoPaneMinWidth || (shortWindow && maxWidth >= ShortTwoPaneMinWidth)
+            Box(Modifier.fillMaxSize()) {
                 val heroKeys = sections.heroKeys
                 val railList = if (expanded) rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1

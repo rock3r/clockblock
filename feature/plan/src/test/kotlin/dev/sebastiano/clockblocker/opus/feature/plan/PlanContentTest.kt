@@ -945,6 +945,13 @@ class PlanContentTest {
     }
 
     @Test
+    @Config(qualifiers = "w280dp-h880dp-xhdpi")
+    fun `narrow window - the header carries the body shift when width shrinks the dial below full size`() {
+        show(midAdaptation)
+        compose.onNodeWithText("Day 2 · Adapting · body 3½ h behind").assertExists()
+    }
+
+    @Test
     @Config(qualifiers = "w500dp-h400dp-xhdpi")
     fun `short window - the collapsed header and the upcoming card keep the first action, and the list scrolls`() {
         show(ready(Instant.parse("2026-06-10T16:00:00Z")))
