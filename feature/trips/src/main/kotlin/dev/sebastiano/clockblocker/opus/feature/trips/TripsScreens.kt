@@ -39,6 +39,7 @@ fun TripsScreen(
     selectedTripId: String? = null,
     onEditTrip: ((tripId: String) -> Unit)? = null,
     onCreateReturnTrip: ((outboundTripId: String) -> Unit)? = null,
+    onOpenNow: (() -> Unit)? = null,
 ) {
     val viewModel = metroViewModel<TripsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,6 +79,7 @@ fun TripsScreen(
             onTryDemo = viewModel::createDemoTrip,
             onDelete = viewModel::delete,
             onDuplicate = viewModel::duplicate,
+            onOpenNow = onOpenNow,
         ),
         modifier = modifier,
         selectedTripId = selectedTripId,

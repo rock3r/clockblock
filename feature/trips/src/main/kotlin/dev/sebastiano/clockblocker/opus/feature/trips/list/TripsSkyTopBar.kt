@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -49,11 +48,11 @@ import kotlin.math.sin
 
 /**
  * The trips list's app bar over a sky (design.md §2.5): painted for the body clock of a trip under way, or for
- * local time at rest. The sun or moon rides the navigation row (never behind the title) and fades as the bar
- * collapses. The sky only repaints when [sky] changes (once a minute at most), and its meaning is spelled out in
- * the subtitle ("Body clock 04:10"), so nothing depends on the colours or on motion.
+ * local time at rest. A single compact row headed "Trips" (no app name or section-count repetition), with the
+ * sun or moon on a shallow arc across the open sky to the right of the title. The sky only repaints when [sky]
+ * changes (once a minute at most), and its meaning during a trip is spelled out in the subtitle ("Body clock 04:10"),
+ * so nothing depends on the colours or on motion.
  *
- * [shortWindow] (landscape phones): a single pinned row, like the plan header, so the list keeps its height.
  * Without a [sky] (still loading) the bar is a plain surface bar.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -62,7 +61,6 @@ internal fun TripsSkyTopBar(
     title: String,
     subtitle: String?,
     sky: TripsSky?,
-    shortWindow: Boolean,
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
@@ -83,7 +81,7 @@ internal fun TripsSkyTopBar(
     } else {
         TopAppBarDefaults.topAppBarColors()
     }
-    val subtitleSlot: (@Composable () -> Unit)? = subtitle?.let { line -> { Text(line) } }
+    val titleSlot: @Composable () -> Unit = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     Box(
         modifier.onGloballyPositioned {
             val position = it.positionInWindow()
@@ -91,43 +89,36 @@ internal fun TripsSkyTopBar(
         },
     ) {
         if (time != null) BodyClockSky(bodyTime = time, modifier = Modifier.matchParentSize(), showCelestial = false)
-        if (shortWindow) {
-            val titleSlot: @Composable () -> Unit = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            if (subtitle != null) {
-                TopAppBar(
-                    title = titleSlot,
-                    // One line here: the body clock and the counts share it ("Body clock 10:03 · 1 upcoming").
-                    subtitle = { Text(subtitle.lines().joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    actions = actions,
-                    colors = colors,
-                    scrollBehavior = scrollBehavior,
-                )
-            } else {
-                TopAppBar(title = titleSlot, actions = actions, colors = colors, scrollBehavior = scrollBehavior)
-            }
-        } else {
-            LargeFlexibleTopAppBar(
-                title = { Text(title) },
-                subtitle = subtitleSlot,
+        if (subtitle != null) {
+            TopAppBar(
+                title = titleSlot,
+                subtitle = { Text(subtitle.lines().joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 actions = actions,
                 colors = colors,
                 scrollBehavior = scrollBehavior,
             )
-            if (time != null) {
-                NavRowCelestial(
-                    time = time,
-                    collapsedFraction = { scrollBehavior.state.collapsedFraction },
-                    modifier = Modifier.matchParentSize(),
-                )
-            }
+        } else {
+            TopAppBar(
+                title = titleSlot,
+                actions = actions,
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+        }
+        if (time != null) {
+            NavRowCelestial(
+                time = time,
+                collapsedFraction = { scrollBehavior.state.collapsedFraction },
+                modifier = Modifier.matchParentSize(),
+            )
         }
     }
 }
 
 /**
- * The sun or moon at [time]'s solar position, on a shallow arc across the navigation row (between the start edge
- * and the actions), plus a few stars at night. Decorative: the subtitle carries the time. Faded with the bar's
- * [collapsedFraction], read in the draw phase only.
+ * The sun or moon at [time]'s solar position, on a shallow arc across the open right half of the navigation row
+ * (between the title/subtitle and the actions), plus a few stars at night. Decorative: the subtitle carries the
+ * time. Faded with the bar's [collapsedFraction], read in the draw phase only.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -198,7 +189,7 @@ private fun androidx.graphics.shapes.RoundedPolygon.toPath(): Path {
 private val Moonlight = Color(0xFFF4F1FF)
 private val NavRowHeight: Dp = 64.dp
 private val CelestialRadius: Dp = 12.dp
-private val CelestialInsetStart: Dp = 28.dp
+private val CelestialInsetStart: Dp = 168.dp
 private val CelestialReserveEnd: Dp = 72.dp
 
 private val NavRowStars = listOf(

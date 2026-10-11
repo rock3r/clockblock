@@ -129,36 +129,54 @@ class ShellTest {
     fun `tapping suite items switches destinations and keeps each back stack`() {
         launch(hasProfile = true, hasTrips = true)
 
-        tag(ShellTestTags.NavTrips).performClick()
-        tag("trips_open_a").performClick()
-        compose.waitForIdle()
-        tag("screen_plan_a").assertIsDisplayed()
-
         tag(ShellTestTags.NavSettings).performClick()
+        tag("settings_about").performClick()
         compose.waitForIdle()
-        tag("screen_settings").assertIsDisplayed()
+        tag("screen_about").assertIsDisplayed()
 
-        tag(ShellTestTags.NavTrips).performClick()
-        compose.waitForIdle()
-        tag("screen_plan_a").assertIsDisplayed()
-
-        // Re-selecting the active destination pops it to its root.
         tag(ShellTestTags.NavTrips).performClick()
         compose.waitForIdle()
         tag("screen_trips").assertIsDisplayed()
+
+        tag(ShellTestTags.NavSettings).performClick()
+        compose.waitForIdle()
+        tag("screen_about").assertIsDisplayed()
+
+        // Re-selecting the active destination pops it to its root.
+        tag(ShellTestTags.NavSettings).performClick()
+        compose.waitForIdle()
+        tag("screen_settings").assertIsDisplayed()
     }
 
     @Test
-    fun `compact plan has an up arrow that returns to the list`() {
+    fun `opening a trip plan from Trips hides the suite and has an up arrow that returns to the list`() {
         launch(hasProfile = true, hasTrips = false)
 
         tag("trips_open_a").performClick()
         compose.waitForIdle()
         tag("screen_trips").assertDoesNotExist()
+        tag("screen_plan_a").assertIsDisplayed()
+        tag(ShellTestTags.NavTrips).assertIsNotDisplayed()
 
         tag("plan_up").performClick()
         compose.waitForIdle()
         tag("screen_trips").assertIsDisplayed()
+        tag(ShellTestTags.NavTrips).assertIsDisplayed().assertIsSelected()
+    }
+
+    @Test
+    fun `Now and Trips empty-state actions switch between the two tabs`() {
+        launch(hasProfile = true, hasTrips = true)
+
+        tag("plan_open_trips").performClick()
+        compose.waitForIdle()
+        tag("screen_trips").assertIsDisplayed()
+        tag(ShellTestTags.NavTrips).assertIsSelected()
+
+        tag("trips_open_now").performClick()
+        compose.waitForIdle()
+        tag("screen_plan_now").assertIsDisplayed()
+        tag(ShellTestTags.NavNow).assertIsSelected()
     }
 
     @Test
@@ -173,6 +191,11 @@ class ShellTest {
         tag("editor_save").performClick()
         compose.waitForIdle()
         tag("screen_plan_${FakeDestinations.NewTripId}").assertIsDisplayed()
+        tag(ShellTestTags.NavTrips).assertIsNotDisplayed()
+
+        tag("plan_up").performClick()
+        compose.waitForIdle()
+        tag("screen_trips").assertIsDisplayed()
         tag(ShellTestTags.NavTrips).assertIsDisplayed()
     }
 
@@ -215,11 +238,12 @@ class ShellTest {
         deepLink("clockblock://plan/abc")
 
         tag("screen_plan_abc").assertIsDisplayed()
-        tag(ShellTestTags.NavTrips).assertIsSelected()
+        tag(ShellTestTags.NavTrips).assertIsNotDisplayed()
 
         // The synthetic back stack goes to the trips list, then home.
         pressBack()
         tag("screen_trips").assertIsDisplayed()
+        tag(ShellTestTags.NavTrips).assertIsSelected()
         pressBack()
         tag("screen_plan_now").assertIsDisplayed()
     }

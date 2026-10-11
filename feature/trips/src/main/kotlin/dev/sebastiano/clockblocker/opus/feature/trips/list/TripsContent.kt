@@ -81,6 +81,12 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeForma
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilledTonalButton
+import java.time.Instant
+
 /** Everything the trips list can ask its host or ViewModel to do. Null = not offered by the host. */
 class TripsCallbacks(
     val onOpenTrip: (String) -> Unit,
@@ -91,6 +97,7 @@ class TripsCallbacks(
     val onTryDemo: () -> Unit,
     val onDelete: (String) -> Unit,
     val onDuplicate: (String) -> Unit,
+    val onOpenNow: (() -> Unit)? = null,
 )
 
 /** Width from which trips are laid out as a two-column grid of cards. */
@@ -98,12 +105,12 @@ internal val TwoColumnMinWidth: Dp = 720.dp
 private val SingleColumnMaxWidth: Dp = 640.dp
 
 /**
- * Stateless trips list: a sky-painted large flexible app bar ([TripsSkyTopBar]), sectioned card grid (or the empty
+ * Stateless trips list: a sky-painted compact app bar ([TripsSkyTopBar]), sectioned card grid (or the empty
  * state) and the FAB menu.
  *
- * Short windows (landscape phones, under [ShortWindowMaxHeight] tall) get a single-row app bar with the add menu in
- * it instead of a floating button: with so little height, the FAB sat on top of the first card no matter how the
- * list was padded (#15).
+ * Short windows (landscape phones, under [ShortWindowMaxHeight] tall) put the add menu in the app bar instead
+ * of a floating button: with so little height, the FAB sat on top of the first card no matter how the list was
+ * padded (#15).
  *
  * @param showSettingsAction show a settings gear in the app bar. Off by default: the shell's navigation suite
  *   always carries a Settings destination, and a second route to it read as two different places.
@@ -117,10 +124,11 @@ fun TripsContent(
     selectedTripId: String? = null,
     snackbarHostState: SnackbarHostState = SnackbarHostState(),
     showSettingsAction: Boolean = false,
+    now: Instant = remember { Instant.now() },
 ) {
     BoxWithConstraints(modifier) {
         val shortWindow = maxHeight < ShortWindowMaxHeight
-        TripsScaffold(state, callbacks, selectedTripId, snackbarHostState, showSettingsAction, shortWindow)
+        TripsScaffold(state, callbacks, selectedTripId, snackbarHostState, showSettingsAction, shortWindow, now)
     }
 }
 
@@ -133,12 +141,9 @@ private fun TripsScaffold(
     snackbarHostState: SnackbarHostState,
     showSettingsAction: Boolean,
     shortWindow: Boolean,
+    now: Instant,
 ) {
-    val scrollBehavior = if (shortWindow) {
-        TopAppBarDefaults.pinnedScrollBehavior()
-    } else {
-        TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var fabExpanded by rememberSaveable { mutableStateOf(false) }
     val menuBack = rememberFabMenuBack(expanded = fabExpanded && !shortWindow, onCollapse = { fabExpanded = false })
     val canAdd = !state.loading && !state.isEmpty
@@ -148,10 +153,9 @@ private fun TripsScaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TripsSkyTopBar(
-                title = stringResource(R.string.trips_app_title),
+                title = stringResource(R.string.trips_title),
                 subtitle = summaryLine(state),
                 sky = state.sky,
-                shortWindow = shortWindow,
                 scrollBehavior = scrollBehavior,
                 actions = {
                     if (shortWindow && canAdd) AddTripMenuButton(returnCandidate, callbacks)
@@ -186,7 +190,7 @@ private fun TripsScaffold(
                 onTryDemo = callbacks.onTryDemo,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
-            else -> TripsGrid(state, callbacks, selectedTripId, padding, fabClearance = !shortWindow)
+            else -> TripsGrid(state, callbacks, selectedTripId, padding, fabClearance = !shortWindow, now = now)
         }
         FabMenuScrim(
             visible = fabExpanded && !shortWindow,
@@ -266,21 +270,10 @@ private fun AddTripMenuButton(returnCandidate: TripSummary?, callbacks: TripsCal
 private fun summaryLine(state: TripsUiState): String? {
     if (state.loading) return null
     val sky = state.sky
+    if (sky == null || !sky.bodyClock) return null
     val times = rememberTimeFormatter()
-    val bodyClock = if (sky != null && sky.bodyClock) stringResource(R.string.trips_body_clock, times.formatFull(sky.time)) else null
-    val counts = buildList {
-        if (state.inProgress.isNotEmpty()) add(stringResource(R.string.trips_summary_in_progress, state.inProgress.size))
-        if (state.upcoming.isNotEmpty()) add(stringResource(R.string.trips_summary_upcoming, state.upcoming.size))
-        if (state.past.isNotEmpty()) add(stringResource(R.string.trips_summary_past, state.past.size))
-    }
-    // The body clock on its own line, the counts on the next ("Body clock 10:03" / "1 in progress · 2 upcoming ·
-    // 1 past"). Counts wrap only between parts, never inside one ("1" / "past").
-    val separator = stringResource(R.string.trips_summary_separator).replaceFirst(' ', NoBreakSpace)
-    val countLine = counts.takeIf { it.isNotEmpty() }?.joinToString(separator) { it.replace(' ', NoBreakSpace) }
-    return listOfNotNull(bodyClock, countLine).takeIf { it.isNotEmpty() }?.joinToString("\n")
+    return stringResource(R.string.trips_body_clock, times.formatFull(sky.time))
 }
-
-private const val NoBreakSpace = '\u00A0'
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -363,11 +356,12 @@ private fun TripsGrid(
     selectedTripId: String?,
     padding: PaddingValues,
     fabClearance: Boolean,
+    now: Instant,
 ) {
-    val othersPresent = state.inProgress.isNotEmpty() || state.upcoming.isNotEmpty()
-    var collapsed by rememberSaveable {
-        mutableStateOf(if (othersPresent && state.past.size > PastCollapsedThreshold) setOf(TripPhase.Past.name) else emptySet())
-    }
+    var upcomingCollapsed by rememberSaveable { mutableStateOf(false) }
+    var pastGlobeOpen by rememberSaveable { mutableStateOf(false) }
+    val pastStats = remember(state.past) { PastTripsStats.of(state.past) }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val columns = if (maxWidth >= TwoColumnMinWidth) 2 else 1
         val side = if (columns == 1 && maxWidth > SingleColumnMaxWidth) (maxWidth - SingleColumnMaxWidth) / 2 else 16.dp
@@ -383,21 +377,46 @@ private fun TripsGrid(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TripPhase.entries.forEach { phase ->
-                val trips = state.section(phase)
-                if (trips.isNotEmpty()) {
-                    val isCollapsed = phase.name in collapsed
-                    section(
-                        phase = phase,
-                        trips = trips,
-                        collapsed = isCollapsed,
-                        onToggle = { collapsed = if (isCollapsed) collapsed - phase.name else collapsed + phase.name },
-                        selectedTripId = selectedTripId,
+            if (state.upcoming.isNotEmpty()) {
+                section(
+                    phase = TripPhase.Upcoming,
+                    trips = state.upcoming,
+                    collapsed = upcomingCollapsed,
+                    onToggle = { upcomingCollapsed = !upcomingCollapsed },
+                    selectedTripId = selectedTripId,
+                    callbacks = callbacks,
+                )
+            } else {
+                item(
+                    key = "upcoming-empty",
+                    span = { GridItemSpan(maxLineSpan) },
+                    contentType = "upcoming-empty",
+                ) {
+                    UpcomingEmptyCard(
+                        nowTrip = state.nowTrip,
                         callbacks = callbacks,
+                        modifier = animateTripItem().padding(top = 8.dp),
                     )
                 }
             }
+            if (state.past.isNotEmpty()) {
+                pastSection(
+                    trips = state.past,
+                    onOpenGlobe = { pastGlobeOpen = true },
+                    selectedTripId = selectedTripId,
+                    callbacks = callbacks,
+                )
+            }
         }
+    }
+
+    if (pastGlobeOpen && !pastStats.isEmpty) {
+        PastTripsGlobeSheet(
+            stats = pastStats,
+            now = now,
+            onOpenTrip = callbacks.onOpenTrip,
+            onDismiss = { pastGlobeOpen = false },
+        )
     }
 }
 
@@ -421,6 +440,25 @@ private fun LazyGridScope.section(
                 modifier = animateTripItem(),
             )
         }
+    }
+}
+
+private fun LazyGridScope.pastSection(
+    trips: List<TripSummary>,
+    onOpenGlobe: () -> Unit,
+    selectedTripId: String?,
+    callbacks: TripsCallbacks,
+) {
+    item(key = "header-${TripPhase.Past.name}", span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
+        PastSectionHeader(count = trips.size, onOpenGlobe = onOpenGlobe, modifier = animateTripItem())
+    }
+    items(trips, key = { it.id }, contentType = { "trip" }) { summary ->
+        SwipeToDeleteTripCard(
+            summary = summary,
+            selected = summary.id == selectedTripId,
+            callbacks = callbacks,
+            modifier = animateTripItem(),
+        )
     }
 }
 
@@ -483,6 +521,123 @@ private fun SectionHeader(phase: TripPhase, count: Int, collapsed: Boolean, onTo
             modifier = Modifier.graphicsLayer { rotationZ = rotation.value },
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Header for the Past trips section: tapping it opens [PastTripsGlobeSheet] with all past flight arcs crisscrossed
+ * across the globe and summary travel statistics.
+ */
+@Composable
+private fun PastSectionHeader(count: Int, onOpenGlobe: () -> Unit, modifier: Modifier = Modifier) {
+    val title = stringResource(R.string.trips_section_past)
+    val description = pluralStringResource(R.plurals.trips_section_count, count, title, count)
+    val globeAction = stringResource(R.string.trips_past_globe_action)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .testTag(TripsTestTags.section(TripPhase.Past.name))
+            .clickable(role = Role.Button, onClickLabel = globeAction, onClick = onOpenGlobe)
+            .clearAndSetSemantics {
+                heading()
+                contentDescription = description
+            }
+            .padding(start = 4.dp, top = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMediumEmphasized, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.size(8.dp))
+        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+            Text(
+                count.toString(),
+                style = ClockblockTheme.textStyles.timeLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        Icon(
+            painterResource(R.drawable.ic_trips_globe),
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Shown at the top of the Trips list when there are no *following* upcoming trips: either the current/next trip
+ * is shown on the Now tab, or only past trips exist.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun UpcomingEmptyCard(nowTrip: TripSummary?, callbacks: TripsCallbacks, modifier: Modifier = Modifier) {
+    val title = when {
+        nowTrip == null -> stringResource(R.string.trips_upcoming_empty_none_title)
+        nowTrip.phase == TripPhase.InProgress -> stringResource(R.string.trips_upcoming_empty_in_progress_title, nowTrip.title)
+        else -> stringResource(R.string.trips_upcoming_empty_next_title, nowTrip.title)
+    }
+    val body = when {
+        nowTrip == null -> stringResource(R.string.trips_upcoming_empty_none_body)
+        nowTrip.phase == TripPhase.InProgress -> stringResource(R.string.trips_upcoming_empty_in_progress_body)
+        else -> stringResource(R.string.trips_upcoming_empty_next_body)
+    }
+    Surface(
+        modifier = modifier.fillMaxWidth().testTag(TripsTestTags.UpcomingEmptyState),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMediumEmphasized,
+                modifier = Modifier.semantics { heading() },
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (nowTrip != null) {
+                    FilledTonalButton(
+                        onClick = {
+                            val openNow = callbacks.onOpenNow
+                            if (openNow != null) openNow() else callbacks.onOpenTrip(nowTrip.id)
+                        },
+                        modifier = Modifier.testTag(TripsTestTags.UpcomingEmptyNow),
+                    ) {
+                        Text(stringResource(R.string.trips_upcoming_empty_open_now))
+                    }
+                    OutlinedButton(
+                        onClick = callbacks.onNewTrip,
+                        modifier = Modifier.testTag(TripsTestTags.UpcomingEmptyPlan),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_trips_flight), contentDescription = null)
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.trips_upcoming_empty_plan))
+                    }
+                } else {
+                    FilledTonalButton(
+                        onClick = callbacks.onNewTrip,
+                        modifier = Modifier.testTag(TripsTestTags.UpcomingEmptyPlan),
+                    ) {
+                        Icon(painterResource(R.drawable.ic_trips_flight), contentDescription = null)
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.trips_upcoming_empty_plan))
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -89,6 +90,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -131,6 +133,7 @@ internal class PlanActions(
     val onExportCalendar: () -> Unit = {},
     val onShareSummary: () -> Unit = {},
     val onNewTrip: () -> Unit = {},
+    val onOpenTrips: (() -> Unit)? = null,
     val onLog: (adviceId: String, outcome: AdviceOutcome) -> Unit = { _, _ -> },
     /** Restores the outcome a block had before the last log (null = not logged). */
     val onUndo: (adviceId: String, previous: AdviceOutcome?) -> Unit = { _, _ -> },
@@ -264,7 +267,7 @@ internal fun PlanContent(
     ) { shown ->
         when (shown) {
             PlanUiState.Loading -> LoadingPlan(actions, onShown = { loaderShown = true })
-            is PlanUiState.NoPlan -> NoPlan(shown.missing, actions, Modifier)
+            is PlanUiState.NoPlan -> NoPlan(shown, actions, Modifier)
             // Always the same shape: Night-safe toggles re-theme (cross-fade) instead of rebuilding the screen.
             is PlanUiState.Ready -> NightSafeTheme(shown.nightSafe) {
                 EightBitMode(EightBitSession.enabled && shown.easterEggs) {
@@ -323,13 +326,19 @@ private fun LoadingPlan(actions: PlanActions, onShown: () -> Unit) {
 }
 
 @Composable
-private fun NoPlan(missing: Boolean, actions: PlanActions, modifier: Modifier) {
+private fun NoPlan(state: PlanUiState.NoPlan, actions: PlanActions, modifier: Modifier) {
+    val hasPast = !state.missing && state.pastTripCount > 0
     PlainScaffold(actions, modifier) { padding ->
         PlanEmptyState(
             art = { SuitcaseOClockArt(Modifier.size(200.dp)) },
-            title = stringResource(if (missing) R.string.plan_missing_title else R.string.plan_empty_title),
-            body = stringResource(if (missing) R.string.plan_missing_body else R.string.plan_empty_body),
+            title = stringResource(if (state.missing) R.string.plan_missing_title else R.string.plan_empty_title),
+            body = when {
+                state.missing -> stringResource(R.string.plan_missing_body)
+                hasPast -> pluralStringResource(R.plurals.plan_empty_past_body, state.pastTripCount, state.pastTripCount)
+                else -> stringResource(R.string.plan_empty_body)
+            },
             onNewTrip = actions.onNewTrip,
+            onOpenTrips = actions.onOpenTrips?.takeIf { hasPast },
             modifier = Modifier.padding(padding).testTag(PlanTags.Empty),
         )
     }
@@ -343,6 +352,7 @@ internal fun PlanEmptyState(
     body: String,
     onNewTrip: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenTrips: (() -> Unit)? = null,
 ) {
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 24.dp),
@@ -363,6 +373,12 @@ internal fun PlanEmptyState(
         Spacer(Modifier.height(28.dp))
         Button(onClick = onNewTrip, modifier = Modifier.heightIn(min = 56.dp).testTag(PlanTags.NewTrip)) {
             Text(stringResource(R.string.plan_new_trip), style = MaterialTheme.typography.titleMedium)
+        }
+        if (onOpenTrips != null) {
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(onClick = onOpenTrips, modifier = Modifier.heightIn(min = 48.dp).testTag(PlanTags.OpenTrips)) {
+                Text(stringResource(R.string.plan_open_trips), style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 }

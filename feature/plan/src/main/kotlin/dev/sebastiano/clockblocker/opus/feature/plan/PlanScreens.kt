@@ -39,6 +39,7 @@ fun PlanScreen(
     onCreateReturnTrip: (outboundTripId: String) -> Unit,
     onNewTrip: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenTrips: (() -> Unit)? = null,
 ) {
     val viewModel = assistedMetroViewModel<PlanViewModel, PlanViewModel.Factory>(key = "plan:${tripId ?: "current"}") {
         create(tripId)
@@ -87,6 +88,7 @@ fun PlanScreen(
             }
         },
         onNewTrip = onNewTrip,
+        onOpenTrips = onOpenTrips,
         onLog = viewModel::log,
         onUndo = viewModel::undo,
         onSnooze = viewModel::snooze,

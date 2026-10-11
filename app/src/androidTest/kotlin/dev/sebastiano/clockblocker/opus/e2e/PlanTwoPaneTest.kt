@@ -46,8 +46,6 @@ class PlanTwoPaneTest : ClockblockE2eTest() {
         val today = active.plan.days.first { active.advice in it.advice }.index
         val last = active.plan.days.last().index
         assumeTrue("the plan needs a day after today to scroll to", last > today)
-        // Now, not the trip's own plan: in landscape the shell shows a trip's plan beside Trips, a pane too narrow for
-        // the plan's two panes, while Now gives the current trip's plan the whole window.
         launch(deepLink = DeepLinks.CURRENT_PLAN)
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
 
