@@ -8,7 +8,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiObject2
-import androidx.test.uiautomator.Until
 import dev.sebastiano.clockblocker.opus.feature.plan.PlanTags
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -70,9 +69,16 @@ class WidgetTest : ClockblockE2eTest() {
         context.startActivity(intent)
 
         val hosts = By.clazz("android.appwidget.AppWidgetHostView").hasChild(By.depth(1))
-        val found = device.wait(Until.findObjects(hosts), LongTimeoutMillis)
-        check(found != null && found.size >= 2) {
-            "Expected two live widgets, found ${found?.size ?: 0} (is appwidget grantbind allowed?)"
+        // Until.findObjects returns as soon as ONE host matches; the second widget can still be binding, so poll
+        // until both host views have content.
+        val deadline = System.currentTimeMillis() + LongTimeoutMillis
+        var found = device.findObjects(hosts)
+        while (found.size < 2 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(250)
+            found = device.findObjects(hosts)
+        }
+        check(found.size >= 2) {
+            "Expected two live widgets, found ${found.size} (is appwidget grantbind allowed?)"
         }
         return found[0] to found[1]
     }
