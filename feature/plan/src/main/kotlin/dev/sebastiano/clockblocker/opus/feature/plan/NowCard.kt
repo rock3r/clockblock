@@ -8,6 +8,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -444,13 +446,37 @@ private fun AlsoNowRow(type: AdviceType, prefixColor: Color) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.testTag(PlanTags.alsoNow(type.name)).clearAndSetSemantics { contentDescription = description },
     ) {
-        AdviceGlyph(type, active = false, size = 28.dp)
+        AlsoNowGlyph(type)
         Spacer(Modifier.width(10.dp))
         Text(stringResource(R.string.plan_also_now_prefix), style = MaterialTheme.typography.labelLarge, color = prefixColor)
         Spacer(Modifier.width(6.dp))
         Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
+
+/**
+ * The Also now row's glyph: the advice's own glyph at rest, except a flight. Its arrow mark is drawn for the dial and
+ * the timeline capsule, where it points along the route; at this size, on its teal disc, it read as a blob. It gets
+ * the plane the timeline's "In flight" chip uses, in the same colours.
+ */
+@Composable
+private fun AlsoNowGlyph(type: AdviceType) {
+    if (type != AdviceType.Flight) {
+        AdviceGlyph(type, active = false, size = AlsoNowGlyphSize)
+        return
+    }
+    val role = ClockblockTheme.adviceColors[AdviceType.Flight]
+    Box(Modifier.size(AlsoNowGlyphSize).background(role.container, CircleShape), contentAlignment = Alignment.Center) {
+        Icon(
+            PlanIcons.Flight,
+            contentDescription = null,
+            tint = role.onContainer,
+            modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = 90f },
+        )
+    }
+}
+
+private val AlsoNowGlyphSize = 28.dp
 
 /** "At 11:00", or "Day 3 at 11:00" when the preview is on another day. */
 @Composable
