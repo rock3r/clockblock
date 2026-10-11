@@ -223,6 +223,23 @@ class TripSummariesTest {
     }
 
     @Test
+    fun `partition moves an outbound active trip superseded by a return trip to past instead of upcoming`() {
+        val now = Instant.parse("2026-06-17T12:00:00Z")
+        val outbound = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "outbound"), now = now)
+        val returnTrip = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 19), id = "return"), now = now)
+
+        outbound.phase shouldBe TripPhase.InProgress
+        returnTrip.phase shouldBe TripPhase.InProgress
+
+        val partitioned = TripSummaries.partition(listOf(outbound, returnTrip))
+        partitioned.nowTrip?.id shouldBe "return"
+        partitioned.upcoming shouldContainExactly emptyList()
+        partitioned.past.map { it.id } shouldContainExactly listOf("outbound")
+        partitioned.past.single().phase shouldBe TripPhase.Past
+        partitioned.past.single().status shouldBe TripStatus.Adapted
+    }
+
+    @Test
     fun `summaries record days saved when the plan shifts the body clock`() {
         val plan = planner.plan(trip, DemoData.profile, DemoData.Now)
         val expected = (plan.estimatedDaysWithoutPlan - plan.estimatedDaysToAdapt).coerceAtLeast(0.0)

@@ -169,9 +169,10 @@ object TripSummaries {
      * Splits [summaries] between the **Now** tab and the **Trips** tab:
      * - [PartitionedTrips.nowTrip] is the in-progress trip (latest departure if active plans overlap, matching
      *   `PlanRepository.currentPlan`), or else the soonest upcoming trip.
-     * - [PartitionedTrips.upcoming] holds all remaining non-past trips in departure order (so the trip shown on
+     * - [PartitionedTrips.upcoming] holds all remaining upcoming trips in departure order (so the trip shown on
      *   Now is not duplicated on Trips).
-     * - [PartitionedTrips.past] holds all past trips, most recent first.
+     * - [PartitionedTrips.past] holds all past trips, plus any earlier active trip whose post-arrival tail was
+     *   superseded by [PartitionedTrips.nowTrip], most recent first.
      */
     fun partition(summaries: List<TripSummary>): PartitionedTrips {
         val grouped = sections(summaries)
@@ -179,13 +180,39 @@ object TripSummaries {
         val upcoming = grouped.getValue(TripPhase.Upcoming)
         val past = grouped.getValue(TripPhase.Past)
         val nowTrip = inProgress.maxByOrNull { it.trip.departure } ?: upcoming.firstOrNull()
-        val following = (inProgress + upcoming)
-            .filter { it.id != nowTrip?.id }
+        val superseded = inProgress.filter { it.id != nowTrip?.id }
+        val supersededUpcoming = superseded.mapNotNull { s ->
+            val adjusting = s.status as? TripStatus.Adjusting ?: return@mapNotNull null
+            s.copy(
+                phase = TripPhase.Upcoming,
+                status = TripStatus.StartsIn(adjusting.days),
+                adaptation = null,
+                bodyTime = null,
+            )
+        }
+        val supersededPast = superseded
+            .filter { it.status !is TripStatus.Adjusting }
+            .map { s ->
+                val pastStatus = when {
+                    s.trip.strategyOverride == AdaptationStrategy.StayOnHomeTime -> TripStatus.StayedOnHomeTime
+                    s.adaptation != null || s.daysSaved > 0.0 -> TripStatus.Adapted
+                    else -> TripStatus.Finished
+                }
+                s.copy(
+                    phase = TripPhase.Past,
+                    status = pastStatus,
+                    adaptation = null,
+                    bodyTime = null,
+                )
+            }
+        val following = (supersededUpcoming + upcoming.filter { it.id != nowTrip?.id })
             .sortedBy { it.trip.departure }
+        val allPast = (supersededPast + past)
+            .sortedByDescending { it.trip.arrival }
         return PartitionedTrips(
             nowTrip = nowTrip,
             upcoming = following,
-            past = past,
+            past = allPast,
         )
     }
 
