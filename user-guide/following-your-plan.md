@@ -17,10 +17,12 @@ On a tablet or a wide screen, the trips list and the plan appear side by side, w
 
 From top to bottom:
 
-1. **The header** shows the trip, the day of the plan and how far off your body clock is, for example "Day 2 ·
-   Adapting · body 3½ h behind" or "Pre-trip day −1 · body 2½ h ahead". Its sky and its sun or moon show your body's
-   time of day. A faint ring on the sun's dotted path marks where the sun is by the clock, and a line joins the two
-   when your body is half an hour or more off.
+1. **The header** shows the airport codes and the trip, the day of the plan ("Day 2 · Adapting" or "Pre-trip day −1";
+   on a small phone it also says how far off your body clock is, when the dial leaves out its pill) and the next block
+   to start ("Next: Avoid caffeine in 1 h 20 min" with the time in both zones, or its date and time when it's more than
+   a day away). Its sky and its sun or moon show your body's time of day, with stars when your body is at night. A
+   faint ring on the sun's dotted path marks where the sun is by the clock, and a line joins the two when your body is
+   half an hour or more off.
 2. **The day strip** has one pill per day of the plan (see below).
 3. **The dial** compares two clocks (see below).
 4. **The Now card** says what to do right now.
@@ -32,7 +34,8 @@ On a small phone, the day strip moves below the Now card so that **Done** stays 
 
 ### The day strip
 
-Each pill shows a day ("Pre −2", "Travel", "Day 1", and a tick on the day you're adapted), its date and two small
+Each pill counts the days around your flight ("−2", "−1", a plane on the travel day, "+1", "+2", with a tick on the day
+you're adapted), with the day of the week underneath ("Mon–Tue" when a flight runs overnight) and two small
 dots: the hollow dot is local time and the filled dot is your body clock. The further apart they are, the bigger
 the gap that day. Once your body has caught up, the dots sit on top of each other. Today's pill has an outline.
 
@@ -194,13 +197,13 @@ or during your body's night when no light is planned, the plan screen turns dark
 
 ## Other things you may see
 
-<img src="images/plan-upcoming.png" alt="A plan that hasn't started: San Francisco to London, starts Thu 11 Jun, body in sync, with day pills from Pre −4 and the dial at 09:00. The card says Your plan starts Thu 11 Jun. Nothing to do yet. First up: Avoid light, Thu 11 Jun at 20:00. Below, 3 d with your plan against 6 d without a plan, ~3 days faster." width="280" />
+<img src="images/plan-upcoming.png" alt="A plan that hasn't started: SFO to LHR, San Francisco to London, Starts Thu 11 Jun, Next: Avoid light, Thu 11 Jun 20:00 (04:00 London +1), with day pills from −4 and the dial at 09:00 in sync. The card says Your plan starts Thu 11 Jun. Nothing to do until then. Below, 3 d with your plan against 6 d without a plan, ~3 days faster." width="280" />
 
 Instead of a Now card, the plan sometimes shows a message. The picture shows a plan that starts in a few days.
 
 | Message | What it means |
 |---|---|
-| Your plan starts … | The plan hasn't started yet. It shows the first block and how long adapting should take. |
+| Your plan starts … | The plan hasn't started yet. It shows when the plan begins and how long adapting should take; the first block is in the header above. |
 | Free time | Nothing to do right now. Live your life. |
 | Short trip: staying on home time | You're back before your body could settle, so the plan keeps your body on home time. |
 | No jet lag expected | Home and destination keep nearly the same hours. Keep your usual sleep and get some morning daylight. |

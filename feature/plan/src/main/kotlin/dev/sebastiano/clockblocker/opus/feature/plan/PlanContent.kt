@@ -1149,13 +1149,13 @@ internal class DayStripModel(
 
 /** The dial's size on roomy windows, and the smallest it gets on compact ones. */
 private val MaxDialSize = 320.dp
-private val MinDialSize = 200.dp
+private val MinDialSize = 172.dp
 
 /**
  * Window height the expanded header, the Now card (with Done) and the paddings around the dial need, so the dial
  * takes what is left (between [MinDialSize] and [MaxDialSize]).
  */
-private val HeroReserve = 456.dp
+private val HeroReserve = 468.dp
 
 /** Below this window height (landscape phones) the header stays collapsed and the toolbar zone tightens. */
 private val ShortWindowMaxHeight = 480.dp

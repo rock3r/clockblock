@@ -2,7 +2,6 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -30,16 +29,11 @@ internal class HeaderAmbient {
 
 /**
  * The header's [HeaderAmbient], running sessions while [enabled]. Self-timed: every wait and the session clock follow
- * [MotionDurationScale], and with animations removed (scale 0) no session ever starts. [preview] pins the session at a
- * fixed moment instead (screenshot tests).
+ * [MotionDurationScale], and with animations removed (scale 0) no session ever starts.
  */
 @Composable
-internal fun rememberHeaderAmbient(enabled: Boolean, preview: Long? = null): HeaderAmbient {
+internal fun rememberHeaderAmbient(enabled: Boolean): HeaderAmbient {
     val ambient = remember { HeaderAmbient() }
-    if (preview != null) {
-        SideEffect { ambient.sessionMillis = preview }
-        return ambient
-    }
     LaunchedEffect(enabled) {
         ambient.sessionMillis = -1L
         if (!enabled) return@LaunchedEffect

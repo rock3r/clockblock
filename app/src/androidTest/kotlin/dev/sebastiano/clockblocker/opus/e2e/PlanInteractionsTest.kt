@@ -9,10 +9,8 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isOff
 import androidx.compose.ui.test.isOn
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -44,11 +42,11 @@ class PlanInteractionsTest : ClockblockE2eTest() {
         val active = graph.seedTripWithActiveAdvice()
         launch(deepLink = "clockblock://plan/${active.trip.id}")
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
+        awaitTag(PlanTags.NextAction).assertIsDisplayed()
 
         // Scroll the rail to a later block (past the hero cards), and open its explanation.
-        val later = active.plan.allAdvice.first { it.start.isAfter(active.advice.end) && !it.type.isMoment }
-        compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.block(later.id)))
-        awaitTag(PlanTags.block(later.id)).performClick()
+        val later = active.plan.allAdvice.last { !it.type.isMoment }
+        scrollToMiddle(PlanTags.Rail, PlanTags.block(later.id)).performClick()
         awaitTag(PlanTags.WhySheet).assertIsDisplayed()
         device.pressBack()
         awaitGone(PlanTags.WhySheet)

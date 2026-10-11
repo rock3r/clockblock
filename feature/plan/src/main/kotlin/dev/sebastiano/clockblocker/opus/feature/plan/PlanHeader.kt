@@ -1,7 +1,9 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -172,7 +174,6 @@ internal fun PlanHeader(
     next: HeaderNext? = null,
     showBodyShift: Boolean = false,
     ambient: Boolean = false,
-    ambientPreview: Long? = null,
 ) {
     val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
     val fade = rememberSkyFade(skyKey, live)
@@ -186,7 +187,7 @@ internal fun PlanHeader(
     val collapsedFraction: () -> Float = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction }
     val celestialFrame by rememberUpdatedState(foreground)
     val frame = remember { { celestialFrame } }
-    val headerAmbient = rememberHeaderAmbient(ambient && !nightSafe, ambientPreview)
+    val headerAmbient = rememberHeaderAmbient(ambient && !nightSafe)
     val stage = stageLabel(moment, firstDay)
     val subtitle = if (showBodyShift) stage + " \u00B7 " + bodyShiftLabel(moment.bodyAheadHours) else stage
     Box(
@@ -255,7 +256,7 @@ private fun HeaderLayout(
         val block = blocks.firstOrNull()?.measure(loose)
         val foot = fades.firstOrNull()?.measure(Constraints.fixedWidth(width))
         val collapsedHeight = nav.height
-        val expandedHeight = collapsedHeight + (block?.height ?: 0) + (foot?.height ?: 0)
+        val expandedHeight = collapsedHeight + (block?.height ?: 0)
         val limit = (collapsedHeight - expandedHeight).toFloat()
         if (!shortWindow && state.heightOffsetLimit != limit) state.heightOffsetLimit = limit
         val height = if (shortWindow) collapsedHeight else (expandedHeight + state.heightOffset).roundToInt().coerceIn(collapsedHeight, expandedHeight)
@@ -314,8 +315,8 @@ private fun HeaderNavRow(
 }
 
 /**
- * The expanded block: the route in dot-matrix codes ("SFO ✈ LHR", no codes for a trip without airports), the city
- * line, where the plan is, and the next action. It fades out over the first half of the collapse.
+ * The expanded block: the route in dot-matrix codes ("SFO ✈ LHR", no codes for a trip without airports) with where the
+ * plan is beside it, the city line, and the next action. It fades out over the first half of the collapse.
  */
 @Composable
 private fun HeaderExpanded(title: String, route: HeaderRoute?, subtitle: String, next: HeaderNext?, ink: Color, collapsedFraction: () -> Float) {
@@ -323,23 +324,31 @@ private fun HeaderExpanded(title: String, route: HeaderRoute?, subtitle: String,
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 2.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 16.dp)
             .graphicsLayer { alpha = (1f - collapsedFraction() * 2f).coerceIn(0f, 1f) },
     ) {
         if (route != null) {
             val described = stringResource(R.string.plan_route_codes, spellOut(route.origin), spellOut(route.destination))
-            Row(
-                Modifier.padding(bottom = 6.dp).clearAndSetSemantics { contentDescription = described },
-                verticalAlignment = Alignment.CenterVertically,
+            FlowRow(
+                Modifier.padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                IataCode(route.origin, style = HeaderCodeStyle, color = ink, animateChanges = false)
-                Icon(
-                    PlanIcons.Flight,
-                    contentDescription = null,
-                    tint = quiet,
-                    modifier = Modifier.padding(horizontal = 10.dp).size(18.dp).graphicsLayer { rotationZ = 90f },
-                )
-                IataCode(route.destination, style = HeaderCodeStyle, color = ink, animateChanges = false)
+                Row(
+                    Modifier.clearAndSetSemantics { contentDescription = described },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IataCode(route.origin, style = HeaderCodeStyle, color = ink, animateChanges = false)
+                    Icon(
+                        PlanIcons.Flight,
+                        contentDescription = null,
+                        tint = quiet,
+                        modifier = Modifier.padding(horizontal = 10.dp).size(18.dp).graphicsLayer { rotationZ = 90f },
+                    )
+                    IataCode(route.destination, style = HeaderCodeStyle, color = ink, animateChanges = false)
+                }
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = quiet)
             }
         }
         Text(
@@ -349,12 +358,14 @@ private fun HeaderExpanded(title: String, route: HeaderRoute?, subtitle: String,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.semantics { heading() },
         )
-        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = quiet)
+        if (route == null) {
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = quiet)
+        }
         if (next != null) {
             val description = stringResource(R.string.plan_next_description, next.headline, next.detail)
             Column(
                 Modifier
-                    .padding(top = 10.dp)
+                    .padding(top = 6.dp)
                     .testTag(PlanTags.NextAction)
                     .clearAndSetSemantics { contentDescription = description },
             ) {
@@ -379,7 +390,7 @@ private fun HeaderFoot(collapsedFraction: () -> Float) {
 }
 
 private val HeaderCodeStyle = DotMatrixStyle(glyphHeight = 18.sp)
-private val FootHeight = 40.dp
+private val FootHeight = 20.dp
 
 /**
  * The sky's atmosphere behind the header's text: its stars at body night (they come out through dusk), breathing in

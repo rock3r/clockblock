@@ -889,4 +889,68 @@ class PlanContentTest {
         summary shouldContain "05:00 – 08:00"
         summary shouldContain context.getString(R.string.plan_day_header_travel)
     }
+
+    @Test
+    fun `the header shows a countdown to the next action within a day, a date further out, and nothing after the last`() {
+        var state by mutableStateOf<PlanUiState>(midAdaptation)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(state, actions) } }
+        // Mid-adaptation: the next action ("See some light" at 13:30 London) is 2 h 30 min away → countdown + time.
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("in 2 h 30 min", substring = true)
+            .assertContentDescriptionContains("13:30", substring = true)
+            .assertContentDescriptionContains("Los Angeles", substring = true)
+
+        // Days before the plan starts: the first action is more than 24 h away → day and time, no countdown.
+        state = ready(Instant.parse("2026-06-10T16:00:00Z"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction)
+            .assertIsDisplayed()
+            .assertContentDescriptionContains("Thu 11 Jun 20:00", substring = true)
+            .assertContentDescriptionContains("04:00 London +1", substring = true)
+
+        // After the trip: all actions have started → no next action row.
+        state = ready(Instant.parse("2026-06-24T12:00:00Z"))
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.NextAction).assertDoesNotExist()
+    }
+
+    @Test
+    fun `the header spells out the airport codes and only repeats the body shift when the dial is compact`() {
+        show(midAdaptation)
+        compose.onNode(SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf("From S F O to L H R"))).assertExists()
+        // At 400×880 dp the dial draws its full offset pill ("3½ h behind"), so the header subtitle does not repeat it.
+        compose.onNodeWithText("Day 2 · Adapting").assertExists()
+        compose.onNodeWithText("body 3½ h behind", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h640dp-xhdpi")
+    fun `compact dial - the header carries the body shift that the simplified dial omits`() {
+        show(midAdaptation)
+        compose.onNodeWithText("Day 2 · Adapting · body 3½ h behind").assertExists()
+    }
+
+    @Test
+    fun `header ambient waits before starting a session and resets when disabled`() {
+        compose.mainClock.autoAdvance = false
+        var enabled by mutableStateOf(true)
+        lateinit var ambient: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = false) {
+                ambient = rememberHeaderAmbient(enabled)
+            }
+        }
+        ambient.sessionMillis shouldBe -1L
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis - 100)
+        ambient.sessionMillis shouldBe -1L
+
+        compose.mainClock.advanceTimeBy(500)
+        (ambient.sessionMillis > 0L) shouldBe true
+
+        enabled = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        ambient.sessionMillis shouldBe -1L
+    }
 }
