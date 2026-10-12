@@ -36,7 +36,8 @@ internal class HeaderAmbient {
 /**
  * The header's [HeaderAmbient]. A session may run while [allowed] (easter eggs on, not Night-safe, not a short
  * window) once [due] (it last played long enough ago); [onSessionStart] fires as it starts, so it isn't due again for
- * a long while. That only stops the *next* session: the one under way plays to its end. While [visible] is false (the
+ * a long while. That only stops the *next* session: the one under way plays to its end (unless [allowed] turns off,
+which ends it for good: it isn't replayed when [allowed] comes back). While [visible] is false (the
  * header collapsed) a session waits, frame loop and clock stopped, and resumes when the sky shows again.
  *
  * Self-timed: every wait and the session clock follow [MotionDurationScale]; with animations removed (scale 0) no
@@ -57,6 +58,7 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
         fun scale(): Float = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
         fun showing(): Boolean = scale() > 0f && currentVisible()
         suspend fun awaitShowing() = snapshotFlow { showing() }.first { it }
+        var started = false
         try {
             // The header has to stay in view (with animations on) for the whole first delay.
             while (true) {
@@ -65,6 +67,7 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
                 val hidden = withTimeoutOrNull(wait) { snapshotFlow { showing() }.first { !it } }
                 if (hidden == null) break
             }
+            started = true
             currentOnStart()
             var elapsed = 0f
             var lastFrame = withFrameMillis { it }
@@ -80,9 +83,11 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
                 elapsed += dt / s
                 ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
             }
-            granted = false
         } finally {
             ambient.sessionMillis = -1L
+            // A started session spends the grant however it ends (played out, or cut short by Reduce motion, a sleep
+            // window or Night-safe), so the gate turning back on never replays it before it's due again.
+            if (started) granted = false
         }
     }
     return ambient

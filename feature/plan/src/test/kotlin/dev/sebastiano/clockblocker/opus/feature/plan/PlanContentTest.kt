@@ -1028,10 +1028,12 @@ class PlanContentTest {
     fun `header ambient waits before starting a session and reacts to reduceMotion`() {
         compose.mainClock.autoAdvance = false
         var reduceMotion by mutableStateOf(false)
+        var due by mutableStateOf(true)
         lateinit var ambient: HeaderAmbient
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = reduceMotion) {
-                ambient = rememberHeaderAmbient(allowed = true, due = true, visible = { true }, onSessionStart = {})
+                // Like the screen: starting the session marks it played, so it is no longer due.
+                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, onSessionStart = { due = false })
             }
         }
         ambient.sessionMillis shouldBe -1L
@@ -1045,6 +1047,12 @@ class PlanContentTest {
         reduceMotion = true
         Snapshot.sendApplyNotifications()
         compose.mainClock.advanceTimeByFrame()
+        ambient.sessionMillis shouldBe -1L
+
+        // That session was spent: turning Reduce motion back off doesn't replay it (it isn't due again yet).
+        reduceMotion = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis * 3)
         ambient.sessionMillis shouldBe -1L
     }
 
