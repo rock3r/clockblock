@@ -106,6 +106,30 @@ object NotificationIntents {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    /** Request code of the route globe's tick. */
+    internal const val GLOBE_TICK_REQUEST_CODE: Int = 997
+
+    fun globeTickAction(context: Context): String = "${context.packageName}.notifications.GLOBE_TICK"
+
+    private fun globeTickIntent(context: Context): Intent =
+        Intent(context, AdviceAlarmReceiver::class.java).setAction(globeTickAction(context))
+
+    /** Re-renders only the route globe widgets (see [AdviceAlarmScheduler.onGlobeTick]). */
+    internal fun globeTick(context: Context): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        GLOBE_TICK_REQUEST_CODE,
+        globeTickIntent(context),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    /** The existing globe tick, if armed. */
+    internal fun existingGlobeTick(context: Context): PendingIntent? = PendingIntent.getBroadcast(
+        context,
+        GLOBE_TICK_REQUEST_CODE,
+        globeTickIntent(context),
+        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     internal fun actionIntent(context: Context, action: AdviceAction, tripId: String, adviceId: String): Intent =
         Intent(context, AdviceActionReceiver::class.java)
             .setAction(adviceAction(context, action))

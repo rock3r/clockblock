@@ -118,10 +118,14 @@ smallest size).
 
 <img src="images/widget-route-globe.png" alt="Route globe widgets. Top row: the 2×2 globe in light showing the whole LIS → DOH → HND route before departure, in dark and night-safe highlighting the active DOH → HND leg with the traveller marker, and the empty state No trip, Plan one. Bottom row: the wide 4×2 version comparing Lisbon · Pre-trip −2 with Tokyo · Travel day, showing the globe beside a card with Avoid light, until 16:30, then Melatonin, 08:30 in Lisbon." width="480" />
 
-The *Route globe* widget draws your trip across a 3D day-and-night Earth, with sunlight and night-side city lights
-where they are right now. Before your first flight departs, it shows your whole route from start to finish,
-including any connections. Once your trip is underway, it highlights the leg you're on and marks where you are
-along the flight.
+The *Route globe* widget draws your trip across a 3D day-and-night Earth, with sunlight and night-side city lights.
+Before your first flight departs, it shows your whole route from start to finish, including any connections. Once
+your trip is underway, it highlights the leg you're on and marks where you are along the flight.
+
+From a day before your first flight until a day after you land, the globe keeps itself up to date: your position
+every 15 minutes while you're in the air, and the day-and-night line every hour. It never wakes your phone for
+this; it catches up when you next turn the screen on. The rest of the time it updates with your plan, like the other
+widgets.
 
 On the smallest size and the one-row sizes, it shows the globe on its own. Bigger sizes add your route code
 ("LIS → HND") and the current block with its end time; the tallest and widest sizes add a card with the place, plan

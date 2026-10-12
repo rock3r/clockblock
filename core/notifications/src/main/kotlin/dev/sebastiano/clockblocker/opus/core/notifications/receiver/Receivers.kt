@@ -37,8 +37,8 @@ internal fun BroadcastReceiver.launchAsync(workScope: NotificationWorkScope, blo
 }
 
 /**
- * Fired by the alarms [AdviceAlarmScheduler] arms, by the delayed test reminder, and by the Now notification's
- * progress tick ([NowNotificationSurface]). Not exported.
+ * Fired by the alarms [AdviceAlarmScheduler] arms (the plan chain and the route globe's tick), by the delayed test
+ * reminder, and by the Now notification's progress tick ([NowNotificationSurface]). Not exported.
  */
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey
@@ -57,6 +57,7 @@ class AdviceAlarmReceiver(
             }
             NotificationIntents.testAction(context) -> launchAsync(workScope) { reminders.postTest() }
             NotificationIntents.progressTickAction(context) -> launchAsync(workScope) { nowSurface.render() }
+            NotificationIntents.globeTickAction(context) -> launchAsync(workScope) { scheduler.onGlobeTick() }
         }
     }
 }
