@@ -175,35 +175,23 @@ fun GreatCircleArt(
         val rimHighlight = intersect(minus(circle(cx, cy, r), circle(cx, cy + 4.5f, r - 2f)), clipBox)
         fill(rimHighlight, colors.surface.copy(alpha = 0.42f))
 
-        // Subtle latitude and meridian graticule curves.
+        // Subtle latitude and meridian graticule curves: open curves stroked inside the globe's clip (a path op
+        // would close them into lenses).
         val graticuleColor = colors.primary.copy(alpha = 0.16f)
-        ink(
-            intersect(path { moveTo(14f, 68f); quadTo(60f, 58f, 106f, 68f) }, globe),
-            width = 1.2f,
-            color = graticuleColor,
-        )
-        ink(
-            intersect(path { moveTo(6f, 84f); quadTo(60f, 72f, 114f, 84f) }, globe),
-            width = 1.2f,
-            color = graticuleColor,
-        )
-        ink(
-            intersect(path { moveTo(2f, 100f); quadTo(60f, 89f, 118f, 100f) }, globe),
-            width = 1.2f,
-            color = graticuleColor,
-        )
-        for (offset in floatArrayOf(-24f, 0f, 24f)) {
-            ink(
-                intersect(
+        clipped(globe) {
+            ink(path { moveTo(2f, 68f); quadTo(60f, 58f, 118f, 68f) }, width = 1.2f, color = graticuleColor)
+            ink(path { moveTo(0f, 84f); quadTo(60f, 72f, 120f, 84f) }, width = 1.2f, color = graticuleColor)
+            ink(path { moveTo(0f, 100f); quadTo(60f, 89f, 120f, 100f) }, width = 1.2f, color = graticuleColor)
+            for (offset in floatArrayOf(-24f, 0f, 24f)) {
+                ink(
                     path {
-                        moveTo(60f + offset * 0.55f, 54f)
-                        quadTo(60f + offset, 80f, 60f + offset * 1.35f, 108f)
+                        moveTo(60f + offset * 0.55f, 50f)
+                        quadTo(60f + offset, 80f, 60f + offset * 1.35f, 112f)
                     },
-                    globe,
-                ),
-                width = 1.2f,
-                color = graticuleColor,
-            )
+                    width = 1.2f,
+                    color = graticuleColor,
+                )
+            }
         }
 
         var row = 0

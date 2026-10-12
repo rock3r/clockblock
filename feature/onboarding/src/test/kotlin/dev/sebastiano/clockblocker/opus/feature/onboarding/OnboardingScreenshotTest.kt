@@ -98,6 +98,18 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun chronotype() = step("onboarding_3b_chronotype", onboardingState(OnboardingStep.Chronotype, profile = LarkProfile))
 
+    /** The reveal's own details only show at its size: dawn rays for the Early bird. */
+    @Test fun chronotypeEarlyBird() = step(
+        "onboarding_3b_chronotype_early_bird",
+        onboardingState(OnboardingStep.Chronotype, profile = LarkProfile.copy(chronotype = Chronotype.DefiniteMorning)),
+    )
+
+    /** ... and the dusk glow and Evening Star for the Evening person. */
+    @Test fun chronotypeEveningPerson() = step(
+        "onboarding_3b_chronotype_evening_person",
+        onboardingState(OnboardingStep.Chronotype, profile = OwlProfile.copy(chronotype = Chronotype.ModerateEvening)),
+    )
+
     @Test fun chronotypeOwlDark() =
         step("onboarding_3b_chronotype_owl_dark", onboardingState(OnboardingStep.Chronotype, profile = OwlProfile), dark = true)
 

@@ -44,7 +44,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import java.time.Instant
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlin.math.roundToInt
 import dev.sebastiano.clockblocker.opus.core.notifications.R as NotificationsR
 
@@ -66,7 +69,7 @@ object NotificationPreviewTags {
  * TalkBack reads it as one description: it is an example, not a control.
  */
 @Composable
-internal fun NotificationPreview(remote: RemoteViews?, onContentWidth: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun NotificationPreview(remote: RemoteViews?, now: Instant, onContentWidth: (Int) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val accent = ClockblockTheme.adviceColors[AdviceType.SeeBrightLight]
     val description = stringResource(R.string.reminders_preview_description)
@@ -94,8 +97,11 @@ internal fun NotificationPreview(remote: RemoteViews?, onContentWidth: (Int) -> 
                 LaunchedEffect(widthDp) { onContentWidth(widthDp) }
                 Column {
                     Text(
-                        stringResource(R.string.welcome_kicker) + " • " +
+                        stringResource(
+                            R.string.reminders_preview_header,
+                            stringResource(R.string.reminders_preview_app_name),
                             stringResource(NotificationsR.string.body_behind, stringResource(R.string.reminders_preview_body_offset)),
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = colors.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
@@ -104,7 +110,7 @@ internal fun NotificationPreview(remote: RemoteViews?, onContentWidth: (Int) -> 
                     if (remote != null && !failed) {
                         RemoteContent(remote, onFailure = { failed = true })
                     } else {
-                        StandardContent()
+                        StandardContent(now)
                     }
                     Actions()
                 }
@@ -148,10 +154,11 @@ private fun Context.withNightMode(dark: Boolean): Context {
 
 /**
  * The standard (non-Remote Compose) Now notification's content: glyph chip and label, the until line with the other
- * zone's time, the block's progress, and what's next. A fixed sample: See bright light in Tokyo until 18:00.
+ * zone's time, the block's progress, and what's next. A fixed sample: See bright light in Tokyo until 18:00, with
+ * Lisbon's time for that moment worked out from the zones on [now]'s date (so it follows Lisbon's summer time).
  */
 @Composable
-private fun StandardContent() {
+private fun StandardContent(now: Instant) {
     val colors = MaterialTheme.colorScheme
     val advice = ClockblockTheme.adviceColors
     val light = advice[AdviceType.SeeBrightLight]
@@ -159,7 +166,7 @@ private fun StandardContent() {
     val until = stringResource(
         NotificationsR.string.now_join,
         stringResource(NotificationsR.string.now_until, formatter.format(SampleUntil)),
-        stringResource(NotificationsR.string.now_zone_tail, formatter.format(SampleUntilOtherZone), stringResource(R.string.reminders_preview_other_city)),
+        stringResource(NotificationsR.string.now_zone_tail, formatter.format(remember(now) { sampleUntilInOtherZone(now) }), stringResource(R.string.reminders_preview_other_city)),
     )
     Row(verticalAlignment = Alignment.CenterVertically) {
         Glyph(NotificationsR.drawable.ic_notif_bright_light, light.container, light.onContainer, 32)
@@ -211,6 +218,13 @@ private fun Actions() {
 
 private val IconColumn = 64.dp
 private val SampleUntil: LocalTime = LocalTime.of(18, 0)
-private val SampleUntilOtherZone: LocalTime = LocalTime.of(10, 0)
+
+/** The sample block runs in Tokyo; the second time is Lisbon's (`reminders_preview_other_city`). */
+private val SampleZone: ZoneId = ZoneId.of("Asia/Tokyo")
+private val SampleOtherZone: ZoneId = ZoneId.of("Europe/Lisbon")
+
+/** Lisbon's time when the sample block ends (18:00 in Tokyo) on [now]'s date: 10:00 in Lisbon's summer, 09:00 in winter. */
+internal fun sampleUntilInOtherZone(now: Instant): LocalTime =
+    ZonedDateTime.of(now.atZone(SampleZone).toLocalDate(), SampleUntil, SampleZone).withZoneSameInstant(SampleOtherZone).toLocalTime()
 private val SampleNext: LocalTime = LocalTime.of(18, 30)
 private const val SampleProgress = 0.45f

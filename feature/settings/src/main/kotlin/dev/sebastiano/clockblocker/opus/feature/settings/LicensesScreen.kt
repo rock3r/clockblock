@@ -3,6 +3,11 @@ package dev.sebastiano.clockblocker.opus.feature.settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +27,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mikepenz.aboutlibraries.Libs
+import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
+import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
+import com.mikepenz.aboutlibraries.ui.compose.style.LicenseHueResolver
 import com.mikepenz.aboutlibraries.ui.compose.variant.LibraryDetailMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 
@@ -38,14 +46,18 @@ internal fun Libs.appFirst(): Libs = copy(libraries = libraries.sortedBy { it.ta
  * itself, vendored code, fonts, icons and data sources), defined in `app/config/aboutlibraries`. The app leads; tapping
  * an entry opens its licence text in a dialog (bundled, so it works offline).
  *
- * [libraries] is null while the file is being read (the list then shows nothing yet). Back is the caller's, with the
- * predictive back gesture; the list draws edge to edge under the navigation bar.
+ * [libraries] is null while the file is being read: the list waits for it (rather than drawing just the intro), so a
+ * scroll position restored after rotation isn't clamped to the intro before the libraries arrive. Back is the caller's,
+ * with the predictive back gesture; the list draws edge to edge under the navigation bar and stays clear of side system
+ * bars and display cutouts in landscape.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LicensesScreen(libraries: Libs?, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val ordered = remember(libraries) { libraries?.appFirst() }
+    // Hoisted and saveable: it outlives the null-then-loaded libraries, so rotation keeps the place in the list.
+    val listState = rememberLazyListState()
     Scaffold(
         modifier = modifier,
         topBar = { TopAppBar(title = { Text(stringResource(R.string.licenses_title)) }, navigationIcon = { BackButton(onBack) }) },
@@ -53,9 +65,17 @@ fun LicensesScreen(libraries: Libs?, onBack: () -> Unit, modifier: Modifier = Mo
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         val navigationBar = WindowInsets.navigationBars.asPaddingValues()
-        Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()), contentAlignment = Alignment.TopCenter) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(top = padding.calculateTopPadding())
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            if (ordered == null) return@Box
             LibrariesContainer(
                 libraries = ordered,
+                lazyListState = listState,
                 contentPadding = PaddingValues(bottom = navigationBar.calculateBottomPadding() + 24.dp),
                 header = {
                     item(key = "intro") {
@@ -69,6 +89,13 @@ fun LicensesScreen(libraries: Libs?, onBack: () -> Unit, modifier: Modifier = Mo
                 },
                 // A tap opens the licence text right here, offline, rather than a web page.
                 detailMode = LibraryDetailMode.Dialog,
+                // One neutral badge for every licence: the library's per-licence hues painted the OFL red, which
+                // read as a warning about the fonts' licence.
+                variantColors = LibraryDefaults.m3VariantColors(
+                    licenseHueResolver = LicenseHueResolver.None,
+                    licenseBadgeContainer = colors.secondaryContainer,
+                    licenseBadgeContent = colors.onSecondaryContainer,
+                ),
                 licenseDialogConfirmText = stringResource(R.string.licenses_close),
                 modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().testTag(AboutTags.LicensesList),
             )

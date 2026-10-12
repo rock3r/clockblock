@@ -14,7 +14,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,13 +36,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -141,6 +139,7 @@ fun ToolsEditor(
             selectedDays = profile.headStartDays,
             onSelect = { days -> onProfileChange { p -> p.copy(headStartDays = days) } },
             shape = segmentedShape(3, 5),
+            gentle = profile.intensity == Intensity.Gentle,
         )
         // Melatonin's card holds the row and its safety note, so the whole card takes the tint.
         val melatoninShape = segmentedShape(4, 5)
@@ -182,6 +181,7 @@ private fun HeadStartRow(
     selectedDays: Int,
     onSelect: (Int) -> Unit,
     shape: Shape,
+    gentle: Boolean,
 ) {
     val active = selectedDays > 0
     val options = HeadStart.Choices
@@ -209,59 +209,32 @@ private fun HeadStartRow(
                 }
             }
             Spacer(Modifier.size(12.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val gap = ButtonGroupDefaults.ConnectedSpaceBetween
-                val fontScale = LocalDensity.current.fontScale
-                val perOption = (maxWidth - gap * (options.size - 1)) / options.size
-                val rows = if (perOption < HeadStartMinOptionWidth * fontScale) {
-                    options.chunked(2)
-                } else {
-                    listOf(options)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-                    rows.forEach { row ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                            row.forEachIndexed { index, days ->
-                                val checked = days == selectedDays
-                                val labelText = if (days == 0) {
-                                    stringResource(R.string.tool_head_start_none)
-                                } else {
-                                    pluralStringResource(R.plurals.tool_head_start_days, days, days)
-                                }
-                                ToggleButton(
-                                    checked = checked,
-                                    onCheckedChange = { onSelect(days) },
-                                    colors = ToggleButtonDefaults.colors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    ),
-                                    shapes = when (index) {
-                                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                        row.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 6.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 48.dp)
-                                        .semantics { role = Role.RadioButton }
-                                        .testTag(ToolsTags.headStart(days)),
-                                ) {
-                                    Text(
-                                        labelText,
-                                        maxLines = 1,
-                                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = LocalTextStyle.current.fontSize),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            ConnectedChoice(
+                options = options,
+                selected = selectedDays,
+                onSelect = onSelect,
+                label = { days ->
+                    if (days == 0) stringResource(R.string.tool_head_start_none) else pluralStringResource(R.plurals.tool_head_start_days, days, days)
+                },
+                tag = ToolsTags::headStart,
+            )
+            // Gentle effort shifts on at most 2 days before departure (PlannerConfig.forProfile): say so rather than
+            // let "3 days" quietly mean 2.
+            if (gentle && selectedDays > GentleMaxHeadStartDays) {
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    stringResource(R.string.tool_head_start_gentle_cap, GentleMaxHeadStartDays),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
-private val HeadStartMinOptionWidth = 64.dp
+/** Gentle effort's cap on pre-flight days (`PlannerConfig.forProfile` in :core:circadian). */
+private const val GentleMaxHeadStartDays = 2
+
 
 @Composable
 private fun MelatoninNote(open: Boolean, onToggle: () -> Unit, acknowledged: Boolean, onAcknowledge: (Boolean) -> Unit) {

@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ColorMath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.DuskPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -57,7 +58,8 @@ fun ShadesOnArt(
         // Warm horizon glow + distant hill behind the sun.
         val clipBottom = rect(0f, 0f, 120f, 110f)
         fill(intersect(circle(60f, 76f, 48f), clipBottom), colors.tertiary.copy(alpha = 0.16f))
-        val backHill = intersect(oval(-10f, 82f, 98f, 52f), clipBottom)
+        // Inside the 120-unit board (it used to start at x = -10 and was cut flat on the left).
+        val backHill = intersect(oval(4f, 82f, 84f, 52f), clipBottom)
         fill(backHill, colors.primaryContainer)
 
         // Layered sun: outer VerySunny corona, inner Sunny ring, and warm disc core.
@@ -76,7 +78,8 @@ fun ShadesOnArt(
         val ly = 50f + dy
         // Sunglasses stay dark in every theme (white "shades" read as goggles on a dark surface).
         val frameColor = DuskPalette.N10
-        val lensColor = androidx.compose.ui.graphics.Color(0xFF232536)
+        // Dark like the frame in every theme, tinted a touch toward primary so the lenses sit in the palette.
+        val lensColor = ColorMath.mix(DuskPalette.N17, colors.primary, 0.08f)
         // Temple arms tucking back onto the sun (with subtle rim outline so they read on dark backgrounds).
         val leftTemple = path { moveTo(31f, ly - 5f); lineTo(22f, ly - 10f); lineTo(19f, ly - 6f) }
         val rightTemple = path { moveTo(89f, ly - 5f); lineTo(98f, ly - 10f); lineTo(101f, ly - 6f) }
@@ -123,7 +126,8 @@ fun WindowLightArt(
         // Alternating long/short outer rays behind the window frame.
         for (i in 0 until 12) {
             val a = (phase * 45f + i * 30f) * PI.toFloat() / 180f
-            val outer = if (i % 2 == 0) 35f else 30f
+            // The long rays stop at y ≥ 2 (sunY − 32), inside the art board.
+            val outer = if (i % 2 == 0) 32f else 28f
             line(
                 sunX + 24f * cos(a),
                 sunY + 24f * sin(a),
@@ -246,7 +250,9 @@ fun PillowMoonArt(
         ink(pillow, width = 2f)
         ink(path { arcTo(34f, 76f, 10f, 205f, 110f, forceMoveTo = true) }, width = 1.8f, color = colors.highlight)
         ink(path { arcTo(58f, 73f, 12.5f, 210f, 115f, forceMoveTo = true) }, width = 1.8f, color = colors.highlight)
-        ink(path { arcTo(56f, 78f, 14f, 25f, 130f, forceMoveTo = true) }, width = 1.5f, color = colors.ink.copy(alpha = 0.28f))
+        if (PillowSmile) {
+            ink(path { arcTo(56f, 78f, 14f, 25f, 130f, forceMoveTo = true) }, width = 1.5f, color = colors.ink.copy(alpha = 0.28f))
+        }
 
         val zs = listOf(Triple(84f, 45f, 11f), Triple(94f, 31f, 14f), Triple(104f, 16f, 17f))
         zs.forEachIndexed { i, (zx, zy, size) ->
@@ -532,3 +538,8 @@ fun RunningLowArt(
     }
 }
 
+/**
+ * The pillow's centred crease reads as a smile, against design.md §2.4's "no faces". The owner hasn't decided whether
+ * to keep it; flip this to drop it (and re-record the pillow goldens).
+ */
+private const val PillowSmile = true

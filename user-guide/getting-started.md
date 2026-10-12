@@ -45,7 +45,8 @@ Drag the moon to your usual bedtime and the sun to your usual wake-up time. The 
 - **Days off**: the nights you wake up without an alarm.
 
 Switch between them with **Work days | Days off** in the middle of the dial, or tap the thin outer ring: it shows
-the other schedule. Days off start as a copy of work days; move a Days off handle to set them on their own. If your
+the other schedule. With a large font, or when the dial is small (a phone on its side), the switch moves out of the
+dial: above it, or beside it with the two buttons, so its words always fit. Days off start as a copy of work days; move a Days off handle to set them on their own. If your
 nights are the same every day, leave Days off alone.
 
 Under the dial, the **Bedtime** and **Wake** buttons show the times of the schedule you're editing and follow the
@@ -59,7 +60,8 @@ of sleep.
 
 When you tap **Next**, the app works out your chronotype from those two schedules: Early bird, Morning person,
 Somewhere in between, Evening person or Night owl. It uses the middle of your nights off, allowing for catch-up sleep
-after the working week (the Munich ChronoType Questionnaire's method).
+after the working week (the Munich ChronoType Questionnaire's method). If you left Days off as a copy of work days,
+the screen says it used your usual nights and suggests setting your days off for a closer estimate.
 
 If it doesn't fit, tap **Doesn't sound like me** and pick another. The one your sleep suggests is marked. The screen
 then says **Your pick**, and changing your nights later doesn't override it.
@@ -75,7 +77,7 @@ on, its row takes that advice's colour.
 |---|---|
 | I drink caffeine | Suggests little-and-often coffee to stay sharp, and a cut-off before sleep. If you don't drink coffee, turn it off. |
 | I can sleep on planes | When off, sleep on the plane becomes "rest in the dark" instead. |
-| Naps are OK | Suggests short recovery naps after a cut-short night. Turn it off if you prefer not to nap during the day. |
+| Naps are OK | Adds optional short naps ("Nap if you're tired") on days you might be tired. Turn it off if you'd rather not nap. One nap stays even then: after a day that keeps you awake at least an hour longer than usual, the plan still suggests it, because that one matters. |
 | Head start | Shifts your clock a little on the days before departure (**None**, **1 day**, **2 days** or **3 days**), so you land partly adapted. |
 | I use melatonin | Off by default. See below. |
 

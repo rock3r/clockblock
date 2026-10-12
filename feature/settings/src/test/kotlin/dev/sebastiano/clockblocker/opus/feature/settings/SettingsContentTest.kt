@@ -6,12 +6,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -246,6 +249,40 @@ class SettingsContentTest {
     }
 
     @Test
+    fun `the you card says what a tap does once`() {
+        show()
+        val node = compose.onNodeWithTag(SettingsTags.You).fetchSemanticsNode()
+        node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].label shouldBe "Edit sleep and chronotype"
+        node.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.ContentDescription) { emptyList() }
+            .none { it.contains("Edit") } shouldBe true
+    }
+
+    @Test
+    fun `the you editor saves both sleep schedules and the chronotype, keeping drafts across its tabs`() {
+        show()
+        click(SettingsTags.You)
+        // Work days: wake 15 minutes later (TalkBack's adjust action on the wake handle).
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags.Wake)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(7 * 60f + 15f) }
+        // Days off: bedtime 15 minutes later.
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags.DaysOff).performClick()
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags.Bedtime)
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(23 * 60f + 15f) }
+        // Chronotype tab and back: the sleep drafts stay.
+        compose.onNodeWithTag(SettingsTags.Chronotype).performClick()
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags.option(dev.sebastiano.clockblocker.opus.core.model.Chronotype.ModerateEvening))
+            .performScrollTo()
+            .performClick()
+        compose.onNodeWithTag(SettingsTags.Sleep).performClick()
+        compose.onNodeWithTag(dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags.WakePill)
+            .assert(androidx.compose.ui.test.hasContentDescription("07:15"))
+        compose.onNodeWithTag(SettingsTags.EditorSave).performClick()
+        actions.profile.sleep shouldBe dev.sebastiano.clockblocker.opus.core.model.SleepWindow(java.time.LocalTime.of(23, 0), java.time.LocalTime.of(7, 15))
+        actions.profile.daysOffSleep shouldBe dev.sebastiano.clockblocker.opus.core.model.SleepWindow(java.time.LocalTime.of(23, 15), java.time.LocalTime.of(7, 15))
+        actions.profile.chronotype shouldBe dev.sebastiano.clockblocker.opus.core.model.Chronotype.ModerateEvening
+    }
+
+    @Test
     fun `you card shows both schedules when days off sleep differs`() {
         val withDaysOff = DemoData.profile.copy(
             daysOffSleep = dev.sebastiano.clockblocker.opus.core.model.SleepWindow(
@@ -358,6 +395,33 @@ class AboutContentTest {
         compose.onNodeWithText("Permission is hereby granted", substring = true).assertDoesNotExist()
         compose.onNodeWithContentDescription("Back").performClick()
         backs shouldBe 1
+    }
+
+    /** Rotation: the recreated screen reads the licence file again (null at first), and the list stays where it was. */
+    @Test
+    @Config(qualifiers = "w400dp-h480dp-xxhdpi")
+    fun `the licences keep their scroll position across recreation while the file reloads`() {
+        val last = "kotlinx-coroutines-core"
+        val restoration = androidx.compose.ui.test.junit4.StateRestorationTester(compose)
+        restoration.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                val libraries by androidx.compose.runtime.produceState<com.mikepenz.aboutlibraries.Libs?>(null) {
+                    kotlinx.coroutines.delay(50)
+                    value = FixtureLibraries
+                }
+                LicensesScreen(libraries = libraries, onBack = {}, modifier = Modifier.fillMaxSize())
+            }
+        }
+        fun awaitList() = compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(AboutTags.LicensesList).fetchSemanticsNodes().isNotEmpty()
+        }
+        awaitList()
+        compose.onNodeWithText(last).assertDoesNotExist()
+        compose.onNodeWithTag(AboutTags.LicensesList).performScrollToNode(hasText(last))
+        compose.onNodeWithText(last).assertIsDisplayed()
+        restoration.emulateSavedInstanceStateRestore()
+        awaitList()
+        compose.onNodeWithText(last).assertIsDisplayed()
     }
 
     @Test

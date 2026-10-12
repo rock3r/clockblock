@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -336,8 +337,21 @@ public class TextMorphState internal constructor(
     private fun ensureLoop() {
         if (loop?.isActive == true) return
         loop = scope.launch {
+            // Clockblock patch: run on a clock scaled by the context's MotionDurationScale (the animator duration
+            // scale), like Compose's own animations: 2x takes twice as long, 0 settles on the next frame.
+            var lastReal = Long.MIN_VALUE
+            var virtual = 0L
             while (true) {
-                val active = withFrameNanos { now -> tick(now) }
+                val scale = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+                val active = withFrameNanos { real ->
+                    virtual = when {
+                        lastReal == Long.MIN_VALUE -> real
+                        scale <= 0f -> virtual + SettleAtOnceNanos
+                        else -> virtual + ((real - lastReal) / scale).toLong()
+                    }
+                    lastReal = real
+                    tick(virtual)
+                }
                 if (!active) break
             }
             lastFrameNanos = Channel.UNSET
@@ -526,3 +540,6 @@ internal fun reusableBoxPrefix(old: TextLayoutResult, new: TextLayoutResult): In
     }
     return reusable
 }
+
+/** Clockblock patch: how far the clock jumps per frame at animator scale 0, far past any morph's settle time. */
+private const val SettleAtOnceNanos = 60_000_000_000L
