@@ -373,8 +373,10 @@ and draws the traveller marker along the great-circle arc when in flight, with t
 glow and night-side city lights at the capture instant. While at least one *Route globe* widget is placed
 (`PlanSurface.hasPlacedGlobe`), `AdviceAlarmScheduler` keeps the globe's own tick armed around the flights (see
 [The scheduler](#the-scheduler)), and cancels it when the last one is removed. Dots of the same brightness
-share one `GlobeOp.Dots` bucket (and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`), spatially culled to at
-most one frontmost dot per 2D grid cell so limb overdraw is eliminated and every size bucket stays under 24 KB.
+share one `GlobeOp.Dots` bucket (and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`). The dots are thinned
+to one per cell of an equal-area grid on the sphere, sized for the widget, so they crowd towards the horizon as on the
+in-app globe, and each dot's radius goes with the square root of its depth (a disc on the sphere shows that much of
+its area), so they shrink towards the horizon. Dots under 0.4 dp are dropped, and every size bucket stays under 24 KB.
 
 ### Sizes
 
