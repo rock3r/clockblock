@@ -15,18 +15,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +47,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.sebastiano.clockblocker.opus.core.designsystem.component.WavyAdaptationIndicator
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.formatJetLagHours
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcBanner
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RouteArcDefaults
@@ -64,8 +64,6 @@ import java.time.LocalDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-import androidx.compose.ui.graphics.graphicsLayer
-
 /** Card actions. Null callbacks hide their menu entry (e.g. when the host hasn't wired the editor). */
 class TripCardActions(
     val onOpen: () -> Unit,
@@ -78,7 +76,9 @@ class TripCardActions(
 /**
  * A trip as a rich, compact card: dot-matrix route banner (`LHR ──✈── SYD`) and overflow menu at the top,
  * route title and single-line dates + stops in the middle, and status, time-zone shift and adaptation summary
- * at the bottom. Past trips are rendered with a muted surface and reduced alpha so upcoming trips stand out.
+ * at the bottom. Past trips read as past through colour alone ([tripCardColors]): a lower surface, variant ink, a
+ * faint route and a quiet chip, while every line of text keeps WCAG AA contrast (no layer alpha over the card).
+ * The Trips list only shows upcoming and past trips (the trip under way is on Now).
  * A 100+/day surface, so it only gets the platform state layer (no bespoke motion).
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -92,11 +92,9 @@ internal fun TripCard(
     var menuOpen by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
     val isPast = summary.phase == TripPhase.Past
-    val (container, content) = when (summary.phase) {
-        TripPhase.InProgress -> colors.primaryContainer to colors.onPrimaryContainer
-        TripPhase.Upcoming -> colors.surfaceContainerHigh to colors.onSurface
-        TripPhase.Past -> colors.surfaceContainerLow to colors.onSurfaceVariant
-    }
+    val cardColors = tripCardColors(isPast, colors)
+    val container = cardColors.container
+    val content = cardColors.content
     val labels = rememberActionLabels()
     val customActions = buildList {
         actions.onEdit?.let { add(CustomAccessibilityAction(labels.edit) { it(); true }) }
@@ -108,7 +106,6 @@ internal fun TripCard(
     Surface(
         modifier = modifier
             .testTag(TripsTestTags.tripCard(summary.id))
-            .graphicsLayer { alpha = if (isPast) PastCardAlpha else 1f }
             .semantics {
                 this.selected = selected
                 this.customActions = customActions
@@ -131,8 +128,7 @@ internal fun TripCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RouteBanner(
                     summary = summary,
-                    container = container,
-                    content = content,
+                    colors = cardColors,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(4.dp))
@@ -167,14 +163,14 @@ internal fun TripCard(
                 Text(
                     routeCities,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
+                    color = cardColors.secondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(end = 12.dp),
                 )
             }
             Spacer(Modifier.height(4.dp))
-            ScheduleAndStopsLine(summary = summary, modifier = Modifier.padding(end = 12.dp))
+            ScheduleAndStopsLine(summary = summary, color = cardColors.secondary, modifier = Modifier.padding(end = 12.dp))
             Spacer(Modifier.height(12.dp))
             FlowRow(
                 modifier = Modifier.padding(end = 12.dp),
@@ -182,13 +178,9 @@ internal fun TripCard(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                StatusChip(summary)
+                StatusChip(summary, cardColors)
                 ShiftPill(summary.shiftHours, content)
                 summary.daysToAdapt?.let { days -> DaysToAdaptPill(days, content) }
-            }
-            summary.adaptation?.let { adaptation ->
-                Spacer(Modifier.height(14.dp))
-                AdaptationRow(adaptation, Modifier.padding(end = 12.dp))
             }
         }
     }
@@ -226,14 +218,8 @@ private fun MenuItem(label: Int, icon: Int, tag: String, destructive: Boolean = 
 }
 
 @Composable
-private fun StatusChip(summary: TripSummary) {
-    val colors = MaterialTheme.colorScheme
-    val (bg, fg) = when (summary.phase) {
-        TripPhase.InProgress -> colors.primary to colors.onPrimary
-        TripPhase.Upcoming -> colors.secondaryContainer to colors.onSecondaryContainer
-        TripPhase.Past -> colors.surfaceContainerHighest to colors.onSurfaceVariant
-    }
-    Surface(color = bg, contentColor = fg, shape = MaterialTheme.shapes.small) {
+private fun StatusChip(summary: TripSummary, colors: TripCardColors) {
+    Surface(color = colors.chip, contentColor = colors.onChip, shape = MaterialTheme.shapes.small) {
         Text(
             statusLabel(summary.status),
             style = MaterialTheme.typography.labelLarge,
@@ -262,6 +248,7 @@ internal fun statusLabel(status: TripStatus): String = when (status) {
         stringResource(R.string.trip_status_day, status.number)
     }
     TripStatus.Adapted -> stringResource(R.string.trip_status_adapted)
+    is TripStatus.PartlyAdapted -> stringResource(R.string.trip_status_partly_adapted, status.percent)
     TripStatus.StayedOnHomeTime -> stringResource(R.string.trip_status_home_time)
     TripStatus.Finished -> stringResource(R.string.trip_status_finished)
 }
@@ -272,7 +259,7 @@ internal fun statusLabel(status: TripStatus): String = when (status) {
  * once landed. The arc's height follows the total travel time. Static: it only moves when progress changes.
  */
 @Composable
-private fun RouteBanner(summary: TripSummary, container: Color, content: Color, modifier: Modifier = Modifier) {
+private fun RouteBanner(summary: TripSummary, colors: TripCardColors, modifier: Modifier = Modifier) {
     val trip = summary.trip
     val origin = trip.origin.displayCode
     val destination = trip.destination.displayCode
@@ -291,10 +278,10 @@ private fun RouteBanner(summary: TripSummary, container: Color, content: Color, 
             progress = summary.flightProgress,
             apex = RouteArcDefaults.apexForDuration(Duration.between(trip.departure, trip.arrival)),
             colors = RouteArcDefaults.colors(
-                background = container,
-                route = content.copy(alpha = 0.5f),
-                code = content,
-                caption = content.copy(alpha = SecondaryContentAlpha),
+                background = colors.container,
+                route = colors.route,
+                code = colors.content,
+                caption = colors.secondary,
             ),
             contentDescription = description,
             modifier = modifier.fillMaxWidth(),
@@ -312,8 +299,12 @@ private fun stopsLine(summary: TripSummary): String {
     return "${pluralStringResource(R.plurals.trip_stops, stops, stops)} · ${stringResource(R.string.trip_via, via)}"
 }
 
+/**
+ * "Thu, Apr 2, 10:05 LIS → Fri, Apr 3, 08:30 HND · nonstop": each time is local to its airport, and the airport's
+ * code beside it says which zone that is (the card's banner names the cities).
+ */
 @Composable
-private fun ScheduleAndStopsLine(summary: TripSummary, modifier: Modifier = Modifier) {
+private fun ScheduleAndStopsLine(summary: TripSummary, color: Color, modifier: Modifier = Modifier) {
     val trip = summary.trip
     val dates = rememberDateFormatter()
     val times = rememberTimeFormatter()
@@ -324,11 +315,11 @@ private fun ScheduleAndStopsLine(summary: TripSummary, modifier: Modifier = Modi
     val arriveDate = dates.format(arriveLocal.toLocalDate())
     val arriveTime = times.formatFull(arriveLocal.toLocalTime())
     val stops = stopsLine(summary)
-    val departPart = stringResource(R.string.trip_time_at, departDate, departTime)
+    val departPart = stringResource(R.string.trip_time_at_place, departDate, departTime, trip.origin.displayCode)
     val arrivePart = if (departLocal.toLocalDate() == arriveLocal.toLocalDate()) {
-        arriveTime
+        stringResource(R.string.trip_time_place, arriveTime, trip.destination.displayCode)
     } else {
-        stringResource(R.string.trip_time_at, arriveDate, arriveTime)
+        stringResource(R.string.trip_time_at_place, arriveDate, arriveTime, trip.destination.displayCode)
     }
     val line = stringResource(R.string.trip_schedule_line, departPart, arrivePart, stops)
     val description = listOf(
@@ -340,7 +331,7 @@ private fun ScheduleAndStopsLine(summary: TripSummary, modifier: Modifier = Modi
     Text(
         text = line,
         style = ClockblockTheme.textStyles.timeLabel,
-        color = LocalContentColor.current.copy(alpha = SecondaryContentAlpha),
+        color = color,
         modifier = modifier.clearAndSetSemantics { contentDescription = description },
     )
 }
@@ -384,24 +375,6 @@ private fun DaysToAdaptPill(days: Double, content: Color) {
     }
 }
 
-@Composable
-private fun AdaptationRow(adaptation: AdaptationSnapshot, modifier: Modifier = Modifier) {
-    val percent = (adaptation.progress * 100).roundToInt()
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimaryContainer) {
-            Text(stringResource(R.string.trip_adapted_percent, percent), style = MaterialTheme.typography.labelLarge)
-        }
-        WavyAdaptationIndicator(
-            progress = adaptation.progress,
-            misalignment = adaptation.misalignment,
-            modifier = Modifier.fillMaxWidth(),
-            remaining = formatJetLagHours(adaptation.remainingHours).removePrefix("+"),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-        )
-    }
-}
-
 private class ActionLabels(
     val open: String,
     val edit: String,
@@ -420,8 +393,42 @@ private fun rememberActionLabels(): ActionLabels = ActionLabels(
 )
 
 /**
- * Secondary lines (route codes, schedule line) on every card colour. 0.86 keeps them at WCAG AA (4.5:1) on the
- * in-progress `primaryContainer`, where 0.72 fell to 4:1 (see `ContrastAuditTest` in :core:designsystem).
+ * A trip card's colours. Upcoming: `surfaceContainerHigh` with `onSurface` ink, secondary lines at 86 % (still
+ * WCAG AA, see `ContrastAuditTest` in :core:designsystem). Past: one step lower (`surfaceContainerLow`) with
+ * `onSurfaceVariant` ink at full strength for every line of text, so the card reads as past by colour without its
+ * text dropping below 4.5:1; only the decorative route arc fades further.
  */
-private const val SecondaryContentAlpha = 0.86f
-private const val PastCardAlpha = 0.68f
+@Immutable
+internal data class TripCardColors(
+    val container: Color,
+    val content: Color,
+    val secondary: Color,
+    val route: Color,
+    val chip: Color,
+    val onChip: Color,
+)
+
+internal fun tripCardColors(isPast: Boolean, scheme: ColorScheme): TripCardColors = if (isPast) {
+    TripCardColors(
+        container = scheme.surfaceContainerLow,
+        content = scheme.onSurfaceVariant,
+        secondary = scheme.onSurfaceVariant,
+        route = scheme.onSurfaceVariant.copy(alpha = PastRouteAlpha),
+        chip = scheme.surfaceContainerHighest,
+        onChip = scheme.onSurfaceVariant,
+    )
+} else {
+    TripCardColors(
+        container = scheme.surfaceContainerHigh,
+        content = scheme.onSurface,
+        secondary = scheme.onSurface.copy(alpha = SecondaryContentAlpha),
+        route = scheme.onSurface.copy(alpha = RouteAlpha),
+        chip = scheme.secondaryContainer,
+        onChip = scheme.onSecondaryContainer,
+    )
+}
+
+/** Secondary lines on upcoming cards: 0.86 keeps them at WCAG AA (4.5:1); 0.72 fell to 4:1. */
+internal const val SecondaryContentAlpha = 0.86f
+private const val RouteAlpha = 0.5f
+private const val PastRouteAlpha = 0.32f

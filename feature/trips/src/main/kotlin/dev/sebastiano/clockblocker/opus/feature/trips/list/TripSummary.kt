@@ -2,6 +2,8 @@ package dev.sebastiano.clockblocker.opus.feature.trips.list
 
 import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
+import dev.sebastiano.clockblocker.opus.core.data.plan.NowTrip
+import dev.sebastiano.clockblocker.opus.core.data.plan.TripWindow
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.misalignmentFraction
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
@@ -14,6 +16,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Which list section a trip belongs to. Declaration order = display order. */
 enum class TripPhase { InProgress, Upcoming, Past }
@@ -34,6 +37,12 @@ sealed interface TripStatus {
 
     /** The plan has finished: the body clock is on destination time. */
     data object Adapted : TripStatus
+
+    /**
+     * The next trip took over before this one's plan finished (a return trip's pre-travel days began): the body
+     * clock got [percent] of the way to destination time.
+     */
+    data class PartlyAdapted(val percent: Int) : TripStatus
 
     /** A short trip whose plan kept the body on home time. */
     data object StayedOnHomeTime : TripStatus
@@ -66,6 +75,8 @@ data class TripsSky(val time: LocalTime, val bodyClock: Boolean)
  * @property daysToAdapt the planner's estimate of days to adapt, for upcoming trips whose plan shifts the body
  *   clock (null otherwise: trips under way show live progress instead).
  * @property bodyTime body-clock time now, for trips under way with a plan.
+ * @property window when the trip is under way ([NowTrip.window]): what decides which trip is "now".
+ * @property homeTime the plan keeps the body on home time (the planner's choice or the user's).
  */
 data class TripSummary(
     val trip: Trip,
@@ -78,6 +89,8 @@ data class TripSummary(
     val daysToAdapt: Double? = null,
     val daysSaved: Double = 0.0,
     val bodyTime: LocalTime? = null,
+    val window: TripWindow = NowTrip.window(trip, plan = null),
+    val homeTime: Boolean = false,
 ) {
     val id: String get() = trip.id
 }
@@ -95,46 +108,32 @@ data class PartitionedTrips(
 /** Pure derivation of [TripSummary]s, kept free of Android so it is unit-tested on the JVM. */
 object TripSummaries {
 
-    /** Without a plan, a trip counts as in progress for this long after landing. */
-    val UnplannedSettlingTime: Duration = Duration.ofDays(2)
-
     /**
      * @param today the user's current calendar date (device zone), for "Starts in N days".
      * @param fallbackTitle used when the trip has no title of its own (e.g. from `TripTitleSuggester`).
      */
     fun summarize(trip: Trip, plan: JetLagPlan?, now: Instant, today: LocalDate, fallbackTitle: String): TripSummary {
         val spans = plan?.daySpans().orEmpty()
-        val planStart = spans.firstOrNull()?.start
-        val planEnd = spans.lastOrNull()?.end
+        val window = NowTrip.window(trip, plan)
         val departureDate = trip.legs.first().departureLocal.toLocalDate()
         val daysToDeparture = ChronoUnit.DAYS.between(today, departureDate).coerceAtLeast(0)
         val homeTime = plan?.strategy == AdaptationStrategy.StayOnHomeTime
 
+        // Phases follow the trip's window, the same one that decides the Now tab's trip (NowTrip).
         val (phase, status) = when {
-            now.isBefore(trip.departure) -> when {
-                planStart != null && !now.isBefore(planStart) ->
-                    TripPhase.InProgress to TripStatus.Adjusting(daysToDeparture)
-                else -> TripPhase.Upcoming to TripStatus.StartsIn(daysToDeparture)
-            }
-
+            now.isBefore(window.start) -> TripPhase.Upcoming to TripStatus.StartsIn(daysToDeparture)
+            now.isBefore(trip.departure) -> TripPhase.InProgress to TripStatus.Adjusting(daysToDeparture)
             now.isBefore(trip.arrival) -> TripPhase.InProgress to TripStatus.InTheAir
-
-            plan != null && planEnd != null -> {
-                if (now.isBefore(planEnd)) {
-                    val day = spans.firstOrNull { now in it }?.day
-                    val total = spans.last().day.index.coerceAtLeast(1)
-                    TripPhase.InProgress to TripStatus.Day((day?.index ?: 1).coerceAtLeast(1), total)
-                } else {
-                    TripPhase.Past to if (homeTime) TripStatus.StayedOnHomeTime else TripStatus.Adapted
-                }
-            }
-
-            now.isBefore(trip.arrival.plus(UnplannedSettlingTime)) -> {
+            now.isBefore(window.end) -> TripPhase.InProgress to if (plan != null && spans.isNotEmpty()) {
+                // After the last day's midnight, the last night's sleep still belongs to the last day.
+                val day = (spans.firstOrNull { now in it } ?: spans.last().takeIf { !now.isBefore(it.end) })?.day
+                val total = spans.last().day.index.coerceAtLeast(1)
+                TripStatus.Day((day?.index ?: 1).coerceAtLeast(1), total)
+            } else {
                 val arrivalDate = trip.legs.last().arrivalLocal.toLocalDate()
-                val number = ChronoUnit.DAYS.between(arrivalDate, today).toInt() + 1
-                TripPhase.InProgress to TripStatus.Day(number.coerceAtLeast(1), null)
+                TripStatus.Day((ChronoUnit.DAYS.between(arrivalDate, today).toInt() + 1).coerceAtLeast(1), null)
             }
-
+            plan != null -> TripPhase.Past to if (homeTime) TripStatus.StayedOnHomeTime else TripStatus.Adapted
             else -> TripPhase.Past to TripStatus.Finished
         }
 
@@ -162,58 +161,63 @@ object TripSummaries {
             daysToAdapt = plan?.estimatedDaysToAdapt?.takeIf { shifts && phase == TripPhase.Upcoming },
             daysSaved = daysSaved,
             bodyTime = plan?.takeIf { phase == TripPhase.InProgress }?.let { now.atOffset(it.bodyOffsetAt(now)).toLocalTime() },
+            window = window,
+            homeTime = homeTime,
         )
     }
 
     /**
-     * Splits [summaries] between the **Now** tab and the **Trips** tab:
-     * - [PartitionedTrips.nowTrip] is the in-progress trip (latest departure if active plans overlap, matching
-     *   `PlanRepository.currentPlan`), or else the soonest upcoming trip.
+     * Splits [summaries] between the **Now** tab and the **Trips** tab at [now]:
+     * - [PartitionedTrips.nowTrip] is picked by [NowTrip], the rule `PlanRepository.currentPlan` uses: the trip under
+     *   way (latest departure if windows overlap), or else the soonest upcoming trip.
      * - [PartitionedTrips.upcoming] holds all remaining upcoming trips in departure order (so the trip shown on
      *   Now is not duplicated on Trips).
-     * - [PartitionedTrips.past] holds all past trips, plus any earlier active trip whose post-arrival tail was
-     *   superseded by [PartitionedTrips.nowTrip], most recent first.
+     * - [PartitionedTrips.past] holds all past trips, plus any earlier trip under way that [PartitionedTrips.nowTrip]
+     *   took over from, most recent first, with an honest status ([TripStatus.PartlyAdapted] if its plan hadn't
+     *   finished).
      */
-    fun partition(summaries: List<TripSummary>): PartitionedTrips {
-        val grouped = sections(summaries)
-        val inProgress = grouped.getValue(TripPhase.InProgress)
-        val upcoming = grouped.getValue(TripPhase.Upcoming)
-        val past = grouped.getValue(TripPhase.Past)
-        val nowTrip = inProgress.maxByOrNull { it.trip.departure } ?: upcoming.firstOrNull()
-        val superseded = inProgress.filter { it.id != nowTrip?.id }
-        val supersededUpcoming = superseded.mapNotNull { s ->
-            val adjusting = s.status as? TripStatus.Adjusting ?: return@mapNotNull null
-            s.copy(
-                phase = TripPhase.Upcoming,
-                status = TripStatus.StartsIn(adjusting.days),
-                adaptation = null,
-                bodyTime = null,
-            )
-        }
-        val supersededPast = superseded
-            .filter { it.status !is TripStatus.Adjusting }
-            .map { s ->
-                val pastStatus = when {
-                    s.trip.strategyOverride == AdaptationStrategy.StayOnHomeTime -> TripStatus.StayedOnHomeTime
-                    s.adaptation != null || s.daysSaved > 0.0 -> TripStatus.Adapted
-                    else -> TripStatus.Finished
-                }
-                s.copy(
-                    phase = TripPhase.Past,
-                    status = pastStatus,
+    fun partition(summaries: List<TripSummary>, now: Instant): PartitionedTrips {
+        val nowTrip = NowTrip.pick(summaries, now, { it.trip }, { it.window })
+        val others = summaries.filter { it.id != nowTrip?.id }
+        val upcoming = others.mapNotNull { s ->
+            when {
+                s.phase == TripPhase.Upcoming -> s
+                // Pre-travel days of a trip that isn't "now": it still lies ahead.
+                s.status is TripStatus.Adjusting -> s.copy(
+                    phase = TripPhase.Upcoming,
+                    status = TripStatus.StartsIn(s.status.days),
                     adaptation = null,
                     bodyTime = null,
                 )
+                else -> null
             }
-        val following = (supersededUpcoming + upcoming.filter { it.id != nowTrip?.id })
-            .sortedBy { it.trip.departure }
-        val allPast = (supersededPast + past)
-            .sortedByDescending { it.trip.arrival }
+        }
+        val past = others.mapNotNull { s ->
+            when {
+                s.phase == TripPhase.Past -> s
+                s.phase == TripPhase.InProgress && s.status !is TripStatus.Adjusting -> s.copy(
+                    phase = TripPhase.Past,
+                    status = supersededStatus(s),
+                    adaptation = null,
+                    bodyTime = null,
+                )
+                else -> null
+            }
+        }
         return PartitionedTrips(
             nowTrip = nowTrip,
-            upcoming = following,
-            past = allPast,
+            upcoming = upcoming.sortedBy { it.trip.departure },
+            past = past.sortedByDescending { it.trip.arrival },
         )
+    }
+
+    /** Where a trip under way stood when the next trip took over from it. */
+    private fun supersededStatus(s: TripSummary): TripStatus {
+        if (s.homeTime) return TripStatus.StayedOnHomeTime
+        // Without a plan there's nothing to say about the body clock.
+        val progress = s.adaptation?.progress ?: return TripStatus.Finished
+        val percent = (progress * 100).roundToInt()
+        return if (percent >= 100) TripStatus.Adapted else TripStatus.PartlyAdapted(percent.coerceAtLeast(0))
     }
 
     /**

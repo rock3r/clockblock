@@ -53,13 +53,25 @@ class ContrastAuditTest {
             listOf(
                 "in progress" to (s.primaryContainer to s.onPrimaryContainer),
                 "upcoming" to (s.surfaceContainerHigh to s.onSurface),
-                "past" to (s.surfaceContainerLow to s.onSurface),
             ).forEach { (card, pair) ->
                 val (container, content) = pair
                 // TripCard draws its route line and endpoint cities at 86 % of the content colour (SecondaryContentAlpha).
                 val faint = ColorMath.over(content.copy(alpha = 0.86f), container)
                 withClue("$name $card faint line") { ColorMath.contrast(faint, container) shouldBeGreaterThanOrEqual 4.5f }
             }
+        }
+    }
+
+    @Test
+    fun `past trip cards look past through colour, not by fading their text`() = assertSoftly {
+        // TripCard (tripCardColors): a past card is surfaceContainerLow with every text line in onSurfaceVariant at
+        // full strength, and its status chip onSurfaceVariant on surfaceContainerHighest. No layer alpha on top.
+        listOf("light" to ClockblockLightColors, "dark" to ClockblockDarkColors).forEach { (name, s) ->
+            withClue("$name past card text") { ColorMath.contrast(s.onSurfaceVariant, s.surfaceContainerLow) shouldBeGreaterThanOrEqual 4.5f }
+            withClue("$name past card chip") { ColorMath.contrast(s.onSurfaceVariant, s.surfaceContainerHighest) shouldBeGreaterThanOrEqual 4.5f }
+            // Still visibly different from an upcoming card (surfaceContainerHigh + onSurface).
+            withClue("$name past surface differs") { (s.surfaceContainerLow != s.surfaceContainerHigh) shouldBe true }
+            withClue("$name past ink differs") { (s.onSurfaceVariant != s.onSurface) shouldBe true }
         }
     }
 

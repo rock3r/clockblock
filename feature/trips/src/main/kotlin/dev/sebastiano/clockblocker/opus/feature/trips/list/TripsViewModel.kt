@@ -85,7 +85,7 @@ class TripsViewModel(
         val summaries = pairs.map { (trip, plan) ->
             TripSummaries.summarize(trip, plan, now, today, titles.suggest(trip))
         }
-        val partitioned = TripSummaries.partition(summaries)
+        val partitioned = TripSummaries.partition(summaries, now)
         val inProgress = summaries.filter { it.phase == TripPhase.InProgress }
         TripsUiState(
             loading = false,

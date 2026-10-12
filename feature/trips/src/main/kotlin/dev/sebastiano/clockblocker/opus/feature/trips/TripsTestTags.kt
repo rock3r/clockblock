@@ -13,7 +13,6 @@ object TripsTestTags {
     const val EmptyDemoTrip = "trips_empty_demo"
     const val UpcomingEmptyState = "trips_upcoming_empty"
     const val UpcomingEmptyNow = "trips_upcoming_empty_now"
-    const val UpcomingEmptyPlan = "trips_upcoming_empty_plan"
     const val PastGlobeSheet = "trips_past_globe_sheet"
     const val PastGlobe = "trips_past_globe"
     const val MenuEdit = "trip_menu_edit"
