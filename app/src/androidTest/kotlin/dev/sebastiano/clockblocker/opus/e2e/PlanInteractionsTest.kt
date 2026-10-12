@@ -113,7 +113,7 @@ class PlanInteractionsTest : ClockblockE2eTest() {
         launch(deepLink = "clockblock://plan/${active.trip.id}")
         awaitTag(PlanTags.NowCard, LongTimeoutMillis)
 
-        // Two fingers spreading from the dial's centre open the world; Back returns to the dial.
+        // Two fingers spreading on the dial zoom out to the world; Back zooms back in to the dial.
         awaitTag(PlanTags.Dial).performTouchInput {
             pinch(center - Offset(20f, 0f), center - Offset(width / 3f, 0f), center + Offset(20f, 0f), center + Offset(width / 3f, 0f))
         }
@@ -125,8 +125,16 @@ class PlanInteractionsTest : ClockblockE2eTest() {
 
         // TalkBack: Show the world on the dial, Back to the dial on the globe.
         awaitTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_action))
-        awaitTag(PlanTags.World).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_back))
+        awaitTag(PlanTags.WorldGlobe).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_back))
         awaitGone(PlanTags.World)
+
+        // The full-screen world opens over the plan and Back closes it.
+        awaitTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel(context.getString(PlanR.string.plan_world_action))
+        awaitTag(PlanTags.WorldFullScreen).performClick()
+        awaitTag(PlanTags.WorldOverlay).assertIsDisplayed()
+        device.pressBack()
+        awaitGone(PlanTags.WorldOverlay)
+        awaitTag(PlanTags.World).assertIsDisplayed()
     }
 
     @Test

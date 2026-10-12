@@ -34,8 +34,8 @@ data class WorldCamera(
 
         fun at(progress: Float, marker: Offset, zoomIn: Float = DefaultZoomIn, still: Boolean = false): WorldCamera {
             val p = progress.coerceIn(0f, 1f)
-            val dialAlpha = 1f - smoothstep(0f, 0.6f, p)
-            val globeAlpha = smoothstep(0f, 0.45f, p)
+            val dialAlpha = 1f - smoothstep(0.15f, 0.8f, p)
+            val globeAlpha = smoothstep(0f, 0.4f, p)
             val chromeAlpha = smoothstep(0.75f, 1f, p)
             if (still) {
                 return WorldCamera(1f, Offset.Zero, globeAlpha, 1f, Offset.Zero, dialAlpha, chromeAlpha)

@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -199,6 +200,9 @@ internal fun DialAndWorld(
     ) {
         Box(
             Modifier
+                // Until the world is open, the dial is on top: it shrinks onto the globe (and grows back off it on
+                // the way in) rather than behind it. Once open, the world is on top and takes the touches.
+                .zIndex(if (open) 0f else 1f)
                 .graphicsLayer {
                     val c = camera()
                     val r = RouteGlobeDefaults.radius(size.width, size.height)

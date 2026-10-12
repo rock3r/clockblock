@@ -143,7 +143,13 @@ fun GlobeControls(state: RouteGlobeState, modifier: Modifier = Modifier, zoomabl
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val scope = rememberCoroutineScope()
-    val colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = GlobeColors.current.scrim, contentColor = GlobeColors.current.label)
+    val globeColors = GlobeColors.current
+    val colors = IconButtonDefaults.filledTonalIconButtonColors(
+        containerColor = globeColors.scrim,
+        contentColor = globeColors.label,
+        disabledContainerColor = globeColors.scrim.copy(alpha = 0.4f),
+        disabledContentColor = globeColors.label.copy(alpha = 0.38f),
+    )
     fun spec() = if (reduce) null else motion.zoomSpatial<Float>()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
         if (zoomable) {
