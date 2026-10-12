@@ -854,6 +854,11 @@ internal fun ZonedTimes(range: String, city: String, style: TextStyle, color: Co
 @ReadOnlyComposable
 private fun SecondaryTimeStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
 
+/** A nested chip's own times: label size with tabular digits. */
+@Composable
+@ReadOnlyComposable
+private fun ChipTimeStyle(): TextStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+
 /**
  * A rail row's three columns, in order: time, rail (sky band and capsule) and text. The text column's own height sets
  * the row's, then the rail column is stretched to it. (A Row with `height(IntrinsicSize.Min)` did this before, but a
@@ -993,10 +998,12 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f, fill = false)) {
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                // A step smaller than the row's own times: the chip is the lower-priority block, and its narrower
+                // column keeps a range on one line at large font sizes.
                 RangeAndDuration(
                     range = formatter.range(advice.start, advice.end, day.zone, resources),
                     duration = duration,
-                    style = ClockblockTheme.textStyles.timeLabel,
+                    style = ChipTimeStyle(),
                     color = content,
                     quiet = quietContent,
                 )
