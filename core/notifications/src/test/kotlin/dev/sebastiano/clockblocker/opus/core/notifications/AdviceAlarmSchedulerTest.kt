@@ -262,6 +262,18 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `an alarm left in a slot only an older build used is cancelled after the update`() = runTest {
+        val retired = AdviceAlarmScheduler.MAX_ALARMS // #160 used one slot more
+        val at = utc("2026-10-10T07:15")
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), NotificationIntents.alarm(context, retired, at))
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), NotificationIntents.backstop(context, retired, at))
+
+        scheduler().resync()
+
+        scheduled.none { it.triggerAtMs == at.toEpochMilli() } shouldBe true
+    }
+
+    @Test
     fun `rescheduling with fewer transitions cancels stale alarms`() = runTest {
         val scheduler = scheduler()
         scheduler.resync()

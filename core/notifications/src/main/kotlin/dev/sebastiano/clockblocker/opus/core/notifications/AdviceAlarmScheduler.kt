@@ -204,7 +204,8 @@ class AdviceAlarmScheduler(
                 )
             }
         }
-        for (slot in instants.size until MAX_ALARMS) {
+        // Up to RETIRED_MAX_ALARMS: an update from a build that held more slots may leave its top ones armed.
+        for (slot in instants.size until RETIRED_MAX_ALARMS) {
             cancel(manager, NotificationIntents.existingAlarm(application, slot))
             cancel(manager, NotificationIntents.existingBackstop(application, slot))
         }
@@ -259,6 +260,9 @@ class AdviceAlarmScheduler(
 
         /** Plan transitions + snooze + Live Update tick + body-clock header change + widget dial refresh. */
         const val MAX_ALARMS: Int = PLAN_ALARMS + 4
+
+        /** The most slots any build has used (#160 had one more, for the globe), so stale ones are still cancelled. */
+        internal const val RETIRED_MAX_ALARMS: Int = PLAN_ALARMS + 5
 
         /** The platform minimum window for inexact alarms (shorter windows are stretched to this anyway). */
         val FALLBACK_WINDOW: Duration = Duration.ofMinutes(10)
