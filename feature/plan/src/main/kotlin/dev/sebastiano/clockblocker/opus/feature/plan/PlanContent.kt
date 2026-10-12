@@ -1,10 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.plan
 
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
 import android.content.res.Resources
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -29,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -211,6 +206,9 @@ internal class PlanScreenState(
 
     /** The world behind the dial is showing (pinch out on the dial, or TalkBack's Show the world). */
     var showWorld: Boolean by mutableStateOf(false)
+
+    /** The world is open full screen over the plan (its full-screen button or TalkBack action). */
+    var worldExpanded: Boolean by mutableStateOf(false)
     var showEarlier: Boolean by mutableStateOf(false)
     var pendingScrollKey: String? by mutableStateOf(null)
     var celebrationDismissed: Boolean by mutableStateOf(false)
@@ -571,7 +569,12 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             if (origin.isNotBlank() && destination.isNotBlank()) HeaderRoute(origin, destination) else null
         }
         Scaffold(
-            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection).testTag(PlanTags.Screen),
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection)
+                .testTag(PlanTags.Screen)
+                // The full-screen world covers the plan: TalkBack stays in it.
+                .then(if (screen.worldExpanded) Modifier.clearAndSetSemantics { } else Modifier),
             topBar = {
                 PlanHeader(
                     title = title,
@@ -827,6 +830,16 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
             }
         }
 
+        state.trip?.let { trip ->
+            PlanWorldOverlay(
+                trip = trip,
+                plan = plan,
+                at = screen.preview ?: anchor,
+                visible = screen.worldExpanded,
+                onDismiss = { screen.worldExpanded = false },
+            )
+        }
+
         screen.whyAdviceId?.let { id ->
             val target = remember(plan, id) {
                 plan.days.firstNotNullOfOrNull { day -> day.advice.firstOrNull { it.id == id }?.let { day to it } }
@@ -947,76 +960,44 @@ private class PlanSections(
             nowState
         }
         val rewind = stringResource(R.string.plan_rewind)
-        // Pinch out (or TalkBack's Show the world) swaps the dial for the trip on the globe, cross-faded on the fade
-        // token; pinch in, Back or Back to the dial return. Not an easter egg: no reduce-motion or sleep-window gate.
+        // Pinch out (or TalkBack's Show the world) zooms out from the dial to the trip on the globe, following the
+        // fingers; pinch in, Back or Back to the dial zoom back in. Not an easter egg: no reduce-motion or sleep-window
+        // gate. See DialAndWorld.
         val trip = state.trip
-        val showWorld = screen.showWorld && trip != null
-        val worldShown = animateFloatAsState(if (showWorld) 1f else 0f, ClockblockTheme.motion.fade(), label = "world")
-        val worldAction = stringResource(R.string.plan_world_action)
-        BackHandler(enabled = showWorld) { screen.showWorld = false }
         // Land dots and sea grid, off the main thread, so the world's first frame does no setup.
         val context = LocalContext.current
         LaunchedEffect(trip != null) { if (trip != null) withContext(Dispatchers.Default) { RouteGlobeDefaults.preload(context) } }
-        Box(modifier.padding(horizontal = 24.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-            // The world switch only touches this wrapper (the fade, read in its layer, and the hidden semantics):
-            // the dial's own parameters stay equal, so it skips recomposing when the world opens or closes.
-            val showTheWorld = remember(trip != null, worldAction) {
-                if (trip != null) listOf(CustomAccessibilityAction(worldAction) { screen.showWorld = true; true }) else emptyList()
-            }
-            Box(
-                Modifier
-                    .graphicsLayer {
-                        alpha = 1f - worldShown.value
-                        // No offscreen buffer for a 150 ms cross-fade (the first frames back were GPU-bound).
-                        compositingStrategy = CompositingStrategy.ModulateAlpha
-                    }
-                    .then(if (showWorld) Modifier.clearAndSetSemantics { } else Modifier),
-                contentAlignment = Alignment.Center,
-            ) {
-                // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick
-                // is a new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.
-                key(screen.selectedDay(plan.tripId)) {
-                    TwoSkiesDial(
-                        state = dialState,
-                        modifier = Modifier
-                            .widthIn(max = dialSize)
-                            .fillMaxWidth()
-                            .testTag(PlanTags.Dial),
-                        onPinchOut = if (trip != null) {
-                            { screen.showWorld = true }
-                        } else {
-                            null
-                        },
-                        extraActions = showTheWorld,
-                        onScrub = { instant ->
-                            val minute = instant.truncatedTo(ChronoUnit.MINUTES)
-                            screen.preview = if (minute == now) null else minute
-                        },
-                        onScrubEnd = { screen.preview = null },
-                        onRewind = { showSnack(rewind) },
-                        easterEggsEnabled = state.easterEggs,
-                        returnOnRelease = true,
-                        onRingsAligned = {
-                            if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
-                        },
-                    )
-                }
-            }
-            // The world fades on the same value as the dial (one cross-fade), per draw rather than through an
-            // offscreen buffer, and leaves composition once it has faded out.
-            val worldComposed by remember { derivedStateOf { worldShown.value > 0f } }
-            if (trip != null && (showWorld || worldComposed)) {
-                WorldView(
-                    trip = trip,
-                    shiftHours = plan.shiftHours,
-                    at = screen.preview ?: now,
-                    onBack = { screen.showWorld = false },
-                    modifier = Modifier
+        DialAndWorld(
+            trip = trip,
+            plan = plan,
+            at = screen.preview ?: now,
+            open = screen.showWorld && trip != null,
+            onOpenChange = { screen.showWorld = it },
+            onExpand = { screen.worldExpanded = true },
+            worldSize = dialSize,
+            modifier = modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        ) { dialModifier, showTheWorld ->
+            // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick
+            // is a new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.
+            key(screen.selectedDay(plan.tripId)) {
+                TwoSkiesDial(
+                    state = dialState,
+                    modifier = dialModifier
                         .widthIn(max = dialSize)
-                        .graphicsLayer {
-                            alpha = worldShown.value
-                            compositingStrategy = CompositingStrategy.ModulateAlpha
-                        },
+                        .fillMaxWidth()
+                        .testTag(PlanTags.Dial),
+                    extraActions = showTheWorld,
+                    onScrub = { instant ->
+                        val minute = instant.truncatedTo(ChronoUnit.MINUTES)
+                        screen.preview = if (minute == now) null else minute
+                    },
+                    onScrubEnd = { screen.preview = null },
+                    onRewind = { showSnack(rewind) },
+                    easterEggsEnabled = state.easterEggs,
+                    returnOnRelease = true,
+                    onRingsAligned = {
+                        if (screen.celebrationStage == CelebrationStage.Aligning) screen.celebrationStage = CelebrationStage.Showing
+                    },
                 )
             }
         }

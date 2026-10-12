@@ -101,4 +101,20 @@
 
     <!-- Airport search result row (TalkBack): "LHR, London, London Heathrow Airport, United Kingdom. 10:03 local time, GMT+1". -->
     <string name="place_result_description">%1$s. %2$s local time, %3$s</string>
+
+    <!-- Route globe: the interactive (large) globe and its full-screen overlay. -->
+    <string name="globe_action_turn_east">Turn the globe east</string>
+    <string name="globe_action_turn_west">Turn the globe west</string>
+    <string name="globe_action_turn_north">Tilt the globe north</string>
+    <string name="globe_action_turn_south">Tilt the globe south</string>
+    <string name="globe_action_zoom_in">Zoom in</string>
+    <string name="globe_action_zoom_out">Zoom out</string>
+    <string name="globe_action_recentre">Re-centre the globe</string>
+    <string name="globe_close">Close the globe</string>
+    <string name="globe_full_screen">Show the globe full screen</string>
+    <!-- A tapped flight: "LIS → HND". -->
+    <string name="globe_leg_codes">%1$s → %2$s</string>
+    <!-- A tapped airport with its name: "LIS · Lisbon". -->
+    <string name="globe_stop_name">%1$s · %2$s</string>
+    <string name="globe_clear_selection">Clear</string>
 </resources>

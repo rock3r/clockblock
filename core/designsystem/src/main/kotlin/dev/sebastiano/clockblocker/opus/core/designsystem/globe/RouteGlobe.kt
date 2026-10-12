@@ -18,14 +18,19 @@
  * (https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian, Apache-2.0): the halftone land and sea, the
  * terminator shading by brightness buckets and the lifted great-circle arcs. Clockblock's changes: its own palette
  * and motion tokens, allocation-free drawing (precomputed unit vectors, reused buffers and paths), framing on the
- * active leg, see-through arcs on the back of the globe, airport labels on a scrim, and tap-to-pick a leg.
+ * active leg, see-through arcs on the back of the globe, airport labels on a scrim, tap-to-pick a leg or an airport,
+ * and drag, fling and pinch to turn and zoom.
  */
 package dev.sebastiano.clockblocker.opus.core.designsystem.globe
 
 import android.content.Context
 import android.graphics.Paint
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -33,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -46,11 +52,15 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -66,6 +76,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.model.SubsolarPoint
@@ -76,21 +87,49 @@ import kotlinx.coroutines.withContext
 import java.io.DataInputStream
 import java.time.Instant
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-/** A stop on the route: where it is and the label shown beside it at full size (the airport code). */
+/**
+ * A stop on the route: where it is, the label shown beside it at full size (the airport code) and its [name] (the
+ * city or airport) for when it's tapped.
+ */
 @Immutable
-data class GlobeStop(val point: GeoPoint, val label: String)
+data class GlobeStop(val point: GeoPoint, val label: String, val name: String = "")
 
-/** One flight on the globe. */
+/** One flight on the globe, with its [name] for when it's tapped ("Flight 2 · Doha to Tokyo"). */
 @Immutable
-data class GlobeLeg(val from: GlobeStop, val to: GlobeStop)
+data class GlobeLeg(val from: GlobeStop, val to: GlobeStop, val name: String = "")
+
+/** What a [RouteGlobe] does with touch. */
+enum class GlobeInteraction {
+    /** Taps only, straight away (the small globe in a card): an arc → its leg, anywhere else → the click. */
+    Tap,
+
+    /** A large globe: drag to turn it (a flick coasts on), double-tap to re-centre, tap a flight or airport to pick it. */
+    Rotate,
+
+    /** [Rotate], plus two fingers to zoom in and out (the full-screen globe). */
+    RotateAndZoom,
+}
 
 object RouteGlobeDefaults {
     /** The globe inside a card (the trip editor's Your shift). */
     val SmallSize: Dp = 180.dp
+
+    /** How far TalkBack's turn actions (and one press of a key) turn the globe, in degrees. */
+    const val TurnStepDegrees: Float = 30f
+
+    /** The globe's radius as a fraction of half its canvas's shorter side (room for the lifted arcs and marker). */
+    const val RadiusFraction: Float = 0.94f
+
+    /** The globe's radius on a canvas [width] × [height] (at zoom 1). */
+    fun radius(width: Float, height: Float): Float = globeRadius(width, height)
+
+    /** How much TalkBack's zoom actions (and the zoom buttons) zoom in or out per step. */
+    const val ZoomStep: Float = 1.5f
 
     /**
      * Loads the land dots and builds the sea grid now, on the calling thread. The globe otherwise loads the land off
@@ -106,18 +145,24 @@ object RouteGlobeDefaults {
 /**
  * The route globe: an orthographic Earth drawn as halftone dots, shaded by the real day/night terminator at
  * [instant] (NOAA sun, `Sun.subsolarPoint`), with every leg as a great-circle arc and a dot at each stop. A night-sky
- * object in light and dark themes alike.
+ * object in light and dark themes alike ([GlobeColors]).
  *
  * - **Framing:** it looks at leg [activeLeg] (drawn bright, the others dimmer), or at the whole route. When the view
  *   changes it turns on `dataSpatial()` (a geographic position: no bounce); under reduce motion it snaps. Nothing
  *   moves on its own, so there is no self-timed loop.
  * - **The back of the globe:** route that runs round the back is drawn see-through (faint, dashed), so a long
  *   itinerary still reads as one line.
- * - [showLabels]: airport codes beside the visible stops, on a scrim (the full-size view; too small in a card).
+ * - [showLabels]: airport codes beside the visible stops, on a scrim (the full-size view; too small in a card), at
+ *   [labelAlpha] (read in draw, so a transition can fade them in without recomposing).
  * - [marker]: a dot for where the traveller is.
- * - Taps: on an arc → [onLegTap] with its index (by default [onLegClick]); anywhere else → [onClick]. TalkBack gets
- *   [contentDescription] (the trip in words), [onClick] as the click action and one custom action per leg
- *   ([legActionLabel], calling [onLegClick]).
+ * - [interaction]: [GlobeInteraction.Tap] (a card): an arc → [onLegTap] with its index (by default [onLegClick]);
+ *   anywhere else → [onClick]. [GlobeInteraction.Rotate] / [GlobeInteraction.RotateAndZoom] (a large globe): drag
+ *   to turn (a flick coasts on `globeFling()`, not under reduce motion), double-tap to re-centre, two fingers to zoom
+ *   (RotateAndZoom only); a tap on an airport or an arc picks it ([RouteGlobeState.selection], shown by
+ *   [GlobeCallout]) and an arc also calls [onLegTap]; a tap on neither clears the pick and calls [onClick].
+ * - TalkBack gets [contentDescription] (the trip in words), [onClick] as the click action, one custom action per leg
+ *   ([legActionLabel], calling [onLegClick] and picking the leg on a large globe), and on a large globe the turn,
+ *   zoom and re-centre actions, then [extraActions].
  *
  * Drawing happens entirely in the draw phase from precomputed unit vectors, into reused buffers, paths and paints:
  * a turning globe doesn't recompose or allocate per frame.
@@ -136,29 +181,39 @@ fun RouteGlobe(
     onClick: (() -> Unit)? = null,
     onClickLabel: String? = null,
     legActionLabel: (Int) -> String = { "" },
+    state: RouteGlobeState = rememberRouteGlobeState(),
+    interaction: GlobeInteraction = GlobeInteraction.Tap,
+    extraActions: List<CustomAccessibilityAction> = emptyList(),
+    labelAlpha: () -> Float = { 1f },
 ) {
     val context = LocalContext.current
     val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
+    val colors = GlobeColors.current
+    val scope = rememberCoroutineScope()
     val dots by produceState<LandDots?>(LandDots.cachedOrNull()) { if (value == null) value = withContext(Dispatchers.IO) { LandDots.load(context) } }
 
     val samples = remember(legs) { legs.map { GlobeGeo.greatCircle(it.from.point, it.to.point) } }
     val routes = remember(samples) { samples.map(::RouteVectors) }
     val stops = remember(legs) { routeStops(legs) }
-    val stopVectors = remember(stops) { UnitVectors(stops.map { it.point }) }
+    val stopPoints = remember(stops) { stops.map { it.point } }
+    val stopVectors = remember(stops) { UnitVectors(stopPoints) }
     val active = activeLeg?.takeIf { it in legs.indices }
     val target = remember(samples, active) { GlobeGeo.routeView(samples, active) }
 
-    val latitude = remember { Animatable(target.latitude.toFloat()) }
-    val longitude = remember { Animatable(target.longitude.toFloat()) }
-    LaunchedEffect(target, reduce) {
-        val toLongitude = longitude.value + GlobeGeo.longitudeDelta(longitude.value.toDouble(), target.longitude).toFloat()
-        if (reduce) {
-            latitude.snapTo(target.latitude.toFloat())
-            longitude.snapTo(toLongitude)
-        } else {
-            launch { latitude.animateTo(target.latitude.toFloat(), motion.dataSpatial()) }
-            launch { longitude.animateTo(toLongitude, motion.dataSpatial()) }
+    // The first framing is at once (the globe opens already looking at its route); later ones turn to it.
+    remember(state) { state.frameAtOnce(target) }
+    LaunchedEffect(state, target, reduce) {
+        if (state.framing == target) return@LaunchedEffect
+        state.framing = target
+        state.recentre(if (reduce) null else motion.dataSpatial())
+    }
+    // A pick on legs that have since changed (another trip, an edited route) means nothing any more.
+    LaunchedEffect(state, legs) {
+        when (val picked = state.selection) {
+            is GlobeSelection.Leg -> if (picked.index !in legs.indices) state.selection = null
+            is GlobeSelection.Stop -> if (picked.index !in stops.indices) state.selection = null
+            null -> Unit
         }
     }
 
@@ -169,12 +224,26 @@ fun RouteGlobe(
     val renderer = remember { GlobeRenderer() }
 
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(color = GlobePalette.Label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-    val labels: List<TextLayoutResult>? = if (showLabels) remember(stops, measurer) { stops.map { measurer.measure(it.label, labelStyle) } } else null
+    val labelStyle = TextStyle(color = colors.label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    val labels: List<TextLayoutResult>? = if (showLabels) remember(stops, measurer, colors) { stops.map { measurer.measure(it.label, labelStyle) } } else null
 
     val currentOnLegTap by rememberUpdatedState(onLegTap)
     val currentOnClick by rememberUpdatedState(onClick)
     val currentSamples by rememberUpdatedState(samples)
+    val currentStops by rememberUpdatedState(stopPoints)
+    val currentReduce by rememberUpdatedState(reduce)
+    val currentMotion by rememberUpdatedState(motion)
+    val large = interaction != GlobeInteraction.Tap
+    val zoomable = interaction == GlobeInteraction.RotateAndZoom
+
+    val turnEast = stringResource(R.string.globe_action_turn_east)
+    val turnWest = stringResource(R.string.globe_action_turn_west)
+    val turnNorth = stringResource(R.string.globe_action_turn_north)
+    val turnSouth = stringResource(R.string.globe_action_turn_south)
+    val zoomIn = stringResource(R.string.globe_action_zoom_in)
+    val zoomOut = stringResource(R.string.globe_action_zoom_out)
+    val recentre = stringResource(R.string.globe_action_recentre)
+    val legCodes = stringResource(R.string.globe_leg_codes)
 
     Canvas(
         modifier
@@ -184,26 +253,147 @@ fun RouteGlobe(
                     role = Role.Button
                     onClick(label = onClickLabel) { onClick(); true }
                 }
-                if (onLegClick != null && (legs.size > 1 || (onClick == null && legs.isNotEmpty()))) {
-                    customActions = legs.indices.map { i -> CustomAccessibilityAction(legActionLabel(i)) { onLegClick(i); true } }
+                val legActions = if (large || (onLegClick != null && (legs.size > 1 || (onClick == null && legs.isNotEmpty())))) {
+                    legs.indices.map { i ->
+                        val label = legActionLabel(i).ifEmpty { legs[i].name.ifEmpty { legCodes.format(legs[i].from.label, legs[i].to.label) } }
+                        CustomAccessibilityAction(label) {
+                            if (large) state.selection = GlobeSelection.Leg(i)
+                            onLegClick?.invoke(i)
+                            true
+                        }
+                    }
+                } else {
+                    emptyList()
+                }
+                val cameraActions = if (large) {
+                    fun spec() = if (reduce) null else motion.zoomSpatial<Float>()
+                    buildList {
+                        add(CustomAccessibilityAction(turnEast) { scope.launch { state.turnBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        add(CustomAccessibilityAction(turnWest) { scope.launch { state.turnBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        add(CustomAccessibilityAction(turnNorth) { scope.launch { state.tiltBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        add(CustomAccessibilityAction(turnSouth) { scope.launch { state.tiltBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        if (zoomable) {
+                            add(CustomAccessibilityAction(zoomIn) { scope.launch { state.zoomTo(state.zoom * RouteGlobeDefaults.ZoomStep, spec()) }; true })
+                            add(CustomAccessibilityAction(zoomOut) { scope.launch { state.zoomTo(state.zoom / RouteGlobeDefaults.ZoomStep, spec()) }; true })
+                        }
+                        if (state.moved) add(CustomAccessibilityAction(recentre) { scope.launch { state.recentre(spec()) }; true })
+                    }
+                } else {
+                    emptyList()
+                }
+                val all = legActions + cameraActions + extraActions
+                if (all.isNotEmpty()) customActions = all
+            }
+            .pointerInput(interaction) {
+                fun radiusPx() = globeRadius(size.width.toFloat(), size.height.toFloat())
+
+                // A tap at [tap], on the unit disc of the (zoomed) globe.
+                fun disc(tap: Offset): Offset {
+                    val radius = radiusPx() * state.zoom
+                    return Offset((tap.x - size.width / 2f) / radius, -(tap.y - size.height / 2f) / radius)
+                }
+
+                fun tolerance(): Double = (TapTolerance.toPx() / (radiusPx() * state.zoom)).toDouble()
+
+                if (!large) {
+                    detectTapGestures { tap ->
+                        val p = disc(tap)
+                        val hit = currentOnLegTap?.let { GlobeGeo.hitLeg(p.x.toDouble(), p.y.toDouble(), currentSamples, state.view, tolerance()) }
+                        if (hit != null) currentOnLegTap?.invoke(hit) else currentOnClick?.invoke()
+                    }
+                } else {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            state.selection = null
+                            scope.launch { state.recentre(if (currentReduce) null else currentMotion.zoomSpatial()) }
+                        },
+                        onTap = { tap ->
+                            val p = disc(tap)
+                            val x = p.x.toDouble()
+                            val y = p.y.toDouble()
+                            val stop = GlobeGeo.hitStop(x, y, currentStops, state.view, tolerance())
+                            val leg = if (stop == null) GlobeGeo.hitLeg(x, y, currentSamples, state.view, tolerance()) else null
+                            when {
+                                stop != null -> state.selection = GlobeSelection.Stop(stop)
+                                leg != null -> {
+                                    state.selection = GlobeSelection.Leg(leg)
+                                    currentOnLegTap?.invoke(leg)
+                                }
+                                else -> {
+                                    state.selection = null
+                                    currentOnClick?.invoke()
+                                }
+                            }
+                        },
+                    )
                 }
             }
-            .pointerInput(Unit) {
-                detectTapGestures { tap ->
-                    val radius = globeRadius(size.width.toFloat(), size.height.toFloat())
-                    val x = (tap.x - size.width / 2f) / radius
-                    val y = -(tap.y - size.height / 2f) / radius
-                    val view = GlobeView(latitude.value.toDouble(), longitude.value.toDouble())
-                    val hit = currentOnLegTap?.let { GlobeGeo.hitLeg(x.toDouble(), y.toDouble(), currentSamples, view, (TapTolerance.toPx() / radius).toDouble()) }
-                    if (hit != null) currentOnLegTap?.invoke(hit) else currentOnClick?.invoke()
-                }
-            },
+            .then(
+                if (!large) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(interaction) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            scope.launch { state.stop() }
+                            val slop = viewConfiguration.touchSlop
+                            var dragging = false
+                            var pan = Offset.Zero
+                            var zoom = 1f
+                            var taken = false
+                            val velocity = VelocityTracker()
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                // Someone up the tree took the gesture (the plan's pinch back to the dial).
+                                if (event.changes.any { it.isConsumed }) {
+                                    taken = true
+                                    break
+                                }
+                                val pressed = event.changes.filter { it.pressed }
+                                if (pressed.isEmpty()) break
+                                val zoomChange = if (zoomable) event.calculateZoom() else 1f
+                                val panChange = event.calculatePan()
+                                if (!dragging) {
+                                    pan += panChange
+                                    zoom *= zoomChange
+                                    val zoomMotion = abs(1f - zoom) * event.calculateCentroidSize(useCurrent = false)
+                                    dragging = pan.getDistance() > slop || zoomMotion > slop
+                                }
+                                if (dragging) {
+                                    val radius = globeRadius(size.width.toFloat(), size.height.toFloat()) * state.zoom
+                                    if (panChange != Offset.Zero) {
+                                        val next = state.dragTarget(panChange.x / radius, panChange.y / radius)
+                                        scope.launch { state.snapTo(next) }
+                                    }
+                                    if (zoomChange != 1f) {
+                                        val level = state.zoomTarget(zoomChange)
+                                        scope.launch { state.zoomLevel.snapTo(level) }
+                                    }
+                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                }
+                                // A fling only carries on from one finger: two lifting never line up.
+                                if (pressed.size == 1) velocity.addPosition(pressed[0].uptimeMillis, pressed[0].position) else velocity.resetTracking()
+                            }
+                            state.endDrag()
+                            if (dragging && !taken && !currentReduce) {
+                                val v = velocity.calculateVelocity()
+                                val radius = globeRadius(size.width.toFloat(), size.height.toFloat()) * state.zoom
+                                if (v.x.isFinite() && v.y.isFinite() && (abs(v.x) + abs(v.y)) > 0f) {
+                                    scope.launch { state.fling(v.x / radius, v.y / radius, currentMotion.globeFling()) }
+                                }
+                            }
+                        }
+                    }
+                },
+            ),
     ) {
         // Animated values are read here, in the draw phase only.
         renderer.draw(
             scope = this,
-            latitude = latitude.value,
-            longitude = longitude.value,
+            colors = colors,
+            latitude = state.latitude.value,
+            longitude = state.longitude.value,
+            zoom = state.zoomLevel.value,
             dots = dots,
             landLight = landLight,
             seaLit = seaLit,
@@ -212,7 +402,9 @@ fun RouteGlobe(
             active = active,
             stops = stopVectors,
             labels = labels,
+            labelAlpha = if (labels == null) 0f else labelAlpha(),
             marker = marker,
+            selection = state.selection,
         )
     }
 }
@@ -220,7 +412,7 @@ fun RouteGlobe(
 private const val TerminatorBucketSeconds = 300L
 private val TapTolerance = 24.dp
 
-internal fun globeRadius(width: Float, height: Float): Float = min(width, height) / 2f * 0.94f
+internal fun globeRadius(width: Float, height: Float): Float = min(width, height) / 2f * RouteGlobeDefaults.RadiusFraction
 
 /** The distinct stops in visit order (connections and hubs shared across trips aren't repeated). */
 internal fun routeStops(legs: List<GlobeLeg>): List<GlobeStop> = buildList {
@@ -329,21 +521,6 @@ private fun rectOverlap(
     return dx * dy
 }
 
-/** The globe is a night-sky object in both themes: Clockblock's night sky ramp, warm land and Marigold routes. */
-private object GlobePalette {
-    val Ocean = Color(0xFF0B1026)
-    val OceanDay = Color(0xFF2A2E6E)
-    val Rim = Color(0xFF3B4290)
-    val Land = Color(0xFFF4EFE6)
-    val Sea = Color(0xFF9FB4FF)
-    val CityLight = Color(0xFFFFD29D)
-    val Route = Color(0xFFFFB000)
-    val RouteDim = Color(0xFFFFE2A6)
-    val Stop = Color(0xFFFFFFFF)
-    val Label = Color(0xFFFFFFFF)
-    val Scrim = Color(0xB3000000)
-}
-
 /** Unit vectors (x, y, z) of points on the sphere, for cheap per-frame rotation. */
 internal class UnitVectors(points: List<GeoPoint>) {
     val size = points.size
@@ -441,7 +618,7 @@ private class GlobeRenderer {
     private var clipCy = -1f
     private val rotation = Rotation()
     private var glow: Brush? = null
-    private var glowRadius = -1f
+    private var glowColor: Color? = null
     private var strokes: Strokes? = null
     private var strokesDensity = -1f
 
@@ -452,13 +629,17 @@ private class GlobeRenderer {
         val active = Stroke(3f * density, cap = StrokeCap.Round)
         val rim = Stroke(1.2f * density)
         val ring = Stroke(1.4f * density)
+        val halo = Stroke(8f * density, cap = StrokeCap.Round)
+        val picked = Stroke(2f * density)
     }
 
     @Suppress("LongParameterList")
     fun draw(
         scope: DrawScope,
+        colors: GlobeColors,
         latitude: Float,
         longitude: Float,
+        zoom: Float,
         dots: LandDots?,
         landLight: FloatArray?,
         seaLit: BooleanArray,
@@ -467,16 +648,44 @@ private class GlobeRenderer {
         active: Int?,
         stops: UnitVectors,
         labels: List<TextLayoutResult>?,
+        labelAlpha: Float,
         marker: GeoPoint?,
+        selection: GlobeSelection?,
     ) = with(scope) {
-        val radius = globeRadius(size.width, size.height)
+        // Zoomed in, the globe is bigger than its canvas: keep it inside, so it never draws over its neighbours.
+        if (zoom > 1.001f) {
+            clipRect { drawGlobe(colors, latitude, longitude, zoom, dots, landLight, seaLit, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection) }
+        } else {
+            drawGlobe(colors, latitude, longitude, zoom, dots, landLight, seaLit, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection)
+        }
+    }
+
+    @Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod")
+    private fun DrawScope.drawGlobe(
+        colors: GlobeColors,
+        latitude: Float,
+        longitude: Float,
+        zoom: Float,
+        dots: LandDots?,
+        landLight: FloatArray?,
+        seaLit: BooleanArray,
+        subsolar: SubsolarPoint,
+        routes: List<RouteVectors>,
+        active: Int?,
+        stops: UnitVectors,
+        labels: List<TextLayoutResult>?,
+        labelAlpha: Float,
+        marker: GeoPoint?,
+        selection: GlobeSelection?,
+    ) {
+        val radius = globeRadius(size.width, size.height) * zoom
         val cx = size.width / 2f
         val cy = size.height / 2f
         rotation.update(latitude, longitude)
         val s = strokes?.takeIf { strokesDensity == density } ?: Strokes(density).also { strokes = it; strokesDensity = density }
 
         // Ocean, with the day side glowing from under the sun.
-        drawCircle(GlobePalette.Ocean, radius, Offset(cx, cy))
+        drawCircle(colors.ocean, radius, Offset(cx, cy))
         val sx: Float
         val sy: Float
         val sd: Float
@@ -490,9 +699,10 @@ private class GlobeRenderer {
             sy = rotation.y(px, py, pz)
             sd = rotation.depth(px, py, pz)
         }
-        if (glowRadius != radius) {
-            glow = Brush.radialGradient(listOf(GlobePalette.OceanDay, Color.Transparent))
-            glowRadius = radius
+        if (glowColor != colors.oceanDay) {
+            // Sized by the circle it fills, so a zoom doesn't need a new brush every frame.
+            glow = Brush.radialGradient(listOf(colors.oceanDay, Color.Transparent))
+            glowColor = colors.oceanDay
         }
         if (clipRadius != radius || clipCx != cx || clipCy != cy) {
             clip.reset()
@@ -529,15 +739,15 @@ private class GlobeRenderer {
             }
         }
         val seaDot = radius / 105f
-        points(seaLitBuffer, lit, GlobePalette.Sea.copy(alpha = 0.32f), seaDot)
-        points(seaDimBuffer, dim, GlobePalette.Sea.copy(alpha = 0.08f), seaDot)
-        drawCircle(GlobePalette.Rim, radius, Offset(cx, cy), style = s.rim)
+        points(seaLitBuffer, lit, colors.sea.copy(alpha = 0.32f), seaDot)
+        points(seaDimBuffer, dim, colors.sea.copy(alpha = 0.08f), seaDot)
+        drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
         // Route round the back of the globe: see-through, under the land.
         buildRoutes(routes, rotation, cx, cy, radius)
         routes.indices.forEach { i ->
             val alpha = if (active == null || active == i) 0.55f else 0.3f
-            drawPath(backPaths[i], GlobePalette.RouteDim.copy(alpha = alpha), style = s.back)
+            drawPath(backPaths[i], colors.routeDim.copy(alpha = alpha), style = s.back)
         }
 
         // Land, bucketed by brightness so the cloud draws in a handful of calls.
@@ -568,31 +778,36 @@ private class GlobeRenderer {
             }
             val landDot = radius / 60f
             for (level in 0 until LandLevels) {
-                points(landBuckets[level], landCounts[level], GlobePalette.Land.copy(alpha = 0.14f + level * 0.17f), landDot)
+                points(landBuckets[level], landCounts[level], colors.land.copy(alpha = 0.14f + level * 0.17f), landDot)
             }
-            points(cityBuffer, cities, GlobePalette.CityLight.copy(alpha = 0.9f), landDot * 0.75f)
+            points(cityBuffer, cities, colors.cityLight.copy(alpha = 0.9f), landDot * 0.75f)
         }
 
-        // Route on the visible face: the active leg bright, the others dimmer.
+        // Route on the visible face: the active leg bright, the others dimmer; a picked leg on a light halo.
+        val pickedLeg = (selection as? GlobeSelection.Leg)?.index?.takeIf { it in routes.indices }
+        pickedLeg?.let { drawPath(frontPaths[it], colors.stop.copy(alpha = 0.35f), style = s.halo) }
         routes.indices.forEach { i ->
-            if (active != null && i != active) drawPath(frontPaths[i], GlobePalette.RouteDim.copy(alpha = 0.6f), style = s.dim)
+            if (active != null && i != active) drawPath(frontPaths[i], colors.routeDim.copy(alpha = 0.6f), style = s.dim)
         }
         routes.indices.forEach { i ->
-            if (active == null || i == active) drawPath(frontPaths[i], GlobePalette.Route, style = s.active)
+            if (active == null || i == active) drawPath(frontPaths[i], colors.route, style = s.active)
         }
+        pickedLeg?.let { if (active != null && it != active) drawPath(frontPaths[it], colors.route, style = s.active) }
 
-        // Stops, then their labels on a scrim.
+        // Stops (a picked one in a wider ring), then their labels on a scrim.
         val dotRadius = 3.5f * density
+        val pickedStop = (selection as? GlobeSelection.Stop)?.index
         for (i in 0 until stops.size) {
             val px = stops.x[i]
             val py = stops.y[i]
             val pz = stops.z[i]
             val o = Offset(cx + rotation.x(px, py) * radius, cy - rotation.y(px, py, pz) * radius)
             if (rotation.depth(px, py, pz) >= 0f) {
-                drawCircle(GlobePalette.Stop, dotRadius, o)
-                drawCircle(GlobePalette.Route, dotRadius + 1.6f * density, o, style = s.ring)
+                drawCircle(colors.stop, dotRadius, o)
+                drawCircle(colors.route, dotRadius + 1.6f * density, o, style = s.ring)
+                if (i == pickedStop) drawCircle(colors.stop, dotRadius + 6f * density, o, style = s.picked)
             } else {
-                drawCircle(GlobePalette.RouteDim.copy(alpha = 0.45f), dotRadius, o, style = s.ring)
+                drawCircle(colors.routeDim.copy(alpha = 0.45f), dotRadius, o, style = s.ring)
             }
         }
         labels?.let { layouts ->
@@ -626,12 +841,13 @@ private class GlobeRenderer {
                 val layout = layouts[visibleIndices[k]]
                 val p = placements[k]
                 drawRoundRect(
-                    GlobePalette.Scrim,
+                    colors.scrim,
                     topLeft = Offset(p.scrimLeft, p.scrimTop),
                     size = Size(p.scrimRight - p.scrimLeft, p.scrimBottom - p.scrimTop),
                     cornerRadius = CornerRadius(pad, pad),
+                    alpha = labelAlpha,
                 )
-                drawText(layout, topLeft = Offset(p.left, p.top))
+                drawText(layout, topLeft = Offset(p.left, p.top), alpha = labelAlpha)
             }
         }
 
@@ -644,8 +860,8 @@ private class GlobeRenderer {
             val pz = sin(phi).toFloat()
             if (rotation.depth(px, py, pz) >= 0f) {
                 val o = Offset(cx + rotation.x(px, py) * radius * 1.03f, cy - rotation.y(px, py, pz) * radius * 1.03f)
-                drawCircle(GlobePalette.Stop, 6f * density, o)
-                drawCircle(GlobePalette.Route, 4f * density, o)
+                drawCircle(colors.stop, 6f * density, o)
+                drawCircle(colors.route, 4f * density, o)
             }
         }
     }

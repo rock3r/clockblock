@@ -1,33 +1,27 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeCallout
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeColors
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeInteraction
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlay
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeSelection
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobe
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.rememberRouteGlobeState
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
@@ -74,7 +68,7 @@ internal data class EditorRoute(
             )
         }
 
-        private fun Place.toStop() = GlobeStop(GeoPoint(latitude, longitude), displayCode)
+        private fun Place.toStop() = GlobeStop(GeoPoint(latitude, longitude), displayCode, cityLabel)
     }
 }
 
@@ -146,67 +140,90 @@ private fun legLabels(route: EditorRoute): List<String> {
 }
 
 /**
- * The full-size globe in a sheet (predictive back comes with it): the airport codes beside their dots, on a scrim.
- * Tapping a flight closes the sheet and goes to its ticket.
+ * The editor's globe full screen, over the editor (or its pane): the airport codes beside their dots, on a scrim.
+ * Drag to turn it, pinch or the buttons to zoom, double-tap to frame the route again. Tapping a flight makes it the
+ * active one (the globe turns to it and the ticket behind follows) and names it, with Go to ticket to close the globe
+ * and bring that ticket into view ([onGoToTicket]; the overlay plays its exit). TalkBack's per-flight actions go
+ * straight to the ticket.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun GlobeSheet(
+internal fun EditorGlobeOverlay(
     route: EditorRoute,
     description: String,
     now: Instant,
     activeLeg: Int,
-    onLegClick: (Int) -> Unit,
+    visible: Boolean,
+    onActivateLeg: (Int) -> Unit,
+    onGoToTicket: (Int) -> Unit,
     onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, modifier = Modifier.testTag(TripsTestTags.EditorGlobeSheet)) {
-        GlobeSheetContent(route, description, now, activeLeg, onLegClick)
-    }
-}
-
-/** The sheet's content, on its own for screenshots. */
-@Composable
-internal fun GlobeSheetContent(
-    route: EditorRoute,
-    description: String,
-    now: Instant,
-    activeLeg: Int,
-    onLegClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val labels = legLabels(route)
-    Column(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            stringResource(R.string.globe_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.fillMaxWidth().semantics { heading() },
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        RouteGlobe(
-            legs = route.legs,
-            instant = now,
-            contentDescription = description,
-            activeLeg = route.globeIndexOf(activeLeg).takeIf { route.legs.size > 1 },
-            showLabels = true,
-            onLegClick = { onLegClick(route.legIndices[it]) },
-            legActionLabel = { labels[it] },
-            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth().aspectRatio(1f).testTag(TripsTestTags.EditorGlobeFull),
-        )
-        if (route.legs.size > 1) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.globe_tap_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val legs = rememberNamedLegs(route)
+    val state = rememberRouteGlobeState()
+    LaunchedEffect(visible) {
+        if (visible) {
+            state.selection = null
+            state.recentre(null)
+        }
+    }
+    GlobeOverlay(
+        visible = visible,
+        onDismiss = onDismiss,
+        title = stringResource(R.string.globe_title),
+        subtitle = description,
+        state = state,
+        modifier = modifier.testTag(TripsTestTags.EditorGlobeOverlay),
+        globe = { globeModifier ->
+            RouteGlobe(
+                legs = legs,
+                instant = now,
+                contentDescription = description,
+                activeLeg = route.globeIndexOf(activeLeg).takeIf { route.legs.size > 1 },
+                showLabels = true,
+                onLegClick = { onGoToTicket(route.legIndices[it]) },
+                onLegTap = { onActivateLeg(route.legIndices[it]) },
+                legActionLabel = { labels[it] },
+                state = state,
+                interaction = GlobeInteraction.RotateAndZoom,
+                modifier = globeModifier.testTag(TripsTestTags.EditorGlobeFull),
             )
+        },
+        callout = { calloutModifier ->
+            GlobeCallout(state, legs, calloutModifier) { selection ->
+                if (selection is GlobeSelection.Leg) {
+                    TextButton(
+                        onClick = { onGoToTicket(route.legIndices[selection.index]) },
+                        modifier = Modifier.testTag(TripsTestTags.EditorGlobeGoToTicket),
+                    ) {
+                        Text(stringResource(R.string.globe_go_to_ticket), color = GlobeColors.current.route)
+                    }
+                }
+            }
+        },
+        details = if (route.legs.size > 1) {
+            { detailsModifier ->
+                Text(
+                    stringResource(R.string.globe_tap_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = GlobeColors.current.label.copy(alpha = 0.86f),
+                    modifier = detailsModifier,
+                )
+            }
+        } else {
+            null
+        },
+    )
+}
+
+/** The drawn legs, each named for when it's tapped ("Flight 2 · Doha to Tokyo"). */
+@Composable
+private fun rememberNamedLegs(route: EditorRoute): List<GlobeLeg> {
+    val template = stringResource(R.string.globe_leg_name)
+    return remember(route, template) {
+        route.legs.mapIndexed { i, leg ->
+            val (from, to) = route.legPlaces[i]
+            leg.copy(name = template.format(route.legIndices[i] + 1, from.cityLabel, to.cityLabel))
         }
     }
 }

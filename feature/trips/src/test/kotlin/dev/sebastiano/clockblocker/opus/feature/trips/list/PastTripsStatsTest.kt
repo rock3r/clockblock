@@ -9,7 +9,9 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
 
@@ -39,7 +41,8 @@ class PastTripsStatsTest {
         stats.flightsCount shouldBe 4
         // SFO, LHR, SIN, SYD, LIS, HND (LHR is shared between two trips and counted once).
         stats.airportsCount shouldBe 6
-        stats.totalShiftHours shouldBe 25f
+        // Hours of time difference, flight by flight: SFO → LHR 8, LHR → SIN 7, SIN → SYD 2, LIS → HND 8.
+        stats.hoursOfTimeDifference shouldBe 25f
         stats.daysSaved shouldBeGreaterThan 0
 
         val expectedKm = past
@@ -69,13 +72,38 @@ class PastTripsStatsTest {
     }
 
     @Test
+    fun `a round trip counts the time difference of both flights, not the net change of zero`() {
+        val out = TripsSamples.lisbonTokyo.legs.single()
+        val back = FlightLeg(
+            id = "back",
+            origin = out.destination,
+            destination = out.origin,
+            departureLocal = LocalDateTime.of(2026, 4, 12, 11, 0),
+            arrivalLocal = LocalDateTime.of(2026, 4, 12, 18, 0),
+        )
+        val roundTrip = TripsSamples.lisbonTokyo.copy(id = "round", legs = listOf(out, back))
+        // Lisbon (UTC+1 in April) ↔ Tokyo (UTC+9): 8 hours out and 8 back.
+        hoursOfTimeDifference(roundTrip) shouldBe 16f
+        PastTripsStats.of(listOf(summary(roundTrip))).hoursOfTimeDifference shouldBe 16f
+    }
+
+    @Test
+    fun `half-hour zones count their half hours`() {
+        val out = TripsSamples.lisbonTokyo.legs.single()
+        val delhi = out.destination.copy(code = "DEL", zoneId = "Asia/Kolkata")
+        val trip = TripsSamples.lisbonTokyo.copy(legs = listOf(out.copy(destination = delhi)))
+        // UTC+1 → UTC+5:30.
+        hoursOfTimeDifference(trip) shouldBe 4.5f
+    }
+
+    @Test
     fun `empty past list produces zero stats`() {
         val stats = PastTripsStats.of(emptyList())
         stats.tripsCount shouldBe 0
         stats.flightsCount shouldBe 0
         stats.airportsCount shouldBe 0
         stats.totalDistanceKm shouldBe 0
-        stats.totalShiftHours shouldBe 0f
+        stats.hoursOfTimeDifference shouldBe 0f
         stats.daysSaved shouldBe 0
         stats.legs shouldContainExactly emptyList()
     }
