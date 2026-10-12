@@ -50,7 +50,8 @@ internal data class WidgetGlobeSpec(
 internal sealed interface GlobeOp {
     data class Circle(val cx: Float, val cy: Float, val r: Float, val color: Int, val stroke: Float = 0f) : GlobeOp
 
-    data class Dots(val xy: FloatArray, val count: Int, val r: Float, val color: Int) : GlobeOp
+    /** Dots of one colour: [count] floats of `x, y, radius` triples (each dot has its own foreshortened radius). */
+    data class Dots(val xyr: FloatArray, val count: Int, val color: Int) : GlobeOp
 
     data class Polyline(
         val xy: FloatArray,
@@ -118,6 +119,9 @@ internal object WidgetGlobeRenderer {
     private const val LAND_LEVELS = 6
     private const val SUN_GLOW_STEPS = 7
     private const val SIN_SIX_DEGREES = 0.104528f
+
+    /** Dots whose foreshortened radius would be smaller than this (in layout dp) are dropped near the horizon. */
+    private const val MIN_DOT_DP = 0.4f
 
     fun spec(
         context: Context,
@@ -289,27 +293,20 @@ internal object WidgetGlobeRenderer {
         val sea = SeaGrid
         val light = lightOf(sea, subsolar)
         val winners = cullVisibleDots(sea, rot, gridSize = (2f * radius / maxOf(radius / 14f, 2.8f)).toInt().coerceIn(14, 28))
-        val litXy = FloatArray(winners.size * 2)
-        val dimXy = FloatArray(winners.size * 2)
-        var litCount = 0
-        var dimCount = 0
+        val seaRadius = (radius / 140f).coerceAtLeast(0.55f)
+        val lit = DotBuffer(winners.size)
+        val dim = DotBuffer(winners.size)
         for (i in winners) {
             val px = sea.x[i]
             val py = sea.y[i]
             val pz = sea.z[i]
+            val r = foreshortened(seaRadius, rot.depth(px, py, pz)) ?: continue
             val ox = cx + rot.x(px, py) * radius
             val oy = cy - rot.y(px, py, pz) * radius
-            if (light[i] > 0f) {
-                litXy[litCount++] = ox
-                litXy[litCount++] = oy
-            } else {
-                dimXy[dimCount++] = ox
-                dimXy[dimCount++] = oy
-            }
+            (if (light[i] > 0f) lit else dim).add(ox, oy, r)
         }
-        val seaRadius = (radius / 140f).coerceAtLeast(0.55f)
-        if (litCount > 0) ops += GlobeOp.Dots(litXy, litCount, seaRadius, withAlpha(seaColor, 0.32f))
-        if (dimCount > 0) ops += GlobeOp.Dots(dimXy, dimCount, seaRadius, withAlpha(seaColor, 0.08f))
+        lit.addTo(ops, withAlpha(seaColor, 0.32f))
+        dim.addTo(ops, withAlpha(seaColor, 0.08f))
     }
 
     private fun addLandDots(
@@ -324,71 +321,82 @@ internal object WidgetGlobeRenderer {
     ) {
         val light = lightOf(land, subsolar)
         // Grid cell size adapts to the widget's globe radius so small 1×1 globes stay crisp and limb overdraw is culled.
-        val stepDp = maxOf(radius / 22f, 2.0f)
+        val stepDp = maxOf(radius / 20f, 2.0f)
         val winners = cullVisibleDots(land, rot, gridSize = (2f * radius / stepDp).toInt().coerceIn(22, 46))
-        val buckets = Array(LAND_LEVELS) { FloatArray(winners.size * 2) }
-        val counts = IntArray(LAND_LEVELS)
-        val cities = FloatArray(winners.size * 2)
-        var cityCount = 0
+        val landRadius = (radius / 72f).coerceAtLeast(0.8f)
+        val buckets = Array(LAND_LEVELS) { DotBuffer(winners.size) }
+        val cities = DotBuffer(winners.size)
 
         for (i in winners) {
             val px = land.x[i]
             val py = land.y[i]
             val pz = land.z[i]
             val depth = rot.depth(px, py, pz)
+            val r = foreshortened(landRadius, depth) ?: continue
             val ox = cx + rot.x(px, py) * radius
             val oy = cy - rot.y(px, py, pz) * radius
             val l = light[i]
             val level = (l * 4f + depth.coerceIn(0f, 1f) * 1.2f).toInt().coerceIn(0, LAND_LEVELS - 1)
-            val buf = buckets[level]
-            buf[counts[level]++] = ox
-            buf[counts[level]++] = oy
+            buckets[level].add(ox, oy, r)
             if (l < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) {
-                cities[cityCount++] = ox
-                cities[cityCount++] = oy
+                foreshortened(landRadius * 0.75f, depth)?.let { cities.add(ox, oy, it) }
             }
         }
 
-        val landRadius = (radius / 72f).coerceAtLeast(0.8f)
-        for (level in 0 until LAND_LEVELS) {
-            if (counts[level] > 0) {
-                ops += GlobeOp.Dots(buckets[level], counts[level], landRadius, withAlpha(colors.land, 0.14f + level * 0.17f))
-            }
+        for (level in 0 until LAND_LEVELS) buckets[level].addTo(ops, withAlpha(colors.land, 0.14f + level * 0.17f))
+        cities.addTo(ops, withAlpha(colors.cityLight, 0.9f))
+    }
+
+    /**
+     * The radius of a dot of [base] radius at [depth] (the cosine of the angle between its surface normal and the
+     * viewer): a disc lying on the sphere shows `depth` of its area, so its radius goes with `sqrt(depth)` and the dots
+     * shrink towards the horizon. Returns `null` for dots too small to see (or behind the globe), which saves bytes.
+     */
+    private fun foreshortened(base: Float, depth: Float): Float? {
+        if (depth <= 0f) return null
+        val r = base * kotlin.math.sqrt(depth)
+        return r.takeIf { it >= MIN_DOT_DP }
+    }
+
+    /** Dots of one bucket as `x, y, radius` triples. */
+    private class DotBuffer(capacity: Int) {
+        private val xyr = FloatArray(capacity * 3)
+        private var count = 0
+
+        fun add(x: Float, y: Float, r: Float) {
+            xyr[count++] = x
+            xyr[count++] = y
+            xyr[count++] = r
         }
-        if (cityCount > 0) {
-            ops += GlobeOp.Dots(cities, cityCount, landRadius * 0.75f, withAlpha(colors.cityLight, 0.9f))
+
+        fun addTo(ops: MutableList<GlobeOp>, color: Int) {
+            if (count > 0) ops += GlobeOp.Dots(xyr.copyOf(count), count, color)
         }
     }
 
     /**
-     * Keeps at most one visible dot per 2D cell of a [gridSize] × [gridSize] grid over the unit disc, preferring the
-     * frontmost dot (`depth` closest to 1). This eliminates foreshortened overdraw near the limb and scales the dot
-     * count naturally to the widget's size.
+     * Keeps at most one visible dot per cell of an equal-area grid on the sphere whose cells are [gridSize] across the
+     * globe's diameter at its centre (so `2 / gridSize` radians). Thinning on the sphere rather than on the screen
+     * keeps the halftone's perspective: towards the horizon the kept dots crowd together as they do on the in-app
+     * globe (and shrink, see [foreshortened]), instead of staying on an even screen lattice.
      */
     private fun cullVisibleDots(vectors: GlobeUnitVectors, rot: GlobeRotation, gridSize: Int): IntArray {
-        val chosen = IntArray(gridSize * gridSize) { -1 }
-        val bestDepth = FloatArray(gridSize * gridSize) { -1f }
+        val cell = 2.0 / gridSize
+        val chosen = HashMap<Long, Int>()
         for (i in 0 until vectors.size) {
             val px = vectors.x[i]
             val py = vectors.y[i]
             val pz = vectors.z[i]
-            val depth = rot.depth(px, py, pz)
-            if (depth < 0f) continue
-            val nx = ((rot.x(px, py) + 1f) * 0.5f).coerceIn(0f, 0.9999f)
-            val ny = ((1f - rot.y(px, py, pz)) * 0.5f).coerceIn(0f, 0.9999f)
-            val cell = (ny * gridSize).toInt() * gridSize + (nx * gridSize).toInt()
-            if (depth > bestDepth[cell]) {
-                bestDepth[cell] = depth
-                chosen[cell] = i
-            }
+            if (rot.depth(px, py, pz) < 0f) continue
+            val lat = kotlin.math.asin(pz.toDouble().coerceIn(-1.0, 1.0))
+            val lon = kotlin.math.atan2(py.toDouble(), px.toDouble())
+            val row = ((lat + PI / 2) / cell).toInt()
+            val rowLat = -PI / 2 + (row + 0.5) * cell
+            val columns = maxOf(1, (2 * PI * cos(rowLat) / cell).toInt())
+            val column = ((lon + PI) / (2 * PI) * columns).toInt().coerceAtMost(columns - 1)
+            chosen.putIfAbsent(row.toLong() * 100_000L + column, i)
         }
-        var count = 0
-        for (idx in chosen) if (idx >= 0) count++
-        val result = IntArray(count)
-        var out = 0
-        for (idx in chosen) if (idx >= 0) result[out++] = idx
-        result.sort()
-        return result
+        return chosen.values.toIntArray().apply { sort() }
     }
 
     private fun addRoutePolylines(
@@ -553,11 +561,10 @@ private fun RemoteDrawScope.drawGlobeOp(op: GlobeOp) {
         )
         is GlobeOp.Dots -> {
             val p = globePaint(op.color)
-            val r = op.r.rf
             var i = 0
             while (i < op.count) {
-                drawCircle(paint = p, center = RemoteOffset(op.xy[i].rf, op.xy[i + 1].rf), radius = r)
-                i += 2
+                drawCircle(paint = p, center = RemoteOffset(op.xyr[i].rf, op.xyr[i + 1].rf), radius = op.xyr[i + 2].rf)
+                i += 3
             }
         }
         is GlobeOp.Polyline -> {
