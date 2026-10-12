@@ -103,13 +103,14 @@ internal data class PastTripsStats(
 
 /**
  * The time difference [trip]'s flights crossed, in hours: for each flight, how far the destination's clock was from
- * the origin's when it flew (from the IANA zones, so DST and half-hour zones count), added up regardless of direction.
+ * the origin's when it took off (both zones at the same instant, from the IANA zones, so half-hour zones count and a
+ * clock change during the flight doesn't), added up regardless of direction.
  */
 internal fun hoursOfTimeDifference(trip: Trip): Float = trip.legs.sumOf { it.timeDifferenceHours() }.toFloat()
 
 private fun FlightLeg.timeDifferenceHours(): Double {
     val from = origin.zone.rules.getOffset(departure).totalSeconds
-    val to = destination.zone.rules.getOffset(arrival).totalSeconds
+    val to = destination.zone.rules.getOffset(departure).totalSeconds
     return abs(to - from) / 3600.0
 }
 

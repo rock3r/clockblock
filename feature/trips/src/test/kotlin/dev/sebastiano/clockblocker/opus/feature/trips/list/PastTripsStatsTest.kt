@@ -97,6 +97,19 @@ class PastTripsStatsTest {
     }
 
     @Test
+    fun `a clock change during a flight within one zone isn't a time difference`() {
+        val out = TripsSamples.lisbonTokyo.legs.single()
+        val porto = out.origin.copy(code = "OPO", city = "Porto", latitude = 41.24, longitude = -8.68)
+        // Lisbon → Porto overnight across the end of summer time (25 Oct 2026, 02:00 → 01:00): same zone throughout.
+        val leg = out.copy(
+            destination = porto,
+            departureLocal = LocalDateTime.of(2026, 10, 25, 0, 30),
+            arrivalLocal = LocalDateTime.of(2026, 10, 25, 3, 0),
+        )
+        hoursOfTimeDifference(TripsSamples.lisbonTokyo.copy(legs = listOf(leg))) shouldBe 0f
+    }
+
+    @Test
     fun `empty past list produces zero stats`() {
         val stats = PastTripsStats.of(emptyList())
         stats.tripsCount shouldBe 0

@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -151,11 +152,14 @@ fun GlobeControls(state: RouteGlobeState, modifier: Modifier = Modifier, zoomabl
         disabledContentColor = globeColors.label.copy(alpha = 0.38f),
     )
     fun spec() = if (reduce) null else motion.zoomSpatial<Float>()
+    // Derived, so a pinch or a zoom animation recomposes the buttons only when one turns on or off, not every frame.
+    val canZoomIn by remember(state) { derivedStateOf { state.zoom < RouteGlobeState.MaxZoom } }
+    val canZoomOut by remember(state) { derivedStateOf { state.zoom > 1f } }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.End) {
         if (zoomable) {
             FilledTonalIconButton(
                 onClick = { scope.launch { state.zoomTo(state.zoom * RouteGlobeDefaults.ZoomStep, spec()) } },
-                enabled = state.zoom < RouteGlobeState.MaxZoom,
+                enabled = canZoomIn,
                 colors = colors,
                 modifier = Modifier.testTag(GlobeTags.ZoomIn),
             ) {
@@ -163,7 +167,7 @@ fun GlobeControls(state: RouteGlobeState, modifier: Modifier = Modifier, zoomabl
             }
             FilledTonalIconButton(
                 onClick = { scope.launch { state.zoomTo(state.zoom / RouteGlobeDefaults.ZoomStep, spec()) } },
-                enabled = state.zoom > 1f,
+                enabled = canZoomOut,
                 colors = colors,
                 modifier = Modifier.testTag(GlobeTags.ZoomOut),
             ) {

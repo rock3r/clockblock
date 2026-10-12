@@ -293,6 +293,8 @@ fun TwoSkiesDial(
                     val slop = viewConfiguration.touchSlop
                     var lifted = false
                     var pinched = false
+                    // Where the finger was last seen before the scrub starts (past the slop, or still resting).
+                    var latest = down.position
                     withTimeoutOrNull(ScrubStartMillis) {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -306,6 +308,7 @@ fun TwoSkiesDial(
                                 lifted = true
                                 break
                             }
+                            latest = change.position
                             if ((change.position - down.position).getDistance() > slop) break
                         }
                     }
@@ -317,9 +320,18 @@ fun TwoSkiesDial(
                         DialGeometry.minuteForAngle(DialGeometry.angleOf(down.position.x - c.x, down.position.y - c.y)),
                     )
                     var lastAngle = DialGeometry.angleOf(down.position.x - c.x, down.position.y - c.y)
-                    scope.launch { scrub.snapTo(offset) }
-                    haptics.update(offset)
-                    report(offset)
+                    // The finger may have moved on while the scrub waited: the hand follows it there too, so a quick
+                    // drag and release lands where the finger let go.
+                    if (latest != down.position) {
+                        val angle = DialGeometry.angleOf(latest.x - c.x, latest.y - c.y)
+                        offset = (offset + DialGeometry.angleDelta(lastAngle, angle) / 360f * DialGeometry.MinutesPerDay)
+                            .coerceIn(-DialState.PastWindowMinutes, DialGeometry.MinutesPerDay - DialState.PastWindowMinutes - 1f)
+                        lastAngle = angle
+                    }
+                    val first = offset
+                    scope.launch { scrub.snapTo(first) }
+                    haptics.update(first)
+                    report(first)
                     down.consume()
                     var cancelled = false
                     while (!lifted) {
