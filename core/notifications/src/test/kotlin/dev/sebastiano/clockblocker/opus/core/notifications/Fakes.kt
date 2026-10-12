@@ -76,8 +76,15 @@ class RecordingSurface(override var hasPlacedGlobe: Boolean = false) : PlanSurfa
     var refreshes = 0
         private set
 
+    var globeRefreshes = 0
+        private set
+
     override suspend fun refresh() {
         refreshes++
+    }
+
+    override suspend fun refreshGlobe() {
+        globeRefreshes++
     }
 }
 

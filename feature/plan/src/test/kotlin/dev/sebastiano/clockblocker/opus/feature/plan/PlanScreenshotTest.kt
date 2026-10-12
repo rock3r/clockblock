@@ -292,10 +292,6 @@ class PlanScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w1280dp-h800dp-xhdpi")
-    fun emptyPane() = snap("empty_pane") { PlanEmptyPane(onNewTrip = {}) }
-
-    @Test
     @Config(qualifiers = "w400dp-h2400dp-xhdpi")
     fun railTall() = snap("rail_tall") { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
 

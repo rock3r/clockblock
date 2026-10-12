@@ -46,7 +46,6 @@ object PlanTags {
     const val ToolbarWhy = "plan_toolbar_why"
     const val Celebration = "plan_celebration"
     const val CelebrationDismiss = "plan_celebration_dismiss"
-    const val EmptyPane = "plan_empty_pane"
     const val DayStrip = "plan_day_strip"
     const val JourneyChart = "plan_journey_chart"
     const val LongWayRound = "plan_long_way_round"

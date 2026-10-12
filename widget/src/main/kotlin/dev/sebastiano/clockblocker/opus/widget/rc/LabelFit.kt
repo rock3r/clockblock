@@ -409,11 +409,7 @@ internal object LabelFit {
                 )
             }
             else -> {
-                val strip = if (fit.headerStrip != null || fit.headerRoute) {
-                    max(fit.headerStrip?.heightDp ?: 0f, if (fit.headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
-                } else {
-                    0f
-                }
+                val strip = stripHeightDp(fit.headerStrip, fit.headerRoute)
                 val upNext = if (fit.upNext.heightDp > 0f) fit.upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
                 val mainW = cell.width - 2 * SURFACE_PAD_DP
                 box(mainW / (1f + CARD_WEIGHT), cell.height - 2 * SURFACE_PAD_DP - strip - upNext)
@@ -440,11 +436,7 @@ internal object LabelFit {
                 cell.height - 2 * CLOCKS_TALL_PAD_DP - doneDp(texts) - CARD_TOP_DP - now.heightDp - 2 * CARD_V_PAD_DP,
             )
             else -> {
-                val strip = if (layout == TwoClocksLayout.Large && (fit.headerStrip != null || fit.headerRoute)) {
-                    max(fit.headerStrip?.heightDp ?: 0f, if (fit.headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
-                } else {
-                    0f
-                }
+                val strip = if (layout == TwoClocksLayout.Large) stripHeightDp(fit.headerStrip, fit.headerRoute) else 0f
                 val upNext = if (fit.upNext.heightDp > 0f) fit.upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
                 box(clocksMainWidth(texts, cell) / (1f + CARD_WEIGHT), cell.height - 2 * SURFACE_PAD_DP - strip - upNext)
             }
@@ -755,17 +747,8 @@ internal object LabelFit {
     /** 4×3 Two Clocks: header strip, the dial beside the now card, then as many "Up next" rows as still fit. */
     private fun twoClocksLarge(context: Context, texts: WidgetTexts, cell: CellDp): WidgetFit {
         val inner = cell.width - 2 * SURFACE_PAD_DP
-        val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
-        val route = texts.route != null
-        // The route goes first when the strip is too narrow for both, but comes back alone when no header fits.
-        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
-        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
-        val headerRoute = route && (besideRoute != null || header == null)
-        val strip = if (header != null || headerRoute) {
-            max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
-        } else {
-            0f
-        }
+        val (header, headerRoute) = headerStrip(context, texts, cell)
+        val strip = stripHeightDp(header, headerRoute)
         val total = cell.height - 2 * SURFACE_PAD_DP - strip
         val cardWidth = cardWidthDp(TwoClocksLayout.Large, texts, cell)
         val done = clocksDone(context, texts, cell, total)
@@ -782,23 +765,33 @@ internal object LabelFit {
         return WidgetFit(now = now, done = done, headerStrip = header, headerRoute = headerRoute)
     }
 
+    /**
+     * The header strip of the large layouts at [cell]: the fitted header (if any) and whether the route code shows in
+     * it. The route goes first when the strip is too narrow for both, but comes back alone when no header fits.
+     */
+    private fun headerStrip(context: Context, texts: WidgetTexts, cell: CellDp): Pair<Fitted?, Boolean> {
+        val stripWidth = cell.width - 2 * SURFACE_PAD_DP - 2 * HEADER_STRIP_SIDE_DP
+        val route = texts.route != null
+        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
+        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
+        return header to (route && (besideRoute != null || header == null))
+    }
+
+    /** The height the header strip of [headerStrip] takes, its bottom gap included; 0 when it shows nothing. */
+    private fun stripHeightDp(header: Fitted?, route: Boolean): Float = if (header != null || route) {
+        max(header?.heightDp ?: 0f, if (route) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
+    } else {
+        0f
+    }
+
     private fun globeCardWidthDp(cell: CellDp): Float {
         val main = cell.width - 2 * SURFACE_PAD_DP
         return main * CARD_WEIGHT / (1f + CARD_WEIGHT) - CARD_GAP_DP - 2 * CARD_H_PAD_DP
     }
 
     private fun routeGlobeWideWithStrip(context: Context, texts: WidgetTexts, cell: CellDp, cardWidth: Float): WidgetFit {
-        val inner = cell.width - 2 * SURFACE_PAD_DP
-        val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
-        val route = texts.route != null
-        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
-        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
-        val headerRoute = route && (besideRoute != null || header == null)
-        val strip = if (header != null || headerRoute) {
-            max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
-        } else {
-            0f
-        }
+        val (header, headerRoute) = headerStrip(context, texts, cell)
+        val strip = stripHeightDp(header, headerRoute)
         val total = cell.height - 2 * SURFACE_PAD_DP - strip
         val now = nowCard(context, texts, cardWidth, total - 2 * CARD_V_PAD_DP, withHeader = false)
         return WidgetFit(now = now, headerStrip = header, headerRoute = headerRoute)
@@ -807,16 +800,8 @@ internal object LabelFit {
     /** 4×3 Route globe: header strip, the globe beside the now card, then as many "Up next" rows as still fit. */
     private fun routeGlobeLarge(context: Context, texts: WidgetTexts, cell: CellDp): WidgetFit {
         val inner = cell.width - 2 * SURFACE_PAD_DP
-        val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
-        val route = texts.route != null
-        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
-        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
-        val headerRoute = route && (besideRoute != null || header == null)
-        val strip = if (header != null || headerRoute) {
-            max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
-        } else {
-            0f
-        }
+        val (header, headerRoute) = headerStrip(context, texts, cell)
+        val strip = stripHeightDp(header, headerRoute)
         val total = cell.height - 2 * SURFACE_PAD_DP - strip
         val cardWidth = globeCardWidthDp(cell)
         for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
