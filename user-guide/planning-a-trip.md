@@ -40,7 +40,7 @@ Each flight is a ticket: the airport codes big at the top, the departure and arr
 at the bottom.
 
 Under each code, the ticket shows the city and, in smaller type, the airport's name (when it isn't just the city,
-so London Heathrow and London Gatwick tell apart) and its UTC offset at the time of the flight ("Heathrow · GMT+1").
+so London Heathrow and London Gatwick tell apart) and its UTC offset at the time of the flight ("Heathrow", "GMT+1").
 
 1. Tap **FROM** on the ticket. A search sheet opens: type a city, an airport name or a three-letter code (for
    example LIS) and pick the airport. The search works offline. Before you type, the sheet offers a few popular

@@ -277,7 +277,18 @@ private fun RouteBanner(summary: TripSummary, colors: TripCardColors, modifier: 
             destination = destination,
             progress = summary.flightProgress,
             apex = RouteArcDefaults.apexForDuration(Duration.between(trip.departure, trip.arrival)),
-            colors = RouteArcDefaults.colors(
+            colors = colors.arcAccent?.let { accent ->
+                RouteArcDefaults.colors(
+                    background = colors.container,
+                    route = colors.route,
+                    progress = accent,
+                    origin = accent,
+                    destination = accent,
+                    plane = accent,
+                    code = colors.content,
+                    caption = colors.secondary,
+                )
+            } ?: RouteArcDefaults.colors(
                 background = colors.container,
                 route = colors.route,
                 code = colors.content,
@@ -396,7 +407,7 @@ private fun rememberActionLabels(): ActionLabels = ActionLabels(
  * A trip card's colours. Upcoming: `surfaceContainerHigh` with `onSurface` ink, secondary lines at 86 % (still
  * WCAG AA, see `ContrastAuditTest` in :core:designsystem). Past: one step lower (`surfaceContainerLow`) with
  * `onSurfaceVariant` ink at full strength for every line of text, so the card reads as past by colour without its
- * text dropping below 4.5:1; only the decorative route arc fades further.
+ * text dropping below 4.5:1; the decorative route arc turns grey (`outline`) instead of the theme's accents.
  */
 @Immutable
 internal data class TripCardColors(
@@ -404,6 +415,8 @@ internal data class TripCardColors(
     val content: Color,
     val secondary: Color,
     val route: Color,
+    /** The flown part of the arc, the end dots and the plane: the theme's accents, or greys on a past card. */
+    val arcAccent: Color?,
     val chip: Color,
     val onChip: Color,
 )
@@ -414,6 +427,7 @@ internal fun tripCardColors(isPast: Boolean, scheme: ColorScheme): TripCardColor
         content = scheme.onSurfaceVariant,
         secondary = scheme.onSurfaceVariant,
         route = scheme.onSurfaceVariant.copy(alpha = PastRouteAlpha),
+        arcAccent = scheme.outline,
         chip = scheme.surfaceContainerHighest,
         onChip = scheme.onSurfaceVariant,
     )
@@ -423,6 +437,7 @@ internal fun tripCardColors(isPast: Boolean, scheme: ColorScheme): TripCardColor
         content = scheme.onSurface,
         secondary = scheme.onSurface.copy(alpha = SecondaryContentAlpha),
         route = scheme.onSurface.copy(alpha = RouteAlpha),
+        arcAccent = null,
         chip = scheme.secondaryContainer,
         onChip = scheme.onSecondaryContainer,
     )

@@ -351,7 +351,7 @@ private val SwapClearance = 56.dp
 
 /**
  * One end of the route: "FROM", the code (or `· · ·`), the city (or "Choose airport"), and under it the airport's name
- * (when it isn't just the city, so LHR and LGW tell apart) with the zone's UTC offset at [at]: "Heathrow · GMT+1". A
+ * (when it isn't just the city, so LHR and LGW tell apart) with the zone's UTC offset at [at] on the line below ("Heathrow", "GMT+1"). A
  * button that opens the airport search; TalkBack reads "From, London, L H R, London Heathrow Airport, GMT+1", with
  * "Change airport" as the action.
  */
@@ -371,7 +371,6 @@ private fun RouteEnd(
     val city = place?.cityLabel
     val airport = place?.airportLabel
     val offset = at?.let { place?.utcOffsetLabel(it) }
-    val details = listOfNotNull(airport, offset).takeIf { it.isNotEmpty() }?.joinToString(DetailsSeparator)
     val actionLabel = stringResource(if (place != null) R.string.editor_place_change else R.string.editor_place_choose)
     val description = listOfNotNull(label, city, place?.displayCode?.let(::spellOut), airport, offset).joinToString(", ")
     Column(
@@ -406,9 +405,10 @@ private fun RouteEnd(
             overflow = TextOverflow.Ellipsis,
             textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
         )
-        if (details != null) {
+        // One line each, so a long airport name wraps on its own and the offset never dangles after it.
+        listOfNotNull(airport, offset).forEach { detail ->
             Text(
-                details,
+                detail,
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
                 maxLines = 2,
@@ -419,8 +419,6 @@ private fun RouteEnd(
         }
     }
 }
-
-private const val DetailsSeparator = " · "
 
 /** When the leg leaves [origin], as far as it's known (noon until a time is picked); null without a date. */
 private fun LegDraft.departureAt(origin: Place): Instant? =
