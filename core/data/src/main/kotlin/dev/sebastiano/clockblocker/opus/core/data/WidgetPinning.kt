@@ -1,7 +1,7 @@
 package dev.sebastiano.clockblocker.opus.core.data
 
 /** The home-screen widgets Settings can offer to pin. */
-enum class PinnableWidget { TwoClocks, NextUp }
+enum class PinnableWidget { TwoClocks, NextUp, RouteGlobe }
 
 /**
  * Asks the launcher to pin one of our widgets (`AppWidgetManager.requestPinAppWidget`). A contract so

@@ -105,6 +105,7 @@ import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.label
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.GreatCircleArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.cityName
@@ -1090,17 +1091,23 @@ private fun WidgetsSection(actions: SettingsActions) {
                 val gap = 12.dp
                 // Side by side while each tile keeps a comfortable measure for its text; stacked otherwise (large
                 // fonts, narrow windows), so names and descriptions never squeeze.
-                val sideBySide = (maxWidth - gap) / 2 >= WidgetTileMinWidth * LocalDensity.current.fontScale
-                if (sideBySide) {
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                        PinnableWidget.entries.forEach { widget ->
-                            WidgetTile(widget, onAdd = { actions.pinWidget(widget) }, modifier = Modifier.weight(1f).fillMaxHeight())
-                        }
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-                        PinnableWidget.entries.forEach { widget ->
+                val minWidth = WidgetTileMinWidth * LocalDensity.current.fontScale
+                val columns = when {
+                    (maxWidth - gap * 2) / 3 >= minWidth -> 3
+                    (maxWidth - gap) / 2 >= minWidth -> 2
+                    else -> 1
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                    PinnableWidget.entries.chunked(columns).forEach { row ->
+                        if (row.size == 1) {
+                            val widget = row.single()
                             WidgetTile(widget, onAdd = { actions.pinWidget(widget) }, modifier = Modifier.fillMaxWidth())
+                        } else {
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                row.forEach { widget ->
+                                    WidgetTile(widget, onAdd = { actions.pinWidget(widget) }, modifier = Modifier.weight(1f).fillMaxHeight())
+                                }
+                            }
                         }
                     }
                 }
@@ -1116,12 +1123,14 @@ private fun WidgetTile(widget: PinnableWidget, onAdd: () -> Unit, modifier: Modi
         when (widget) {
             PinnableWidget.TwoClocks -> R.string.settings_widget_two_clocks
             PinnableWidget.NextUp -> R.string.settings_widget_next_up
+            PinnableWidget.RouteGlobe -> R.string.settings_widget_route_globe
         },
     )
     val description = stringResource(
         when (widget) {
             PinnableWidget.TwoClocks -> R.string.settings_widget_two_clocks_description
             PinnableWidget.NextUp -> R.string.settings_widget_next_up_description
+            PinnableWidget.RouteGlobe -> R.string.settings_widget_route_globe_description
         },
     )
     val addDescription = stringResource(R.string.settings_widget_add_description, name)
@@ -1131,6 +1140,7 @@ private fun WidgetTile(widget: PinnableWidget, onAdd: () -> Unit, modifier: Modi
                 when (widget) {
                     PinnableWidget.TwoClocks -> TwoClocksArt(Modifier.size(WidgetPreviewHeight), progress = 0.35f, animated = false)
                     PinnableWidget.NextUp -> NextUpPreview()
+                    PinnableWidget.RouteGlobe -> GreatCircleArt(Modifier.size(WidgetPreviewHeight), progress = 0.65f, animated = false)
                 }
             }
             Text(name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)

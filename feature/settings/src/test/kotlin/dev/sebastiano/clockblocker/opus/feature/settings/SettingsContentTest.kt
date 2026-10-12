@@ -174,7 +174,8 @@ class SettingsContentTest {
         show()
         click(SettingsTags.pinWidget(PinnableWidget.TwoClocks))
         click(SettingsTags.pinWidget(PinnableWidget.NextUp))
-        actions.calls shouldContainExactly listOf("pin:TwoClocks", "pin:NextUp")
+        click(SettingsTags.pinWidget(PinnableWidget.RouteGlobe))
+        actions.calls shouldContainExactly listOf("pin:TwoClocks", "pin:NextUp", "pin:RouteGlobe")
     }
 
     @Test

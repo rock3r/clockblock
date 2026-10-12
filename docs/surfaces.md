@@ -46,19 +46,19 @@ A few details matter:
 
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
   15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
-  notification's body-clock header, and the next widget refresh (`TransitionPlanner.nextDialRefresh`).
-  Widgets capture the dial's blocks and the route globe's snapshot and only move the dial's hand, so they need a
-  refresh of their own at three points:
+  notification's body-clock header, the widget dial's next refresh (`TransitionPlanner.nextDialRefresh`) and the
+  route globe's 15-minute refresh (`TransitionPlanner.nextGlobeRefresh`).
+  Widgets capture the dial's blocks and only move the hand, so the dial needs a refresh of its own at two points:
   - when a block comes into view (`nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an
     hour for a clock change). Without it, a block more than 16 hours away would stay off the dial until it starts.
   - when a moment stops being due (`nextMomentEnd`, a minute after melatonin). A widget captured at the moment
     features it, and nothing else happens at its end, so it would stay featured until a later alarm.
-  - every 15 minutes during an active flight (`nextFlightRefresh`), so the route globe's interpolated traveller marker
-    and daylight advance between take-off and landing even when the flight is the only active block.
 
-  Like the plan's transitions, none of the three fires inside a Sleep or Nap window: the wake-up refreshes everything. The
-  one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features it, so its end
-  refresh still fires, a minute into the sleep.
+  Like the plan's transitions, neither of the dial refreshes fires inside a Sleep or Nap window: the wake-up refreshes
+  everything. The one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features
+  it, so its end refresh still fires, a minute into the sleep. Meanwhile, `nextGlobeRefresh` arms a silent 15-minute
+  refresh throughout any active plan that has a route, so the route globe's daylight (and, during flights, its
+  interpolated traveller marker) advances across pre-departure days, flights, layovers, post-arrival days and sleep.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it arms each instant twice:
   - a 10-minute `setWindow`, which keeps reminders within 10 minutes while the phone is awake. It isn't
@@ -607,7 +607,7 @@ Other widget behaviour:
 
 Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
 (`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with
-`AppWidgetManager.requestPinAppWidget` against the two providers, so `:feature:settings` never depends on
+`AppWidgetManager.requestPinAppWidget` against the three providers, so `:feature:settings` never depends on
 `:widget`. The card is hidden when the launcher can't pin.
 
 The widget goldens are in [`widget/src/test/screenshots`](../widget/src/test/screenshots). The images on this page
