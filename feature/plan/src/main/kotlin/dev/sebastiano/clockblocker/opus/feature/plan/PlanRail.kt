@@ -854,6 +854,18 @@ internal fun ZonedTimes(range: String, city: String, style: TextStyle, color: Co
 @ReadOnlyComposable
 private fun SecondaryTimeStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
 
+/** A nested chip's other-zone times: the smallest label size with tabular digits (still at 4.5:1). */
+@Composable
+@ReadOnlyComposable
+internal fun ChipSecondaryTimeStyle(): TextStyle = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
+
+/** A nested chip's chrome around its text column: padding, glyph and the gap after it. */
+internal val ChipStartPadding = 4.dp
+internal val ChipEndPadding = 10.dp
+internal val ChipGlyphSize = 28.dp
+internal val ChipGlyphGap = 6.dp
+internal val ChipChromeWidth = ChipStartPadding + ChipEndPadding + ChipGlyphSize + ChipGlyphGap
+
 /** A nested chip's own times: label size with tabular digits. */
 @Composable
 @ReadOnlyComposable
@@ -991,11 +1003,11 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
             },
     ) {
         Row(
-            Modifier.heightIn(min = 40.dp).padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 6.dp).clearAndSetSemantics {},
+            Modifier.heightIn(min = 40.dp).padding(start = ChipStartPadding, end = ChipEndPadding, top = 6.dp, bottom = 6.dp).clearAndSetSemantics {},
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AdviceGlyph(advice.type, active = isNow, size = 28.dp, modifier = Modifier.alpha(if (quiet) PastGlyphAlpha else 1f))
-            Spacer(Modifier.width(8.dp))
+            AdviceGlyph(advice.type, active = isNow, size = ChipGlyphSize, modifier = Modifier.alpha(if (quiet) PastGlyphAlpha else 1f))
+            Spacer(Modifier.width(ChipGlyphGap))
             Column(Modifier.weight(1f, fill = false)) {
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 // A step smaller than the row's own times: the chip is the lower-priority block, and its narrower
@@ -1007,7 +1019,9 @@ private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, o
                     color = content,
                     quiet = quietContent,
                 )
-                ZonedTimes(secondaryRange, city, SecondaryTimeStyle(), quietContent)
+                // Label size, so "02:00 – 02:30 Los Angeles" keeps its city on the line in the chip's narrower column
+                // at the default font size; larger fonts move the whole city under the times.
+                ZonedTimes(secondaryRange, city, ChipSecondaryTimeStyle(), quietContent)
                 advice.detail?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = quietContent, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }

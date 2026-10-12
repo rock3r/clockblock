@@ -74,6 +74,40 @@ class RailRowLayoutTest {
         duration.left shouldBe range.left
     }
 
+    /** A nested chip's other-zone line at the width its text column really gets (review of #149). */
+    private fun chipZoneLine(fontScale: Float) {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                    val window = LocalConfiguration.current.screenWidthDp.dp
+                    val text = window - (RowOuterPadding + RowInnerPadding) * 2 - rememberTimeColumnWidth() - RailColumnWidth - RailTextGap
+                    Box(Modifier.width(text - ChipChromeWidth)) {
+                        ZonedTimes("02:00 – 02:30", "Los Angeles", ChipSecondaryTimeStyle(), Color.Gray)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a nested chip keeps its other zone's city on the line at the default font size`() {
+        chipZoneLine(fontScale = 1f)
+        val range = compose.onNodeWithText(railRange("02:00 – 02:30")).getUnclippedBoundsInRoot()
+        val city = compose.onNodeWithText("Los Angeles").getUnclippedBoundsInRoot()
+        (city.top < range.bottom && range.top < city.bottom) shouldBe true
+        (city.left >= range.right) shouldBe true
+    }
+
+    @Test
+    fun `a nested chip at a large font moves the whole city under its times`() {
+        chipZoneLine(fontScale = 1.5f)
+        val range = compose.onNodeWithText(railRange("02:00 – 02:30")).getUnclippedBoundsInRoot()
+        val city = compose.onNodeWithText("Los Angeles").getUnclippedBoundsInRoot()
+        (city.top >= range.bottom) shouldBe true
+        ((city.bottom - city.top) < (range.bottom - range.top) * 1.5f) shouldBe true
+    }
+
     @Test
     fun `the other zone's city moves whole under its times`() {
         compose.setContent {
