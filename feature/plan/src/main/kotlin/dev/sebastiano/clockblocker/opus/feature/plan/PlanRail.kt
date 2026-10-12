@@ -454,7 +454,7 @@ private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, round
     drawPath(band, Brush.verticalGradient(listOf(top, bottom)), alpha = SkyBandAlpha)
 }
 
-private const val SkyBandAlpha = 0.16f
+internal const val SkyBandAlpha = 0.16f
 
 @Composable
 private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeColumn: Dp) {
