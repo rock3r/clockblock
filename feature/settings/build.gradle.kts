@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.core.circadian)
     implementation(projects.core.notifications)
     // Shared profile editors (sleep dial, chronotype, tools, effort) live in onboarding's `profile` package.
     implementation(projects.feature.onboarding)

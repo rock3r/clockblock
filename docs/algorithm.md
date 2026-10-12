@@ -31,7 +31,7 @@ reference scripts in `docs/research/reference/`.
 | Body clock start | `Trip.bodyClockStartZoneId` | Optional IANA zone the body clock is on at departure. Null (the default) = the first leg's origin. |
 | Habitual sleep | `UserProfile.sleep` | Home-clock bedtime and wake; duration coerced to 3–14 h. |
 | Chronotype | `UserProfile.chronotype` | Definite/Moderate morning → early, Intermediate → neutral, Moderate/Definite evening → late. |
-| Toggles | `useMelatonin`, `useCaffeine`, `canSleepOnPlanes`, `adjustBeforeDeparture`, `intensity` | See §6. |
+| Preferences | `useMelatonin`, `useCaffeine`, `canSleepOnPlanes`, `headStartDays`, `napsOk`, `intensity` | See §5.1. |
 
 The **home body clock** (the start phase) is the UTC offset at the first departure of `Trip.bodyClockStartZoneId`,
 or of the first leg's origin when that is null (or a zone the device's tzdata doesn't know). The planner never reads
@@ -101,7 +101,8 @@ its output with the committed reference printouts byte for byte. Per segment:
    * **caffeine** in awake body-night `[T − 7, T + 3]`, never later than sleep − 6 h (− 8 h on advance plans),
      plus an *avoid caffeine* window up to the next sleep;
    * **nap** ≤ 30 min, ≥ 6 h before the next sleep, inside an avoid window (delay plans: siesta at wake + 7 h).
-     It is labelled `Nap` when the waking period exceeds the habitual one by ≥ 1 h, else `OptionalNap`.
+     It is labelled `Nap` when the waking period exceeds the habitual one by ≥ 1 h, else `OptionalNap`
+     (left out when `napsOk` is off).
 4. **Step.** `φ ← φ + sgn·min(cap, |φ* − φ|)`, `T ← T + 24 − step`, with caps pre-flight 1.0 h advance /
    1.5 h delay (2.0 with a light box), ≤ 3 h in total and never making the departure-day wake later than
    dep − 3 h; post-departure 1.5 h advance / 2.0 h delay. Stops at the destination once `|φ* − φ| ≤ 0.5 h`.
@@ -180,7 +181,8 @@ reviews/modelling, **D** opinion; "eng." = engineering choice.
 | `Gentle` | ≤ 2 pre-flight days and ≤ 2 h in total, pre-flight delay ≤ 1 h/day (1.5 with box), post-departure ≤ 1.0 h/day advance and ≤ 1.5 h/day delay. |
 | `Balanced` | Defaults. |
 | `Max` | Defaults + Tier-2 direction choice for 8–12 h eastward shifts. |
-| `adjustBeforeDeparture = false` | No pre-flight days. |
+| `headStartDays` (0–3, default 3) | Caps the pre-flight days at the choice (0 = none). It never adds days: Gentle still stops at 2, and the per-day and total pre-flight caps still apply. Profiles saved with the old `adjustBeforeDeparture` switch load as 3 (on) or 0 (off). |
+| `napsOk = false` | No `OptionalNap` cards. A recommended `Nap` (a waking period at least 1 h longer than usual) stays. |
 | `useMelatonin = false` (default) | No melatonin cards. Melatonin is opt-in behind a safety note in the UI. |
 | `useCaffeine = false` | No caffeine or avoid-caffeine cards. |
 | `canSleepOnPlanes = false` | In-flight sleep becomes rest-in-the-dark. |

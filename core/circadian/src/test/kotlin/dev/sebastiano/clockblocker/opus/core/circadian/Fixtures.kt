@@ -4,6 +4,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.HeadStart
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -46,10 +47,10 @@ object Fixtures {
         melatonin: Boolean = true,
         caffeine: Boolean = true,
         sleepOnPlanes: Boolean = true,
-        preAdjust: Boolean = true,
+        headStartDays: Int = HeadStart.DefaultDays,
         intensity: Intensity = Intensity.Balanced,
         sleep: SleepWindow = SleepWindow(LocalTime.of(23, 0), LocalTime.of(7, 0)),
-    ) = UserProfile(home.zoneId, sleep, chronotype, melatonin, caffeine, sleepOnPlanes, preAdjust, intensity)
+    ) = UserProfile(home.zoneId, sleep, chronotype, melatonin, caffeine, sleepOnPlanes, headStartDays, intensity)
 
     val sfoLhr = trip(leg("1", SFO, LHR, "2026-06-15T16:30", "2026-06-16T10:45", "BA286"))
     val lhrSyd = trip(

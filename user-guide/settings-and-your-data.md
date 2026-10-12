@@ -4,16 +4,15 @@ Open **Settings** from the navigation bar. Every answer from setup can be
 changed here, and any change updates your plans straight away. This page also explains where your data lives and
 how to back it up.
 
-## Your profile and tools
+## You and your preferences
 
-<img src="images/settings-profile.png" alt="Settings, scrolled a little: Home time zone Los Angeles GMT−7, Usual sleep 23:00 to 07:00, 8 h, and Chronotype Somewhere in between. Below, Tools: Caffeine, I can sleep on planes and Adjust before I leave are on; Melatonin is off." width="300" />
+<img src="images/settings-profile.png" alt="Settings: You card showing Somewhere in between, Usual sleep · 23:00–07:00 (8 h) and Body's lowest point around 04:00, followed by Home time zone Los Angeles · GMT−7. Below, Preferences: I drink caffeine, I can sleep on planes and Naps are OK are on." width="300" />
 
 | Setting | What it does |
 |---|---|
+| You | Your chronotype, usual sleep (plus days off when different) and your body's lowest point. Tap the card to edit your sleep schedules on the two-schedule dial or pick a chronotype. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
 | Home time zone | Where home is. Search for a city or airport. When a trip leaves from a city on a different time, the trip editor lets you start its plan from home time instead ([Starting away from home](planning-a-trip.md#starting-away-from-home)). |
-| Usual sleep | Your work-day bedtime and wake-up time. The editor is the same dial as setup, with your days off on its other schedule. See [Getting started](getting-started.md#3-when-do-you-usually-sleep). |
-| Chronotype | Lark, owl or in between. |
-| Tools | Caffeine, sleeping on planes, adjusting before you leave, and melatonin. See [Getting started](getting-started.md#4-your-tools). |
+| Preferences | **I drink caffeine**, **I can sleep on planes**, **Naps are OK**, **Head start** (**None**, **1 day**, **2 days** or **3 days** before departure), and **I use melatonin**. See [Getting started](getting-started.md#4-your-tools). |
 | How hard the plan pushes | Gentle, Balanced or Max. |
 
 ## Appearance and reminders

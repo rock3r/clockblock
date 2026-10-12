@@ -9,9 +9,13 @@ import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
+import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.ThemeMode
+import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingStep
 import dev.sebastiano.clockblocker.opus.feature.onboarding.OnboardingTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolsTags
 import dev.sebastiano.clockblocker.opus.feature.settings.AboutTags
 import dev.sebastiano.clockblocker.opus.feature.settings.SettingsTags
 import dev.sebastiano.clockblocker.opus.shell.ShellTestTags
@@ -21,9 +25,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Settings: theme, the Opus-mode easter egg and replaying onboarding. */
+/** Settings: the You card, preferences, theme, the Opus-mode easter egg and replaying onboarding. */
 @RunWith(AndroidJUnit4::class)
 class SettingsTest : ClockblockE2eTest() {
+
+    @Test
+    fun youCardAndPreferencesUpdateProfile() {
+        seedOnboarded()
+        launch()
+        awaitTag(ShellTestTags.NavSettings, LongTimeoutMillis).performClick()
+        awaitTag(SettingsTags.You).assertIsDisplayed().performClick()
+
+        awaitTag(SettingsTags.Chronotype).performClick()
+        awaitTag(ChronotypeTags.option(Chronotype.DefiniteEvening)).scrollToIfScrollable().performClick()
+        awaitTag(SettingsTags.EditorSave).performClick()
+        awaitGone(SettingsTags.EditorSave)
+
+        awaitTag(ToolsTags.Naps).scrollToIfScrollable().performClick()
+        awaitTag(ToolsTags.headStart(2)).scrollToIfScrollable().performClick()
+
+        compose.waitUntil(DefaultTimeoutMillis) {
+            val p = profile()
+            p?.chronotype == Chronotype.DefiniteEvening && !p.napsOk && p.headStartDays == 2
+        }
+    }
 
     @Test
     fun darkThemeRepaintsTheApp() {
@@ -97,4 +122,5 @@ class SettingsTest : ClockblockE2eTest() {
     }
 
     private fun settings(): AppSettings = runBlocking { graph.settingsRepository.settings.first() }
+    private fun profile(): UserProfile? = runBlocking { graph.profileRepository.profile.first() }
 }

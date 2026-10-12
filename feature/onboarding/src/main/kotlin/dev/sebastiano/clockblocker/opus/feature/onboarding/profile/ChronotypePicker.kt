@@ -13,26 +13,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,14 +44,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
-import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import kotlin.math.PI
 import kotlin.math.cos
@@ -68,22 +58,19 @@ import kotlin.math.sin
 object ChronotypeTags {
     /** `chronotype_DefiniteMorning` … `chronotype_DefiniteEvening`. */
     fun option(chronotype: Chronotype): String = "chronotype_${chronotype.name}"
-    const val NotSure = "chronotype_not_sure"
-    const val HelperUse = "chronotype_helper_use"
 }
 
 /**
  * Five selectable chronotype cards, Early bird → Night owl, each with a little sky showing when that person's day
  * naturally peaks. Radio-group semantics; selection changes colour only (a 100+/day-safe state change).
  *
- * @param suggested the chronotype the user's night suggests, labelled as such (onboarding's "Doesn't sound like me").
+ * @param suggested the chronotype the user's night suggests, labelled as such.
  */
 @Composable
 fun ChronotypePicker(
     selected: Chronotype,
     onSelect: (Chronotype) -> Unit,
     modifier: Modifier = Modifier,
-    onNotSure: (() -> Unit)? = null,
     suggested: Chronotype? = null,
 ) {
     Column(modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
@@ -95,12 +82,6 @@ fun ChronotypePicker(
                 onClick = { onSelect(chronotype) },
                 shape = segmentedShape(index, Chronotype.entries.size),
             )
-        }
-        if (onNotSure != null) {
-            TextButton(
-                onClick = onNotSure,
-                modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp).testTag(ChronotypeTags.NotSure),
-            ) { Text(stringResource(R.string.chronotype_not_sure)) }
         }
     }
 }
@@ -171,7 +152,7 @@ private fun ChronotypeCard(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier) {
+fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier, cornerRadius: Dp = 14.dp) {
     val sky = ClockblockTheme.sky
     val art = ClockblockTheme.artColors
     val (hour, position) = when (chronotype) {
@@ -184,7 +165,7 @@ fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier) {
     val gradient = sky.gradientAt(hour)
     val evening = chronotype == Chronotype.ModerateEvening || chronotype == Chronotype.DefiniteEvening
     val sunPath = remember { MaterialShapes.Sunny.toPath().asComposePath() }
-    Canvas(modifier.clip(RoundedCornerShape(14.dp))) {
+    Canvas(modifier.clip(RoundedCornerShape(cornerRadius))) {
         drawRect(Brush.verticalGradient(listOf(gradient.top, gradient.bottom)))
         val w = size.width
         val h = size.height
@@ -209,87 +190,6 @@ fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier) {
                 translate(p.x - b.center.x * s, p.y - b.center.y * s)
                 scale(s, s, pivot = Offset.Zero)
             }) { drawPath(sunPath, art.tertiary) }
-        }
-    }
-}
-
-/**
- * The "Not sure?" helper: drag your free-day sleep on a dial and get a chronotype estimate (MCTQ, see
- * [ChronotypeEstimate]). Shown in a dialog by [ChronotypeHelperDialog].
- *
- * @param workSleep the usual (work-day) sleep, for the oversleep correction.
- */
-@Composable
-fun ChronotypeHelperContent(
-    workSleep: SleepWindow,
-    onUse: (Chronotype) -> Unit,
-    onCancel: () -> Unit,
-    modifier: Modifier = Modifier,
-    initialFreeSleep: SleepWindow = SleepWindow(workSleep.bedtime.plusHours(1), workSleep.wake.plusHours(1).plusMinutes(30)),
-) {
-    var free by remember { mutableStateOf(initialFreeSleep) }
-    val estimate = ChronotypeEstimate.estimate(free, workSleep)
-    val formatter = rememberTimeFormatter()
-    Column(
-        modifier.verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            stringResource(R.string.chronotype_helper_title),
-            style = ClockblockTheme.textStyles.editorialTitle,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.size(8.dp))
-        Text(
-            stringResource(R.string.chronotype_helper_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.size(16.dp))
-        SleepDial(free, { free = it }, Modifier.widthIn(max = 320.dp), easterEggEnabled = false)
-        Spacer(Modifier.size(16.dp))
-        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                ChronotypeSky(estimate.chronotype, Modifier.size(44.dp))
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    stringResource(R.string.chronotype_helper_result, formatter.format(estimate.midSleep), estimate.chronotype.label()),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-        }
-        Spacer(Modifier.size(8.dp))
-        Text(
-            stringResource(R.string.chronotype_helper_source),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.size(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.chronotype_helper_cancel)) }
-            Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = { onUse(estimate.chronotype) },
-                modifier = Modifier.heightIn(min = 48.dp).testTag(ChronotypeTags.HelperUse),
-            ) { Text(stringResource(R.string.chronotype_helper_use)) }
-        }
-    }
-}
-
-/** [ChronotypeHelperContent] in a dialog (not a bottom sheet: the dial's drag must not fight a sheet drag). */
-@Composable
-fun ChronotypeHelperDialog(workSleep: SleepWindow, onUse: (Chronotype) -> Unit, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.padding(16.dp).widthIn(max = 480.dp),
-        ) {
-            ChronotypeHelperContent(workSleep, onUse = onUse, onCancel = onDismiss)
         }
     }
 }

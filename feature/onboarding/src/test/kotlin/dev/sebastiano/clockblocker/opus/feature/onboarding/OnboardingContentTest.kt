@@ -52,7 +52,7 @@ private class RecordingActions : OnboardingActions {
     override fun sleepChange(window: SleepWindow) { calls += "sleep" }
     override fun daysOffSleepChange(window: SleepWindow) { calls += "daysOff" }
     override fun chronotypeChange(chronotype: Chronotype) { calls += "chronotype:${chronotype.name}" }
-    override fun profileChange(profile: UserProfile) { calls += "profile" }
+    override fun profileChange(transform: (UserProfile) -> UserProfile) { calls += "profile" }
     override fun melatoninChange(enabled: Boolean) { calls += "melatonin:$enabled" }
     override fun acknowledgeMelatonin(acknowledged: Boolean) { calls += "ack:$acknowledged" }
     override fun intensityChange(intensity: Intensity) { calls += "intensity:${intensity.name}" }
