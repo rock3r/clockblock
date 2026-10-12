@@ -9,7 +9,7 @@ the app.
 
 The code is in `:core:notifications` and `:widget`. The shared contract,
 [`PlanSurface`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/PlanSurface.kt), is in
-`:core:data` and has one method: `suspend fun refresh()`.
+`:core:data`: `suspend fun refresh()`, plus `hasPlacedGlobe` and `refreshGlobe()` for the route globe's own tick.
 
 ## The scheduler
 
@@ -46,8 +46,8 @@ A few details matter:
 
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
   15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
-  notification's body-clock header, the widget dial's next refresh (`TransitionPlanner.nextDialRefresh`) and the
-  route globe's 15-minute refresh (`TransitionPlanner.nextGlobeRefresh`).
+  notification's body-clock header and the widget dial's next refresh (`TransitionPlanner.nextDialRefresh`). The
+  route globe's tick is a separate alarm (see below).
   Widgets capture the dial's blocks and only move the hand, so the dial needs a refresh of its own at two points:
   - when a block comes into view (`nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an
     hour for a clock change). Without it, a block more than 16 hours away would stay off the dial until it starts.
@@ -56,9 +56,15 @@ A few details matter:
 
   Like the plan's transitions, neither of the dial refreshes fires inside a Sleep or Nap window: the wake-up refreshes
   everything. The one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features
-  it, so its end refresh still fires, a minute into the sleep. Meanwhile, `nextGlobeRefresh` arms a silent 15-minute
-  refresh throughout any active plan that has a route, so the route globe's daylight (and, during flights, its
-  interpolated traveller marker) advances across pre-departure days, flights, layovers, post-arrival days and sleep.
+  it, so its end refresh still fires, a minute into the sleep.
+- While a *Route globe* widget is placed, the globe gets its own tick (`TransitionPlanner.nextGlobeRefresh`), apart
+  from the chain above. The globe changes by itself in two ways: the traveller marker moves along a flight, and the
+  day-night line sweeps round. So the tick runs only around the flights: every 15 minutes while one is in the air, and
+  on the hour on the ground, from a day before the first flight departs to a day after the last one lands. Further
+  out, the globe follows the normal boundaries like the other widgets (a trip weeks away arms one alarm, at the
+  window's start). The tick is cosmetic, so it's a non-wakeup `RTC` alarm (`setWindow`, 10 minutes): a sleeping
+  phone isn't woken for it, and it's delivered when the phone next wakes, e.g. when the screen turns on. It re-renders
+  only the *Route globe* widgets (`PlanSurface.refreshGlobe`), with no reminder, and arms the next tick.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it arms each instant twice:
   - a 10-minute `setWindow`, which keeps reminders within 10 minutes while the phone is awake. It isn't
@@ -365,8 +371,8 @@ it shows the whole route (origin → connections → destination) with no active
 Once the trip is underway, it frames and highlights the active leg (in the air, or the next leg during a connection)
 and draws the traveller marker along the great-circle arc when in flight, with the solar terminator, sunlit ocean
 glow and night-side city lights at the capture instant. While at least one *Route globe* widget is placed
-(`PlanSurface.hasPlacedGlobe`), `AdviceAlarmScheduler` keeps a silent 15-minute refresh armed
-(`TransitionPlanner.nextGlobeRefresh`), and cancels it when the last one is removed. Dots of the same brightness
+(`PlanSurface.hasPlacedGlobe`), `AdviceAlarmScheduler` keeps the globe's own tick armed around the flights (see
+[The scheduler](#the-scheduler)), and cancels it when the last one is removed. Dots of the same brightness
 share one `GlobeOp.Dots` bucket (and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`), spatially culled to at
 most one frontmost dot per 2D grid cell so limb overdraw is eliminated and every size bucket stays under 24 KB.
 

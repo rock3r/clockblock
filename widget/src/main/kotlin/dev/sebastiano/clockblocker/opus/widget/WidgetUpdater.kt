@@ -75,7 +75,6 @@ class WidgetUpdater(
     internal var onRendered: (appWidgetId: Int, model: WidgetModel) -> Unit = { _, _ -> }
 
     private val mutex = Mutex()
-    private val deletedIds = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var lastRenderConfig = RenderConfig.of(application.resources.configuration)
@@ -153,7 +152,6 @@ class WidgetUpdater(
     }
 
     private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
-        appWidgetIds.forEach(deletedIds::remove)
         RetiredLegacyRefresh.cancel(application)
         val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
         val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
@@ -305,8 +303,12 @@ class WidgetUpdater(
         if (ok) prefs.edit().putString(KEY_PREVIEW, key).apply()
     }
 
+    /**
+     * The placed widgets of [kind]. The platform drops a widget from this list before it sends the delete broadcast
+     * (and `onDisabled` after the last one), so the re-arm in `onDeleted` already sees it gone.
+     */
     fun ids(kind: WidgetKind): IntArray =
-        manager.getAppWidgetIds(componentName(application, kind)).filterNot(deletedIds::contains).toIntArray()
+        manager.getAppWidgetIds(componentName(application, kind))
 
     /**
      * Saves [appWidgetId]'s options (its configuration screen, #52) and redraws that widget. The scheduler doesn't
@@ -322,7 +324,6 @@ class WidgetUpdater(
 
     /** The widgets were removed: forget their options. */
     suspend fun forget(appWidgetIds: IntArray) {
-        appWidgetIds.forEach(deletedIds::add)
         widgetConfigs.remove(appWidgetIds.toList())
     }
 
