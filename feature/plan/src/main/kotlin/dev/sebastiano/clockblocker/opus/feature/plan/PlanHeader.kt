@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -151,7 +152,12 @@ internal data class HeaderNext(val headline: String, val detail: String)
  * [skyKey] is the day picked in the day strip (`null` = live). Picking another day jumps the body clock by hours,
  * so the sky cross-fades to it; anything else (scrubbing, the minute tick) repaints the same sky in place.
  *
- * [ambient]: the sky may come alive now and then ([HeaderAmbient]); off under Reduce motion and in sleep windows.
+ * [ambient]: the sky may come alive once in a while ([HeaderAmbient]); off under Reduce motion, in sleep windows, in
+ * Night-safe and on short windows (where the header stays collapsed and can't show it). [ambientDue]: it last played
+ * long enough ago ([ambientSkyDue]); [onAmbientStart] fires when a session starts.
+ *
+ * [next] is the next action from *now* (never from a previewed or scrubbed moment): the Now card shows what the
+ * preview is about.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -174,6 +180,8 @@ internal fun PlanHeader(
     next: HeaderNext? = null,
     showBodyShift: Boolean = false,
     ambient: Boolean = false,
+    ambientDue: Boolean = false,
+    onAmbientStart: () -> Unit = {},
 ) {
     val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
     val fade = rememberSkyFade(skyKey, live)
@@ -187,9 +195,16 @@ internal fun PlanHeader(
     val collapsedFraction: () -> Float = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction }
     val celestialFrame by rememberUpdatedState(foreground)
     val frame = remember { { celestialFrame } }
-    val headerAmbient = rememberHeaderAmbient(ambient && !nightSafe)
+    val headerAmbient = rememberHeaderAmbient(
+        allowed = ambient && !nightSafe && !shortWindow,
+        due = ambientDue,
+        // Past half way collapsed the sky's atmosphere has faded out: a session waits rather than drawing nothing.
+        visible = { collapsedFraction() < 0.5f },
+        onSessionStart = onAmbientStart,
+    )
     val stage = stageLabel(moment, firstDay)
-    val subtitle = if (showBodyShift) stage + " \u00B7 " + bodyShiftLabel(moment.bodyAheadHours) else stage
+    val bodyShift = if (showBodyShift) bodyShiftLabel(moment.bodyAheadHours) else null
+    val subtitle = if (bodyShift != null) stage + " \u00B7 " + bodyShift else stage
     Box(
         modifier
             .testTag(PlanTags.Header)
@@ -206,7 +221,8 @@ internal fun PlanHeader(
                 navRow = {
                     HeaderNavRow(
                         title = title,
-                        subtitle = subtitle.takeIf { shortWindow },
+                        stage = stage.takeIf { shortWindow },
+                        bodyShift = bodyShift.takeIf { shortWindow },
                         next = next.takeIf { shortWindow },
                         collapsedFraction = collapsedFraction,
                         nightSafe = nightSafe,
@@ -272,12 +288,19 @@ private fun HeaderLayout(
 
 /**
  * The status bar's room and the navigation row: back, the trip's name (fading in as the header collapses; always
- * there on short windows, with the [subtitle] and [next] action under it), the Night-safe chip and the menu.
+ * there on short windows, with where the plan is ([stage], [bodyShift]) and the [next] action under it), the
+ * Night-safe chip and the menu.
+ *
+ * On short windows each part keeps its own line, so the next action's times (local and the other zone) are never the
+ * part an ellipsis eats (review of #157): the stage gives way to the body shift on a narrow line, and the next action
+ * moves its times under its headline rather than cutting them. The row grows past [NavRowHeight] when a large font
+ * needs it.
  */
 @Composable
 private fun HeaderNavRow(
     title: String,
-    subtitle: String?,
+    stage: String?,
+    bodyShift: String?,
     next: HeaderNext?,
     collapsedFraction: () -> Float,
     nightSafe: Boolean,
@@ -288,7 +311,7 @@ private fun HeaderNavRow(
         Modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-            .height(NavRowHeight)
+            .heightIn(min = NavRowHeight)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -303,20 +326,25 @@ private fun HeaderNavRow(
         Column(
             Modifier
                 .weight(1f)
-                .padding(horizontal = 4.dp)
+                .padding(horizontal = 4.dp, vertical = if (stage != null) 6.dp else 0.dp)
                 // Fades in over the second half of the collapse, once the expanded block has faded out.
                 .graphicsLayer { alpha = ((collapsedFraction() - 0.5f) * 2f).coerceIn(0f, 1f) },
         ) {
             Text(title, style = MaterialTheme.typography.titleMediumEmphasized, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) {
-                val line = if (next != null) "$subtitle \u00B7 ${next.headline} \u00B7 ${next.detail}" else subtitle
-                Text(
-                    line,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = LocalContentColor.current.copy(alpha = 0.82f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = if (next != null) Modifier.testTag(PlanTags.NextAction) else Modifier,
+            val quiet = LocalContentColor.current.copy(alpha = 0.82f)
+            val small = MaterialTheme.typography.labelMedium
+            if (stage != null) {
+                if (bodyShift != null) PriorityLine(stage, bodyShift, style = small, color = quiet) else Text(stage, style = small, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (next != null) {
+                val description = stringResource(R.string.plan_next_description, next.headline, next.detail)
+                InlineOrStacked(
+                    first = { Text(next.headline, style = small) },
+                    second = { Text(next.detail, style = small, color = quiet) },
+                    separator = { Text(Separator, style = small, color = quiet) },
+                    modifier = Modifier
+                        .testTag(PlanTags.NextAction)
+                        .semantics(mergeDescendants = true) { contentDescription = description },
                 )
             }
         }
@@ -409,7 +437,7 @@ private val FootHeight = 20.dp
  * [frame] and [ambient], and fades with the collapsing header.
  */
 @Composable
-private fun HeaderAtmosphere(frame: () -> HeaderFrame, ambient: HeaderAmbient, ink: Color, collapsedFraction: () -> Float, modifier: Modifier = Modifier) {
+internal fun HeaderAtmosphere(frame: () -> HeaderFrame, ambient: HeaderAmbient, ink: Color, collapsedFraction: () -> Float, modifier: Modifier = Modifier) {
     val nightSafe = ClockblockTheme.variant == ClockblockThemeVariant.NightSafe
     val art = ClockblockTheme.artColors
     val starColor = if (nightSafe) art.onInverse.copy(alpha = 0.45f) else Moonlight
@@ -430,6 +458,7 @@ private fun HeaderAtmosphere(frame: () -> HeaderFrame, ambient: HeaderAmbient, i
                 starColor.copy(alpha = starColor.alpha * alpha),
                 visibility,
                 session,
+                AmbientSessionMillis,
             )
             val flight = planeAt(session) ?: return@drawBehind
             drawAmbientPlane(flight, plane, trail, ink, visibility, alpha, session)
@@ -484,7 +513,7 @@ private fun DrawScope.drawAmbientPlane(
 }
 
 /** What the header shows at one moment: the body's time, the wall clock's and the day's sunrise and sunset. */
-private data class HeaderFrame(val bodyTime: LocalTime, val localTime: LocalTime, val daylight: HeaderDaylight)
+internal data class HeaderFrame(val bodyTime: LocalTime, val localTime: LocalTime, val daylight: HeaderDaylight)
 
 /** What the header showed: [frame] for the day keyed by [key] (the picked day, `null` = live). */
 private data class SkyFrame(val key: Int?, val frame: HeaderFrame)

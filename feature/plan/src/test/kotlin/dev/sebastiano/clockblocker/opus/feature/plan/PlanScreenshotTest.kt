@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -109,6 +111,30 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
         compose.waitForIdle()
         compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_dark.png")
+    }
+
+    /**
+     * The header sky's rare ambient session mid-crossing: by day the plane and its fading contrail, by night the
+     * stars (some mid-twinkle) and the plane's blinking light, no contrail.
+     */
+    @Test
+    fun headerAmbientDay() = ambientSnap("header_ambient_day", java.time.LocalTime.of(14, 0))
+
+    @Test
+    fun headerAmbientNight() = ambientSnap("header_ambient_night", java.time.LocalTime.of(23, 30))
+
+    private fun ambientSnap(name: String, body: java.time.LocalTime) = snap(name) {
+        val ambient = androidx.compose.runtime.remember {
+            HeaderAmbient().apply { sessionMillis = PlaneStartMillis + PlaneCrossMillis * 6 / 10 }
+        }
+        val frame = HeaderFrame(body, body, HeaderDaylight.Default)
+        val ink = ClockblockTheme.sky.gradientAt(body.hour + body.minute / 60f).let {
+            it.contentColor()
+        }
+        Box(Modifier.size(400.dp, 200.dp)) {
+            dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky(bodyTime = body, modifier = Modifier.matchParentSize(), showCelestial = false)
+            HeaderAtmosphere({ frame }, ambient, ink, { 0f }, Modifier.matchParentSize())
+        }
     }
 
     @Test

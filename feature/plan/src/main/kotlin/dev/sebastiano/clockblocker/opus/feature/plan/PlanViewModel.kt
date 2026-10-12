@@ -60,6 +60,7 @@ sealed interface PlanUiState {
      * @property nightSafe the screen should render in the Night-safe theme (setting on and the plan says rest).
      * @property celebrate show the once-per-trip "Clockblocked." moment.
      * @property easterEggs playful extras allowed (not reduced motion, not in a sleep window).
+     * @property ambientSky the header's ambient sky may play (it last played long enough ago: [ambientSkyDue]).
      */
     @Immutable
     data class Ready(
@@ -72,6 +73,7 @@ sealed interface PlanUiState {
         val celebrate: Boolean,
         val easterEggs: Boolean,
         val sleep: SleepWindow,
+        val ambientSky: Boolean = false,
     ) : PlanUiState {
         val tripId: String get() = plan.tripId
         val kind: PlanKind get() = plan.kind
@@ -92,6 +94,7 @@ class PlanViewModel(
     private val settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
     private val celebrationStore: CelebrationStore,
+    private val ambientSkyStore: AmbientSkyStore,
     private val snoozer: AdviceSnoozer,
     private val icsExporter: IcsExporter,
     private val clock: Clock,
@@ -125,8 +128,9 @@ class PlanViewModel(
             ::Inputs,
         ),
         celebrationStore.celebrated(plan.tripId),
+        ambientSkyStore.lastSession,
         minutes,
-    ) { inputs, celebrated, now -> ready(plan, inputs, celebrated, now) }
+    ) { inputs, celebrated, lastAmbient, now -> ready(plan, inputs, celebrated, now, ambientSkyDue(lastAmbient, now)) }
 
     private data class Inputs(
         val trip: Trip?,
@@ -135,7 +139,7 @@ class PlanViewModel(
         val profile: UserProfile?,
     )
 
-    private fun ready(plan: JetLagPlan, inputs: Inputs, celebrated: Boolean, now: Instant): PlanUiState.Ready {
+    private fun ready(plan: JetLagPlan, inputs: Inputs, celebrated: Boolean, now: Instant, ambientSky: Boolean): PlanUiState.Ready {
         val moment = plan.momentAt(now)
         return PlanUiState.Ready(
             plan = plan,
@@ -147,6 +151,7 @@ class PlanViewModel(
             celebrate = !celebrated && plan.isCelebrationDue(now),
             easterEggs = easterEggsAllowed(inputs.settings.reduceMotion, plan, now),
             sleep = inputs.profile?.sleep ?: SleepWindow.Default,
+            ambientSky = ambientSky,
         )
     }
 
@@ -178,6 +183,11 @@ class PlanViewModel(
     fun celebrationShown() {
         val id = readyPlan?.tripId ?: return
         viewModelScope.launch { celebrationStore.markCelebrated(id) }
+    }
+
+    /** The header's ambient sky started playing: it won't again for [AmbientSkyGap]. */
+    fun ambientSkyStarted() {
+        viewModelScope.launch { ambientSkyStore.markSession(clock.instant()) }
     }
 
     /** The plan as an iCalendar document (null while nothing is loaded). */

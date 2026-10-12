@@ -93,6 +93,7 @@ fun PlanScreen(
         onUndo = viewModel::undo,
         onSnooze = viewModel::snooze,
         onCelebrationShown = viewModel::celebrationShown,
+        onAmbientSkyStarted = viewModel::ambientSkyStarted,
     )
     PlanContent(state, actions, modifier, screenState)
 }

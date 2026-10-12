@@ -52,8 +52,6 @@
     <!-- Now card heading while another day is previewed: "Day 3 at 11:00". -->
     <string name="plan_previewing_day">%1$s at %2$s</string>
     <!-- Day strip: short pill labels. -->
-    <!-- TalkBack for the travel day pill's plane. -->
-    <string name="plan_strip_travel">Travel day</string>
     <!-- TalkBack: an overnight travel day's two dates, "Mon 15 Jun to Tue 16 Jun". -->
     <string name="plan_strip_dates">%1$s to %2$s</string>
     <string name="plan_strip_today">Today</string>

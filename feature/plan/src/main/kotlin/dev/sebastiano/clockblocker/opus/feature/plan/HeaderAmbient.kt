@@ -5,7 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameMillis
@@ -17,14 +19,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.coroutineContext
 
 /**
- * The header sky's slow ambient life: now and then (an ambient *session*), a few stars breathe in and out at night and
- * a small plane crosses with a contrail that fades. [sessionMillis] is how far into the current session it is, or -1
- * at rest; it is only read in the draw phase, so a session redraws the header without recomposing anything.
+ * The header sky's slow ambient life: once in a while (an ambient *session*), a few stars breathe in and out at night
+ * and a small plane crosses with a contrail that fades. [sessionMillis] is how far into the session it is, or -1 at
+ * rest; it is only read in the draw phase, so a session redraws the header without recomposing anything.
  *
- * The plan screen is opened many times a day and stays on screen, so the sky is still almost all the time: one session
- * shortly after the header appears, then one every [AmbientRestMillis]. Nothing here carries meaning (the sky, the
- * sun and the words do), so at rest, under Reduce motion, in sleep windows or with animations removed it simply
- * doesn't happen.
+ * The plan screen is opened many times a day and stays on screen, so this is rare delight (frequency rule): one
+ * session at most every [AmbientSkyGap], persisted ([AmbientSkyStore]), and only once the header has been in view for
+ * [AmbientFirstDelayMillis] (a quick glance doesn't spend it). Nothing here carries meaning (the sky, the sun and the
+ * words do), so at rest, under Reduce motion, in sleep windows or with animations removed it simply doesn't happen.
  */
 @Stable
 internal class HeaderAmbient {
@@ -32,57 +34,53 @@ internal class HeaderAmbient {
 }
 
 /**
- * The header's [HeaderAmbient], running sessions while [enabled]. Self-timed: every wait and the session clock follow
- * [MotionDurationScale], and with animations removed (scale 0) no session ever starts.
+ * The header's [HeaderAmbient]. A session may run while [allowed] (easter eggs on, not Night-safe, not a short
+ * window) once [due] (it last played long enough ago); [onSessionStart] fires as it starts, so it isn't due again for
+ * a long while. That only stops the *next* session: the one under way plays to its end. While [visible] is false (the
+ * header collapsed) a session waits, frame loop and clock stopped, and resumes when the sky shows again.
+ *
+ * Self-timed: every wait and the session clock follow [MotionDurationScale]; with animations removed (scale 0) no
+ * session starts, and one under way pauses.
  */
 @Composable
-internal fun rememberHeaderAmbient(enabled: Boolean): HeaderAmbient {
+internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -> Boolean, onSessionStart: () -> Unit): HeaderAmbient {
     val ambient = remember { HeaderAmbient() }
-    val active = enabled && !ClockblockTheme.motion.reduceMotion
+    // Latched: marking the session as played turns [due] off, which must not cut short the session it started.
+    var granted by remember { mutableStateOf(false) }
+    LaunchedEffect(due) { if (due) granted = true }
+    val currentVisible by rememberUpdatedState(visible)
+    val currentOnStart by rememberUpdatedState(onSessionStart)
+    val active = allowed && granted && !ClockblockTheme.motion.reduceMotion
     LaunchedEffect(active) {
         ambient.sessionMillis = -1L
         if (!active) return@LaunchedEffect
-        fun currentScale(): Float = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
-        suspend fun awaitPositiveScale(): Float {
-            while (true) {
-                val scale = currentScale()
-                if (scale > 0f) return scale
-                ambient.sessionMillis = -1L
-                withTimeoutOrNull(AmbientFirstDelayMillis) {
-                    snapshotFlow { currentScale() }.first { it > 0f }
-                }
-            }
-        }
+        fun scale(): Float = coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f
+        fun showing(): Boolean = scale() > 0f && currentVisible()
+        suspend fun awaitShowing() = snapshotFlow { showing() }.first { it }
         try {
+            // The header has to stay in view (with animations on) for the whole first delay.
             while (true) {
-                val initialScale = awaitPositiveScale()
-                delay((AmbientFirstDelayMillis * initialScale).toLong())
-                if (currentScale() <= 0f) continue
-                while (currentScale() > 0f) {
-                    var lastFrame = withFrameMillis { it }
-                    var elapsed = 0f
-                    var cancelledByScale = false
-                    while (elapsed < AmbientSessionMillis) {
-                        if (currentScale() <= 0f) {
-                            cancelledByScale = true
-                            break
-                        }
-                        val dt = withFrameMillis { now -> (now - lastFrame).also { lastFrame = now } }
-                        val scale = currentScale()
-                        if (scale <= 0f) {
-                            cancelledByScale = true
-                            break
-                        }
-                        elapsed += dt / scale
-                        ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
-                    }
-                    ambient.sessionMillis = -1L
-                    if (cancelledByScale) break
-                    val restScale = currentScale()
-                    if (restScale <= 0f) break
-                    delay((AmbientRestMillis * restScale).toLong())
-                }
+                awaitShowing()
+                val wait = (AmbientFirstDelayMillis * scale()).toLong()
+                val hidden = withTimeoutOrNull(wait) { snapshotFlow { showing() }.first { !it } }
+                if (hidden == null) break
             }
+            currentOnStart()
+            var elapsed = 0f
+            var lastFrame = withFrameMillis { it }
+            while (elapsed < AmbientSessionMillis) {
+                if (!showing()) {
+                    awaitShowing()
+                    lastFrame = withFrameMillis { it }
+                    continue
+                }
+                val dt = withFrameMillis { now -> (now - lastFrame).also { lastFrame = now } }
+                val s = scale()
+                if (s <= 0f) continue
+                elapsed += dt / s
+                ambient.sessionMillis = elapsed.toLong().coerceAtMost(AmbientSessionMillis)
+            }
+            granted = false
         } finally {
             ambient.sessionMillis = -1L
         }
@@ -103,12 +101,11 @@ internal fun planeAt(sessionMillis: Long): PlaneFrame? {
     return PlaneFrame(1f, 1f - fading / PlaneTrailFadeMillis.toFloat())
 }
 
-/** The first session starts this long after the header appears (not at once: opening the screen stays calm). */
-internal const val AmbientFirstDelayMillis = 2_500L
+/** A session starts only once the header has been in view this long (opening the screen stays calm). */
+internal const val AmbientFirstDelayMillis = 6_000L
 
-/** How long a session lasts, and the rest between two. */
+/** How long a session lasts. */
 internal const val AmbientSessionMillis = 45_000L
-internal const val AmbientRestMillis = 240_000L
 
 /** The plane takes off this far into a session, crosses in [PlaneCrossMillis], and its trail fades over [PlaneTrailFadeMillis]. */
 internal const val PlaneStartMillis = 4_000L

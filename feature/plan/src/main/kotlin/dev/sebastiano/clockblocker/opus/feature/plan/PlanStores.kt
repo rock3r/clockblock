@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.Instant
 
 /**
  * Remembers which trips already had their "Clockblocked." celebration, so it fires exactly once per trip and
@@ -69,3 +71,52 @@ fun interface AdviceSnoozer {
 class SchedulerAdviceSnoozer(private val scheduler: AdviceAlarmScheduler) : AdviceSnoozer {
     override suspend fun snooze(adviceId: String) = scheduler.snooze(adviceId)
 }
+
+/**
+ * When the plan header's ambient sky (stars breathing, a small plane crossing) last played, so it stays rare on a
+ * screen opened many times a day: see [ambientSkyDue].
+ */
+interface AmbientSkyStore {
+    /** The last session's start, or null if it never played. */
+    val lastSession: Flow<Instant?>
+
+    suspend fun markSession(at: Instant)
+}
+
+/** [AmbientSkyStore] in a tiny private SharedPreferences file: UI bookkeeping, like [PreferencesCelebrationStore]. */
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
+@Inject
+class PreferencesAmbientSkyStore(
+    private val application: Application,
+    private val dispatchers: AppDispatchers,
+) : AmbientSkyStore {
+    private val prefs by lazy { application.getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+    private val state by lazy { MutableStateFlow(prefs.getLong(KEY, -1L).takeIf { it >= 0L }?.let(Instant::ofEpochMilli)) }
+
+    override val lastSession: Flow<Instant?> get() = flow { state.collect { emit(it) } }.flowOn(dispatchers.io).distinctUntilChanged()
+
+    override suspend fun markSession(at: Instant) = withContext(dispatchers.io) {
+        state.value = at
+        prefs.edit { putLong(KEY, at.toEpochMilli()) }
+    }
+
+    companion object {
+        const val PREFS = "opus_plan_ambient_sky"
+        private const val KEY = "last_session_epoch_millis"
+    }
+}
+
+/**
+ * Whether the header's ambient sky may play at [now], having last played at [lastSession]: at most once per
+ * [AmbientSkyGap] (rare delight on a 10+/day screen). A session stamped further ahead than the gap (the clock was
+ * moved back a long way) no longer blocks it.
+ */
+internal fun ambientSkyDue(lastSession: Instant?, now: Instant): Boolean {
+    if (lastSession == null) return true
+    val since = Duration.between(lastSession, now)
+    return since >= AmbientSkyGap || since <= AmbientSkyGap.negated()
+}
+
+/** The ambient sky plays at most once in this long. */
+internal val AmbientSkyGap: Duration = Duration.ofHours(12)

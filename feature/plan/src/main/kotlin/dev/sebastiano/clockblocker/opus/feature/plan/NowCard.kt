@@ -345,8 +345,9 @@ private fun OutcomeSplitButton(
 }
 
 /**
- * Nothing to do right now: a calm card (no advice colour, no countdown) with what comes next. [next] null when the
- * plan has nothing further today.
+ * Nothing to do right now: a calm card (no advice colour, no countdown). What comes next is the header's "Next" line
+ * (counted from now), so the card doesn't repeat it, except while [previewing] another moment: then it says what
+ * comes next from *that* moment, which the header doesn't.
  */
 @Composable
 internal fun FreeTimeCard(moment: PlanMoment, previewing: Boolean, modifier: Modifier = Modifier, previewDay: String? = null) {
@@ -375,7 +376,7 @@ internal fun FreeTimeCard(moment: PlanMoment, previewing: Boolean, modifier: Mod
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (next != null) {
+            if (next != null && previewing) {
                 Spacer(Modifier.height(16.dp))
                 NextLine(next, moment)
             }
