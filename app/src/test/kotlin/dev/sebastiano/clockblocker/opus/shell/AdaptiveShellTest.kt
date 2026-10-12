@@ -17,7 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Adaptive shell behaviour across window sizes, and back stack restoration. */
+/** Adaptive shell behaviour across window sizes (see [ShellLayout]), and back stack restoration. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], application = TestApplication::class)
@@ -38,30 +38,57 @@ class AdaptiveShellTest {
 
     @Test
     @Config(qualifiers = "w1000dp-h800dp")
-    fun `expanded window shows trips with the navigation rail`() {
+    fun `expanded window shows trips next to a placeholder, with the navigation rail`() {
         launch()
 
         tag("screen_trips").assertIsDisplayed()
+        tag(ShellTestTags.PlanPlaceholder).assertIsDisplayed()
         tag(ShellTestTags.NavTrips).assertIsDisplayed().assertIsSelected()
     }
 
     @Test
     @Config(qualifiers = "w1000dp-h800dp")
-    fun `expanded window opens a trip plan full screen without the rail and with an up arrow`() {
+    fun `expanded window opens plans in the detail pane, keeps the rail and has no up arrow`() {
         launch()
 
         tag("trips_open_a").performClick()
         compose.waitForIdle()
 
-        tag("screen_plan_a").assertIsDisplayed()
-        tag("screen_trips").assertDoesNotExist()
-        tag("plan_up").assertIsDisplayed()
-        tag(ShellTestTags.NavTrips).assertIsNotDisplayed()
-
-        tag("plan_up").performClick()
-        compose.waitForIdle()
         tag("screen_trips").assertIsDisplayed()
+        tag("screen_plan_a").assertIsDisplayed()
+        tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
+        tag("plan_up").assertDoesNotExist()
+        tag("trips_selected").assertTextEquals("selected=a")
         tag(ShellTestTags.NavTrips).assertIsDisplayed().assertIsSelected()
+        tag(ShellTestTags.PaneHandle).assertIsDisplayed()
+
+        // Opening another trip replaces the detail rather than stacking it.
+        tag("trips_open_b").performClick()
+        compose.waitForIdle()
+        tag("screen_plan_b").assertIsDisplayed()
+        tag("screen_plan_a").assertDoesNotExist()
+        tag("trips_selected").assertTextEquals("selected=b")
+
+        // Back closes the detail, back to the placeholder (not to plan a).
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+        tag("screen_plan_b").assertDoesNotExist()
+        tag(ShellTestTags.PlanPlaceholder).assertIsDisplayed()
+        tag("trips_selected").assertTextEquals("selected=none")
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h800dp")
+    fun `re-selecting Trips in the rail closes the open plan`() {
+        launch()
+        tag("trips_open_a").performClick()
+        compose.waitForIdle()
+
+        tag(ShellTestTags.NavTrips).performClick()
+        compose.waitForIdle()
+
+        tag("screen_plan_a").assertDoesNotExist()
+        tag(ShellTestTags.PlanPlaceholder).assertIsDisplayed()
     }
 
     @Test
@@ -78,9 +105,36 @@ class AdaptiveShellTest {
     }
 
     @Test
+    @Config(qualifiers = "w1000dp-h800dp")
+    fun `Now gets the whole window, without a placeholder`() {
+        launch(hasTrips = true)
+
+        tag("screen_plan_now").assertIsDisplayed()
+        tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
+        tag(ShellTestTags.NavNow).assertIsDisplayed().assertIsSelected()
+    }
+
+    @Test
     @Config(qualifiers = "w700dp-h1000dp")
-    fun `medium window opens a trip plan full screen without the rail and with an up arrow`() {
+    fun `medium window pushes a trip plan as one pane with an up arrow, keeping the rail`() {
         launch()
+        tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
+
+        tag("trips_open_a").performClick()
+        compose.waitForIdle()
+
+        tag("screen_plan_a").assertIsDisplayed()
+        tag("plan_up").assertIsDisplayed()
+        tag("screen_trips").assertDoesNotExist()
+        tag("trips_selected").assertDoesNotExist()
+        tag(ShellTestTags.NavTrips).assertIsDisplayed().assertIsSelected()
+    }
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp")
+    fun `landscape phone pushes a trip plan full screen without the rail`() {
+        launch()
+        tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
 
         tag("trips_open_a").performClick()
         compose.waitForIdle()
