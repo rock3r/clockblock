@@ -82,11 +82,20 @@ class WidgetGalleryActivity : Activity() {
         column.addView(label("$scenario${labelOverride?.let { " \"$it\"" }.orEmpty()} · player v${runCatching { RemoteComposeSupport.supportedVersion() }.getOrNull()} · font ×$scale"))
 
         val now = Instant.now()
+        fun mapDemo(plan: dev.sebastiano.clockblocker.opus.core.model.JetLagPlan) = WidgetStateMapper.map(
+            plan,
+            now,
+            route = DemoPlans.ROUTE,
+            placeNames = DemoPlans.PLACE_NAMES,
+            placeCodes = DemoPlans.PLACE_CODES,
+            places = DemoPlans.PLACES,
+            trip = DemoPlans.trip(),
+        )
         val state = when (scenario) {
             "NoTrip" -> WidgetState.NoTrip
             in DemoPlans.Scenario.entries.map { it.name } -> {
                 val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.valueOf(scenario))
-                WidgetStateMapper.map(plan, now)
+                mapDemo(plan)
             }
             else -> {
                 // Any AdviceType: the demo's current block (AvoidLight, now ± 1.5 h) becomes that type.
@@ -106,7 +115,7 @@ class WidgetGalleryActivity : Activity() {
                         },
                     )
                 }
-                WidgetStateMapper.map(plan, now)
+                mapDemo(plan)
             }
         }
 
@@ -118,8 +127,17 @@ class WidgetGalleryActivity : Activity() {
                 }
                 return@launch
             }
-            for ((kind, buckets) in listOf(WidgetKind.TwoClocks to TWO_CLOCKS_CELLS, WidgetKind.NextUp to NEXT_UP_CELLS)) {
-                val pageName = if (kind == WidgetKind.TwoClocks) "twoclocks" else "nextup"
+            val kinds = listOf(
+                WidgetKind.TwoClocks to TWO_CLOCKS_CELLS,
+                WidgetKind.NextUp to NEXT_UP_CELLS,
+                WidgetKind.RouteGlobe to ROUTE_GLOBE_CELLS,
+            )
+            for ((kind, buckets) in kinds) {
+                val pageName = when (kind) {
+                    WidgetKind.TwoClocks -> "twoclocks"
+                    WidgetKind.NextUp -> "nextup"
+                    WidgetKind.RouteGlobe -> "routeglobe"
+                }
                 if (page != "all" && page != pageName) continue
                 for ((name, size) in buckets) {
                     column.addView(label("${kind.name} $name"))
@@ -173,7 +191,11 @@ class WidgetGalleryActivity : Activity() {
         host.deleteHost() // drop ids from previous runs
         host.startListening()
         column.addView(label("Live providers (AppWidgetHost)"))
-        listOf(WidgetKind.TwoClocks to (176 to 176), WidgetKind.NextUp to (360 to 76)).forEach { (kind, size) ->
+        listOf(
+            WidgetKind.TwoClocks to (176 to 176),
+            WidgetKind.NextUp to (360 to 76),
+            WidgetKind.RouteGlobe to (176 to 176),
+        ).forEach { (kind, size) ->
             val component = WidgetUpdater.componentName(this, kind)
             val id = host.allocateAppWidgetId()
             val options = Bundle().apply {
@@ -220,6 +242,13 @@ class WidgetGalleryActivity : Activity() {
             "2×2" to (176 to 176),
             "2×3" to (176 to 260),
             "4×2" to (360 to 172),
+            "4×3" to (360 to 260),
+        )
+        val ROUTE_GLOBE_CELLS = listOf(
+            "1×1" to (76 to 76),
+            "2×2" to (176 to 176),
+            "4×2" to (360 to 172),
+            "2×3" to (176 to 260),
             "4×3" to (360 to 260),
         )
     }

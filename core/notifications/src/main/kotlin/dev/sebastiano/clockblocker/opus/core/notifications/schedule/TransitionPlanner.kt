@@ -6,6 +6,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /** What happens at a [Transition]. */
 enum class TransitionKind(
@@ -126,6 +127,26 @@ object TransitionPlanner {
             .map { it.start.plus(MOMENT_DUE) }
             .filter { it.isAfter(now) }
             .minOrNull()
+    }
+
+    /**
+     * How often the route globe is re-captured while a plan is active so its solar daylight (and, during flights, its
+     * interpolated traveller marker) stays current across pre-departure periods, flights, layovers, post-arrival
+     * periods and scheduled sleep.
+     */
+    val GLOBE_REFRESH_STEP: Duration = Duration.ofMinutes(15)
+
+    /**
+     * The next instant strictly after [now] at which the route globe of [plan] gets a silent surface refresh
+     * ([GLOBE_REFRESH_STEP] ahead, truncated to the minute), whenever [plan] has a route (`originZoneId !=
+     * destinationZoneId` or any [AdviceType.Flight]) and still has advice ahead of [now]. Silent surface refreshes
+     * never post a reminder or make a sound, so they also run across sleep windows.
+     */
+    fun nextGlobeRefresh(plan: JetLagPlan, now: Instant): Instant? {
+        val hasRoute = plan.originZoneId != plan.destinationZoneId || plan.allAdvice.any { it.type == AdviceType.Flight }
+        val active = plan.allAdvice.any { it.end.isAfter(now) }
+        if (!hasRoute || !active) return null
+        return now.plus(GLOBE_REFRESH_STEP).truncatedTo(ChronoUnit.MINUTES).takeIf { it.isAfter(now) }
     }
 
     /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */

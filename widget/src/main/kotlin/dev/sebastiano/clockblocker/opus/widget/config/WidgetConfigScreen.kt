@@ -276,6 +276,7 @@ private fun BodyRingCard(mode: BodyRingMode, dial: DialState?, selected: Boolean
 private fun WidgetKind.label(): Int = when (this) {
     WidgetKind.TwoClocks -> R.string.widget_two_clocks_label
     WidgetKind.NextUp -> R.string.widget_next_up_label
+    WidgetKind.RouteGlobe -> R.string.widget_route_globe_label
 }
 
 private fun BodyRingMode.label(): Int = when (this) {

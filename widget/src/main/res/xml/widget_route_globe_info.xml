@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_route_globe_description"
+    android:initialKeyguardLayout="@layout/widget_placeholder"
+    android:initialLayout="@layout/widget_placeholder"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="57dp"
+    android:minResizeHeight="51dp"
+    android:previewImage="@drawable/widget_globe_placeholder"
+    android:previewLayout="@layout/widget_route_globe_preview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen|keyguard" />

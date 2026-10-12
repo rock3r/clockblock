@@ -356,6 +356,28 @@ class TransitionPlannerTest {
         }
 
         @Test
+        fun `an active plan with a route gets a 15-minute globe refresh across pre-departure, flights, layovers and sleep`() {
+            val plan = planOf(
+                advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
+                advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
+                advice(Sleep, "2026-10-10T17:00", "2026-10-10T22:00"),
+            )
+
+            // Pre-departure: refreshes solar lighting every 15 minutes.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T09:00")) shouldBe utc("2026-10-10T09:15")
+            // In flight: refreshes both the traveller marker and solar lighting.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T14:07:30Z")) shouldBe utc("2026-10-10T14:22")
+            // Layover and scheduled sleep: still refreshes solar lighting silently.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T15:30")) shouldBe utc("2026-10-10T15:45")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T19:30")) shouldBe utc("2026-10-10T19:45")
+            // Once all advice has ended: no more refreshes.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-11T05:00")) shouldBe null
+            // A same-zone plan with no flights has no route globe.
+            val noRoute = planOf(advice(Sleep, "2026-10-10T22:00", "2026-10-11T06:00"), origin = "Europe/London", destination = "Europe/London")
+            TransitionPlanner.nextGlobeRefresh(noRoute, utc("2026-10-10T12:00")) shouldBe null
+        }
+
+        @Test
         fun `the widget dial's next refresh is the earlier of a block coming into view and a moment ending`() {
             val plan = planOf(
                 advice(Melatonin, "2026-10-10T19:00"),

@@ -301,7 +301,7 @@ class AdviceAlarmSchedulerTest {
 
         settings.current.value = AppSettings(reminderLeadMinutes = 30)
         runCurrent()
-        scheduled.first().triggerAtMs shouldBe ScheduledAlarm("2026-10-10T21:30")
+        scheduled.map { it.triggerAtMs } shouldContain ScheduledAlarm("2026-10-10T21:30")
         widget.refreshes shouldBe 3
     }
 
@@ -613,6 +613,34 @@ class AdviceAlarmSchedulerTest {
 
         result.instants.first() shouldBe utc("2026-10-10T14:22")
         now!!.channelId shouldBe ClockblockChannel.TravelLive.id
+    }
+
+    @Test
+    fun `route globe keeps a refresh tick armed only while a route globe widget is placed`() = runTest {
+        plans.current.value = planOf(
+            advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
+            advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
+            advice(Sleep, "2026-10-11T22:00", "2026-10-12T06:00"),
+        )
+        val scheduler = scheduler()
+        clock.instant = utc("2026-10-10T13:00")
+
+        // Without a placed Route globe widget, no 15-minute globe wakeup is armed.
+        scheduler.resync().instants.first() shouldBe utc("2026-10-10T15:00")
+
+        // Placing a Route globe re-arms with the 15-minute tick across flights, layovers and sleep.
+        widget.hasPlacedGlobe = true
+        scheduler.rearm().instants.first() shouldBe utc("2026-10-10T13:15")
+
+        clock.instant = utc("2026-10-10T16:00")
+        scheduler.resync().instants.first() shouldBe utc("2026-10-10T16:15")
+
+        clock.instant = utc("2026-10-11T23:30")
+        scheduler.resync().instants.first() shouldBe utc("2026-10-11T23:45")
+
+        // Removing the last Route globe cancels the 15-minute tick on rearm().
+        widget.hasPlacedGlobe = false
+        scheduler.rearm().instants.first() shouldBe utc("2026-10-12T06:00")
     }
 
     @Test

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static Route globe illustration for initial / preview layouts. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Ocean disc -->
+    <path
+        android:pathData="M6,50 a44,44 0 1,0 88,0 a44,44 0 1,0 -88,0"
+        android:fillColor="@color/widget_midnight" />
+    <!--Rim -->
+    <path
+        android:pathData="M6,50 a44,44 0 1,0 88,0 a44,44 0 1,0 -88,0"
+        android:strokeWidth="1.5"
+        android:strokeColor="@color/widget_track" />
+    <!-- Route arc -->
+    <path
+        android:pathData="M24,42 Q50,18 76,46"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:strokeColor="@color/widget_marigold" />
+    <!-- Origin and destination stops -->
+    <path
+        android:pathData="M21,42 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+        android:fillColor="@color/widget_on_surface" />
+    <path
+        android:pathData="M73,46 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0"
+        android:fillColor="@color/widget_marigold" />
+</vector>

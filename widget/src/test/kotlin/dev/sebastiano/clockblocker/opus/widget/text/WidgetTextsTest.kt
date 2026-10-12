@@ -213,7 +213,7 @@ class WidgetTextsTest {
         first.glyph shouldBe GlyphKind.PlanStep
         first.time shouldBe full.upcoming.first().time
         t.upcoming.all { it.secondary == null } shouldBe true
-        listOf(t.contentDescription, t.upcomingDescription.orEmpty(), t.subtitle).forEach {
+        listOf(t.contentDescription, t.globeDescription, t.upcomingDescription.orEmpty(), t.subtitle).forEach {
             it shouldNotContain "Lisbon"
             it shouldNotContain "Tokyo"
             it shouldNotContain "Melatonin"

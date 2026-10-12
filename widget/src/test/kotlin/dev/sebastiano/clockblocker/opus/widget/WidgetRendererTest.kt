@@ -61,6 +61,7 @@ class WidgetRendererTest {
         val renderer = WidgetRenderer(context, profileProvider = { null })
         renderer.render(WidgetKind.TwoClocks, active, WidgetTheme.Light).layoutId shouldBe R.layout.widget_placeholder
         renderer.render(WidgetKind.NextUp, active, WidgetTheme.Dark).layoutId shouldBe R.layout.widget_placeholder
+        renderer.render(WidgetKind.RouteGlobe, active, WidgetTheme.Light).layoutId shouldBe R.layout.widget_placeholder
     }
 
     @Test
@@ -74,6 +75,7 @@ class WidgetRendererTest {
         fun Map<SizeF, *>.areas() = keys.map { it.width * it.height }
         WidgetRenderer.NEXT_UP_SIZES.areas() shouldBe WidgetRenderer.NEXT_UP_SIZES.areas().sorted()
         WidgetRenderer.TWO_CLOCKS_SIZES.areas() shouldBe WidgetRenderer.TWO_CLOCKS_SIZES.areas().sorted()
+        WidgetRenderer.ROUTE_GLOBE_SIZES.areas() shouldBe WidgetRenderer.ROUTE_GLOBE_SIZES.areas().sorted()
     }
 
     @Test
@@ -85,7 +87,7 @@ class WidgetRendererTest {
             val values = context.resources.obtainAttributes(parser, intArrayOf(attr))
             return values.getDimension(0, 0f).also { values.recycle() } / density
         }
-        for (xml in listOf(R.xml.widget_next_up_info, R.xml.widget_two_clocks_info)) {
+        for (xml in listOf(R.xml.widget_next_up_info, R.xml.widget_two_clocks_info, R.xml.widget_route_globe_info)) {
             // Below WidgetSizes.FLOOR no bucket fits and the host plays the smallest one anyway, which may clip.
             dp(xml, android.R.attr.minResizeWidth) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.width
             dp(xml, android.R.attr.minResizeHeight) shouldBeGreaterThanOrEqual WidgetSizes.FLOOR.height

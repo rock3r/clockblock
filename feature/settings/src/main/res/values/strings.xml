@@ -91,6 +91,8 @@
     <string name="settings_widget_two_clocks_description">Local time and your body clock on one dial.</string>
     <string name="settings_widget_next_up">Next up</string>
     <string name="settings_widget_next_up_description">What to do now, with a countdown.</string>
+    <string name="settings_widget_route_globe">Route globe</string>
+    <string name="settings_widget_route_globe_description">Your flight arc, daylight and what to do now.</string>
     <string name="settings_widget_add">Add</string>
     <string name="settings_widget_add_description">Add the %1$s widget to the home screen</string>
     <string name="settings_widget_preview_countdown">1 h 10 m</string>

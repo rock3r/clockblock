@@ -108,7 +108,7 @@ class WidgetUpdaterTest {
     private fun WidgetModel.allText(): String {
         val t = texts
         return (
-            listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.spokenNow) +
+            listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.globeDescription, t.spokenNow) +
                 t.subtitleLines + t.upcoming.flatMap { listOf(it.label, it.spoken) } + listOfNotNull(t.done?.label, t.done?.contentDescription)
             ).joinToString("\n")
     }
@@ -118,17 +118,21 @@ class WidgetUpdaterTest {
         place(WidgetKind.TwoClocks, 1)
         place(WidgetKind.NextUp, 2)
         place(WidgetKind.NextUp, 3)
+        place(WidgetKind.RouteGlobe, 4)
         updater.ids(WidgetKind.TwoClocks).toList() shouldBe listOf(1)
         updater.ids(WidgetKind.NextUp).toList() shouldContainExactlyInAnyOrder listOf(2, 3)
+        updater.ids(WidgetKind.RouteGlobe).toList() shouldBe listOf(4)
     }
 
     @Test
-    fun `without a plan both widgets show the empty state`() = runBlocking<Unit> {
+    fun `without a plan all widgets show the empty state`() = runBlocking<Unit> {
         val clocks = place(WidgetKind.TwoClocks, 1)
         val next = place(WidgetKind.NextUp, 2)
+        val globe = place(WidgetKind.RouteGlobe, 3)
         updater.updateAll()
         texts(clocks) shouldContainText app.getString(R.string.widget_no_trip_full)
         texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
+        texts(globe) shouldContainText app.getString(R.string.widget_no_trip_full)
     }
 
     @Test
@@ -193,6 +197,38 @@ class WidgetUpdaterTest {
             Thread.sleep(20)
         }
         texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
+    }
+
+    @Test
+    fun `placing and removing a Route globe widget updates hasPlacedGlobe and notifies the scheduler`() {
+        val surface = WidgetPlanSurface(updater)
+        surface.hasPlacedGlobe.shouldBeFalse()
+
+        val rearmed = java.util.concurrent.atomic.AtomicInteger(0)
+        val provider = RouteGlobeWidgetProvider(updater, onInstancesChanged = { rearmed.incrementAndGet() })
+        val globe = place(WidgetKind.RouteGlobe, 5)
+        provider.onReceive(
+            app,
+            Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(globe)),
+        )
+        val deadline = System.currentTimeMillis() + 10_000
+        while (rearmed.get() < 1 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+        surface.hasPlacedGlobe.shouldBeTrue()
+        rearmed.get() shouldBe 1
+
+        provider.onReceive(
+            app,
+            Intent(AppWidgetManager.ACTION_APPWIDGET_DELETED)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, globe),
+        )
+        while (rearmed.get() < 2 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+        surface.hasPlacedGlobe.shouldBeFalse()
+        rearmed.get() shouldBe 2
     }
 
     @Test
@@ -451,8 +487,10 @@ class WidgetUpdaterTest {
     fun `kindOf names our widgets and nothing else`() {
         val clocks = place(WidgetKind.TwoClocks, 45)
         val next = place(WidgetKind.NextUp, 46)
+        val globe = place(WidgetKind.RouteGlobe, 49)
         updater.kindOf(clocks) shouldBe WidgetKind.TwoClocks
         updater.kindOf(next) shouldBe WidgetKind.NextUp
+        updater.kindOf(globe) shouldBe WidgetKind.RouteGlobe
         updater.kindOf(999).shouldBeNull()
     }
 

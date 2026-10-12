@@ -6,6 +6,7 @@ import android.content.ComponentName
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.WidgetPinning
 import dev.sebastiano.clockblocker.opus.widget.NextUpWidgetProvider
+import dev.sebastiano.clockblocker.opus.widget.RouteGlobeWidgetProvider
 import dev.sebastiano.clockblocker.opus.widget.TwoClocksWidgetProvider
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -23,6 +24,7 @@ class AppWidgetPinning(private val application: Application) : WidgetPinning {
         val provider = when (widget) {
             PinnableWidget.TwoClocks -> TwoClocksWidgetProvider::class.java
             PinnableWidget.NextUp -> NextUpWidgetProvider::class.java
+            PinnableWidget.RouteGlobe -> RouteGlobeWidgetProvider::class.java
         }
         return try {
             manager?.requestPinAppWidget(ComponentName(application, provider), null, null) == true

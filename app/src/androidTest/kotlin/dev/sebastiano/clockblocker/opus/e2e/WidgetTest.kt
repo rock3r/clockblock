@@ -40,7 +40,7 @@ class WidgetTest : ClockblockE2eTest() {
         seedOnboarded()
         val active = graph.seedTripWithActiveAdvice()
 
-        val (twoClocks, _) = openLiveWidgets()
+        val (twoClocks, _, _) = openLiveWidgets()
         assertRendered(twoClocks)
         twoClocks.click()
 
@@ -53,15 +53,29 @@ class WidgetTest : ClockblockE2eTest() {
     fun nextUpWidgetWithoutTripsOpensTheTripEditor() {
         seedOnboarded()
 
-        val (_, nextUp) = openLiveWidgets()
+        val (_, nextUp, _) = openLiveWidgets()
         assertRendered(nextUp)
         nextUp.click()
 
         awaitTag("route_trip_editor", LongTimeoutMillis).assertIsDisplayed()
     }
 
-    /** Starts the gallery's live page and returns the Two Clocks and Next up host views once both have content. */
-    private fun openLiveWidgets(): Pair<UiObject2, UiObject2> {
+    @Test
+    fun routeGlobeWidgetRendersTheActiveTripAndOpensItsPlan() {
+        seedOnboarded()
+        val active = graph.seedTripWithActiveAdvice()
+
+        val (_, _, routeGlobe) = openLiveWidgets()
+        assertRendered(routeGlobe)
+        routeGlobe.click()
+
+        awaitTag("route_plan", LongTimeoutMillis).assertIsDisplayed()
+        awaitTag(PlanTags.NowCard, LongTimeoutMillis).assertIsDisplayed()
+        awaitText(active.trip.destination.city)
+    }
+
+    /** Starts the gallery's live page and returns the Two Clocks, Next up and Route globe host views once all have content. */
+    private fun openLiveWidgets(): Triple<UiObject2, UiObject2, UiObject2> {
         val intent = Intent()
             .setComponent(ComponentName(context.packageName, GalleryActivity))
             .putExtra("page", "live")
@@ -69,28 +83,29 @@ class WidgetTest : ClockblockE2eTest() {
         context.startActivity(intent)
 
         val hosts = By.clazz("android.appwidget.AppWidgetHostView").hasChild(By.depth(1))
-        // Until.findObjects returns as soon as ONE host matches; the second widget can still be binding, so poll
-        // until both host views have content.
+        // Until.findObjects returns as soon as ONE host matches; the other widgets can still be binding, so poll
+        // until all three host views have content.
         val deadline = System.currentTimeMillis() + LongTimeoutMillis
         var found = device.findObjects(hosts)
-        while (found.size < 2 && System.currentTimeMillis() < deadline) {
+        while (found.size < 3 && System.currentTimeMillis() < deadline) {
             Thread.sleep(250)
             found = device.findObjects(hosts)
         }
-        check(found.size >= 2) {
-            "Expected two live widgets, found ${found.size} (is appwidget grantbind allowed?)"
+        check(found.size >= 3) {
+            "Expected three live widgets, found ${found.size} (is appwidget grantbind allowed?)"
         }
-        return found[0] to found[1]
+        return Triple(found[0], found[1], found[2])
     }
 
-    /** The widget drew something: its pixels aren't a single flat colour. */
+    /** The widget left its initial placeholder layout and drew its Remote Compose document. */
     private fun assertRendered(widget: UiObject2) {
+        val placeholder = By.res(context.packageName, "widget_placeholder")
         // Plain polling: the gallery is a View activity, so there's no Compose content to synchronise with.
         val deadline = System.currentTimeMillis() + LongTimeoutMillis
-        var distinct = distinctColours(widget.visibleBounds)
+        var distinct = if (widget.hasObject(placeholder)) 0 else distinctColours(widget.visibleBounds)
         while (distinct <= 8 && System.currentTimeMillis() < deadline) {
             Thread.sleep(250)
-            distinct = distinctColours(widget.visibleBounds)
+            distinct = if (widget.hasObject(placeholder)) 0 else distinctColours(widget.visibleBounds)
         }
         assertTrue("widget at ${widget.visibleBounds} looks blank ($distinct colours)", distinct > 8)
     }

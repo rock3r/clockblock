@@ -75,6 +75,7 @@ class WidgetUpdater(
     internal var onRendered: (appWidgetId: Int, model: WidgetModel) -> Unit = { _, _ -> }
 
     private val mutex = Mutex()
+    private val deletedIds = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
     private val manager: AppWidgetManager get() = AppWidgetManager.getInstance(application)
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var lastRenderConfig = RenderConfig.of(application.resources.configuration)
@@ -152,6 +153,7 @@ class WidgetUpdater(
     }
 
     private suspend fun render(kind: WidgetKind, appWidgetIds: IntArray) = mutex.withLock {
+        appWidgetIds.forEach(deletedIds::remove)
         RetiredLegacyRefresh.cancel(application)
         val plan = withTimeoutOrNull(readTimeoutMs) { planRepository.currentPlan.first() }
         val read = withTimeoutOrNull(readTimeoutMs) { settingsRepository.settings.first() }
@@ -193,7 +195,7 @@ class WidgetUpdater(
         val places = trip?.let(WidgetStateMapper::placeNames).orEmpty()
         val codes = trip?.let(WidgetStateMapper::placeCodes).orEmpty()
         val dialPlaces = trip?.let(WidgetStateMapper::places).orEmpty()
-        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes, dialPlaces)
+        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes, dialPlaces, trip)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
@@ -255,6 +257,7 @@ class WidgetUpdater(
             placeNames = DemoPlans.PLACE_NAMES,
             placeCodes = DemoPlans.PLACE_CODES,
             places = DemoPlans.PLACES,
+            trip = DemoPlans.trip(),
         )
     }
 
@@ -283,6 +286,7 @@ class WidgetUpdater(
             placeNames = DemoPlans.PLACE_NAMES,
             placeCodes = DemoPlans.PLACE_CODES,
             places = DemoPlans.PLACES,
+            trip = DemoPlans.trip(),
         )
         val renderer = rendererFactory(application)
         // The picker is not the plan: always the regular palette, never night-safe.
@@ -301,7 +305,8 @@ class WidgetUpdater(
         if (ok) prefs.edit().putString(KEY_PREVIEW, key).apply()
     }
 
-    fun ids(kind: WidgetKind): IntArray = manager.getAppWidgetIds(componentName(application, kind))
+    fun ids(kind: WidgetKind): IntArray =
+        manager.getAppWidgetIds(componentName(application, kind)).filterNot(deletedIds::contains).toIntArray()
 
     /**
      * Saves [appWidgetId]'s options (its configuration screen, #52) and redraws that widget. The scheduler doesn't
@@ -316,7 +321,10 @@ class WidgetUpdater(
     fun kindOf(appWidgetId: Int): WidgetKind? = WidgetKind.entries.firstOrNull { appWidgetId in ids(it) }
 
     /** The widgets were removed: forget their options. */
-    suspend fun forget(appWidgetIds: IntArray) = widgetConfigs.remove(appWidgetIds.toList())
+    suspend fun forget(appWidgetIds: IntArray) {
+        appWidgetIds.forEach(deletedIds::add)
+        widgetConfigs.remove(appWidgetIds.toList())
+    }
 
     /**
      * A backup restore gave [kind]'s widgets new ids ([oldIds] and [newIds] pair up): move their options, tell the
@@ -357,6 +365,7 @@ class WidgetUpdater(
         fun componentName(context: Context, kind: WidgetKind): ComponentName = when (kind) {
             WidgetKind.TwoClocks -> ComponentName(context, TwoClocksWidgetProvider::class.java)
             WidgetKind.NextUp -> ComponentName(context, NextUpWidgetProvider::class.java)
+            WidgetKind.RouteGlobe -> ComponentName(context, RouteGlobeWidgetProvider::class.java)
         }
 
         /**

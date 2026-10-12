@@ -72,7 +72,7 @@ class FakeCapabilities(
 }
 
 /** Counts refreshes, standing in for a widget. */
-class RecordingSurface : PlanSurface {
+class RecordingSurface(override var hasPlacedGlobe: Boolean = false) : PlanSurface {
     var refreshes = 0
         private set
 

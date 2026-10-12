@@ -20,6 +20,8 @@ import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeLayout
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
@@ -64,7 +66,7 @@ class RemoteSemanticsTest {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current.shouldNotBeNull()
         val logs = listOfNotNull(logged?.let { AdviceLog(current.adviceId, it) })
-        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES)
+        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES, trip = DemoPlans.trip())
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(WidgetTheme.Light))
     }
 
@@ -145,6 +147,57 @@ class RemoteSemanticsTest {
             main.description.shouldNotBeNull() shouldContain "Tokyo · Day 2. "
             main.description shouldContain "until 16:30 (08:30 in Lisbon)"
         }
+    }
+
+    @Test
+    fun `Route globe speaks the route and current advice across layouts without dial readings`() {
+        val model = model()
+        val expected = "L I S to H N D. Now: Avoid light until 16:30 (08:30 in Lisbon) · then Melatonin."
+
+        val compact = nodes(70, 70) { RouteGlobeRemote(model, RouteGlobeLayout.Compact) }.single()
+        compact.clickable shouldBe true
+        compact.description shouldBe expected
+
+        val square = nodes(180, 180) { RouteGlobeRemote(model, RouteGlobeLayout.Square) }.single()
+        square.clickable shouldBe true
+        square.description shouldBe expected
+
+        val tall = nodes(180, 300) { RouteGlobeRemote(model, RouteGlobeLayout.Tall) }.single()
+        tall.clickable shouldBe true
+        tall.description shouldBe "Tokyo · Day 2. $expected"
+
+        val large = nodes(300, 300) { RouteGlobeRemote(model, RouteGlobeLayout.Large) }
+        large.filter { it.description == "Tokyo · Day 2. L I S to H N D" } shouldHaveSize 1
+        large.first { it.description?.startsWith("L I S to H N D. Now:") == true }.description shouldBe expected
+
+        val multiState = (model.state as WidgetState.Active).let { s ->
+            val lis = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop(
+                dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(38.77, -9.13),
+                "LIS",
+            )
+            val doh = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop(
+                dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(25.27, 51.61),
+                "DOH",
+            )
+            val hnd = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop(
+                dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(35.55, 139.78),
+                "HND",
+            )
+            val legs = listOf(
+                dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg(lis, doh),
+                dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg(doh, hnd),
+            )
+            s.copy(globe = s.globe.copy(legs = legs, activeLeg = 1))
+        }
+        val multiModel = WidgetModel(multiState, WidgetTexts.from(context, multiState, is24Hour = true), model.palette)
+        val multiCompact = nodes(180, 70) { RouteGlobeRemote(multiModel, RouteGlobeLayout.Compact) }.single()
+        multiCompact.description shouldBe
+            "L I S to H N D via D O H. Active leg: D O H to H N D. Now: Avoid light until 16:30 (08:30 in Lisbon) · then Melatonin."
+
+        val redactedState = WidgetStateMapper.redact(model.state)
+        val redactedModel = WidgetModel(redactedState, WidgetTexts.from(context, redactedState, is24Hour = true), model.palette)
+        val redactedCompact = nodes(70, 70) { RouteGlobeRemote(redactedModel, RouteGlobeLayout.Compact) }.single()
+        redactedCompact.description shouldBe "Now: Avoid light until 16:30 · then Plan step."
     }
 
     @Test

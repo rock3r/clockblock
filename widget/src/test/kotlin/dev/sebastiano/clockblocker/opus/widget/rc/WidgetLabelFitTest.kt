@@ -133,6 +133,9 @@ class WidgetLabelFitTest {
     private fun twoClocks(texts: WidgetTexts, bucket: Bucket<TwoClocksLayout>) =
         LabelFit.twoClocks(context, texts, bucket.layout, bucket.fitAt)
 
+    private fun routeGlobe(texts: WidgetTexts, bucket: Bucket<RouteGlobeLayout>) =
+        LabelFit.routeGlobe(context, texts, bucket.layout, bucket.fitAt)
+
     /** Densities to measure at: text snaps to whole pixels, so a label that just fits at one may not at another. */
     private val densities = listOf("mdpi", "xhdpi", "420dpi", "xxhdpi", "xxxhdpi")
 
@@ -161,6 +164,9 @@ class WidgetLabelFitTest {
                         WidgetSizes.TWO_CLOCKS.forEach { bucket ->
                             failures += check(twoClocks(case.texts, bucket), case.texts, "$where Two Clocks ${bucket.layout} ${bucket.min}")
                         }
+                        WidgetSizes.ROUTE_GLOBE.forEach { bucket ->
+                            failures += check(routeGlobe(case.texts, bucket), case.texts, "$where Route globe ${bucket.layout} ${bucket.min}")
+                        }
                     }
                 }
             }
@@ -181,6 +187,7 @@ class WidgetLabelFitTest {
                 }
                 WidgetSizes.NEXT_UP.forEach { verify(nextUp(case.texts, it), "Next up ${it.layout} ${it.min}") }
                 WidgetSizes.TWO_CLOCKS.forEach { verify(twoClocks(case.texts, it), "Two Clocks ${it.layout} ${it.min}") }
+                WidgetSizes.ROUTE_GLOBE.forEach { verify(routeGlobe(case.texts, it), "Route globe ${it.layout} ${it.min}") }
             }
         }
         withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
@@ -197,6 +204,7 @@ class WidgetLabelFitTest {
                 }
                 WidgetSizes.NEXT_UP.forEach { verify(nextUp(case.texts, it), "Next up ${it.layout} ${it.min}") }
                 WidgetSizes.TWO_CLOCKS.forEach { verify(twoClocks(case.texts, it), "Two Clocks ${it.layout} ${it.min}") }
+                WidgetSizes.ROUTE_GLOBE.forEach { verify(routeGlobe(case.texts, it), "Route globe ${it.layout} ${it.min}") }
             }
         }
         withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
@@ -226,6 +234,7 @@ class WidgetLabelFitTest {
                 if (!WidgetSizes.FLOOR.within(cell)) add("$name ($cell) is below the floor ${WidgetSizes.FLOOR}")
                 WidgetSizes.pick(WidgetSizes.NEXT_UP, cell).let { if (!it.min.within(cell)) add("$name ($cell): Next up ${it.layout} needs ${it.min}") }
                 WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, cell).let { if (!it.min.within(cell)) add("$name ($cell): Two Clocks ${it.layout} needs ${it.min}") }
+                WidgetSizes.pick(WidgetSizes.ROUTE_GLOBE, cell).let { if (!it.min.within(cell)) add("$name ($cell): Route globe ${it.layout} needs ${it.min}") }
             }
         }
         withClue(failures.joinToString("\n")) { failures.shouldBeEmpty() }
@@ -236,6 +245,7 @@ class WidgetLabelFitTest {
         val cells = WidgetSizes.docsCells().toMap()
         fun nextUp(name: String) = WidgetSizes.pick(WidgetSizes.NEXT_UP, cells.getValue(name)).layout
         fun twoClocks(name: String) = WidgetSizes.pick(WidgetSizes.TWO_CLOCKS, cells.getValue(name)).layout
+        fun routeGlobe(name: String) = WidgetSizes.pick(WidgetSizes.ROUTE_GLOBE, cells.getValue(name)).layout
         mapOf(
             "1×1 portrait" to NextUpLayout.Small,
             "1×1 landscape" to NextUpLayout.Small,
@@ -265,6 +275,21 @@ class WidgetLabelFitTest {
             "4×3 portrait" to TwoClocksLayout.Large,
             "4×4 landscape" to TwoClocksLayout.Large,
         ).forEach { (name, layout) -> withClue("Two Clocks $name") { twoClocks(name) shouldBe layout } }
+        mapOf(
+            "1×1 portrait" to RouteGlobeLayout.Compact,
+            "1×1 landscape" to RouteGlobeLayout.Compact,
+            "2×1 portrait" to RouteGlobeLayout.Compact,
+            "2×1 landscape" to RouteGlobeLayout.Compact,
+            "4×1 portrait" to RouteGlobeLayout.Compact,
+            "4×1 landscape" to RouteGlobeLayout.Compact,
+            "2×2 portrait" to RouteGlobeLayout.Square,
+            "2×3 portrait" to RouteGlobeLayout.Tall,
+            "2×2 landscape" to RouteGlobeLayout.Wide,
+            "3×2 landscape" to RouteGlobeLayout.Wide,
+            "4×2 portrait" to RouteGlobeLayout.Large,
+            "4×3 portrait" to RouteGlobeLayout.Large,
+            "4×4 landscape" to RouteGlobeLayout.Large,
+        ).forEach { (name, layout) -> withClue("Route globe $name") { routeGlobe(name) shouldBe layout } }
     }
 
     @Test
@@ -292,6 +317,7 @@ class WidgetLabelFitTest {
         // "05:00 See some light" never fits a third of a 4×2: the ribbon shows the next two whole instead.
         nextUp(texts, at(WidgetSizes.NEXT_UP, "4×2 portrait")).upNext.rows.size shouldBe 2
         twoClocks(texts, at(WidgetSizes.TWO_CLOCKS, "4×3 portrait")).upNext.rows.size shouldBe UP_NEXT_ROWS
+        routeGlobe(texts, at(WidgetSizes.ROUTE_GLOBE, "4×3 portrait")).upNext.rows.size shouldBe UP_NEXT_ROWS
     }
 
     @Test

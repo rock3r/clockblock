@@ -90,6 +90,25 @@ object WidgetSizes {
     )
 
     /**
+     * Route globe, smallest area first: the globe alone (1×1 and 1-row strips), the globe with a caption and
+     * dot-matrix route (2×2 portrait), the globe above the now card (2×3 portrait), the globe beside the now card
+     * (2×2 landscape and 4×2), and the full header strip + globe + now card + Up next (4×3 and up).
+     */
+    val ROUTE_GLOBE: List<Bucket<RouteGlobeLayout>> = listOf(
+        Bucket(RouteGlobeLayout.Compact, FLOOR),
+        Bucket(RouteGlobeLayout.Compact, CellDp(117f, 51f)),
+        Bucket(RouteGlobeLayout.Compact, CellDp(117f, 84f)),
+        Bucket(RouteGlobeLayout.Square, CellDp(101f, 121f)),
+        Bucket(RouteGlobeLayout.Compact, CellDp(250f, 51f)),
+        Bucket(RouteGlobeLayout.Square, CellDp(123f, 146f)),
+        Bucket(RouteGlobeLayout.Compact, CellDp(250f, 84f)),
+        Bucket(RouteGlobeLayout.Wide, CellDp(269f, 108f)),
+        Bucket(RouteGlobeLayout.Tall, CellDp(123f, 248f)),
+        Bucket(RouteGlobeLayout.Wide, CellDp(269f, 140f)),
+        Bucket(RouteGlobeLayout.Large, CellDp(269f, 220f)),
+    )
+
+    /**
      * The bucket the host plays at [size]: the closest of those that fit it, else the smallest. This mirrors
      * `RemoteViews`' choice for a sized mapping (`findBestFitLayout`).
      */

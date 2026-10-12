@@ -55,6 +55,7 @@ sealed interface ProbeState {
 enum class GalleryPage(val extra: String, val title: String, val description: String) {
     TwoClocks("twoclocks", "Two clocks", "Every size bucket, in every widget theme, on the demo plan."),
     NextUp("nextup", "Next up", "Every size bucket, in every widget theme, on the demo plan."),
+    RouteGlobe("routeglobe", "Route globe", "Every size bucket, in every widget theme, on the demo plan."),
     Live(
         "live",
         "Live providers",

@@ -272,6 +272,10 @@ class WidgetStateMapperTest {
         redacted.route.shouldBeNull()
         redacted.placeNames shouldBe emptyMap()
         redacted.placeCodes shouldBe emptyMap()
+        redacted.globe.legs shouldBe emptyList()
+        redacted.globe.activeLeg.shouldBeNull()
+        redacted.globe.marker.shouldBeNull()
+        redacted.globe.subsolar shouldBe full.globe.subsolar
         redacted.dial.arcs.none { it.type == AdviceType.Melatonin } shouldBe true
         redacted.dial.placeName.shouldBeNull()
         // The narration doesn't name it either: up next is melatonin at 20:30.
@@ -283,6 +287,62 @@ class WidgetStateMapperTest {
         redacted.dial.arcs shouldBe full.dial.arcs.filter { it.type != AdviceType.Melatonin }
         redacted.dial.localMinute shouldBe full.dial.localMinute
         WidgetStateMapper.redact(WidgetState.NoTrip) shouldBe WidgetState.NoTrip
+    }
+
+    @Test
+    fun `globe frames the whole route before departure and highlights the active leg during the trip`() {
+        val la = "America/Los_Angeles"
+        val sfo = Place("SFO", "San Francisco Intl", "San Francisco", "US", la, 37.62, -122.38)
+        val nrt = Place("NRT", "Narita", "Narita", "JP", tokyo, 35.76, 140.39)
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", tokyo, 35.55, 139.78)
+        val leg0 = FlightLeg("1", sfo, nrt, LocalDateTime.parse("2026-10-05T11:00"), LocalDateTime.parse("2026-10-06T14:00"))
+        val leg1 = FlightLeg("2", nrt, hnd, LocalDateTime.parse("2026-10-06T17:00"), LocalDateTime.parse("2026-10-06T18:00"))
+        val trip = Trip("t", "SFO → HND", listOf(leg0, leg1), Instant.EPOCH)
+        val p = plan(origin = la, destination = tokyo) {
+            day(-1, "2026-10-04", la, DayKind.PreTrip) {
+                advice(AdviceType.SeeBrightLight, "2026-10-04T08:00", "2026-10-04T10:00")
+            }
+            day(0, "2026-10-05", la, DayKind.Travel) {
+                advice(AdviceType.Flight, "2026-10-05T11:00", "2026-10-05T22:00")
+            }
+            day(1, "2026-10-06", tokyo, DayKind.Arrival) {
+                advice(AdviceType.AvoidLight, "2026-10-06T15:00", "2026-10-06T19:00")
+            }
+        }
+        val sfoPoint = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(sfo.latitude, sfo.longitude)
+        val nrtPoint = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(nrt.latitude, nrt.longitude)
+        val hndPoint = dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint(hnd.latitude, hnd.longitude)
+
+        // Upcoming (before plan starts and on pre-trip day before departure): whole trip route, no active leg or marker.
+        val beforePlan = active(WidgetStateMapper.map(p, at(la, "2026-10-03T12:00"), trip = trip)).globe
+        beforePlan.legs.map { it.from.label to it.to.label } shouldBe listOf("SFO" to "NRT", "NRT" to "HND")
+        beforePlan.activeLeg.shouldBeNull()
+        beforePlan.marker.shouldBeNull()
+
+        val preTrip = active(WidgetStateMapper.map(p, at(la, "2026-10-04T09:00"), trip = trip)).globe
+        preTrip.activeLeg.shouldBeNull()
+        preTrip.marker.shouldBeNull()
+
+        // Mid-flight on leg 0 (halfway through the 11-hour SFO → NRT flight): activeLeg = 0, interpolated marker.
+        val midLeg0 = leg0.departure.plus(Duration.between(leg0.departure, leg0.arrival).dividedBy(2))
+        val inFlight0 = active(WidgetStateMapper.map(p, midLeg0, trip = trip)).globe
+        inFlight0.activeLeg shouldBe 0
+        inFlight0.marker shouldBe dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeGeo.interpolate(sfoPoint, nrtPoint, 0.5)
+
+        // Layover at NRT (between 14:00 arrival and 17:00 departure): activeLeg = 1 (next flight), marker at NRT.
+        val layover = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T15:30"), trip = trip)).globe
+        layover.activeLeg shouldBe 1
+        layover.marker shouldBe nrtPoint
+
+        // Mid-flight on leg 1 (17:30, halfway through NRT → HND): activeLeg = 1, interpolated marker.
+        val inFlight1 = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T17:30"), trip = trip)).globe
+        inFlight1.activeLeg shouldBe 1
+        inFlight1.marker shouldBe dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeGeo.interpolate(nrtPoint, hndPoint, 0.5)
+
+        // Post-arrival after landing at HND: activeLeg = 1 (last leg), marker at HND.
+        val arrived = active(WidgetStateMapper.map(p, at(tokyo, "2026-10-06T18:30"), trip = trip)).globe
+        arrived.activeLeg shouldBe 1
+        arrived.marker shouldBe hndPoint
     }
 
     @Test

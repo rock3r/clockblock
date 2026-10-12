@@ -348,6 +348,79 @@ internal object LabelFit {
         }
     }
 
+    /** Route globe [layout] fitted for [cell], the smallest size the host draws it at: its text parts only. */
+    fun routeGlobe(context: Context, texts: WidgetTexts, layout: RouteGlobeLayout, cell: CellDp): WidgetFit {
+        if (texts.glyph == GlyphKind.NoTrip) return WidgetFit(empty = empty(context, texts, cell))
+        return when (layout) {
+            RouteGlobeLayout.Compact -> WidgetFit()
+            RouteGlobeLayout.Square -> {
+                val cap = caption(context, texts, cell)
+                val width = cell.width - 2 * SQUARE_DIAL_PAD_DP
+                val room = cell.height - 2 * SQUARE_DIAL_PAD_DP - MIN_SQUARE_DIAL_DP
+                val route = texts.route != null && cell.height >= 140f && width >= RouteWidthDp &&
+                    cap.heightDp + RouteHeightDp + LINE_GAP_DP <= room
+                WidgetFit(caption = cap, headerRoute = route)
+            }
+            RouteGlobeLayout.Tall -> {
+                val width = cell.width - 2 * CLOCKS_TALL_PAD_DP
+                val route = texts.route != null && width >= RouteWidthDp
+                val routeH = if (route) RouteHeightDp + HEADER_STRIP_BOTTOM_DP else 0
+                val budget = cell.height - 2 * CLOCKS_TALL_PAD_DP - routeH - CARD_TOP_DP - MIN_TALL_DIAL_DP -
+                    2 * CARD_V_PAD_DP
+                WidgetFit(
+                    now = nowCard(context, texts, width - 2 * CARD_H_PAD_DP, budget, withHeader = true),
+                    headerRoute = route,
+                )
+            }
+            RouteGlobeLayout.Wide -> {
+                val cardW = globeCardWidthDp(cell)
+                if (cell.height >= 135f) {
+                    val withStrip = routeGlobeWideWithStrip(context, texts, cell, cardW)
+                    if (withStrip.now?.whole == true) return withStrip
+                }
+                val budget = cell.height - 2 * SURFACE_PAD_DP - 2 * CARD_V_PAD_DP
+                WidgetFit(now = nowCard(context, texts, cardW, budget, withHeader = true))
+            }
+            RouteGlobeLayout.Large -> routeGlobeLarge(context, texts, cell)
+        }
+    }
+
+    /**
+     * The Route globe canvas region of [layout] at [cell], given what [fit] shows around it.
+     */
+    fun globeBox(layout: RouteGlobeLayout, cell: CellDp, fit: WidgetFit): CellDp {
+        fun box(w: Float, h: Float) = CellDp(w.coerceAtLeast(MIN_DIAL_BOX_DP), h.coerceAtLeast(MIN_DIAL_BOX_DP))
+        val now = fit.now
+        return when {
+            layout == RouteGlobeLayout.Compact ->
+                box(cell.width - 2 * STRIP_PAD_DP, cell.height - 2 * STRIP_PAD_DP)
+            layout == RouteGlobeLayout.Square || now == null -> {
+                val routeH = if (fit.headerRoute) RouteHeightDp + LINE_GAP_DP else 0
+                box(
+                    cell.width - 2 * SQUARE_DIAL_PAD_DP,
+                    cell.height - 2 * SQUARE_DIAL_PAD_DP - (fit.caption?.heightDp ?: 0f) - routeH,
+                )
+            }
+            layout == RouteGlobeLayout.Tall -> {
+                val routeH = if (fit.headerRoute) RouteHeightDp + HEADER_STRIP_BOTTOM_DP else 0
+                box(
+                    cell.width - 2 * CLOCKS_TALL_PAD_DP,
+                    cell.height - 2 * CLOCKS_TALL_PAD_DP - routeH - CARD_TOP_DP - now.heightDp - 2 * CARD_V_PAD_DP,
+                )
+            }
+            else -> {
+                val strip = if (fit.headerStrip != null || fit.headerRoute) {
+                    max(fit.headerStrip?.heightDp ?: 0f, if (fit.headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
+                } else {
+                    0f
+                }
+                val upNext = if (fit.upNext.heightDp > 0f) fit.upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
+                val mainW = cell.width - 2 * SURFACE_PAD_DP
+                box(mainW / (1f + CARD_WEIGHT), cell.height - 2 * SURFACE_PAD_DP - strip - upNext)
+            }
+        }
+    }
+
     /**
      * The Two Clocks dial region of [layout] at [cell], given what [fit] shows around it: the size its spec is laid
      * out for (the host scales it to the real region). Its level (Glance, Simple, Full) comes from this size.
@@ -707,6 +780,55 @@ internal object LabelFit {
         }
         val now = nowCard(context, texts, cardWidth, total - 2 * CARD_V_PAD_DP, withHeader = false)
         return WidgetFit(now = now, done = done, headerStrip = header, headerRoute = headerRoute)
+    }
+
+    private fun globeCardWidthDp(cell: CellDp): Float {
+        val main = cell.width - 2 * SURFACE_PAD_DP
+        return main * CARD_WEIGHT / (1f + CARD_WEIGHT) - CARD_GAP_DP - 2 * CARD_H_PAD_DP
+    }
+
+    private fun routeGlobeWideWithStrip(context: Context, texts: WidgetTexts, cell: CellDp, cardWidth: Float): WidgetFit {
+        val inner = cell.width - 2 * SURFACE_PAD_DP
+        val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
+        val route = texts.route != null
+        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
+        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
+        val headerRoute = route && (besideRoute != null || header == null)
+        val strip = if (header != null || headerRoute) {
+            max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
+        } else {
+            0f
+        }
+        val total = cell.height - 2 * SURFACE_PAD_DP - strip
+        val now = nowCard(context, texts, cardWidth, total - 2 * CARD_V_PAD_DP, withHeader = false)
+        return WidgetFit(now = now, headerStrip = header, headerRoute = headerRoute)
+    }
+
+    /** 4×3 Route globe: header strip, the globe beside the now card, then as many "Up next" rows as still fit. */
+    private fun routeGlobeLarge(context: Context, texts: WidgetTexts, cell: CellDp): WidgetFit {
+        val inner = cell.width - 2 * SURFACE_PAD_DP
+        val stripWidth = inner - 2 * HEADER_STRIP_SIDE_DP
+        val route = texts.route != null
+        val besideRoute = if (route) fitHeader(context, texts.header, stripWidth - RouteWidthDp - HEADER_ROUTE_GAP_DP) else null
+        val header = besideRoute ?: fitHeader(context, texts.header, stripWidth)
+        val headerRoute = route && (besideRoute != null || header == null)
+        val strip = if (header != null || headerRoute) {
+            max(header?.heightDp ?: 0f, if (headerRoute) RouteHeightDp.toFloat() else 0f) + HEADER_STRIP_BOTTOM_DP
+        } else {
+            0f
+        }
+        val total = cell.height - 2 * SURFACE_PAD_DP - strip
+        val cardWidth = globeCardWidthDp(cell)
+        for (rows in min(UP_NEXT_ROWS, texts.upcoming.size) downTo 0) {
+            val upNext = upNextRows(context, texts, inner - 2 * UP_NEXT_SIDE_LARGE_DP, rows, barWithRows = true, withRoute = false) ?: continue
+            val upNextHeight = if (upNext.heightDp > 0f) upNext.heightDp + UP_NEXT_TOP_LARGE_DP else 0f
+            val now = nowCard(context, texts, cardWidth, total - upNextHeight - 2 * CARD_V_PAD_DP, withHeader = false)
+            if (now.whole) {
+                return WidgetFit(now = now, upNext = upNext, headerStrip = header, headerRoute = headerRoute)
+            }
+        }
+        val now = nowCard(context, texts, cardWidth, total - 2 * CARD_V_PAD_DP, withHeader = false)
+        return WidgetFit(now = now, headerStrip = header, headerRoute = headerRoute)
     }
 
     private fun caption(context: Context, texts: WidgetTexts, cell: CellDp): CaptionFit {

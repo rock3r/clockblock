@@ -1,9 +1,13 @@
 package dev.sebastiano.clockblocker.opus.widget.state
 
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialState
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
+import dev.sebastiano.clockblocker.opus.core.model.SubsolarPoint
+import dev.sebastiano.clockblocker.opus.core.model.Sun
 import java.time.Instant
 
 /**
@@ -71,6 +75,8 @@ sealed interface WidgetState {
          * for onboarding's preview, which shows a pinned daytime moment that then runs on with the real clock.
          */
         val hostClockFrom: Instant = capturedAt,
+        /** The route globe's legs, active leg, traveller position and solar terminator at [capturedAt]. */
+        val globe: WidgetGlobe = WidgetGlobe(emptyList(), null, null, Sun.subsolarPoint(capturedAt)),
     ) : WidgetState {
         /** The name of [zoneId]'s place: the trip's city when it has one there, else the zone's own city. */
         fun placeName(zoneId: String): String = placeNames[zoneId] ?: DialMath.cityName(zoneId)
@@ -108,6 +114,18 @@ sealed interface WidgetState {
 
 /** Origin and destination codes of the trip ("LIS", "HND"): IATA codes, or the city's first letters. */
 data class WidgetRoute(val origin: String, val destination: String)
+
+/**
+ * The route globe on a widget: the trip's flight legs, which leg is active (`null` before the trip departs so the
+ * whole route is framed; the active leg's index once the trip has started), where the traveller is along the route
+ * (`null` before departure), and the subsolar point for the day/night terminator.
+ */
+data class WidgetGlobe(
+    val legs: List<GlobeLeg>,
+    val activeLeg: Int?,
+    val marker: GeoPoint?,
+    val subsolar: SubsolarPoint,
+)
 
 /** Advice whose name stays off the lock screen when details are hidden (same rule as the notifications). */
 val AdviceType.isPrivate: Boolean get() = this == AdviceType.Melatonin

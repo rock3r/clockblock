@@ -119,7 +119,8 @@ class SettingsViewModelTest {
             expectMostRecentItem().widgetPinningSupported.shouldBeTrue()
         }
         vm.pinWidget(PinnableWidget.NextUp)
-        pinning.requested shouldBe listOf(PinnableWidget.NextUp)
+        vm.pinWidget(PinnableWidget.RouteGlobe)
+        pinning.requested shouldBe listOf(PinnableWidget.NextUp, PinnableWidget.RouteGlobe)
     }
 
     @Test
