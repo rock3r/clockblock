@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.shell
 
+import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
 import dev.sebastiano.clockblocker.opus.TestApplication
 import androidx.compose.ui.test.assertIsDisplayed
@@ -112,6 +113,39 @@ class AdaptiveShellTest {
         tag("screen_plan_now").assertIsDisplayed()
         tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
         tag(ShellTestTags.NavNow).assertIsDisplayed().assertIsSelected()
+    }
+
+    @Test
+    @Config(qualifiers = "w1000dp-h800dp")
+    fun `a back gesture on the plan pane previews the placeholder, and cancelling keeps the plan`() {
+        launch()
+        tag("trips_open_a").performClick()
+        compose.waitForIdle()
+        val dispatcher = compose.activity.onBackPressedDispatcher
+
+        compose.runOnUiThread {
+            dispatcher.dispatchOnBackStarted(BackEventCompat(990f, 400f, 0f, BackEventCompat.EDGE_RIGHT))
+            dispatcher.dispatchOnBackProgressed(BackEventCompat(800f, 400f, 0.5f, BackEventCompat.EDGE_RIGHT))
+        }
+        compose.waitForIdle()
+        tag("screen_plan_a").assertIsDisplayed()
+        tag(ShellTestTags.PlanPlaceholder).assertIsDisplayed()
+
+        compose.runOnUiThread { dispatcher.dispatchOnBackCancelled() }
+        compose.waitForIdle()
+        tag("screen_plan_a").assertIsDisplayed()
+        tag(ShellTestTags.PlanPlaceholder).assertDoesNotExist()
+        tag("trips_selected").assertTextEquals("selected=a")
+
+        compose.runOnUiThread {
+            dispatcher.dispatchOnBackStarted(BackEventCompat(990f, 400f, 0f, BackEventCompat.EDGE_RIGHT))
+            dispatcher.dispatchOnBackProgressed(BackEventCompat(800f, 400f, 0.5f, BackEventCompat.EDGE_RIGHT))
+            dispatcher.onBackPressed()
+        }
+        compose.waitForIdle()
+        tag("screen_plan_a").assertDoesNotExist()
+        tag(ShellTestTags.PlanPlaceholder).assertIsDisplayed()
+        tag("screen_trips").assertIsDisplayed()
     }
 
     @Test

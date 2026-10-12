@@ -15,8 +15,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The shell chrome at each window size class, with fake destinations: short navigation bar (compact), collapsed
- * navigation rail (medium, single pane) and rail + list-detail (expanded).
+ * The shell chrome at each window size class, with fake destinations (tinted panes) and the real detail
+ * placeholder: short navigation bar and a full-screen plan (compact, landscape phone), collapsed rail beside a
+ * pushed plan (medium), and rail + Trips | plan list-detail with its drag handle (expanded, extra large).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -82,10 +83,27 @@ class ShellScreenshotTest {
     }
 
     @Test
+    @Config(qualifiers = "w891dp-h411dp")
+    fun landscapePhonePlan() {
+        launch()
+        openTripA()
+        snap("landscape_plan")
+    }
+
+    @Test
     @Config(qualifiers = "w1280dp-h800dp")
     fun expandedTrips() {
-        launch()
+        launch(hasTrips = true)
+        compose.onNodeWithTag(ShellTestTags.NavTrips).performClick()
+        compose.waitForIdle()
         snap("expanded_trips")
+    }
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-night")
+    fun expandedTripsNoTripsDark() {
+        launch(dark = true)
+        snap("expanded_trips_no_trips_dark")
     }
 
     @Test
@@ -94,6 +112,14 @@ class ShellScreenshotTest {
         launch()
         openTripA()
         snap("expanded_plan")
+    }
+
+    @Test
+    @Config(qualifiers = "w1600dp-h1000dp")
+    fun extraLargePlan() {
+        launch()
+        openTripA()
+        snap("extra_large_plan")
     }
 
     @Test
