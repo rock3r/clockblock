@@ -36,6 +36,10 @@
     <string name="widget_advice_redacted">Plan step</string>
     <!-- Route strip, codes spelled out: "L I S to H N D". -->
     <string name="widget_a11y_route">%1$s to %2$s</string>
+    <!-- Route with connections, codes spelled out: "L H R to H N D via D O H". -->
+    <string name="widget_a11y_route_via">%1$s to %2$s via %3$s</string>
+    <!-- Active flight leg on a multi-leg route globe: "Active leg: D O H to H N D". -->
+    <string name="widget_a11y_active_leg">Active leg: %1$s to %2$s</string>
     <string name="widget_until">until %1$s</string>
     <string name="widget_until_then">until %1$s · then %2$s</string>
     <string name="widget_then">then %1$s</string>

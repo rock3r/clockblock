@@ -482,7 +482,8 @@ falls back to the zone's city.
 What a screen reader hears matches what the widget shows:
 
 - The current block includes its end time in the other zone: "Avoid light. until 16:30 (08:30 in Lisbon) · then
-  Melatonin". Two clocks says this after both clocks and the jet lag phrase.
+  Melatonin". Two clocks says this after both clocks and the jet lag phrase; Route globe says it after the route (and
+  the active leg on a multi-leg trip).
 - Next up adds the live countdown in words, worked out by the launcher like the visible one:
   "1 hour 10 minutes left".
 - Two clocks and Route globe layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3

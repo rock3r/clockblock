@@ -81,6 +81,11 @@ data class WidgetTexts(
      * ("Adapted" for "Clockblocked"). Null: the tile shows [title]. Screen readers keep [title].
      */
     val smallTitle: String? = null,
+    /**
+     * Spoken description of the Route globe's main region: the route (with connections and active leg when multi-leg)
+     * and the current block, without Two clocks' dial readings.
+     */
+    val globeDescription: String = contentDescription,
 ) {
     /** [secondary], then [secondaryShort]: the forms a layout tries, in order. Empty without a secondary zone. */
     val secondaryOptions: List<String> get() = listOfNotNull(secondary) + secondaryShort.takeIf { secondary != null }.orEmpty()
@@ -262,6 +267,23 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                 secondaryShort = forms.drop(1),
             )
         }
+        val routeDescription = s.route?.takeUnless { s.redacted }?.let {
+            str(R.string.widget_a11y_route, spell(it.origin), spell(it.destination))
+        }
+        val globeLegs = s.globe.legs.takeUnless { s.redacted }.orEmpty()
+        val globeRoute = when {
+            globeLegs.size > 1 -> str(
+                R.string.widget_a11y_route_via,
+                spell(globeLegs.first().from.label),
+                spell(globeLegs.last().to.label),
+                globeLegs.drop(1).joinToString { spell(it.from.label) },
+            )
+            globeLegs.size == 1 -> str(R.string.widget_a11y_route, spell(globeLegs.single().from.label), spell(globeLegs.single().to.label))
+            else -> routeDescription
+        }
+        val activeLeg = s.globe.activeLeg?.takeIf { globeLegs.size > 1 }?.let(globeLegs::getOrNull)?.let {
+            str(R.string.widget_a11y_active_leg, spell(it.from.label), spell(it.to.label))
+        }
         return WidgetTexts(
             glyph = glyph,
             title = title,
@@ -299,9 +321,10 @@ internal class WidgetTextFactory(private val context: Context, private val is24H
                 }
             },
             route = s.route,
-            routeDescription = s.route?.let { str(R.string.widget_a11y_route, spell(it.origin), spell(it.destination)) },
+            routeDescription = routeDescription,
             spokenNow = "$title. $spokenSubtitle",
             countdownWords = countdownWords(),
+            globeDescription = listOfNotNull(globeRoute, activeLeg, now).joinToString(". "),
         )
     }
 

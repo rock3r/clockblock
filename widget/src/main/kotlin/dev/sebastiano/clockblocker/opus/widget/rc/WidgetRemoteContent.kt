@@ -243,46 +243,40 @@ fun RouteGlobeRemote(
     val p = model.palette
     val texts = model.texts
     val fit = LabelFit.routeGlobe(LocalContext.current, texts, layout, cell)
-    val withCardHeader = listOfNotNull(texts.header, texts.contentDescription).joinToString(". ").rs
+    val withCardHeader = listOfNotNull(texts.header, texts.globeDescription).joinToString(". ").rs
     val now = fit.now
     val empty = fit.empty
     val rounded = RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc)
     if (model.state !is WidgetState.Active || empty != null) {
-        MainRegion(model, texts.contentDescription.rs, rounded) { empty?.let { EmptyContent(model, it) } }
+        MainRegion(model, texts.globeDescription.rs, rounded) { empty?.let { EmptyContent(model, it) } }
         return
     }
     val box = LabelFit.globeBox(layout, cell, fit)
     when {
-        layout == RouteGlobeLayout.Compact -> MainRegion(model, texts.contentDescription.rs, rounded) {
+        layout == RouteGlobeLayout.Compact -> MainRegion(model, texts.globeDescription.rs, rounded) {
             RemoteBox(modifier = RemoteModifier.fillMaxSize().padding(STRIP_PAD_DP.rdp), contentAlignment = RemoteAlignment.Center) {
                 WidgetGlobeCanvas(model, box.width, box.height)
             }
         }
-        layout == RouteGlobeLayout.Square || now == null -> {
-            val desc = listOfNotNull(texts.routeDescription?.takeIf { fit.headerRoute }, texts.contentDescription).joinToString(". ").rs
-            MainRegion(model, desc, rounded) {
-                SquareGlobe(model, fit.caption, fit.headerRoute, box)
-            }
+        layout == RouteGlobeLayout.Square || now == null -> MainRegion(model, texts.globeDescription.rs, rounded) {
+            SquareGlobe(model, fit.caption, fit.headerRoute, box)
         }
-        layout == RouteGlobeLayout.Tall -> {
-            val desc = listOfNotNull(texts.header, texts.routeDescription?.takeIf { fit.headerRoute }, texts.contentDescription).joinToString(". ").rs
-            MainRegion(model, desc, rounded) {
-                val route = texts.route?.takeIf { fit.headerRoute }
-                RemoteColumn(
-                    modifier = RemoteModifier.fillMaxSize().padding(CLOCKS_TALL_PAD_DP.rdp),
-                    horizontalAlignment = RemoteAlignment.CenterHorizontally,
-                ) {
-                    if (route != null) {
-                        RemoteBox(
-                            modifier = RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = 0.rdp, end = 0.rdp, bottom = HEADER_STRIP_BOTTOM_DP.rdp),
-                            contentAlignment = RemoteAlignment.Center,
-                        ) { RouteDots(route, p) }
-                    }
-                    RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
-                        WidgetGlobeCanvas(model, box.width, box.height)
-                    }
-                    NowCard(model, now, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = CARD_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp))
+        layout == RouteGlobeLayout.Tall -> MainRegion(model, withCardHeader, rounded) {
+            val route = texts.route?.takeIf { fit.headerRoute }
+            RemoteColumn(
+                modifier = RemoteModifier.fillMaxSize().padding(CLOCKS_TALL_PAD_DP.rdp),
+                horizontalAlignment = RemoteAlignment.CenterHorizontally,
+            ) {
+                if (route != null) {
+                    RemoteBox(
+                        modifier = RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = 0.rdp, end = 0.rdp, bottom = HEADER_STRIP_BOTTOM_DP.rdp),
+                        contentAlignment = RemoteAlignment.Center,
+                    ) { RouteDots(route, p) }
                 }
+                RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
+                    WidgetGlobeCanvas(model, box.width, box.height)
+                }
+                NowCard(model, now, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = CARD_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp))
             }
         }
         else -> Surface(p.surface) {
@@ -303,7 +297,7 @@ fun RouteGlobeRemote(
                 }
                 MainRegion(
                     model,
-                    if (hasStrip) texts.contentDescription.rs else withCardHeader,
+                    if (hasStrip) texts.globeDescription.rs else withCardHeader,
                     RemoteModifier.fillMaxWidth().weight(1f),
                 ) {
                     RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {

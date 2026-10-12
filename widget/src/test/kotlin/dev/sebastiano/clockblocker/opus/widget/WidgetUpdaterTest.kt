@@ -108,7 +108,7 @@ class WidgetUpdaterTest {
     private fun WidgetModel.allText(): String {
         val t = texts
         return (
-            listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.spokenNow) +
+            listOfNotNull(t.title, t.subtitle, t.secondary, t.dialTitle, t.dialDetail, t.header, t.contentDescription, t.globeDescription, t.spokenNow) +
                 t.subtitleLines + t.upcoming.flatMap { listOf(it.label, it.spoken) } + listOfNotNull(t.done?.label, t.done?.contentDescription)
             ).joinToString("\n")
     }
