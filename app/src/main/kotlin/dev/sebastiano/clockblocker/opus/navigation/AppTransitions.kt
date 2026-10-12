@@ -104,10 +104,15 @@ class AppTransitions(
      * The detail pane following a predictive back gesture in the list-detail layout, at gesture [progress] (0..1):
      * the same shrink and drift toward the edge it entered from as [predictiveBack], with its corners rounding
      * like a card lifting off what back leads to. It stays opaque: a fade showed the plan's text through the
-     * placeholder's. Once back commits, the pane's own exit fades it. Applied in the layer phase, so the gesture
+     * placeholder's. Once back commits, the pane's own exit fades it. Under reduced motion nothing moves: the pane
+     * only fades by half, so what back leads to still shows through. Applied in the layer phase, so the gesture
      * never recomposes the pane.
      */
     fun paneBack(scope: GraphicsLayerScope, progress: Float) = with(scope) {
+        if (motion.reduceMotion) {
+            alpha = 1f - progress / 2f
+            return@with
+        }
         val scale = 1f - (1f - PredictiveBackScale) * progress
         scaleX = scale
         scaleY = scale
