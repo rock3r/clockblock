@@ -46,14 +46,17 @@ A few details matter:
 
 - It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
   15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
-  notification's body-clock header, and the widget dial's next refresh (`TransitionPlanner.nextDialRefresh`).
-  Widgets capture the dial's blocks and only move the hand, so the dial needs a refresh of its own at two points:
+  notification's body-clock header, and the next widget refresh (`TransitionPlanner.nextDialRefresh`).
+  Widgets capture the dial's blocks and the route globe's snapshot and only move the dial's hand, so they need a
+  refresh of their own at three points:
   - when a block comes into view (`nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an
     hour for a clock change). Without it, a block more than 16 hours away would stay off the dial until it starts.
   - when a moment stops being due (`nextMomentEnd`, a minute after melatonin). A widget captured at the moment
     features it, and nothing else happens at its end, so it would stay featured until a later alarm.
+  - every 15 minutes during an active flight (`nextFlightRefresh`), so the route globe's interpolated traveller marker
+    and daylight advance between take-off and landing even when the flight is the only active block.
 
-  Like the plan's transitions, neither fires inside a Sleep or Nap window: the wake-up refreshes everything. The
+  Like the plan's transitions, none of the three fires inside a Sleep or Nap window: the wake-up refreshes everything. The
   one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features it, so its end
   refresh still fires, a minute into the sleep.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that

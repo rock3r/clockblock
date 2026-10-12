@@ -6,6 +6,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /** What happens at a [Transition]. */
 enum class TransitionKind(
@@ -128,9 +129,31 @@ object TransitionPlanner {
             .minOrNull()
     }
 
-    /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */
+    /**
+     * How often the route globe is re-captured during an active flight so its interpolated traveller marker and
+     * daylight advance between take-off and landing even when no other advice boundary falls inside the flight.
+     */
+    val FLIGHT_REFRESH_STEP: Duration = Duration.ofMinutes(15)
+
+    /**
+     * The next instant strictly after [now] at which an active flight of [plan] gets a silent surface refresh
+     * ([FLIGHT_REFRESH_STEP] ahead, truncated to the minute, while still before landing). None inside a Sleep or Nap
+     * window: the wake-up re-captures everything.
+     */
+    fun nextFlightRefresh(plan: JetLagPlan, now: Instant): Instant? {
+        val next = now.plus(FLIGHT_REFRESH_STEP).truncatedTo(ChronoUnit.MINUTES)
+        val inFlight = plan.allAdvice.any {
+            it.type == AdviceType.Flight && !now.isBefore(it.start) && next.isBefore(it.end)
+        }
+        return if (inFlight) listOf(next).nextAwake(plan, now) else null
+    }
+
+    /**
+     * The next refresh widgets need on their own: the earliest of [nextDialEntry], [nextMomentEnd] and
+     * [nextFlightRefresh].
+     */
     fun nextDialRefresh(plan: JetLagPlan, now: Instant): Instant? =
-        listOfNotNull(nextDialEntry(plan, now), nextMomentEnd(plan, now)).minOrNull()
+        listOfNotNull(nextDialEntry(plan, now), nextMomentEnd(plan, now), nextFlightRefresh(plan, now)).minOrNull()
 
     private fun rawTransitions(advice: Advice, lead: Duration): List<Transition> = when {
         advice.type.isMoment -> listOf(Transition(advice.start, TransitionKind.Moment, advice))

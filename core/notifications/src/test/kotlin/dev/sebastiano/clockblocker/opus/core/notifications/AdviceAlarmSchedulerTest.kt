@@ -616,6 +616,16 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
+    fun `in-flight globe keeps a refresh tick armed even when the flight is the only active advice`() = runTest {
+        plans.current.value = planOf(advice(Flight, "2026-10-10T12:00", "2026-10-10T23:00"))
+        clock.instant = utc("2026-10-10T13:00")
+
+        val result = scheduler().resync()
+
+        result.instants.first() shouldBe utc("2026-10-10T13:15")
+    }
+
+    @Test
     fun `one failing surface does not stop the others`() = runTest {
         scheduler(FailingSurface()).refreshSurfaces()
 

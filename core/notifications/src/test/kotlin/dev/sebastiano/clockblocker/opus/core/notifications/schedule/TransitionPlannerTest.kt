@@ -356,13 +356,35 @@ class TransitionPlannerTest {
         }
 
         @Test
-        fun `the widget dial's next refresh is the earlier of a block coming into view and a moment ending`() {
+        fun `an active flight gets a 15-minute refresh step while awake so the route globe advances in the air`() {
             val plan = planOf(
+                advice(Flight, "2026-10-10T12:00", "2026-10-10T23:00"),
+                advice(Sleep, "2026-10-10T17:00", "2026-10-10T22:00"),
+            )
+
+            // Before take-off: take-off itself is a Start transition, so no flight tick yet.
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T11:30")) shouldBe null
+            // In the air and awake: 15 minutes ahead, truncated to the minute.
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T12:15")
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T14:07:30Z")) shouldBe utc("2026-10-10T14:22")
+            // Inside the sleep window: suppressed; the 22:00 wake-up re-captures and resumes the ticks.
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T17:00")) shouldBe null
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T19:30")) shouldBe null
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T22:00")) shouldBe utc("2026-10-10T22:15")
+            // Within 15 minutes of landing: landing itself is an End transition.
+            TransitionPlanner.nextFlightRefresh(plan, utc("2026-10-10T22:50")) shouldBe null
+        }
+
+        @Test
+        fun `the next widget refresh is the earliest of a block coming into view, a moment ending and an in-flight step`() {
+            val plan = planOf(
+                advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00"),
                 advice(Melatonin, "2026-10-10T19:00"),
                 advice(Sleep, "2026-10-11T23:00", "2026-10-12T07:00"),
             )
 
-            TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T19:01")
+            TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T12:15")
+            TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T15:00")) shouldBe utc("2026-10-10T19:01")
             TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T19:01")) shouldBe utc("2026-10-11T08:00")
         }
     }

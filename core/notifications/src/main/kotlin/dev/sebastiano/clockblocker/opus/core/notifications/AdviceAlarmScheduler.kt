@@ -155,8 +155,8 @@ class AdviceAlarmScheduler(
 
     /**
      * Computes and arms the next alarms, plus a pending snooze, the Live Update progress tick, the next change of
-     * the Now notification's body-clock header and the widget dial's next refresh (a block coming into view, or a
-     * moment stopping being due).
+     * the Now notification's body-clock header and the next widget refresh (a block coming into the dial's view, a
+     * moment stopping being due, or an in-flight route-globe step).
      */
     internal suspend fun arm(plan: JetLagPlan?, settings: AppSettings): ScheduledAlarms = mutex.withLock {
         val now = clock.now()
