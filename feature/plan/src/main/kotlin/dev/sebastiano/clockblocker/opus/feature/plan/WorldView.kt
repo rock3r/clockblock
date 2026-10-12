@@ -16,7 +16,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -92,7 +91,8 @@ private const val DarkBelowDegrees = -0.833
  * two cross-fade on `fade()` (Remove animations: they swap at once); the globe and its caption are the static carrier.
  * The world isn't an easter egg: it works in sleep windows too.
  *
- * [open] is the screen's state ([onOpenChange] asks to change it); [dial] draws the dial with the given modifier and
+ * [open] is the screen's state ([onOpenChange] asks to change it); [backEnabled] false leaves Back to something over
+ * the world (the full-screen globe); [dial] draws the dial with the given modifier and
  * TalkBack actions (Show the world). The dial's parameters don't change with the zoom, so it never recomposes for it:
  * the progress is read in layers only.
  */
@@ -106,6 +106,7 @@ internal fun DialAndWorld(
     onExpand: () -> Unit,
     worldSize: Dp,
     modifier: Modifier = Modifier,
+    backEnabled: Boolean = true,
     dial: @Composable (Modifier, List<CustomAccessibilityAction>) -> Unit,
 ) {
     val motion = ClockblockTheme.motion
@@ -138,7 +139,7 @@ internal fun DialAndWorld(
     }
 
     // Back follows the finger back to the dial, and returns to the world if the gesture is cancelled.
-    PredictiveBackHandler(enabled = open) { events ->
+    PredictiveBackHandler(enabled = open && backEnabled) { events ->
         try {
             events.collect { event -> if (!reduce) progress.snapTo(1f - event.progress) }
             settle(0f)
@@ -158,7 +159,6 @@ internal fun DialAndWorld(
     val showTheWorld = remember(trip != null, worldAction) {
         if (trip != null) listOf(CustomAccessibilityAction(worldAction) { currentOnOpenChange(true); true }) else emptyList()
     }
-    val worldComposed by remember { derivedStateOf { progress.value > 0f } }
 
     Box(
         modifier.pinchTransition(
@@ -219,7 +219,10 @@ internal fun DialAndWorld(
         ) {
             dial(Modifier, showTheWorld)
         }
-        if (trip != null && (open || worldComposed)) {
+        // The world is always composed under the dial (at rest it's fully transparent, so it draws nothing): the zoom
+        // only moves layers, and never waits on composing the globe in the middle of a gesture. Closed, it's out of
+        // TalkBack's reach.
+        if (trip != null) {
             WorldView(
                 trip = trip,
                 plan = plan,
@@ -229,7 +232,9 @@ internal fun DialAndWorld(
                 open = open,
                 onBack = { settle(0f) },
                 onExpand = onExpand,
-                modifier = Modifier.widthIn(max = worldSize),
+                modifier = Modifier
+                    .widthIn(max = worldSize)
+                    .then(if (open) Modifier else Modifier.clearAndSetSemantics { }),
             )
         }
     }
@@ -294,7 +299,6 @@ internal fun WorldView(
     }
     // Announced once when the world opens: what it said then, not every minute after.
     val announced = remember(open) { caption }
-    val chromeShown by remember { derivedStateOf { camera().chromeAlpha > 0f } }
     Box(
         modifier
             .fillMaxWidth()
@@ -331,9 +335,7 @@ internal fun WorldView(
                 modifier = Modifier.fillMaxSize().testTag(PlanTags.WorldGlobe),
             )
         }
-        if (chromeShown) {
-            WorldChrome(state, legs, caption, onExpand, Modifier.matchParentSize().graphicsLayer { alpha = camera().chromeAlpha })
-        }
+        WorldChrome(state, legs, caption, onExpand, Modifier.matchParentSize().graphicsLayer { alpha = camera().chromeAlpha })
     }
 }
 

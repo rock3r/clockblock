@@ -28,7 +28,7 @@ To add another trip, tap the **New trip** button in the corner. It offers **New 
 destination of the trip you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a
 phone in landscape, a **+** button sits in the top bar instead, so it never covers a trip card.
 
-<img src="images/add-menu.png" alt="The Trips screen with Upcoming and Past trips, and the add menu open: New trip, Return from London and Try a demo trip." width="280" /> <img src="images/past-trips-globe.png" alt="The past-trips globe over the whole Trips screen on a night sky, headed Where you've been, 2 trips · 3 flights, with a big globe showing the flight arcs to London, Singapore and Sydney and four stat tiles under it: 4 airports visited, 25,793 km distance flown, 17 h hours of time difference and ~7 days jet lag saved." width="280" />
+<img src="images/add-menu.png" alt="The Trips screen with Upcoming and Past trips, and the add menu open: New trip, Return from London and Try a demo trip." width="280" /> <img src="images/past-trips-globe.png" alt="The past-trips globe over the whole Trips screen on a night sky, headed Where you've been, 4 trips · 5 flights. A big globe shows orange arcs crisscrossing between SFO, JFK, LIS, LHR, CDG, HND and SIN, with zoom buttons beside it. Four stat tiles under it: 8 airports visited, 42,781 km distance flown, 31 h hours of time difference and ~10 days jet lag saved. Under them: Drag to turn the globe. Tap a flight to see its trip." width="280" />
 
 ## Adding flights
 
@@ -65,7 +65,7 @@ When the flights are complete, **Your shift** under the flights shows what the p
 time changes and in which direction ("+9 h east"), and about how many days it takes to adapt with the plan compared
 with no plan ("About 4 days with the plan, 7 without"). It updates as you edit.
 
-<img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-screen globe over the editor on a night sky, headed Your route, London to Sydney via Singapore, 10 hours east. The globe labels LHR, SIN and SYD beside their dots; the arc from Singapore to Sydney is bright. Zoom buttons sit at the bottom right, and a line says: Drag to turn the globe. Tap a flight to pick its ticket." width="280" />
+<img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-screen globe over the editor on a night sky, headed Your route, London to Sydney via Singapore. The globe is turned to the second flight: a bright orange arc from SIN to SYD, with the first flight fading in faintly from the top. Zoom buttons sit at the bottom right, and a line says: Drag to turn the globe. Tap a flight to pick its ticket." width="280" />
 
 Once a flight has both airports, **Your shift** also shows a small globe with your route. Each flight is an arc
 along the shortest path over the Earth, and each airport is a dot. The shaded half of the globe is where it's night

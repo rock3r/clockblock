@@ -181,7 +181,8 @@ fun TripEditorContent(
         }
     }
     val requestClose = { if (state.dirty) confirmDiscard = true else onClose() }
-    BackHandler(enabled = state.dirty && !confirmDiscard) { confirmDiscard = true }
+    // Back closes the full-screen globe first (it has its own handler).
+    BackHandler(enabled = state.dirty && !confirmDiscard && !(globeExpanded && !route.isEmpty)) { confirmDiscard = true }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     val globeShown = globeExpanded && !route.isEmpty

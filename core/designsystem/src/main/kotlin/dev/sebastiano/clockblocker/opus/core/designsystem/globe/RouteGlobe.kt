@@ -44,16 +44,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -612,12 +609,9 @@ private class GlobeRenderer {
     }
     private val frontPaths = ArrayList<Path>()
     private val backPaths = ArrayList<Path>()
-    private val clip = Path()
-    private var clipRadius = -1f
-    private var clipCx = -1f
-    private var clipCy = -1f
     private val rotation = Rotation()
-    private var glow: Brush? = null
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val glowMatrix = android.graphics.Matrix()
     private var glowColor: Color? = null
     private var strokes: Strokes? = null
     private var strokesDensity = -1f
@@ -699,23 +693,22 @@ private class GlobeRenderer {
             sy = rotation.y(px, py, pz)
             sd = rotation.depth(px, py, pz)
         }
+        // The day side's glow: one radial shader (built once per colour, moved with a matrix) filling the globe's own
+        // circle, so no clip is needed (a path clip costs the GPU a mask every frame while the globe turns).
         if (glowColor != colors.oceanDay) {
-            // Sized by the circle it fills, so a zoom doesn't need a new brush every frame.
-            glow = Brush.radialGradient(listOf(colors.oceanDay, Color.Transparent))
+            glowPaint.shader = android.graphics.RadialGradient(
+                0f, 0f, 1f,
+                intArrayOf(colors.oceanDay.toArgb(), Color.Transparent.toArgb()),
+                null,
+                android.graphics.Shader.TileMode.CLAMP,
+            )
             glowColor = colors.oceanDay
         }
-        if (clipRadius != radius || clipCx != cx || clipCy != cy) {
-            clip.reset()
-            clip.addOval(androidx.compose.ui.geometry.Rect(cx - radius, cy - radius, cx + radius, cy + radius))
-            clipRadius = radius
-            clipCx = cx
-            clipCy = cy
-        }
-        clipPath(clip) {
-            translate(sx * radius * 0.85f, -sy * radius * 0.85f) {
-                drawCircle(glow!!, radius * 1.25f, Offset(cx, cy), alpha = if (sd >= 0f) 0.95f else 0.35f)
-            }
-        }
+        glowMatrix.setScale(radius * 1.25f, radius * 1.25f)
+        glowMatrix.postTranslate(cx + sx * radius * 0.85f, cy - sy * radius * 0.85f)
+        glowPaint.shader.setLocalMatrix(glowMatrix)
+        glowPaint.alpha = ((if (sd >= 0f) 0.95f else 0.35f) * 255).toInt()
+        drawContext.canvas.nativeCanvas.drawCircle(cx, cy, radius, glowPaint)
 
         // Sea halftone.
         val sea = SeaGrid

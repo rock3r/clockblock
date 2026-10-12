@@ -976,6 +976,8 @@ private class PlanSections(
             onExpand = { screen.worldExpanded = true },
             worldSize = dialSize,
             modifier = modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            // Back closes the full-screen world first.
+            backEnabled = !screen.worldExpanded,
         ) { dialModifier, showTheWorld ->
             // The dial keeps its scrub offset (e.g. after TalkBack's Next block) relative to the anchor: a new pick
             // is a new anchor, so the dial starts fresh there instead of carrying the old offset onto the new day.

@@ -76,7 +76,7 @@ timeline also scrolls to it.
 
 #### The world behind the dial
 
-<img src="images/world.png" alt="The plan for London to Sydney on day 3, with the dial swapped for a dark globe. The route runs as an orange arc from Singapore, labelled SIN, to Sydney, labelled SYD, with the earlier leg from London fading in from the top. Most of the globe is in night shade. A line on the globe says: It's 05:35 and dark in Sydney · 20:35 in London." width="280" />
+<img src="images/world.png" alt="The plan for San Francisco to London on the travel day, with the dial swapped for a dark globe. The route runs as an orange arc from SFO to LHR, with a dot part way along where the plane is. A button with outward arrows sits at the top right of the globe. A line on the globe says: In the air to London, where it's 06:00 and light · 22:00 in Los Angeles." width="280" />
 
 Pinch out on the dial with two fingers to zoom out from your day to the world. The dial shrinks onto the spot on
 Earth where you are while the globe pulls back to show your whole trip; it follows your fingers, so you can stop half
