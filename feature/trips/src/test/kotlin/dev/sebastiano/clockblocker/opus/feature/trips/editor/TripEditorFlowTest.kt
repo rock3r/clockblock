@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -38,6 +39,8 @@ import dev.sebastiano.clockblocker.opus.core.testing.MutableClock
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsSamples
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreenshotTest
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
+import dev.sebastiano.clockblocker.opus.feature.trips.clickOnLeg
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeTags
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
@@ -319,8 +322,8 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         open(TripEditorArgs(tripId = DemoData.SfoLhrId))
         tag(TripsTestTags.EditorGlobe).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         settle()
-        compose.onNodeWithTag(TripsTestTags.EditorGlobeSheet).assertExists()
-        compose.onNodeWithTag(TripsTestTags.EditorGlobeFull).assertExists()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeOverlay).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeFull).assertIsDisplayed()
     }
 
     @Test
@@ -342,7 +345,52 @@ class TripEditorFlowTest : TripsScreenshotTest() {
         open(TripEditorArgs(tripId = DemoData.LhrSydId))
         tag(TripsTestTags.EditorGlobe).performScrollTo().performTouchInput { click(center) }
         settle()
-        compose.onNodeWithTag(TripsTestTags.EditorGlobeSheet).assertExists()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeOverlay).assertIsDisplayed()
+        compose.onNodeWithTag(GlobeTags.OverlayClose).performClick()
+        settle()
+        tag(TripsTestTags.editorLeg(0)).assertIsSelected()
+    }
+
+    @Test
+    fun tappingAnotherFlightsArcOnTheSmallGlobePicksItsTicketWithoutOpeningTheGlobe() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId)) // LHR → SIN → SYD, framed on the first flight.
+        tag(TripsTestTags.editorLeg(0)).assertIsSelected()
+        val trip = trips.current.single { it.id == DemoData.LhrSydId }
+        tag(TripsTestTags.EditorGlobe).performScrollTo().performTouchInput { clickOnLeg(trip.legs, index = 1, active = 0) }
+        settle()
+        tag(TripsTestTags.editorLeg(1)).assertIsSelected()
+        tag(TripsTestTags.editorLeg(0)).assertIsNotSelected()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeOverlay).assertDoesNotExist()
+    }
+
+    @Test
+    fun onTheFullScreenGlobeATappedFlightBecomesActiveAndGoToTicketClosesTheGlobe() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        tag(TripsTestTags.EditorGlobe).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val globe = compose.onNodeWithTag(TripsTestTags.EditorGlobeFull)
+        // The globe's own leg action goes straight to the ticket, like the small globe's.
+        val action = globe.fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == "Go to flight 2: Singapore to Sydney" }
+        compose.runOnIdle { action.action() }
+        settle()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeOverlay).assertDoesNotExist()
+        tag(TripsTestTags.editorLeg(1)).assertIsSelected()
+    }
+
+    @Test
+    fun onTheFullScreenGlobeTappingTheActiveArcNamesItAndGoToTicketClosesTheGlobe() {
+        open(TripEditorArgs(tripId = DemoData.LhrSydId))
+        tag(TripsTestTags.EditorGlobe).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        val trip = trips.current.single { it.id == DemoData.LhrSydId }
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeFull).performTouchInput { clickOnLeg(trip.legs, index = 0, active = 0) }
+        // Past the double-tap window: a single tap.
+        compose.mainClock.advanceTimeBy(500)
+        settle()
+        compose.onNodeWithText("LHR → SIN", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeGoToTicket).performClick()
+        settle()
+        compose.onNodeWithTag(TripsTestTags.EditorGlobeOverlay).assertDoesNotExist()
         tag(TripsTestTags.editorLeg(0)).assertIsSelected()
     }
 

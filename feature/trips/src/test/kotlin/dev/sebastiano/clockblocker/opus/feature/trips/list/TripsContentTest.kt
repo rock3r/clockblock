@@ -11,6 +11,11 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeTags
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
@@ -19,6 +24,7 @@ import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsSamples
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreenshotTest
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
+import dev.sebastiano.clockblocker.opus.feature.trips.clickOnLeg
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.junit.Test
@@ -28,6 +34,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /** Taps through the stateless trips list and checks every affordance reaches the right callback. */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w411dp-h891dp-xhdpi")
@@ -81,20 +88,45 @@ class TripsContentTest : TripsScreenshotTest() {
     }
 
     @Test
-    fun tappingPastTripsHeaderOpensThePastGlobeSheet() {
+    fun tappingPastTripsHeaderOpensTheFullScreenPastGlobe() {
         show()
         compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(TripsTestTags.section(TripPhase.Past.name)))
         compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).performClick()
-        compose.onNodeWithTag(TripsTestTags.PastGlobeSheet).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.PastGlobeOverlay).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.PastGlobe).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.PastGlobeStats).assertIsDisplayed()
+        compose.onNodeWithText("Hours of time difference").assertIsDisplayed()
+        // The list underneath is out of TalkBack's reach while the globe covers it; the close button returns.
+        compose.onNodeWithTag(TripsTestTags.List).assertDoesNotExist()
+        compose.onNodeWithTag(GlobeTags.OverlayClose).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(TripsTestTags.PastGlobeOverlay).assertDoesNotExist()
+        compose.onNodeWithTag(TripsTestTags.List).assertExists()
     }
 
     @Test
-    fun singlePastTripOnGlobeExposesClickActionToOpenPlan() {
+    fun aPastFlightsTalkBackActionOpensItsTrip() {
         show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
         compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(TripsTestTags.section(TripPhase.Past.name)))
         compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).performClick()
-        compose.onNodeWithTag(TripsTestTags.PastGlobe).performClick()
+        compose.onNodeWithTag(TripsTestTags.PastGlobe).performCustomAccessibilityActionWithLabel("Open Lisbon to Tokyo")
+        compose.waitForIdle()
+        calls shouldContainExactly listOf("open:${TripsSamples.lisbonTokyo.id}")
+    }
+
+    @Test
+    fun tappingAPastFlightNamesItAndOpenTripOpensIt() {
+        show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
+        compose.onNodeWithTag(TripsTestTags.List).performScrollToNode(hasTestTag(TripsTestTags.section(TripPhase.Past.name)))
+        compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(TripsTestTags.PastGlobe).performTouchInput { clickOnLeg(TripsSamples.lisbonTokyo.legs, 0) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        compose.onNodeWithTag(GlobeTags.Callout).assertIsDisplayed()
+        compose.onNodeWithText("LIS → HND", useUnmergedTree = true).assertIsDisplayed()
+        calls shouldContainExactly emptyList()
+        compose.onNodeWithTag(TripsTestTags.PastGlobeOpenTrip).performClick()
         calls shouldContainExactly listOf("open:${TripsSamples.lisbonTokyo.id}")
     }
 

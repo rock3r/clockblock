@@ -188,13 +188,19 @@ object GlobeGeo {
     /**
      * The view after a drag of ([dx], [dy]) in units of the globe's radius on screen (right and down positive): the
      * surface follows the finger, so dragging right turns the view west and dragging down brings the north to the
-     * middle. The latitude stays within ±[MaxDragLatitude]; the longitude is left unwrapped, so a drag across the date
-     * line never jumps.
+     * middle. A sideways drag turns the globe by more away from the equator (where a parallel is shorter), so the
+     * point in the middle of the view keeps up with the finger, up to 3× near the poles. The latitude stays within
+     * ±[MaxDragLatitude]; the longitude is left unwrapped, so a drag across the date line never jumps.
      */
-    fun dragged(view: GlobeView, dx: Double, dy: Double): GlobeView = GlobeView(
-        latitude = (view.latitude + Math.toDegrees(dy)).coerceIn(-MaxDragLatitude, MaxDragLatitude),
-        longitude = view.longitude - Math.toDegrees(dx),
-    )
+    fun dragged(view: GlobeView, dx: Double, dy: Double): GlobeView {
+        val parallel = cos(Math.toRadians(view.latitude)).coerceAtLeast(MinParallelScale)
+        return GlobeView(
+            latitude = (view.latitude + Math.toDegrees(dy)).coerceIn(-MaxDragLatitude, MaxDragLatitude),
+            longitude = view.longitude - Math.toDegrees(dx / parallel),
+        )
+    }
+
+    private const val MinParallelScale = 1.0 / 3.0
 
     /**
      * Which of [stops] a tap at ([x], [y]) on the unit disc (east and north positive) picks: the nearest one on the

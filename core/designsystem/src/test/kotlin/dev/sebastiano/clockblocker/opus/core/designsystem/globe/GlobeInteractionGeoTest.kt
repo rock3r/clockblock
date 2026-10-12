@@ -6,10 +6,11 @@ import io.kotest.matchers.floats.plusOrMinus as floatPlusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.float
+import io.kotest.property.arbitrary.numericFloat
 import io.kotest.property.arbitrary.numericDouble
 import io.kotest.property.checkAll
 import kotlinx.coroutines.test.runTest
+import kotlin.math.abs
 import org.junit.jupiter.api.Test
 
 /** The interactive globe's pure geometry: dragging the view, picking a stop, and the dial ↔ world camera. */
@@ -23,10 +24,18 @@ class GlobeInteractionGeoTest {
 
     @Test
     fun `dragging right turns the globe so the surface follows the finger east to west`() {
-        // A finger moving right by a quarter of the radius drags the surface with it: the centre moves west.
-        val view = GlobeGeo.dragged(GlobeView(10.0, 20.0), dx = 0.25, dy = 0.0)
-        view.latitude shouldBe (10.0 plusOrMinus 1e-9)
-        view.longitude shouldBe (20.0 - Math.toDegrees(0.25) plusOrMinus 1e-9)
+        // A finger moving right by a quarter of the radius drags the surface with it: the centre moves west, by more
+        // away from the equator (a parallel there is shorter), so the middle of the view keeps up with the finger.
+        GlobeGeo.dragged(GlobeView(0.0, 20.0), dx = 0.25, dy = 0.0).longitude shouldBe (20.0 - Math.toDegrees(0.25) plusOrMinus 1e-9)
+        val view = GlobeGeo.dragged(GlobeView(60.0, 20.0), dx = 0.25, dy = 0.0)
+        view.latitude shouldBe (60.0 plusOrMinus 1e-9)
+        view.longitude shouldBe (20.0 - Math.toDegrees(0.5) plusOrMinus 1e-6)
+    }
+
+    @Test
+    fun `near a pole a sideways drag turns the globe a bounded amount`() {
+        val view = GlobeGeo.dragged(GlobeView(84.0, 0.0), dx = 0.1, dy = 0.0)
+        (abs(view.longitude) < Math.toDegrees(0.1) * 3.1) shouldBe true
     }
 
     @Test
@@ -101,7 +110,7 @@ class GlobeInteractionGeoTest {
 
     @Test
     fun `the dial stays pinned to the marker on the globe all the way`() = runTest {
-        checkAll(Arb.float(0f, 1f), Arb.float(-0.9f, 0.9f), Arb.float(-0.9f, 0.9f)) { p, x, y ->
+        checkAll(Arb.numericFloat(0f, 1f), Arb.numericFloat(-0.9f, 0.9f), Arb.numericFloat(-0.9f, 0.9f)) { p, x, y ->
             val m = Offset(x, y)
             val c = WorldCamera.at(p, m, zoomIn = 4f)
             // Where the globe draws the marker is where the dial's centre is.

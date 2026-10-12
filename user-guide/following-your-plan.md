@@ -76,14 +76,21 @@ timeline also scrolls to it.
 
 #### The world behind the dial
 
-<img src="images/world.png" alt="The plan for London to Sydney on day 3, with the dial swapped for a dark globe. The route runs as an orange arc from Singapore, labelled SIN, to Sydney, labelled SYD, with the earlier leg from London fading in from the top. Most of the globe is in night shade. A line on the globe says: It's 05:35 and dark in Sydney." width="280" />
+<img src="images/world.png" alt="The plan for London to Sydney on day 3, with the dial swapped for a dark globe. The route runs as an orange arc from Singapore, labelled SIN, to Sydney, labelled SYD, with the earlier leg from London fading in from the top. Most of the globe is in night shade. A line on the globe says: It's 05:35 and dark in Sydney · 20:35 in London." width="280" />
 
-Pinch out on the dial with two fingers to see your trip on a globe. The globe shows the route, a dot where you are
-at the dial's time (now, or the day you picked in the day strip), and the night side of the Earth at that time. A
-line on the globe says the time where you are and whether it's dark,
-for example "It's 03:10 and dark in Tokyo", or where you're flying to when you're in the air. Pinch in, or go
-back, to return to the dial. With TalkBack, the dial offers **Show the world**, and the globe offers **Back to the
-dial**.
+Pinch out on the dial with two fingers to zoom out from your day to the world. The dial shrinks onto the spot on
+Earth where you are while the globe pulls back to show your whole trip; it follows your fingers, so you can stop half
+way and change your mind. The globe shows the route, a dot where you are at the dial's time (now, or the day you
+picked in the day strip), and the night side of the Earth at that time. A line on the globe says the time where you
+are and whether it's dark, with the time at the other end of your trip, for example "It's 03:10 and dark in Tokyo ·
+19:10 in Lisbon", or where you're flying to when you're in the air.
+
+Drag the globe to turn it; flick it and it coasts to a stop. Double-tap it, or tap the re-centre button, to frame
+your trip again. Tap a flight or an airport to see its name. The full-screen button in the corner opens the globe
+over the whole plan, where you can also zoom in with two fingers or the + and − buttons. Pinch in on the globe, or go
+back, to zoom back in to the dial. With TalkBack, the dial offers **Show the world**; the globe reads out your trip
+and offers **Back to the dial**, **Show the globe full screen**, an action per flight, and actions to turn and
+re-centre it. With Reduce motion or Remove animations on, the dial and the globe swap in place instead of zooming.
 
 ### The Now card
 

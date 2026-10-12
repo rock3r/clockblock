@@ -68,9 +68,11 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Trip editor Return flight switch | the return date row grows in (and out) on `containerSpatial()` with a `fade()`; reduce motion: it appears at once, and the switch carries the state | OBSERVED |
 | Trip editor airport search sheet | the platform `ModalBottomSheet` motion only; picking From turns the open sheet into To in place (no motion of its own) | OBSERVED |
 | Trip editor main action ("Build my plan") | the platform state layer and the Expressive button shape morph on press (`ButtonDefaults.shapes()`); nothing else moves | OBSERVED |
-| Route globe turning to a ticket (editor card, full-size sheet, world view) | the view centre (latitude, longitude) turns on `dataSpatial()` the short way round (the route's place on Earth is data: no bounce); snaps under reduce motion. The globe never spins or drifts on its own: no self-timed motion, so nothing reads `MotionDurationScale`. The brighter active arc swaps with no animation | OBSERVED |
-| Editor globe full size | the platform `ModalBottomSheet` motion (and its predictive back) only; tapping a flight closes the sheet and scrolls its ticket into view (`bringIntoView`) | OBSERVED |
-| Plan dial ↔ world (pinch out / pinch in, Back, TalkBack Show the world / Back to the dial) | the dial and the globe cross-fade in place on `fade()`, the dial's alpha read in its layer; nothing scales or moves. Reduce motion keeps the cross-fade (effects are still allowed); the globe is the static carrier | OBSERVED |
+| Route globe turning to a ticket (editor card, full-screen globe, world view) | the view centre (latitude, longitude) turns on `dataSpatial()` the short way round (the route's place on Earth is data: no bounce); snaps under reduce motion. The globe never spins or drifts on its own: no self-timed motion, so nothing reads `MotionDurationScale`. The brighter active arc swaps with no animation | OBSERVED |
+| Large globe under the finger (world view, full-screen globes) | a drag turns it 1:1 (the point in the middle keeps up with the finger), read in draw; a flick coasts on `globeFling()` (exponential decay, never springs back); two fingers zoom 1–3× (full screen only), the zoom and re-centre buttons and TalkBack's zoom / re-centre actions move on `zoomSpatial()` (Standard: no bounce); double-tap re-centres on `zoomSpatial()`. Reduce motion: no coast (the globe stays where the finger left it) and the buttons snap; the finger still moves it directly | OBSERVED |
+| Globe pick (a tapped flight or airport) | the arc gets a light halo / the airport a wider ring, swapped with no animation; its callout (codes and name on the globe's scrim) fades in and out on `fade()` | OBSERVED |
+| Full-screen globe (editor, plan world, past trips) | drawn over its screen or pane (never a window of its own), edge to edge on the night sky: in on `colour()` while growing from 92 % on `navigationSpatial()`, out the same way reversed; predictive back seeks the exit with the finger and springs back on cancel. Go to ticket / Open trip close it with that exit while the screen behind moves on. Reduce motion: the scale snaps, it only cross-fades | OBSERVED |
+| Plan dial ↔ world (pinch out / pinch in, Back, TalkBack Show the world / Back to the dial) | a camera pulling back from "your day" to "the world" (`WorldCamera`): the dial shrinks onto the traveller's spot on the globe (×¼) and fades over the first 60 %, while the globe, zoomed in ×4 on that spot inside the dial's round footprint, pulls back to its full view at an even pace on a log scale; labels, caption and buttons fade in over the last 25 %. The fingers drive the progress (×1.8 spread = all the way, log scale); a release settles on `zoomSpatial()` with the fingers' speed towards where they were heading (or the nearer side), a cancelled touch goes back. Predictive back follows the finger back to the dial. All values read in layers (no recomposition per frame). Reduce motion: nothing scales or moves; a pinch past ×1.3 (or ×0.77) commits and the two cross-fade on `fade()`; Remove animations swaps them at once; the globe and its caption are the static carrier | OBSERVED |
 
 ## Exceptions
 - `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
@@ -94,16 +96,21 @@ on-screen time, not opens, is what gates its motion.
 | Header sun path + ghost ring (issue #21) | continuous | Static: repaints with the minute tick and a scrub, drawn in the draw phase, fades with the collapsing header; nothing animates, so Remove animations changes nothing |
 | Illustrations (Why? sheet, onboarding, empty state) | rare | Ambient loops + entrances |
 | Light response curve (Why sheet, About) | rare | Handle grows on `containerSpatial`; position on `dataSpatial`; hour haptics |
-| Route globe (trip editor) / world behind the dial (pinch out) | a few/month / rare | Turn on `dataSpatial`, cross-fade on `fade()`; never spins on its own |
+| Route globe (trip editor) / world behind the dial (pinch out) / past-trips globe | a few/month / rare / rare | Turn on `dataSpatial`; dial ↔ world zoom on `zoomSpatial`, gesture-driven; full-screen globe in on `colour()` + `navigationSpatial()`; a flick coasts on `globeFling`; never spins on its own |
 | Adaptation celebration (rings → Bloom + confetti) | once per trip | Full delight, one mover at a time |
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
 
 ## Gestures and haptics
 - Dial drag scrubs time: `CLOCK_TICK` per local hour crossed, `SEGMENT_TICK` per advice boundary.
 - Dial centre tap → back to now (`dataSpatial`). Custom a11y actions: next / previous block / back to now.
-- Two-finger pinch out on the dial → the world (pinch in, or Back, returns). The pinch takes the gesture only once a
-  second finger is down, so one-finger scrub, the Rewind long-press and the moon taps never see it. No haptic. Custom
-  a11y actions: Show the world (dial), Back to the dial (globe).
+- Two-finger pinch out on the dial → the world, following the fingers (pinch in, or Back, returns the same way). The
+  pinch takes the gesture only once a second finger is down, so the Rewind long-press and the moon taps never see it;
+  a scrub on the ring only starts once the finger has moved past the slop (or rested 100 ms) with no second finger,
+  and a second finger landing mid-scrub undoes it, so a pinch never previews another time. No haptic. Custom a11y
+  actions: Show the world (dial); Back to the dial, Show the globe full screen, turn and re-centre (globe).
+- Large globes: drag to turn, flick to coast, double-tap to re-centre, tap a flight or airport to name it (the
+  editor's also makes a tapped flight the active ticket), two fingers to zoom (full screen). Buttons for zoom and
+  re-centre; custom a11y actions for each flight, turning, zooming and re-centring.
 - Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
 - Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
 - Moon egg taps 1–6 → `CLOCK_TICK`.
@@ -124,7 +131,8 @@ on-screen time, not opens, is what gates its motion.
 - Easter eggs are off (`easterEggs` is false under reduce motion and inside sleep windows).
 - Dot-matrix codes, rolling readouts, the dial's body sky and offset pill, the route arc (apex and plane) and the route
   globe's turn snap to their end state; the still picture carries the whole meaning. The world behind the dial is not
-  an easter egg: it works under reduce motion and in sleep windows.
+  an easter egg: it works under reduce motion and in sleep windows, where the dial and globe cross-fade in place
+  instead of zooming. A flung globe doesn't coast.
 - Screenshot goldens render with reduce motion on, proving each static carrier. `_mid` goldens
   (`snapMidChange`) freeze one frame mid-transition with motion on.
 

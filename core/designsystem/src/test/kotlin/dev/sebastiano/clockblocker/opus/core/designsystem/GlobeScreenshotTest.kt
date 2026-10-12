@@ -15,6 +15,15 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.LandDots
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobe
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeCallout
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeControls
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeInteraction
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeSelection
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.rememberRouteGlobeState
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,6 +66,43 @@ class GlobeScreenshotTest : ScreenshotTest() {
         Full(Polar, active = null, marker = GeoPoint(80.0, -150.0))
     }
 
+    /** A picked flight: a light halo under its arc, and its callout (codes and name) on the globe's scrim. */
+    @Test
+    fun pickedFlight() = snap("globe_picked_flight") { Picked(GlobeSelection.Leg(0)) }
+
+    /** A picked airport: a wider ring, named in the callout. */
+    @Test
+    fun pickedAirport() = snap("globe_picked_airport", darkTheme = true) { Picked(GlobeSelection.Stop(1)) }
+
+    /** Zoomed in ×2 and turned: the globe stays inside its canvas, and the re-centre button appears. */
+    @Test
+    fun zoomed() = snap("globe_zoomed") {
+        val state = rememberRouteGlobeState()
+        LaunchedEffect(Unit) {
+            state.zoomTo(2f, null)
+            state.turnBy(-20f, null)
+        }
+        Box(Modifier.padding(16.dp).size(379.dp)) {
+            RouteGlobe(legs = Connection, instant = Noon, contentDescription = "", activeLeg = 1, showLabels = true, state = state, interaction = GlobeInteraction.RotateAndZoom, modifier = Modifier.fillMaxSize())
+            GlobeControls(state, Modifier.align(Alignment.BottomEnd).padding(12.dp))
+        }
+    }
+
+    /** Night-safe: warm, dim amber on near-black, no blue or bright white. */
+    @Test
+    fun nightSafe() = snap("globe_night_safe", nightSafe = true) { Full(Connection, active = 1) }
+
+    @Composable
+    private fun Picked(selection: GlobeSelection) {
+        val state = rememberRouteGlobeState()
+        LaunchedEffect(Unit) { state.selection = selection }
+        val legs = Connection.mapIndexed { i, leg -> leg.copy(name = "Flight ${i + 1}") }
+        Box(Modifier.padding(16.dp).size(379.dp)) {
+            RouteGlobe(legs = legs, instant = Noon, contentDescription = "", activeLeg = 1, showLabels = true, state = state, interaction = GlobeInteraction.Rotate, modifier = Modifier.fillMaxSize())
+            GlobeCallout(state, legs, Modifier.align(Alignment.BottomStart).padding(12.dp))
+        }
+    }
+
     @Composable
     private fun Small() {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -84,7 +130,7 @@ class GlobeScreenshotTest : ScreenshotTest() {
         val Noon: Instant = Instant.parse("2026-06-21T12:00:00Z")
         val Evening: Instant = Instant.parse("2026-10-07T19:00:00Z")
         val LIS = GlobeStop(GeoPoint(38.78, -9.14), "LIS")
-        val DOH = GlobeStop(GeoPoint(25.27, 51.61), "DOH")
+        val DOH = GlobeStop(GeoPoint(25.27, 51.61), "DOH", "Doha")
         val HND = GlobeStop(GeoPoint(35.55, 139.79), "HND")
         val LHR = GlobeStop(GeoPoint(51.47, -0.46), "LHR")
         val JNB = GlobeStop(GeoPoint(-26.13, 28.24), "JNB")
