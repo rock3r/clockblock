@@ -81,24 +81,24 @@
     <string name="chronotype_moderate_evening_description">Slow mornings, sharp evenings.</string>
     <string name="chronotype_definite_evening">Night owl</string>
     <string name="chronotype_definite_evening_description">Midnight is early. Alarms are the enemy.</string>
-    <string name="chronotype_not_sure">Not sure? Work it out from your free days</string>
-    <string name="chronotype_helper_title">Your free days</string>
-    <string name="chronotype_helper_body">With no alarm and nothing planned, when do you fall asleep and wake up?</string>
-    <string name="chronotype_helper_result">Mid-sleep around %1$s. That makes you: %2$s.</string>
-    <string name="chronotype_helper_use">Use this</string>
-    <string name="chronotype_helper_cancel">Cancel</string>
-    <string name="chronotype_helper_source">Based on the Munich ChronoType Questionnaire (Roenneberg 2004), corrected for weekend lie-ins.</string>
 
-    <!-- 4. Tools. -->
+    <!-- 4. Tools / Preferences. -->
     <string name="tools_headline">Your tools</string>
     <string name="tools_body">Pick what you\'re happy to use. You can change any of this later in Settings.</string>
-    <string name="tool_caffeine">Caffeine</string>
+    <string name="tool_caffeine">I drink caffeine</string>
     <string name="tool_caffeine_description">Little-and-often coffee to stay sharp, and a cut-off before sleep. If you don\'t drink it, no need to start now.</string>
     <string name="tool_planes">I can sleep on planes</string>
     <string name="tool_planes_description">Off means in-flight sleep becomes rest in the dark.</string>
-    <string name="tool_adjust_before">Adjust before I leave</string>
-    <string name="tool_adjust_before_description">Shift a little on the days before departure, so you land partly adapted.</string>
-    <string name="tool_melatonin">Melatonin</string>
+    <string name="tool_naps">Naps are OK</string>
+    <string name="tool_naps_description">Short, timed naps when a long day leaves you tired.</string>
+    <string name="tool_head_start">Head start</string>
+    <string name="tool_head_start_description">Shift a little on the days before departure, so you land partly adapted.</string>
+    <string name="tool_head_start_none">None</string>
+    <plurals name="tool_head_start_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="tool_melatonin">I use melatonin</string>
     <string name="tool_melatonin_description">Off by default. Read the safety note to switch it on.</string>
     <string name="tool_melatonin_on_description">A low dose at a precise time, only when it helps shift you earlier.</string>
     <string name="melatonin_note_title">Before you use melatonin</string>

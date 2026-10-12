@@ -66,17 +66,18 @@ then says **Your pick**, and changing your nights later doesn't override it.
 
 ### 4. Your tools
 
-<img src="images/tools.png" alt="Step 4 of 5, Your tools: switches for Caffeine, I can sleep on planes and Adjust before I leave are on, each row tinted in its advice colour with its symbol; Melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max, and the note: The research-backed pace. A good default for most trips." width="280" />
+<img src="images/tools.png" alt="Step 4 of 5, Your tools: switches for I drink caffeine, I can sleep on planes and Naps are OK are on, each row tinted in its advice colour with its icon inside its shape; Head start has None, 1 day, 2 days and 3 days (selected); I use melatonin is off. Below, How hard should the plan push? with Gentle, Balanced (selected) and Max." width="280" />
 
-Pick what you're happy to use. Each switch has the symbol of the advice it adds to your plan. When a switch is
+Pick what you're happy to use. Each row has the shape and icon of the advice it adds to your plan. When a switch is
 on, its row takes that advice's colour.
 
-| Switch | What it changes |
+| Setting | What it changes |
 |---|---|
-| Caffeine | Suggests little-and-often coffee to stay sharp, and a cut-off before sleep. If you don't drink coffee, turn it off. |
+| I drink caffeine | Suggests little-and-often coffee to stay sharp, and a cut-off before sleep. If you don't drink coffee, turn it off. |
 | I can sleep on planes | When off, sleep on the plane becomes "rest in the dark" instead. |
-| Adjust before I leave | Shifts your clock a little on the days before departure, so you land partly adapted. |
-| Melatonin | Off by default. See below. |
+| Naps are OK | Suggests short recovery naps after a cut-short night. Turn it off if you prefer not to nap during the day. |
+| Head start | Shifts your clock a little on the days before departure (**None**, **1 day**, **2 days** or **3 days**), so you land partly adapted. |
+| I use melatonin | Off by default. See below. |
 
 Then choose how hard the plan should push:
 

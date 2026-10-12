@@ -353,27 +353,27 @@ internal fun StayOnHomeCard(plan: JetLagPlan, modifier: Modifier = Modifier) {
     )
 }
 
-/** Before the first plan day: when it starts and what comes first. Takes the Now card's place. */
+/**
+ * Before the first plan day: when it starts. What comes first (and when) is the header's "Next" line, so the card
+ * doesn't say it twice, unless the header stays collapsed on a short window ([next]). Takes the Now card's place.
+ */
 @Composable
-internal fun UpcomingCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modifier = Modifier) {
-    val formatter = rememberTimeFormatter()
+internal fun UpcomingCard(plan: JetLagPlan, moment: PlanMoment, modifier: Modifier = Modifier, next: HeaderNext? = null) {
     val first = plan.days.firstOrNull()
-    val next = moment.upNext.firstOrNull()
     StoryCard(
         title = stringResource(R.string.plan_upcoming_title, first?.date?.let(::formatDayDate).orEmpty()),
-        body = if (next != null) {
-            val zone = ZoneId.of(plan.days.firstOrNull { d -> d.advice.any { it.id == next.id } }?.zoneId ?: plan.originZoneId)
-            stringResource(
-                R.string.plan_upcoming_body,
-                next.type.label(),
-                formatDayDate(next.start.atZone(zone).toLocalDate()),
-                formatter.formatFull(next.start.atZone(zone).toLocalTime()),
-            )
-        } else {
-            stringResource(R.string.plan_free_time_body)
-        },
+        body = stringResource(if (moment.upNext.isNotEmpty()) R.string.plan_upcoming_body else R.string.plan_free_time_body),
         art = { SuitcaseOClockArt(Modifier.size(96.dp), animated = false) },
         modifier = modifier.testTag(PlanTags.NowCard),
+        footer = next?.let {
+            {
+                Text(
+                    "${it.headline} \u00B7 ${it.detail}",
+                    style = ClockblockTheme.textStyles.timeLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
     )
 }
 

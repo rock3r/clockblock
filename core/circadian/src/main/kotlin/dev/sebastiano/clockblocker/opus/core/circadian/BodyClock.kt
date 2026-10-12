@@ -5,6 +5,8 @@ import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.PlanDay
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
+import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.core.circadian.engine.CyclePlanner
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
@@ -94,3 +96,18 @@ fun JetLagPlan.daySpans(): List<PlanDaySpan> {
 
 /** The plan day whose span contains [instant] (see [daySpans]), or null before the first or after the last day. */
 fun JetLagPlan.currentDay(instant: Instant): PlanDay? = daySpans().firstOrNull { instant in it }?.day
+
+/**
+ * The body's lowest point on an ordinary day (core body temperature minimum, CBTmin), as a home clock time: the
+ * work-day sleep's midpoint plus the chronotype's offset, the same estimate every plan starts from (`T0`,
+ * `docs/algorithm.md` §4). Rounded to [roundingMinutes] (the plan's display rounding).
+ */
+fun UserProfile.usualLowestPoint(config: PlannerConfig = PlannerConfig()): LocalTime {
+    val onset = sleep.bedtime.toSecondOfDay() / 3600.0
+    val duration = CircadianMath.mod24(sleep.wake.toSecondOfDay() / 3600.0 - onset)
+        .coerceIn(CyclePlanner.MIN_SLEEP, CyclePlanner.MAX_SLEEP)
+    val hours = CyclePlanner.cbtMinClock(onset, onset + duration, config.cbtFromMidSleep(chronotype.toClass()))
+    val step = config.roundingMinutes.coerceAtLeast(1)
+    val minutes = (Math.round(hours * 60 / step) * step).toInt()
+    return LocalTime.ofSecondOfDay(Math.floorMod(minutes, 24 * 60) * 60L)
+}

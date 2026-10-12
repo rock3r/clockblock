@@ -9,6 +9,7 @@ object PlanTags {
     const val OpenTrips = "plan_open_trips"
     const val Header = "plan_header"
     const val HeaderSky = "plan_header_sky"
+    const val NextAction = "plan_next_action"
     const val Back = "plan_back"
     const val Overflow = "plan_overflow"
     const val MenuEdit = "plan_menu_edit"

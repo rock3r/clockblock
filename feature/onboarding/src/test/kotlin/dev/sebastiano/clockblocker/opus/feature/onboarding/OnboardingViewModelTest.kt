@@ -147,14 +147,14 @@ class OnboardingViewModelTest {
         vm.setSleep(window)
         vm.setChronotype(Chronotype.ModerateMorning)
         vm.setIntensity(Intensity.Gentle)
-        vm.updateProfile { it.copy(useCaffeine = false, canSleepOnPlanes = false, adjustBeforeDeparture = false) }
+        vm.updateProfile { it.copy(useCaffeine = false, canSleepOnPlanes = false, headStartDays = 0) }
         val p = vm.state.value.profile
         p.sleep shouldBe window
         p.chronotype shouldBe Chronotype.ModerateMorning
         p.intensity shouldBe Intensity.Gentle
         p.useCaffeine.shouldBeFalse()
         p.canSleepOnPlanes.shouldBeFalse()
-        p.adjustBeforeDeparture.shouldBeFalse()
+        p.headStartDays shouldBe 0
     }
 
     @Test

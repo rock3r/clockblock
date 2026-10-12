@@ -54,6 +54,8 @@ class SettingsScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun fullDark() = settings("settings_full_dark", dark = true)
 
+    @Test fun fullFontScale13() = settings("settings_full_fontscale_1_3", fontScale = 1.3f)
+
     @Test fun fullFontScale() = settings("settings_full_fontscale_1_5", fontScale = 1.5f)
 
     @Test fun beforeOnboarding() = settings(
@@ -91,6 +93,14 @@ class SettingsTwoPaneScreenshotTest : ClockblockScreenshotTest() {
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
     @Test fun top() = snap("settings_phone") {
+        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
+    }
+
+    @Test fun topDark() = snap("settings_phone_dark", darkTheme = true) {
+        SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
+    }
+
+    @Test fun topFontScale13() = snap("settings_phone_fontscale_1_3", fontScale = 1.3f) {
         SettingsContent(settingsState(), SettingsActions.None, onBack = null, modifier = Modifier.fillMaxSize(), now = DemoData.Now)
     }
 

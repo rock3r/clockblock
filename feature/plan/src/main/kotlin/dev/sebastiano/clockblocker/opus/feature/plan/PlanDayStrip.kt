@@ -55,15 +55,15 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.LocalReduceMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import dev.sebastiano.clockblocker.opus.core.circadian.localZoneAt
 import dev.sebastiano.clockblocker.opus.core.model.DayKind
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sign
@@ -95,12 +95,20 @@ internal fun selectedDayBase(days: List<RailDay>, selectedDay: Int?, now: Instan
     return day.previewInstant(now, nowZone).takeUnless { it == now }
 }
 
+/**
+ * The local dates each day covers, keyed by `PlanDay.index`: its own date, or for the travel day its take-off and
+ * landing dates (an overnight flight covers two), each read where the traveller is then.
+ */
+internal fun dayStripDates(plan: JetLagPlan, days: List<RailDay>): Map<Int, Pair<LocalDate, LocalDate>> =
+    days.associate { it.day.index to dayDates(it.day, plan::localZoneAt) }
+
 /** Body clock vs local time (hours, + = ahead) at each day's local noon, keyed by `PlanDay.index`. */
 internal fun dayStripOffsets(plan: JetLagPlan, days: List<RailDay>): Map<Int, Float> =
     days.associate { it.day.index to plan.momentAt(it.at(LocalTime.NOON), upNextCount = 0).bodyAheadHours }
 
-private val PillDate: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d")
 private val PillHeight = 68.dp
+/** The number row's height, so the plane (travel day) and the numbers sit on one line across the strip. */
+private val PillNumberHeight = 24.dp
 private val PillCorner = 16.dp
 
 /** The mark on the pill of the day the two-pane rail shows: a bar this size, this far above the pill's foot. */
@@ -126,6 +134,7 @@ internal fun PlanDayStrip(
     offsets: Map<Int, Float>,
     todayIndex: Int?,
     selectedIndex: Int?,
+    dates: Map<Int, Pair<LocalDate, LocalDate>>,
     onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier,
     inViewIndex: Int? = null,
@@ -161,6 +170,7 @@ internal fun PlanDayStrip(
             val index = day.day.index
             DayPill(
                 day = day,
+                dates = dates[index] ?: (day.day.date to day.day.date),
                 offset = offsets[index] ?: 0f,
                 isToday = index == todayIndex,
                 selected = index == shownIndex,
@@ -177,7 +187,15 @@ internal fun PlanDayStrip(
 }
 
 @Composable
-private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boolean, inView: Boolean, onClick: () -> Unit) {
+private fun DayPill(
+    day: RailDay,
+    dates: Pair<LocalDate, LocalDate>,
+    offset: Float,
+    isToday: Boolean,
+    selected: Boolean,
+    inView: Boolean,
+    onClick: () -> Unit,
+) {
     val motion = ClockblockTheme.motion
     val colors = MaterialTheme.colorScheme
     val resources = LocalContext.current.resources
@@ -185,12 +203,18 @@ private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boo
     val container by animateColorAsState(if (selected) colors.secondaryContainer else colors.surfaceContainer, motion.colour(), label = "dayPillColour")
     val content = if (selected) colors.onSecondaryContainer else colors.onSurface
     val outline = colors.primary
-    val label = resources.dayShortTitle(day.day, pill = true)
-    val date = PillDate.withLocale(Locale.getDefault()).format(day.day.date)
+    // Counted around the flight: "−2", "−1", the plane, "+1"… with the weekday (or an overnight flight's two) under it.
+    val number = dayStripNumber(day.day)
+    val weekdays = weekdaySpan(dates.first, dates.second)
+    val dateText = if (dates.first == dates.second) {
+        formatDayDate(dates.first)
+    } else {
+        stringResource(R.string.plan_strip_dates, formatDayDate(dates.first), formatDayDate(dates.second))
+    }
     val description = stringResource(
         if (isToday) R.string.plan_strip_pill_description_today else R.string.plan_strip_pill_description,
         resources.dayTitle(day.day),
-        formatDayDate(day.day.date),
+        dateText,
         resources.bodyShiftLabel(offset),
     )
     val inViewLabel = stringResource(R.string.plan_strip_pill_in_view)
@@ -239,15 +263,19 @@ private fun DayPill(day: RailDay, offset: Float, isToday: Boolean, selected: Boo
     ) {
         CompositionLocalProvider(LocalContentColor provides content) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clearAndSetSemantics {}) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.height(PillNumberHeight), verticalAlignment = Alignment.CenterVertically) {
                     if (day.day.kind == DayKind.Adapted) {
                         Icon(PlanIcons.Check, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(2.dp))
                     }
-                    Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    if (number != null) {
+                        Text(number, style = MaterialTheme.typography.titleMediumEmphasized, maxLines = 1)
+                    } else {
+                        Icon(PlanIcons.Flight, contentDescription = null, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = 90f })
+                    }
                 }
                 Text(
-                    date,
+                    weekdays,
                     style = MaterialTheme.typography.labelSmall,
                     color = content.copy(alpha = 0.72f),
                     maxLines = 1,

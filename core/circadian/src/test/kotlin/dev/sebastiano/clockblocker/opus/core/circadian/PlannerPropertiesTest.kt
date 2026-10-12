@@ -9,6 +9,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.HeadStart
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
@@ -62,8 +63,9 @@ class PlannerPropertiesTest {
             useMelatonin = Arb.boolean().bind(),
             useCaffeine = Arb.boolean().bind(),
             canSleepOnPlanes = Arb.boolean().bind(),
-            adjustBeforeDeparture = Arb.boolean().bind(),
+            headStartDays = Arb.element(HeadStart.Choices).bind(),
             intensity = Arb.enum<Intensity>().bind(),
+            napsOk = Arb.boolean().bind(),
         )
     }
 
@@ -146,6 +148,52 @@ class PlannerPropertiesTest {
             val arrInstant = dep.atZone(from.zone).toInstant().plus(Duration.ofHours(11))
             val trip = Trip("x", "x", listOf(FlightLeg("1", from, to, dep, LocalDateTime.ofInstant(arrInstant, to.zone))), NOW)
             withClue("$a -> $b") { checkInvariants(Scenario(trip, profile), strict = true) }
+        }
+    }
+
+    @Test
+    fun `the head start caps the pre-flight days and changes nothing else`() {
+        runBlocking {
+            checkAll(PropTestConfig(seed = 20_261_011L, iterations = 300), arbProfile) { profile ->
+                val config = PlannerConfig().forProfile(profile)
+                val uncapped = PlannerConfig().forProfile(profile.copy(headStartDays = HeadStart.MaxDays))
+                withClue(profile) {
+                    (config.preFlightDays <= profile.headStartDays) shouldBe true
+                    config.preFlightDays shouldBe minOf(uncapped.preFlightDays, profile.headStartDays)
+                    // The intensity's safety caps (per-day and total pre-flight shift) stay exactly as they were.
+                    config shouldBe uncapped.copy(preFlightDays = config.preFlightDays)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the body clock moves on no more days before departure than the head start, and none with None`() {
+        runBlocking {
+            checkAll(PropTestConfig(seed = 11_102_026L, iterations = 300), arbScenario) { s ->
+                val plan = planner.plan(s.trip, s.profile, NOW)
+                val cbts = plan.phase.map { it.cbtMin }.distinct().sorted().filter { !it.isAfter(s.trip.departure) }
+                val moving = cbts.zipWithNext().count { (a, b) ->
+                    abs(24.0 - Duration.between(a, b).toMillis() / 3_600_000.0) > 0.02
+                }
+                withClue("$s: $moving shifting cycles before departure") {
+                    (moving <= s.profile.headStartDays) shouldBe true
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `with naps off a plan has no optional nap and keeps the recommended ones`() {
+        runBlocking {
+            checkAll(PropTestConfig(seed = 20_261_110L, iterations = 200), arbScenario) { s ->
+                val on = planner.plan(s.trip, s.profile.copy(napsOk = true), NOW).allAdvice
+                val off = planner.plan(s.trip, s.profile.copy(napsOk = false), NOW).allAdvice
+                withClue(s) {
+                    off.none { it.type == AdviceType.OptionalNap } shouldBe true
+                    off.filter { it.type == AdviceType.Nap } shouldBe on.filter { it.type == AdviceType.Nap }
+                }
+            }
         }
     }
 
