@@ -129,24 +129,38 @@ object TransitionPlanner {
             .minOrNull()
     }
 
-    /**
-     * How often the route globe is re-captured while a plan is active so its solar daylight (and, during flights, its
-     * interpolated traveller marker) stays current across pre-departure periods, flights, layovers, post-arrival
-     * periods and scheduled sleep.
-     */
-    val GLOBE_REFRESH_STEP: Duration = Duration.ofMinutes(15)
+    /** How often the route globe's traveller marker moves while a flight is in the air. */
+    val GLOBE_FLIGHT_STEP: Duration = Duration.ofMinutes(15)
+
+    /** How often the route globe's day-night line is redrawn on the ground around the flights (15° of longitude). */
+    val GLOBE_GROUND_STEP: Duration = Duration.ofHours(1)
+
+    /** How long before the first flight departs, and after the last one lands, the globe keeps its own tick. */
+    val GLOBE_TICK_MARGIN: Duration = Duration.ofDays(1)
 
     /**
-     * The next instant strictly after [now] at which the route globe of [plan] gets a silent surface refresh
-     * ([GLOBE_REFRESH_STEP] ahead, truncated to the minute), whenever [plan] has a route (`originZoneId !=
-     * destinationZoneId` or any [AdviceType.Flight]) and still has advice ahead of [now]. Silent surface refreshes
-     * never post a reminder or make a sound, so they also run across sleep windows.
+     * The next instant strictly after [now] for the route globe's own cosmetic tick, or `null` when it needs none.
+     *
+     * The globe changes by itself in two ways: the traveller marker moves along a flight, and the day-night line
+     * sweeps round. So the tick runs only while the trip is happening: every [GLOBE_FLIGHT_STEP] (truncated to the
+     * minute) while a [AdviceType.Flight] of [plan] is in the air, and on the hour ([GLOBE_GROUND_STEP]) on the ground
+     * from [GLOBE_TICK_MARGIN] before the first flight departs to [GLOBE_TICK_MARGIN] after the last one lands. Leg
+     * changes (take-off, landing) are plan transitions, which refresh every surface anyway. Before that window the
+     * tick is the window's start (one alarm, not a periodic one); after it, or without flights, there's none, and the
+     * globe follows the plan's normal boundaries like the other widgets.
      */
     fun nextGlobeRefresh(plan: JetLagPlan, now: Instant): Instant? {
-        val hasRoute = plan.originZoneId != plan.destinationZoneId || plan.allAdvice.any { it.type == AdviceType.Flight }
-        val active = plan.allAdvice.any { it.end.isAfter(now) }
-        if (!hasRoute || !active) return null
-        return now.plus(GLOBE_REFRESH_STEP).truncatedTo(ChronoUnit.MINUTES).takeIf { it.isAfter(now) }
+        val flights = plan.allAdvice.filter { it.type == AdviceType.Flight }
+        if (flights.isEmpty()) return null
+        val opens = flights.minOf { it.start }.minus(GLOBE_TICK_MARGIN)
+        val closes = flights.maxOf { it.end }.plus(GLOBE_TICK_MARGIN)
+        return when {
+            !now.isBefore(closes) -> null
+            now.isBefore(opens) -> opens
+            flights.any { !now.isBefore(it.start) && now.isBefore(it.end) } ->
+                now.plus(GLOBE_FLIGHT_STEP).truncatedTo(ChronoUnit.MINUTES)
+            else -> now.truncatedTo(ChronoUnit.HOURS).plus(GLOBE_GROUND_STEP)
+        }
     }
 
     /** The next refresh the widget dial needs on its own: the earlier of [nextDialEntry] and [nextMomentEnd]. */

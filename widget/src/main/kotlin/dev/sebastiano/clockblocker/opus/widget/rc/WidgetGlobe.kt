@@ -5,20 +5,16 @@ import androidx.compose.remote.creation.compose.layout.RemoteCanvas
 import androidx.compose.remote.creation.compose.layout.RemoteComposable
 import androidx.compose.remote.creation.compose.layout.RemoteDrawScope
 import androidx.compose.remote.creation.compose.layout.RemoteOffset
-import androidx.compose.remote.creation.compose.layout.RemoteSize
 import androidx.compose.remote.creation.compose.modifier.RemoteModifier
 import androidx.compose.remote.creation.compose.modifier.fillMaxSize
 import androidx.compose.remote.creation.compose.state.RemotePaint
 import androidx.compose.remote.creation.compose.state.rc
 import androidx.compose.remote.creation.compose.state.rf
-import androidx.compose.remote.creation.compose.state.rs
-import androidx.compose.remote.creation.compose.text.RemoteTypeface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
-import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.TextSpec
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeGeo
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg
@@ -29,12 +25,9 @@ import dev.sebastiano.clockblocker.opus.widget.draw.WidgetPalette
 import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetGlobe
 import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
-import dev.sebastiano.clockblocker.opus.widget.text.DialType
 import java.io.DataInputStream
-import java.io.File
 import java.io.InputStream
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.min
@@ -52,21 +45,7 @@ internal data class WidgetGlobeSpec(
     val height: Float,
     val view: GlobeView,
     val ops: List<GlobeOp>,
-) {
-    /** Total primitive draw calls emitted into the Remote Compose canvas. */
-    val drawCallCount: Int
-        get() = ops.sumOf { op ->
-            when (op) {
-                is GlobeOp.Circle -> 1
-                is GlobeOp.Dots -> op.count / 2
-                is GlobeOp.Polyline -> {
-                    val segments = (op.count / 2 - 1).coerceAtLeast(0)
-                    if (op.dashed) (segments + 1) / 2 else segments
-                }
-                is GlobeOp.Label -> 2
-            }
-        }
-}
+)
 
 internal sealed interface GlobeOp {
     data class Circle(val cx: Float, val cy: Float, val r: Float, val color: Int, val stroke: Float = 0f) : GlobeOp
@@ -79,20 +58,6 @@ internal sealed interface GlobeOp {
         val width: Float,
         val color: Int,
         val dashed: Boolean = false,
-    ) : GlobeOp
-
-    data class Label(
-        val text: String,
-        val x: Float,
-        val y: Float,
-        val spec: TextSpec,
-        val color: Int,
-        val scrimLeft: Float,
-        val scrimTop: Float,
-        val scrimRight: Float,
-        val scrimBottom: Float,
-        val scrimRadius: Float,
-        val scrimColor: Int,
     ) : GlobeOp
 }
 
@@ -160,7 +125,6 @@ internal object WidgetGlobeRenderer {
         palette: WidgetPalette,
         widthDp: Float,
         heightDp: Float,
-        showLabels: Boolean = false,
     ): WidgetGlobeSpec {
         val colors = WidgetGlobePalette.of(palette.theme)
         val radius = min(widthDp, heightDp) / 2f * 0.94f
@@ -241,7 +205,7 @@ internal object WidgetGlobeRenderer {
             }
         }
 
-        // 7. Stops and optional airport code labels.
+        // 7. Stops.
         val stops = distinctStops(globe.legs)
         val stopVectors = GlobeUnitVectors(stops.map { it.point })
         val dotRadius = (3.2f * scale).coerceAtLeast(2.2f)
@@ -258,10 +222,6 @@ internal object WidgetGlobeRenderer {
             } else {
                 ops += GlobeOp.Circle(ox, oy, dotRadius, withAlpha(colors.routeDim, 0.45f), stroke = ringStroke)
             }
-        }
-
-        if (showLabels && stops.isNotEmpty()) {
-            addStopLabels(ops, context, stops, stopVectors, rot, cx, cy, radius, widthDp, heightDp, dotRadius, colors)
         }
 
         // 8. Traveller marker.
@@ -466,116 +426,6 @@ internal object WidgetGlobeRenderer {
         flush()
     }
 
-    private fun addStopLabels(
-        ops: MutableList<GlobeOp>,
-        context: Context,
-        stops: List<GlobeStop>,
-        stopVectors: GlobeUnitVectors,
-        rot: GlobeRotation,
-        cx: Float,
-        cy: Float,
-        radius: Float,
-        widthDp: Float,
-        heightDp: Float,
-        dotRadius: Float,
-        colors: WidgetGlobePalette,
-    ) {
-        val type = DialType.of(context)
-        val textSize = (radius * 0.14f).coerceIn(8.5f, 11f)
-        val spec = TextSpec(size = textSize, weight = 600)
-        val pad = 3.5f
-        val gap = dotRadius + 4.5f
-
-        data class VisibleStop(val label: String, val ox: Float, val oy: Float, val w: Float, val h: Float)
-        val visible = ArrayList<VisibleStop>(stops.size)
-        for (i in 0 until stopVectors.size) {
-            val px = stopVectors.x[i]
-            val py = stopVectors.y[i]
-            val pz = stopVectors.z[i]
-            if (rot.depth(px, py, pz) < 0f) continue
-            val label = stops[i].label
-            val w = type.measurer.width(label, spec)
-            val h = textSize * 1.15f
-            visible += VisibleStop(
-                label = label,
-                ox = cx + rot.x(px, py) * radius,
-                oy = cy - rot.y(px, py, pz) * radius,
-                w = w,
-                h = h,
-            )
-        }
-        if (visible.isEmpty()) return
-
-        data class Placed(val sLeft: Float, val sTop: Float, val sRight: Float, val sBottom: Float, val left: Float, val top: Float)
-        val placed = ArrayList<Placed>(visible.size)
-        val avoidRadius = dotRadius + 1.5f
-        for (s in visible) {
-            val w = s.w
-            val h = s.h
-            val candidates = arrayOf(
-                s.ox + gap to s.oy - h / 2f,
-                s.ox - gap - w to s.oy - h / 2f,
-                s.ox - w / 2f to s.oy - gap - h,
-                s.ox - w / 2f to s.oy + gap,
-                s.ox + gap to s.oy - gap - h,
-                s.ox + gap to s.oy + gap,
-                s.ox - gap - w to s.oy - gap - h,
-                s.ox - gap - w to s.oy + gap,
-            )
-            var best: Placed? = null
-            var bestScore = Float.POSITIVE_INFINITY
-            for ((rawLeft, rawTop) in candidates) {
-                val maxLeft = (widthDp - w - pad).coerceAtLeast(pad)
-                val maxTop = (heightDp - h - pad).coerceAtLeast(pad)
-                val left = rawLeft.coerceIn(pad, maxLeft)
-                val top = rawTop.coerceIn(pad, maxTop)
-                val sLeft = left - pad
-                val sTop = top - pad / 2f
-                val sRight = left + w + pad
-                val sBottom = top + h + pad / 2f
-
-                var overlap = 0f
-                for (prev in placed) {
-                    overlap += rectOverlap(sLeft, sTop, sRight, sBottom, prev.sLeft, prev.sTop, prev.sRight, prev.sBottom)
-                }
-                for (dot in visible) {
-                    overlap += rectOverlap(
-                        sLeft, sTop, sRight, sBottom,
-                        dot.ox - avoidRadius, dot.oy - avoidRadius, dot.ox + avoidRadius, dot.oy + avoidRadius,
-                    )
-                }
-                val clampPenalty = abs(left - rawLeft) + abs(top - rawTop)
-                val score = overlap * 100f + clampPenalty
-                if (score < bestScore) {
-                    bestScore = score
-                    best = Placed(sLeft, sTop, sRight, sBottom, left, top)
-                    if (score == 0f) break
-                }
-            }
-            val p = best!!
-            placed += p
-            ops += GlobeOp.Label(
-                text = s.label,
-                x = p.left + w / 2f,
-                y = p.top + h / 2f,
-                spec = spec,
-                color = colors.label,
-                scrimLeft = p.sLeft,
-                scrimTop = p.sTop,
-                scrimRight = p.sRight,
-                scrimBottom = p.sBottom,
-                scrimRadius = pad,
-                scrimColor = colors.scrim,
-            )
-        }
-    }
-
-    private fun rectOverlap(ax0: Float, ay0: Float, ax1: Float, ay1: Float, bx0: Float, by0: Float, bx1: Float, by1: Float): Float {
-        val dx = (min(ax1, bx1) - maxOf(ax0, bx0)).coerceAtLeast(0f)
-        val dy = (min(ay1, by1) - maxOf(ay0, by0)).coerceAtLeast(0f)
-        return dx * dy
-    }
-
     private fun distinctStops(legs: List<GlobeLeg>): List<GlobeStop> = buildList {
         legs.forEach { leg ->
             if (none { it.point == leg.from.point && it.label == leg.from.label }) add(leg.from)
@@ -665,22 +515,20 @@ internal object WidgetLandDots {
         }.also { cached = it }
     }
 
-    private fun openLandDots(context: Context): InputStream =
-        runCatching { context.assets.open("land_dots.bin") }.getOrElse {
-            File("../core/designsystem/src/main/assets/land_dots.bin").inputStream()
-        }
+    /** The shared dot map from `:core:designsystem`'s assets (merged into unit tests by `isIncludeAndroidResources`). */
+    private fun openLandDots(context: Context): InputStream = context.assets.open("land_dots.bin")
 }
 
 /**
  * Replays [spec] into a Remote Compose canvas, scaled uniformly and centred in the canvas.
  */
-internal fun RemoteDrawScope.drawGlobeSpec(spec: WidgetGlobeSpec, type: DialType) {
+internal fun RemoteDrawScope.drawGlobeSpec(spec: WidgetGlobeSpec) {
     val unit = (width / spec.width.rf).min(height / spec.height.rf)
     val ox = (width - unit * spec.width.rf) / 2f.rf
     val oy = (height - unit * spec.height.rf) / 2f.rf
     translate(ox, oy) {
         scale(unit) {
-            spec.ops.forEach { op -> drawGlobeOp(op, type) }
+            spec.ops.forEach { op -> drawGlobeOp(op) }
         }
     }
 }
@@ -696,7 +544,7 @@ private fun globePaint(color: Int, stroke: Float = 0f, cap: StrokeCap = StrokeCa
     }
 }
 
-private fun RemoteDrawScope.drawGlobeOp(op: GlobeOp, type: DialType) {
+private fun RemoteDrawScope.drawGlobeOp(op: GlobeOp) {
     when (op) {
         is GlobeOp.Circle -> drawCircle(
             paint = globePaint(op.color, op.stroke),
@@ -726,27 +574,8 @@ private fun RemoteDrawScope.drawGlobeOp(op: GlobeOp, type: DialType) {
                 i += 2
             }
         }
-        is GlobeOp.Label -> {
-            drawRoundRect(
-                paint = globePaint(op.scrimColor),
-                topLeft = RemoteOffset(op.scrimLeft.rf, op.scrimTop.rf),
-                size = RemoteSize((op.scrimRight - op.scrimLeft).rf, (op.scrimBottom - op.scrimTop).rf),
-                cornerRadius = RemoteOffset(op.scrimRadius.rf, op.scrimRadius.rf),
-            )
-            val fm = type.paint(op.spec).fontMetrics
-            val baseline = op.y - (fm.ascent + fm.descent) / 2f
-            val textPaint = RemotePaint {
-                color = Color(op.color).rc
-                style = PaintingStyle.Fill
-                textSize = op.spec.size.rf
-                typeface = RemoteTypeface.fromAndroidTypeface(type.typeface(op.spec))
-            }
-            drawAnchoredText(op.text.rs, op.x.rf, baseline.rf, textPaint, 0f.rf, 0f.rf, BASELINE_RELATIVE)
-        }
     }
 }
-
-private const val BASELINE_RELATIVE = 8
 
 /**
  * The route globe of [model] in a canvas filling its parent, laid out for [widthDp] × [heightDp] (the region at the
@@ -758,6 +587,5 @@ internal fun WidgetGlobeCanvas(model: WidgetModel, widthDp: Float, heightDp: Flo
     val state = model.state as? WidgetState.Active ?: return
     val context = LocalContext.current
     val spec = WidgetGlobeRenderer.spec(context, state.globe, model.palette, widthDp, heightDp)
-    val type = DialType.of(context)
-    RemoteCanvas(modifier = RemoteModifier.fillMaxSize()) { drawGlobeSpec(spec, type) }
+    RemoteCanvas(modifier = RemoteModifier.fillMaxSize()) { drawGlobeSpec(spec) }
 }

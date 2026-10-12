@@ -35,6 +35,8 @@ data class ScheduledAlarms(
     val instants: List<Instant>,
     /** `false` when exact alarms aren't allowed and the `setWindow` fallback was used. */
     val exact: Boolean,
+    /** The route globe's own (non-wakeup) tick, armed apart from [instants]; `null` when none is armed. */
+    val globeTick: Instant? = null,
 )
 
 /**
@@ -158,9 +160,23 @@ class AdviceAlarmScheduler(
     }
 
     /**
+     * The route globe's own tick ([TransitionPlanner.nextGlobeRefresh]): re-renders only the surfaces with a placed
+     * globe, without a reminder or a full refresh, and arms the next tick.
+     */
+    suspend fun onGlobeTick() {
+        val plan = planRepository.currentPlan.first()
+        coroutineScope {
+            surfaces.filter(PlanSurface::hasPlacedGlobe).forEach { surface ->
+                launch { runCatching { surface.refreshGlobe() } }
+            }
+        }
+        mutex.withLock { alarmManager?.let { armGlobeTick(it, plan, clock.now()) } }
+    }
+
+    /**
      * Computes and arms the next alarms, plus a pending snooze, the Live Update progress tick, the next change of
-     * the Now notification's body-clock header, the widget dial's next refresh (a block coming into view, or a
-     * moment stopping being due) and, when a route globe widget is placed, its periodic refresh.
+     * the Now notification's body-clock header and the widget dial's next refresh (a block coming into view, or a
+     * moment stopping being due). When a route globe widget is placed, the globe's own tick is armed beside them.
      */
     internal suspend fun arm(plan: JetLagPlan?, settings: AppSettings): ScheduledAlarms = mutex.withLock {
         val now = clock.now()
@@ -171,7 +187,6 @@ class AdviceAlarmScheduler(
                 ?.let { now.plus(LIVE_UPDATE_TICK).truncatedTo(ChronoUnit.MINUTES) },
             plan?.takeIf { settings.remindersEnabled }?.let { BodyClockHeader.nextChange(it, now) },
             plan?.let { TransitionPlanner.nextDialRefresh(it, now) },
-            plan?.takeIf { surfaces.any(PlanSurface::hasPlacedGlobe) }?.let { TransitionPlanner.nextGlobeRefresh(it, now) },
         )
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()
@@ -193,7 +208,23 @@ class AdviceAlarmScheduler(
             cancel(manager, NotificationIntents.existingAlarm(application, slot))
             cancel(manager, NotificationIntents.existingBackstop(application, slot))
         }
-        ScheduledAlarms(instants, allExact)
+        ScheduledAlarms(instants, allExact, globeTick = armGlobeTick(manager, plan, now))
+    }
+
+    /**
+     * Arms (or cancels) the globe tick. It's cosmetic, so it never wakes the phone: a non-wakeup `RTC` alarm held
+     * while the phone sleeps is delivered as soon as it wakes up, e.g. when the screen turns on, which is when the
+     * globe can be seen. The 10-minute window keeps it close to its time while the phone is awake.
+     */
+    private fun armGlobeTick(manager: AlarmManager, plan: JetLagPlan?, now: Instant): Instant? {
+        val at = plan?.takeIf { surfaces.any(PlanSurface::hasPlacedGlobe) }
+            ?.let { TransitionPlanner.nextGlobeRefresh(it, now) }
+        if (at == null) {
+            cancel(manager, NotificationIntents.existingGlobeTick(application))
+        } else {
+            manager.setWindow(AlarmManager.RTC, at.toEpochMilli(), FALLBACK_WINDOW.toMillis(), NotificationIntents.globeTick(application))
+        }
+        return at
     }
 
     private fun cancel(manager: AlarmManager, operation: android.app.PendingIntent?) {
@@ -226,8 +257,8 @@ class AdviceAlarmScheduler(
         /** Plan transitions held at once; the chain re-arms at every alarm. */
         const val PLAN_ALARMS: Int = TransitionPlanner.DEFAULT_LIMIT
 
-        /** Plan transitions + snooze + Live Update tick + body-clock header change + widget dial refresh + route globe refresh. */
-        const val MAX_ALARMS: Int = PLAN_ALARMS + 5
+        /** Plan transitions + snooze + Live Update tick + body-clock header change + widget dial refresh. */
+        const val MAX_ALARMS: Int = PLAN_ALARMS + 4
 
         /** The platform minimum window for inexact alarms (shorter windows are stretched to this anyway). */
         val FALLBACK_WINDOW: Duration = Duration.ofMinutes(10)

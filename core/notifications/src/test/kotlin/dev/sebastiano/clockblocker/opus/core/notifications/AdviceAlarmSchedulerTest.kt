@@ -301,7 +301,8 @@ class AdviceAlarmSchedulerTest {
 
         settings.current.value = AppSettings(reminderLeadMinutes = 30)
         runCurrent()
-        scheduled.map { it.triggerAtMs } shouldContain ScheduledAlarm("2026-10-10T21:30")
+        scheduled.map { it.triggerAtMs } shouldContainExactly
+            listOf("2026-10-10T21:30", "2026-10-10T22:00", "2026-10-11T06:00").map(::ScheduledAlarm)
         widget.refreshes shouldBe 3
     }
 
@@ -615,32 +616,84 @@ class AdviceAlarmSchedulerTest {
         now!!.channelId shouldBe ClockblockChannel.TravelLive.id
     }
 
+    private val globeTicks: List<ShadowAlarmManager.ScheduledAlarm>
+        get() = scheduled.filter { shadowOf(it.operation).savedIntent.action == NotificationIntents.globeTickAction(context) }
+
+    private val routePlan = planOf(
+        advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
+        advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
+        advice(Sleep, "2026-10-11T22:00", "2026-10-12T06:00"),
+    )
+
     @Test
-    fun `route globe keeps a refresh tick armed only while a route globe widget is placed`() = runTest {
-        plans.current.value = planOf(
-            advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
-            advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
-            advice(Sleep, "2026-10-11T22:00", "2026-10-12T06:00"),
-        )
+    fun `the route globe gets its own non-wakeup tick, only while a Route globe widget is placed`() = runTest {
+        plans.current.value = routePlan
         val scheduler = scheduler()
         clock.instant = utc("2026-10-10T13:00")
 
-        // Without a placed Route globe widget, no 15-minute globe wakeup is armed.
-        scheduler.resync().instants.first() shouldBe utc("2026-10-10T15:00")
+        scheduler.resync().globeTick.shouldBeNull()
+        globeTicks shouldHaveSize 0
 
-        // Placing a Route globe re-arms with the 15-minute tick across flights, layovers and sleep.
+        // In flight: every 15 minutes, outside the plan alarm chain, and never waking the phone.
         widget.hasPlacedGlobe = true
-        scheduler.rearm().instants.first() shouldBe utc("2026-10-10T13:15")
+        val alarms = scheduler.rearm()
+        alarms.globeTick shouldBe utc("2026-10-10T13:15")
+        alarms.instants.first() shouldBe utc("2026-10-10T15:00")
+        val tick = globeTicks.single()
+        tick.triggerAtMs shouldBe ScheduledAlarm("2026-10-10T13:15")
+        tick.type shouldBe AlarmManager.RTC
+        tick.isAllowWhileIdle shouldBe false
+        tick.windowLengthMs shouldBe Duration.ofMinutes(10).toMillis()
 
+        // On the ground between flights: hourly.
         clock.instant = utc("2026-10-10T16:00")
-        scheduler.resync().instants.first() shouldBe utc("2026-10-10T16:15")
+        scheduler.resync().globeTick shouldBe utc("2026-10-10T17:00")
+        globeTicks.single().triggerAtMs shouldBe ScheduledAlarm("2026-10-10T17:00")
 
-        clock.instant = utc("2026-10-11T23:30")
-        scheduler.resync().instants.first() shouldBe utc("2026-10-11T23:45")
-
-        // Removing the last Route globe cancels the 15-minute tick on rearm().
+        // Removing the last Route globe cancels it.
         widget.hasPlacedGlobe = false
-        scheduler.rearm().instants.first() shouldBe utc("2026-10-12T06:00")
+        scheduler.rearm().globeTick.shouldBeNull()
+        globeTicks shouldHaveSize 0
+    }
+
+    @Test
+    fun `a trip weeks away arms no periodic globe tick`() = runTest {
+        plans.current.value = routePlan
+        widget.hasPlacedGlobe = true
+        clock.instant = utc("2026-09-20T09:00")
+
+        scheduler().resync().globeTick shouldBe utc("2026-10-09T12:00") // a day before the first flight
+        globeTicks.single().triggerAtMs shouldBe ScheduledAlarm("2026-10-09T12:00")
+    }
+
+    @Test
+    fun `a day after landing the globe tick stops`() = runTest {
+        plans.current.value = routePlan
+        widget.hasPlacedGlobe = true
+        clock.instant = utc("2026-10-12T05:00")
+
+        scheduler().resync().globeTick.shouldBeNull()
+        globeTicks shouldHaveSize 0
+    }
+
+    @Test
+    fun `the globe tick re-renders only the globe and re-arms itself`() = runTest {
+        plans.current.value = routePlan
+        widget.hasPlacedGlobe = true
+        val other = RecordingSurface()
+        val scheduler = scheduler(other)
+        clock.instant = utc("2026-10-10T13:15")
+
+        AdviceAlarmReceiver(scheduler, reminders, nowSurface, NotificationWorkScope(this))
+            .onReceive(context, Intent(NotificationIntents.globeTickAction(context)))
+        testScheduler.advanceUntilIdle()
+
+        widget.globeRefreshes shouldBe 1
+        widget.refreshes shouldBe 0
+        other.globeRefreshes shouldBe 0
+        other.refreshes shouldBe 0
+        now.shouldBeNull()
+        globeTicks.single().triggerAtMs shouldBe ScheduledAlarm("2026-10-10T13:30")
     }
 
     @Test
