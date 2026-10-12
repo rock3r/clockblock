@@ -104,6 +104,9 @@ class RailContrastAuditTest {
                     withClue("${p.name} $type edge on the body-clock strip") { stripWorst shouldBeGreaterThanOrEqual 3f }
                     withClue("${p.name} $type Now capsule edge") { now shouldBeGreaterThanOrEqual 3f }
                     withClue("${p.name} $type past capsule edge") { past shouldBeGreaterThanOrEqual 2f }
+                    // The mark across a Now capsule where now falls (device QA: onSurface vanished on a dark Avoid light).
+                    val nowCapsule = rail.capsule(type, CapsuleState.Now)
+                    withClue("${p.name} $type now mark") { ColorMath.contrast(nowCapsule.mark, nowCapsule.fill) shouldBeGreaterThanOrEqual 3f }
                     // Pushing the tone for contrast keeps the hue: the edge still says which advice it is.
                     val source = if (role.hasOutline) role.outline else role.color
                     if (ColorMath.chroma(source) > 0.04f) {

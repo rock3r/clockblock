@@ -52,12 +52,13 @@ internal class RailColors(
         val role = advice[type]
         val edge = edges.getValue(type)
         return when (state) {
-            CapsuleState.Now -> CapsuleColors(fill = role.color, edge = edge, ink = role.onColor.copy(alpha = PatternInkAlpha))
-            CapsuleState.Upcoming -> CapsuleColors(fill = role.container, edge = edge, ink = role.onContainer.copy(alpha = PatternInkAlpha))
+            CapsuleState.Now -> CapsuleColors(fill = role.color, edge = edge, ink = role.onColor.copy(alpha = PatternInkAlpha), mark = role.onColor)
+            CapsuleState.Upcoming -> CapsuleColors(fill = role.container, edge = edge, ink = role.onContainer.copy(alpha = PatternInkAlpha), mark = role.onContainer)
             CapsuleState.Past -> CapsuleColors(
                 fill = ColorMath.mix(role.container, page, PastWash),
                 edge = pastEdges.getValue(type),
                 ink = role.onContainer.copy(alpha = PatternInkAlpha * (1f - PastWash)),
+                mark = role.onContainer,
             )
         }
     }
@@ -119,9 +120,12 @@ internal fun rememberRailColors(): RailColors {
 /** Where a capsule's block is in time: past ones step back, the one happening now leads. */
 internal enum class CapsuleState { Past, Now, Upcoming }
 
-/** A capsule's [fill], its [edge] (drawn inside the shape) and its pattern [ink]. */
+/**
+ * A capsule's [fill], its [edge] (drawn inside the shape), its pattern [ink] and the [mark] across it where now falls
+ * (the fill's own content colour, so it shows on a dark Avoid light as well as on a pale See bright light).
+ */
 @Immutable
-internal data class CapsuleColors(val fill: Color, val edge: Color, val ink: Color)
+internal data class CapsuleColors(val fill: Color, val edge: Color, val ink: Color, val mark: Color)
 
 /** The advice hue's deep tone: its outline where it has one (pale vivid colours), else the vivid colour. */
 private val AdviceColorRole.deepTone: Color get() = if (hasOutline) outline else color

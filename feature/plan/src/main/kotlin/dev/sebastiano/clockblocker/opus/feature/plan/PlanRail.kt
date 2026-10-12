@@ -695,7 +695,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                             .align(BiasAlignment(0f, row.nowFraction * 2f - 1f))
                             .fillMaxWidth()
                             .height(3.dp)
-                            .background(MaterialTheme.colorScheme.onSurface),
+                            .background(capsule.mark),
                     )
                 }
             }

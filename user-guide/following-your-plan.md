@@ -14,7 +14,7 @@ it. If you want to know why a block is there, tap **Why?**.
 
 ## The plan screen
 
-<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. Below the header, a strip of day pills with Pre −1 picked. The dial shows 18:06 in Lisbon and 20:48 body, with an arc saying Avoid light until 20:00, then sleep. The Now card says Avoid light, 1 h 54 min left, until 20:00 (04:00 Tokyo the next day), Also now: Avoid caffeine, with a Done button." width="300" />
+<img src="images/plan-now.png" alt="The plan screen for Rome to New York on Day 1, Adapting. The header shows FCO to JFK and Next: Avoid caffeine in 8 h, at 16:00 (22:00 Rome). Below, day pills from −1 to +3 with +1 picked. The dial shows 08:00 in New York and 10:28 body, 2½ h ahead, with an arc saying Avoid light until 09:00, then avoid caffeine. The Now card says Avoid light, 1 h left, until 09:00." width="300" />
 
 From top to bottom:
 
@@ -122,7 +122,7 @@ claims it's faster. See [the science](../docs/science.md) for details.
 
 ### The timeline
 
-<img src="images/timeline.png" alt="The Your plan timeline at the end of the travel day: Avoid light 22:45 to 01:00, marked In flight, with a Peak fatigue chip inside it, then a divider saying Switching to Tokyo time, UTC+9, +8 h from Lisbon. Below, Day 1, Thu 8 Oct, marked Arrival, with Sleep 09:00 to 10:00 and See bright light 10:00 to 15:00. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
+<img src="images/timeline.png" alt="The Your plan timeline on Day 1, Mon 12 Oct, in New York with Rome 6 h ahead. The block happening now, Avoid light 04:00 to 09:00 · 5 h, sits in an outlined card with a Now label, its start time in colour and a line across its striped capsule; a past Nap chip (05:00 to 05:30 · 30 min) rides inside it. Below, Avoid caffeine 16:00 to 22:00 · 6 h, See some light 17:00 to 21:00 · 4 h and See bright light 21:00 to 22:00 · 1 h, each capsule with a coloured edge and each block showing the time in Rome. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
 adapted. Each block shows its local time and how long it lasts on one line ("22:45 – 01:00 · 2 h 15 min") and,
