@@ -145,14 +145,21 @@ fun AppNavDisplay(
         }
         entry<PlanRoute>(metadata = ListDetailSceneStrategy.detailPane(sceneKey = TripsSceneKey) + paneMotion) { route ->
             val guard = rememberNavigationGuard()
-            destinations.Plan(
-                tripId = route.tripId,
-                // Beside the list, the plan is a pane, not a pushed screen: no up arrow (back still closes it).
-                onBack = if (currentIsTwoPane) null else guard { navigator.goBack() },
-                onEditTrip = guard.of { id: String -> navigator.openTripEditor(tripId = id) },
-                onCreateReturnTrip = guard.of { id: String -> navigator.openTripEditor(returnOfTripId = id) },
-                onNewTrip = guard { navigator.openTripEditor() },
-            )
+            PaneBack(
+                enabled = currentIsTwoPane,
+                transitions = transitions,
+                onBack = { navigator.goBack() },
+                placeholder = { TripPlanPlaceholder(hasTrips = currentHasTrips) },
+            ) {
+                destinations.Plan(
+                    tripId = route.tripId,
+                    // Beside the list, the plan is a pane, not a pushed screen: no up arrow (back still closes it).
+                    onBack = if (currentIsTwoPane) null else guard { navigator.goBack() },
+                    onEditTrip = guard.of { id: String -> navigator.openTripEditor(tripId = id) },
+                    onCreateReturnTrip = guard.of { id: String -> navigator.openTripEditor(returnOfTripId = id) },
+                    onNewTrip = guard { navigator.openTripEditor() },
+                )
+            }
         }
         entry<TripEditorRoute> { route ->
             val guard = rememberNavigationGuard()

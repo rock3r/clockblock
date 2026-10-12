@@ -10,9 +10,11 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -98,6 +100,22 @@ class AppTransitions(
     /** Panes enter from, and exit toward, the trailing (forward) edge. */
     internal val paneSlideSign: Int get() = forwardSign
 
+    /**
+     * The detail pane following a predictive back gesture in the list-detail layout, at gesture [progress] (0..1):
+     * the same shrink and drift toward the edge it entered from as [predictiveBack], with its corners rounding
+     * like a card lifting off what back leads to. It stays opaque: a fade showed the plan's text through the
+     * placeholder's. Once back commits, the pane's own exit fades it. Applied in the layer phase, so the gesture
+     * never recomposes the pane.
+     */
+    fun paneBack(scope: GraphicsLayerScope, progress: Float) = with(scope) {
+        val scale = 1f - (1f - PredictiveBackScale) * progress
+        scaleX = scale
+        scaleY = scale
+        translationX = paneSlideSign * axisOffsetPx * progress
+        shape = RoundedCornerShape(PaneBackCorner * progress)
+        clip = progress > 0f
+    }
+
     private companion object {
         const val FadeThroughScale = 0.92f
         const val PredictiveBackScale = 0.9f
@@ -115,3 +133,6 @@ fun rememberAppTransitions(): AppTransitions {
 
 /** Material shared-axis travel distance. */
 private val SharedAxisOffset = 30.dp
+
+/** Corner radius of the detail pane at the end of a predictive back gesture (M3's large container corner). */
+private val PaneBackCorner = 28.dp
