@@ -12,5 +12,8 @@ import dev.zacsweers.metro.Inject
 @ContributesIntoSet(AppScope::class)
 @Inject
 class WidgetPlanSurface(private val updater: WidgetUpdater) : PlanSurface {
+    override val hasPlacedGlobe: Boolean
+        get() = updater.ids(WidgetKind.RouteGlobe).isNotEmpty()
+
     override suspend fun refresh() = updater.updateAll()
 }

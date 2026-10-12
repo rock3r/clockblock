@@ -364,9 +364,11 @@ The *Route globe* widget draws the trip's route across a 3D orthographic day-and
 it shows the whole route (origin → connections → destination) with no active-leg highlight or traveller marker.
 Once the trip is underway, it frames and highlights the active leg (in the air, or the next leg during a connection)
 and draws the traveller marker along the great-circle arc when in flight, with the solar terminator, sunlit ocean
-glow and night-side city lights at the capture instant. Dots of the same brightness share one `GlobeOp.Dots` bucket
-(and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`), spatially culled to at most one frontmost dot per 2D
-grid cell so limb overdraw is eliminated and every size bucket stays under 24 KB.
+glow and night-side city lights at the capture instant. While at least one *Route globe* widget is placed
+(`PlanSurface.hasPlacedGlobe`), `AdviceAlarmScheduler` keeps a silent 15-minute refresh armed
+(`TransitionPlanner.nextGlobeRefresh`), and cancels it when the last one is removed. Dots of the same brightness
+share one `GlobeOp.Dots` bucket (and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`), spatially culled to at
+most one frontmost dot per 2D grid cell so limb overdraw is eliminated and every size bucket stays under 24 KB.
 
 ### Sizes
 

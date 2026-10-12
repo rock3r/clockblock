@@ -102,6 +102,10 @@ class AdviceAlarmScheduler(
         return alarms
     }
 
+    /** Re-arms from the latest plan and settings without re-rendering surfaces (e.g. when a widget is added or removed). */
+    suspend fun rearm(): ScheduledAlarms =
+        arm(planRepository.currentPlan.first(), settingsRepository.settings.first())
+
     /**
      * Handles a fired alarm scheduled for [at]: posts the reminder due at that instant (if still true), brings back
      * a snoozed reminder, refreshes all surfaces and re-arms.
@@ -156,7 +160,7 @@ class AdviceAlarmScheduler(
     /**
      * Computes and arms the next alarms, plus a pending snooze, the Live Update progress tick, the next change of
      * the Now notification's body-clock header, the widget dial's next refresh (a block coming into view, or a
-     * moment stopping being due) and the route globe's periodic refresh.
+     * moment stopping being due) and, when a route globe widget is placed, its periodic refresh.
      */
     internal suspend fun arm(plan: JetLagPlan?, settings: AppSettings): ScheduledAlarms = mutex.withLock {
         val now = clock.now()
@@ -167,7 +171,7 @@ class AdviceAlarmScheduler(
                 ?.let { now.plus(LIVE_UPDATE_TICK).truncatedTo(ChronoUnit.MINUTES) },
             plan?.takeIf { settings.remindersEnabled }?.let { BodyClockHeader.nextChange(it, now) },
             plan?.let { TransitionPlanner.nextDialRefresh(it, now) },
-            plan?.let { TransitionPlanner.nextGlobeRefresh(it, now) },
+            plan?.takeIf { surfaces.any(PlanSurface::hasPlacedGlobe) }?.let { TransitionPlanner.nextGlobeRefresh(it, now) },
         )
         val instants = (planned + extra).distinct().sorted().take(MAX_ALARMS)
         val exact = capabilities.canScheduleExactAlarms()

@@ -160,7 +160,6 @@ class ReceiversAndPermissionsTest {
         val (planAlarms, ticks) = shadowOf(alarmManager).scheduledAlarms.partition { it.type == android.app.AlarmManager.RTC_WAKEUP }
         ticks.map { it.triggerAtMs } shouldBe listOf(clock.instant.plus(NowNotificationSurface.PROGRESS_TICK).toEpochMilli())
         planAlarms.map { it.triggerAtMs }.sorted() shouldBe listOf(
-            utc("2026-10-10T15:15"), // Route globe refresh
             utc("2026-10-10T17:00").minus(lead), // Sleep coming up
             utc("2026-10-10T17:00"), // Avoid light ends, sleep starts
             utc("2026-10-11T01:00"), // Wake up

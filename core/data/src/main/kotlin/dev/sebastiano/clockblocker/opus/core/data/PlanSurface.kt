@@ -7,5 +7,8 @@ package dev.sebastiano.clockblocker.opus.core.data
  * and whenever a plan changes, so every surface always shows the same thing.
  */
 interface PlanSurface {
+    /** Whether this surface currently has a placed route globe that needs periodic daylight/marker refreshes. */
+    val hasPlacedGlobe: Boolean get() = false
+
     suspend fun refresh()
 }

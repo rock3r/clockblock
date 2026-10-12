@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import dev.sebastiano.clockblocker.opus.core.notifications.AdviceAlarmScheduler
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -23,11 +24,17 @@ import kotlin.coroutines.cancellation.CancellationException
  * Base provider: every system callback re-renders through the shared [WidgetUpdater]. Providers are constructed
  * by metrox-android's `MetroAppComponentFactory` with constructor injection.
  */
-abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private val updater: WidgetUpdater) :
-    AppWidgetProvider() {
+abstract class ClockblockWidgetProvider(
+    private val kind: WidgetKind,
+    private val updater: WidgetUpdater,
+    private val onInstancesChanged: suspend () -> Unit = {},
+) : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        goAsync { updater.update(kind, appWidgetIds) }
+        goAsync {
+            updater.update(kind, appWidgetIds)
+            onInstancesChanged()
+        }
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -41,12 +48,22 @@ abstract class ClockblockWidgetProvider(private val kind: WidgetKind, private va
 
     /** Removed widgets take their own options (#52) with them. */
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
-        goAsync { updater.forget(appWidgetIds) }
+        goAsync {
+            updater.forget(appWidgetIds)
+            onInstancesChanged()
+        }
+    }
+
+    override fun onDisabled(context: Context) {
+        goAsync { onInstancesChanged() }
     }
 
     /** A backup restore gives the widgets new ids: their options move along. */
     override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
-        goAsync { updater.restored(kind, oldWidgetIds, newWidgetIds) }
+        goAsync {
+            updater.restored(kind, oldWidgetIds, newWidgetIds)
+            onInstancesChanged()
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -73,8 +90,14 @@ class NextUpWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(Wi
 
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
 @BroadcastReceiverKey(RouteGlobeWidgetProvider::class)
-@Inject
-class RouteGlobeWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(WidgetKind.RouteGlobe, updater)
+class RouteGlobeWidgetProvider(
+    updater: WidgetUpdater,
+    onInstancesChanged: suspend () -> Unit = {},
+) : ClockblockWidgetProvider(WidgetKind.RouteGlobe, updater, onInstancesChanged) {
+    @Inject
+    constructor(updater: WidgetUpdater, scheduler: AdviceAlarmScheduler) :
+        this(updater, onInstancesChanged = { scheduler.rearm() })
+}
 
 /** Runs [block] off the main thread within the broadcast's lifetime (pattern from the androidx RC widget demo). */
 internal fun BroadcastReceiver.goAsync(block: suspend CoroutineScope.() -> Unit) {

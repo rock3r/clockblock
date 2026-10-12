@@ -200,6 +200,38 @@ class WidgetUpdaterTest {
     }
 
     @Test
+    fun `placing and removing a Route globe widget updates hasPlacedGlobe and notifies the scheduler`() {
+        val surface = WidgetPlanSurface(updater)
+        surface.hasPlacedGlobe.shouldBeFalse()
+
+        val rearmed = java.util.concurrent.atomic.AtomicInteger(0)
+        val provider = RouteGlobeWidgetProvider(updater, onInstancesChanged = { rearmed.incrementAndGet() })
+        val globe = place(WidgetKind.RouteGlobe, 5)
+        provider.onReceive(
+            app,
+            Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(globe)),
+        )
+        val deadline = System.currentTimeMillis() + 10_000
+        while (rearmed.get() < 1 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+        surface.hasPlacedGlobe.shouldBeTrue()
+        rearmed.get() shouldBe 1
+
+        provider.onReceive(
+            app,
+            Intent(AppWidgetManager.ACTION_APPWIDGET_DELETED)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, globe),
+        )
+        while (rearmed.get() < 2 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
+        surface.hasPlacedGlobe.shouldBeFalse()
+        rearmed.get() shouldBe 2
+    }
+
+    @Test
     fun `theme follows the setting, system night mode and night-safe advice`() {
         val day = Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_NO }
         val night = Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }

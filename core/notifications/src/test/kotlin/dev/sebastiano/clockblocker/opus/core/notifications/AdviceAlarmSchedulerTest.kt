@@ -91,7 +91,7 @@ class AdviceAlarmSchedulerTest {
 
         result.exact shouldBe true
         scheduled.map { it.triggerAtMs } shouldContainExactly listOf(
-            "2026-10-10T07:15", "2026-10-10T07:45", "2026-10-10T08:00", "2026-10-10T10:00",
+            "2026-10-10T07:45", "2026-10-10T08:00", "2026-10-10T10:00",
             "2026-10-10T13:45", "2026-10-10T14:00", "2026-10-10T17:00",
             "2026-10-10T21:45", "2026-10-10T22:00",
         ).map(::ScheduledAlarm)
@@ -120,7 +120,7 @@ class AdviceAlarmSchedulerTest {
 
         result.exact shouldBe false
         val windows = scheduled.filterNot { it.isBackstop }
-        windows shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS + 1
+        windows shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS
         windows.all { it.windowLengthMs == Duration.ofMinutes(10).toMillis() && !it.isAllowWhileIdle } shouldBe true
     }
 
@@ -148,14 +148,14 @@ class AdviceAlarmSchedulerTest {
         capabilities.exact = false
         ShadowAlarmManager.setCanScheduleExactAlarms(false)
         scheduler.resync()
-        scheduled.count { it.isBackstop } shouldBe AdviceAlarmScheduler.PLAN_ALARMS + 1
+        scheduled.count { it.isBackstop } shouldBe AdviceAlarmScheduler.PLAN_ALARMS
 
         capabilities.exact = true
         ShadowAlarmManager.setCanScheduleExactAlarms(true)
         scheduler.resync()
 
         scheduled.none { it.isBackstop } shouldBe true
-        scheduled shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS + 1
+        scheduled shouldHaveSize AdviceAlarmScheduler.PLAN_ALARMS
         scheduled.all { it.windowLengthMs == ShadowAlarmManager.WINDOW_EXACT } shouldBe true
     }
 
@@ -265,13 +265,13 @@ class AdviceAlarmSchedulerTest {
     fun `rescheduling with fewer transitions cancels stale alarms`() = runTest {
         val scheduler = scheduler()
         scheduler.resync()
-        scheduled shouldHaveSize 9
+        scheduled shouldHaveSize 8
 
         plans.current.value = planOf(avoid)
         scheduler.resync()
 
         scheduled.map { it.triggerAtMs } shouldContainExactly
-            listOf("2026-10-10T07:15", "2026-10-10T13:45", "2026-10-10T14:00", "2026-10-10T17:00").map(::ScheduledAlarm)
+            listOf("2026-10-10T13:45", "2026-10-10T14:00", "2026-10-10T17:00").map(::ScheduledAlarm)
     }
 
     @Test
@@ -289,14 +289,14 @@ class AdviceAlarmSchedulerTest {
         val scheduler = scheduler()
         val job = scheduler.start(backgroundScope)
 
-        scheduled shouldHaveSize 9
+        scheduled shouldHaveSize 8
         widget.refreshes shouldBe 1
         scheduler.start(backgroundScope) shouldBe job // idempotent
 
         plans.current.value = planOf(sleep)
         runCurrent()
         scheduled.map { it.triggerAtMs } shouldContainExactly
-            listOf("2026-10-10T07:15", "2026-10-10T21:45", "2026-10-10T22:00", "2026-10-11T06:00").map(::ScheduledAlarm)
+            listOf("2026-10-10T21:45", "2026-10-10T22:00", "2026-10-11T06:00").map(::ScheduledAlarm)
         widget.refreshes shouldBe 2
 
         settings.current.value = AppSettings(reminderLeadMinutes = 30)
@@ -315,7 +315,7 @@ class AdviceAlarmSchedulerTest {
 
             scheduler().start(backgroundScope)
 
-            scheduled shouldHaveSize 9
+            scheduled shouldHaveSize 8
             widget.refreshes shouldBe 1
         }
 
@@ -616,23 +616,31 @@ class AdviceAlarmSchedulerTest {
     }
 
     @Test
-    fun `route globe keeps a refresh tick armed across flights, layovers and sleep`() = runTest {
+    fun `route globe keeps a refresh tick armed only while a route globe widget is placed`() = runTest {
         plans.current.value = planOf(
             advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
             advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
-            sleep,
+            advice(Sleep, "2026-10-11T22:00", "2026-10-12T06:00"),
         )
-        // In flight with only the Flight block active.
+        val scheduler = scheduler()
         clock.instant = utc("2026-10-10T13:00")
-        scheduler().resync().instants.first() shouldBe utc("2026-10-10T13:15")
 
-        // Layover between the two flights.
+        // Without a placed Route globe widget, no 15-minute globe wakeup is armed.
+        scheduler.resync().instants.first() shouldBe utc("2026-10-10T15:00")
+
+        // Placing a Route globe re-arms with the 15-minute tick across flights, layovers and sleep.
+        widget.hasPlacedGlobe = true
+        scheduler.rearm().instants.first() shouldBe utc("2026-10-10T13:15")
+
         clock.instant = utc("2026-10-10T16:00")
-        scheduler().resync().instants.first() shouldBe utc("2026-10-10T16:15")
+        scheduler.resync().instants.first() shouldBe utc("2026-10-10T16:15")
 
-        // Inside the sleep window.
-        clock.instant = utc("2026-10-10T23:30")
-        scheduler().resync().instants.first() shouldBe utc("2026-10-10T23:45")
+        clock.instant = utc("2026-10-11T23:30")
+        scheduler.resync().instants.first() shouldBe utc("2026-10-11T23:45")
+
+        // Removing the last Route globe cancels the 15-minute tick on rearm().
+        widget.hasPlacedGlobe = false
+        scheduler.rearm().instants.first() shouldBe utc("2026-10-12T06:00")
     }
 
     @Test
