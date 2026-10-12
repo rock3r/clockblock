@@ -72,6 +72,15 @@ import java.time.Instant
 import java.time.ZoneId
 import kotlin.math.roundToInt
 
+import dev.sebastiano.clockblocker.opus.core.model.DayKind
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeLayout
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeRemote
+import io.kotest.matchers.ints.shouldBeLessThan
+import java.time.LocalDateTime
+
 private const val DIR = "src/test/screenshots"
 
 /** Four 2×2 cells per row only fit the 800 dp canvas unsqueezed with 6 dp gaps (8 dp squeezes the last by 8 dp). */
@@ -100,7 +109,71 @@ class WidgetScreenshotTest {
             val current = (plan?.let { WidgetStateMapper.map(it, now) } as? WidgetState.Active)?.current
             if (logged != null && current != null) add(AdviceLog(current.adviceId, logged))
         }
-        val full = plan?.let { WidgetStateMapper.map(it, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES, places = DemoPlans.PLACES) } ?: WidgetState.NoTrip
+        val full = plan?.let {
+            WidgetStateMapper.map(
+                it,
+                now,
+                logs,
+                route = DemoPlans.ROUTE,
+                placeNames = DemoPlans.PLACE_NAMES,
+                places = DemoPlans.PLACES,
+                trip = DemoPlans.trip(),
+            )
+        } ?: WidgetState.NoTrip
+        val state = if (redacted) WidgetStateMapper.redact(full) else full
+        return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
+    }
+
+    /**
+     * Multi-leg LIS → DOH → HND model for the Route globe widget:
+     * - [inFlight] = false: pre-trip (2 days before departure), showing the whole route (`activeLeg = null`, `marker = null`);
+     * - [inFlight] = true: mid-flight on leg 1 (DOH → HND), highlighting leg 1 with the traveller marker along the arc.
+     */
+    private fun globeModel(
+        theme: WidgetTheme,
+        inFlight: Boolean = false,
+        scenario: DemoPlans.Scenario = DemoPlans.Scenario.AvoidLight,
+        redacted: Boolean = false,
+    ): WidgetModel {
+        val lis = Place("LIS", "Humberto Delgado", "Lisbon", "PT", "Europe/Lisbon", 38.77, -9.13)
+        val doh = Place("DOH", "Hamad", "Doha", "QA", "Asia/Qatar", 25.27, 51.61)
+        val hnd = Place("HND", "Haneda", "Tokyo", "JP", "Asia/Tokyo", 35.55, 139.78)
+        val trip = if (inFlight) {
+            Trip(
+                DemoPlans.TRIP_ID,
+                "Lisbon → Tokyo",
+                listOf(
+                    FlightLeg("leg-1", lis, doh, LocalDateTime.parse("2026-10-05T14:00"), LocalDateTime.parse("2026-10-06T00:30")),
+                    FlightLeg("leg-2", doh, hnd, LocalDateTime.parse("2026-10-06T02:30"), LocalDateTime.parse("2026-10-06T18:30")),
+                ),
+                Instant.parse("2026-09-01T00:00:00Z"),
+            )
+        } else {
+            Trip(
+                DemoPlans.TRIP_ID,
+                "Lisbon → Tokyo",
+                listOf(
+                    FlightLeg("leg-1", lis, doh, LocalDateTime.parse("2026-10-08T08:00"), LocalDateTime.parse("2026-10-08T17:30")),
+                    FlightLeg("leg-2", doh, hnd, LocalDateTime.parse("2026-10-08T19:30"), LocalDateTime.parse("2026-10-09T11:30")),
+                ),
+                Instant.parse("2026-09-01T00:00:00Z"),
+            )
+        }
+        val basePlan = DemoPlans.lisbonTokyo(now, scenario)
+        val plan = if (inFlight) {
+            basePlan.copy(days = basePlan.days.map { it.copy(index = 0, kind = DayKind.Travel) })
+        } else {
+            basePlan.copy(days = basePlan.days.map { it.copy(index = -2, kind = DayKind.PreTrip, zoneId = "Europe/Lisbon") })
+        }
+        val full = WidgetStateMapper.map(
+            plan,
+            now,
+            route = DemoPlans.ROUTE,
+            placeNames = WidgetStateMapper.placeNames(trip),
+            placeCodes = WidgetStateMapper.placeCodes(trip),
+            places = WidgetStateMapper.places(trip),
+            trip = trip,
+        )
         val state = if (redacted) WidgetStateMapper.redact(full) else full
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(theme))
     }
@@ -331,6 +404,84 @@ class WidgetScreenshotTest {
         captureRoboImage("$DIR/remote_minimums_two_clocks_130.png") { Flow(minimumCells(WidgetSizes.TWO_CLOCKS) { m, b -> remoteClocks(m, b) }) }
     }
 
+    /**
+     * Docs overview for Route globe: 2×2 in every theme (upcoming route in Light, in-flight in Dark and NightSafe)
+     * plus the empty state, and 4×2 Wide comparing upcoming (whole route) against in-flight (active leg + marker).
+     */
+    @Test
+    fun remoteRouteGlobe() {
+        captureRoboImage("$DIR/remote_route_globe.png") {
+            Grid(
+                listOf(
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Square, 176, 176),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Square, 176, 176),
+                        remoteGlobe(globeModel(WidgetTheme.NightSafe, inFlight = true, scenario = DemoPlans.Scenario.Sleep), RouteGlobeLayout.Square, 176, 176),
+                        remoteGlobe(model(WidgetTheme.Light, scenario = null), RouteGlobeLayout.Square, 176, 176),
+                    ),
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Wide, 360, 172),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Wide, 360, 172),
+                    ),
+                ),
+                gap = SQUARES_GAP,
+            )
+        }
+    }
+
+    /** Every Route globe bucket: 1×1, 2×1/4×1 strips, 2×3 Tall, 4×2 Wide, 4×3 Large, and lock-screen redaction. */
+    @Test
+    fun remoteRouteGlobeBuckets() {
+        captureRoboImage("$DIR/remote_route_globe_buckets.png") {
+            Grid(
+                listOf(
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Compact, 76, 76),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Compact, 76, 76),
+                        remoteGlobe(globeModel(WidgetTheme.NightSafe, inFlight = true, scenario = DemoPlans.Scenario.Sleep), RouteGlobeLayout.Compact, 76, 76),
+                        remoteGlobe(model(WidgetTheme.Light, scenario = null), RouteGlobeLayout.Compact, 76, 76),
+                    ),
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Compact, 130, 102),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Compact, 269, 56),
+                        remoteGlobe(globeModel(WidgetTheme.NightSafe, inFlight = true, scenario = DemoPlans.Scenario.Sleep), RouteGlobeLayout.Compact, 276, 102),
+                    ),
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Tall, 176, 260),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Tall, 176, 260),
+                        remoteGlobe(globeModel(WidgetTheme.NightSafe, inFlight = true, scenario = DemoPlans.Scenario.Sleep), RouteGlobeLayout.Tall, 176, 260),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true, redacted = true), RouteGlobeLayout.Tall, 176, 260),
+                    ),
+                    listOf(
+                        remoteGlobe(globeModel(WidgetTheme.Light, inFlight = false), RouteGlobeLayout.Large, 360, 260),
+                        remoteGlobe(globeModel(WidgetTheme.Dark, inFlight = true), RouteGlobeLayout.Large, 360, 260),
+                    ),
+                ),
+                gap = SQUARES_GAP,
+            )
+        }
+    }
+
+    /** Every Route globe bucket at its minimum size, with the worst-case labels, plus document byte size check. */
+    @Test
+    fun remoteMinimumsRouteGlobe() {
+        val model = globeModel(WidgetTheme.Dark, inFlight = true)
+        WidgetSizes.ROUTE_GLOBE.forEach { bucket ->
+            val doc = document(bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) {
+                RouteGlobeRemote(model, bucket.layout, bucket.fitAt)
+            }
+            doc.byteCount shouldBeLessThan 24_576
+        }
+        captureRoboImage("$DIR/remote_minimums_route_globe.png") { Flow(minimumCells(WidgetSizes.ROUTE_GLOBE) { m, b -> remoteGlobe(m, b) }) }
+    }
+
+    /** [remoteMinimumsRouteGlobe] at 130 % font size. */
+    @Test
+    fun remoteMinimumsRouteGlobeLargeText() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        captureRoboImage("$DIR/remote_minimums_route_globe_130.png") { Flow(minimumCells(WidgetSizes.ROUTE_GLOBE) { m, b -> remoteGlobe(m, b) }) }
+    }
+
     /** The worst-case models (see [remoteMinimumsNextUp]) in every bucket of [buckets], at the bucket's minimum. */
     private fun <L> minimumCells(buckets: List<Bucket<L>>, cell: (WidgetModel, Bucket<L>) -> Cell): List<Cell> {
         val models = labelModels(is24 = false, place = "San Francisco")
@@ -432,12 +583,21 @@ class WidgetScreenshotTest {
         return remote(model, w, h) { NextUpRemote(model, layout, bucket.fitAt) }
     }
 
+    private fun remoteGlobe(model: WidgetModel, layout: RouteGlobeLayout, w: Int, h: Int): Cell {
+        val bucket = WidgetSizes.pick(WidgetSizes.ROUTE_GLOBE, CellDp(w.toFloat(), h.toFloat()))
+        check(bucket.layout == layout) { "The host plays ${bucket.layout} at $w×$h, not $layout" }
+        return remote(model, w, h) { RouteGlobeRemote(model, layout, bucket.fitAt) }
+    }
+
     /** [bucket] at the smallest size the host plays it at ([Bucket.fitAt]). */
     private fun remoteClocks(model: WidgetModel, bucket: Bucket<TwoClocksLayout>): Cell =
         remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { TwoClocksRemote(model, bucket.layout, bucket.fitAt) }
 
     private fun remoteNextUp(model: WidgetModel, bucket: Bucket<NextUpLayout>): Cell =
         remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { NextUpRemote(model, bucket.layout, bucket.fitAt) }
+
+    private fun remoteGlobe(model: WidgetModel, bucket: Bucket<RouteGlobeLayout>): Cell =
+        remote(model, bucket.fitAt.width.toInt(), bucket.fitAt.height.toInt()) { RouteGlobeRemote(model, bucket.layout, bucket.fitAt) }
 
     private fun remote(model: WidgetModel, w: Int, h: Int, content: @Composable () -> Unit): Cell {
         val d = document(w, h, content)
@@ -448,7 +608,7 @@ class WidgetScreenshotTest {
 
     private fun WidgetModel.theme(): WidgetTheme = WidgetTheme.entries.first { WidgetPalette.of(it) == palette }
 
-    private class Doc(val widthDp: Int, val heightDp: Int, val widthPx: Int, val heightPx: Int, val doc: RemoteDocument)
+    private class Doc(val widthDp: Int, val heightDp: Int, val widthPx: Int, val heightPx: Int, val doc: RemoteDocument, val byteCount: Int)
 
     /** Captures [content] to a document whose player clock is pinned to [now] in Tokyo. */
     private fun document(widthDp: Int, heightDp: Int, content: @Composable () -> Unit): Doc {
@@ -466,7 +626,7 @@ class WidgetScreenshotTest {
         }
         @Suppress("RestrictedApiAndroidX") // test-only: pin the player clock so goldens are stable
         val document = RemoteDocument(ByteArrayInputStream(bytes), SystemClock(Clock.fixed(now, zone)))
-        return Doc(widthDp, heightDp, w, h, document)
+        return Doc(widthDp, heightDp, w, h, document, bytes.size)
     }
 
     /** [cells] packed into rows that fit the 800 dp canvas, in order. */

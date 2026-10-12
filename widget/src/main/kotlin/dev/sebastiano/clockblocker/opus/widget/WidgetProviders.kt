@@ -71,6 +71,11 @@ class TwoClocksWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider
 @Inject
 class NextUpWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(WidgetKind.NextUp, updater)
 
+@ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
+@BroadcastReceiverKey(RouteGlobeWidgetProvider::class)
+@Inject
+class RouteGlobeWidgetProvider(updater: WidgetUpdater) : ClockblockWidgetProvider(WidgetKind.RouteGlobe, updater)
+
 /** Runs [block] off the main thread within the broadcast's lifetime (pattern from the androidx RC widget demo). */
 internal fun BroadcastReceiver.goAsync(block: suspend CoroutineScope.() -> Unit) {
     val scope = CoroutineScope(Dispatchers.Default)

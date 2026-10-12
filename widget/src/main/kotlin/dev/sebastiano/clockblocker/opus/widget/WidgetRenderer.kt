@@ -14,6 +14,8 @@ import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeRenderer
 import dev.sebastiano.clockblocker.opus.widget.rc.RemoteComposeSupport
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeLayout
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.ThemedWidgetModel
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
@@ -23,7 +25,7 @@ import dev.sebastiano.clockblocker.opus.widget.state.WidgetState
 import dev.sebastiano.clockblocker.opus.widget.text.WidgetTexts
 import kotlin.coroutines.cancellation.CancellationException
 
-enum class WidgetKind { TwoClocks, NextUp }
+enum class WidgetKind { TwoClocks, NextUp, RouteGlobe }
 
 /**
  * Turns a [WidgetState] into `RemoteViews` that play a Remote Compose document (`RemoteViews.DrawInstructions`).
@@ -92,6 +94,13 @@ class WidgetRenderer(
                 click,
                 done,
             ) { bucket -> NextUpRemote(model, bucket.layout, bucket.fitAt) }
+            WidgetKind.RouteGlobe -> RemoteComposeRenderer.responsive(
+                context,
+                profile,
+                ROUTE_GLOBE_SIZES,
+                click,
+                done = null,
+            ) { bucket -> RouteGlobeRemote(model, bucket.layout, bucket.fitAt) }
         }
     }
 
@@ -103,6 +112,9 @@ class WidgetRenderer(
 
         /** Next up's responsive entries ([WidgetSizes.NEXT_UP]). */
         val NEXT_UP_SIZES: Map<SizeF, Bucket<NextUpLayout>> = sizes(WidgetSizes.NEXT_UP)
+
+        /** Route globe's responsive entries ([WidgetSizes.ROUTE_GLOBE]). */
+        val ROUTE_GLOBE_SIZES: Map<SizeF, Bucket<RouteGlobeLayout>> = sizes(WidgetSizes.ROUTE_GLOBE)
 
         private fun <L> sizes(buckets: List<Bucket<L>>): Map<SizeF, Bucket<L>> =
             buckets.associateByTo(linkedMapOf()) { SizeF(it.min.width, it.min.height) }

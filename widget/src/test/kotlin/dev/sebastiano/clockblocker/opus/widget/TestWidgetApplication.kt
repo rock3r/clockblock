@@ -39,6 +39,7 @@ class TestWidgetApplication : Application(), MetroApplication {
         override val receiverProviders: Map<KClass<out BroadcastReceiver>, () -> BroadcastReceiver> = mapOf(
             TwoClocksWidgetProvider::class to { TwoClocksWidgetProvider(updater) },
             NextUpWidgetProvider::class to { NextUpWidgetProvider(updater) },
+            RouteGlobeWidgetProvider::class to { RouteGlobeWidgetProvider(updater) },
             // :core:notifications receivers (merged in for the Done action) are registered by Robolectric too;
             // widget tests never deliver to them, so inert stand-ins are enough.
             AdviceAlarmReceiver::class to ::InertReceiver,

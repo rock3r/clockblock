@@ -193,7 +193,7 @@ class WidgetUpdater(
         val places = trip?.let(WidgetStateMapper::placeNames).orEmpty()
         val codes = trip?.let(WidgetStateMapper::placeCodes).orEmpty()
         val dialPlaces = trip?.let(WidgetStateMapper::places).orEmpty()
-        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes, dialPlaces)
+        val state = WidgetStateMapper.map(plan, clock.instant(), logs, route, places, codes, dialPlaces, trip)
         return if (keyguard && settings.hideLockScreenDetails) WidgetStateMapper.redact(state) else state
     }
 
@@ -255,6 +255,7 @@ class WidgetUpdater(
             placeNames = DemoPlans.PLACE_NAMES,
             placeCodes = DemoPlans.PLACE_CODES,
             places = DemoPlans.PLACES,
+            trip = DemoPlans.trip(),
         )
     }
 
@@ -283,6 +284,7 @@ class WidgetUpdater(
             placeNames = DemoPlans.PLACE_NAMES,
             placeCodes = DemoPlans.PLACE_CODES,
             places = DemoPlans.PLACES,
+            trip = DemoPlans.trip(),
         )
         val renderer = rendererFactory(application)
         // The picker is not the plan: always the regular palette, never night-safe.
@@ -357,6 +359,7 @@ class WidgetUpdater(
         fun componentName(context: Context, kind: WidgetKind): ComponentName = when (kind) {
             WidgetKind.TwoClocks -> ComponentName(context, TwoClocksWidgetProvider::class.java)
             WidgetKind.NextUp -> ComponentName(context, NextUpWidgetProvider::class.java)
+            WidgetKind.RouteGlobe -> ComponentName(context, RouteGlobeWidgetProvider::class.java)
         }
 
         /**

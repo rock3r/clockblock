@@ -101,7 +101,7 @@ class DebugScreenTest {
         GalleryPage.entries.forEach { compose.onNodeWithTag(DebugTags.gallery(it)).performScrollTo().performClick() }
         compose.onNodeWithContentDescription("Back").performClick()
         calls shouldContainExactly
-            listOf("run", "clear", "gallery:twoclocks", "gallery:nextup", "gallery:live", "gallery:all", "back")
+            listOf("run", "clear", "gallery:twoclocks", "gallery:nextup", "gallery:routeglobe", "gallery:live", "gallery:all", "back")
     }
 
     private companion object {

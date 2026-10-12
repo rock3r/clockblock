@@ -5,6 +5,8 @@
     <string name="widget_two_clocks_description">Your local time and your body clock on one 24-hour dial, with today\'s light and sleep windows.</string>
     <string name="widget_next_up_label">Next up</string>
     <string name="widget_next_up_description">What to do now for your jet lag plan, until when, and what comes next.</string>
+    <string name="widget_route_globe_label">Route globe</string>
+    <string name="widget_route_globe_description">Your trip route and active flight leg on a day-and-night globe, with what to do now.</string>
 
     <!-- Advice labels (always shown next to glyphs) -->
     <string name="widget_advice_see_bright_light">See bright light</string>

@@ -1,7 +1,7 @@
 # Widgets and notifications
 
 You don't have to open the app to follow your plan. A quiet notification shows what to do right now, a short
-reminder arrives just before each change, and two home-screen widgets show your plan at a glance. They update at
+reminder arrives just before each change, and three home-screen widgets show your plan at a glance. They update at
 each change in your plan, so they normally show the same thing as the app. If you haven't allowed exact alarms,
 Android can delay an update, usually by up to about an hour, while your phone is idle, and the widgets and notification may
 lag until then.
@@ -81,7 +81,7 @@ Home-screen widgets still show everything.
 The quickest way to add a widget is **Settings** → **Widgets**: tap **Add** under the widget you want, and your
 home screen asks where to put it. (The section only appears if your home screen app supports this.) You can
 also touch and hold an empty area of your home screen, tap **Widgets**, find Clockblock, and drag the widget
-you want onto the screen. You can resize both widgets.
+you want onto the screen. You can resize all three widgets.
 
 <img src="../docs/screenshots/widgets-on-device.png" alt="Both widgets on a home screen. Left, Two clocks: the dial shows 14:57 local, body 17:30 and +2½ h, with No caffeine until 20:00 underneath. Right, Next up: No caffeine until 20:00, then the next block, and 04:00 in Tokyo." width="480" />
 
@@ -113,6 +113,21 @@ sizes add the time in your other zone and a **Done** button, and the tallest and
 next to your route ("LIS → HND"). The smallest size shows a short label, and the countdown in a block's last hour.
 It says "Free time" when there's nothing to do, and "Clockblocked" when your plan is finished ("Adapted" on the
 smallest size).
+
+### Route globe
+
+<img src="images/widget-route-globe.png" alt="Route globe widgets. Top row: the 2×2 globe in light showing the whole LIS → DOH → HND route before departure, in dark and night-safe highlighting the active DOH → HND leg with the traveller marker, and the empty state No trip, Plan one. Bottom row: the wide 4×2 version comparing Lisbon · Pre-trip −2 with Tokyo · Travel day, showing the globe beside a card with Avoid light, until 16:30, then Melatonin, 08:30 in Lisbon." width="480" />
+
+The *Route globe* widget draws your trip across a 3D day-and-night Earth, with sunlight and night-side city lights
+where they are right now. Before your first flight departs, it shows your whole route from start to finish,
+including any connections. Once your trip is underway, it highlights the leg you're on and marks where you are
+along the flight.
+
+On the smallest size and the one-row sizes, it shows the globe on its own. Bigger sizes add your route code
+("LIS → HND") and the current block with its end time; the tallest and widest sizes add a card with the place, plan
+day and the time in your other zone, plus what's up next and how far you've adapted. With **Hide details on the
+lock screen** turned on, a lock-screen *Route globe* hides the route and stops and shows a calm day-and-night Earth
+with only the current block's times.
 
 ### Customise a widget
 

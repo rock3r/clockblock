@@ -118,17 +118,21 @@ class WidgetUpdaterTest {
         place(WidgetKind.TwoClocks, 1)
         place(WidgetKind.NextUp, 2)
         place(WidgetKind.NextUp, 3)
+        place(WidgetKind.RouteGlobe, 4)
         updater.ids(WidgetKind.TwoClocks).toList() shouldBe listOf(1)
         updater.ids(WidgetKind.NextUp).toList() shouldContainExactlyInAnyOrder listOf(2, 3)
+        updater.ids(WidgetKind.RouteGlobe).toList() shouldBe listOf(4)
     }
 
     @Test
-    fun `without a plan both widgets show the empty state`() = runBlocking<Unit> {
+    fun `without a plan all widgets show the empty state`() = runBlocking<Unit> {
         val clocks = place(WidgetKind.TwoClocks, 1)
         val next = place(WidgetKind.NextUp, 2)
+        val globe = place(WidgetKind.RouteGlobe, 3)
         updater.updateAll()
         texts(clocks) shouldContainText app.getString(R.string.widget_no_trip_full)
         texts(next) shouldContainText app.getString(R.string.widget_no_trip_title)
+        texts(globe) shouldContainText app.getString(R.string.widget_no_trip_full)
     }
 
     @Test
@@ -451,8 +455,10 @@ class WidgetUpdaterTest {
     fun `kindOf names our widgets and nothing else`() {
         val clocks = place(WidgetKind.TwoClocks, 45)
         val next = place(WidgetKind.NextUp, 46)
+        val globe = place(WidgetKind.RouteGlobe, 49)
         updater.kindOf(clocks) shouldBe WidgetKind.TwoClocks
         updater.kindOf(next) shouldBe WidgetKind.NextUp
+        updater.kindOf(globe) shouldBe WidgetKind.RouteGlobe
         updater.kindOf(999).shouldBeNull()
     }
 

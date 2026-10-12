@@ -20,6 +20,8 @@ import dev.sebastiano.clockblocker.opus.widget.draw.WidgetTheme
 import dev.sebastiano.clockblocker.opus.widget.preview.DemoPlans
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.NextUpRemote
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeLayout
+import dev.sebastiano.clockblocker.opus.widget.rc.RouteGlobeRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksLayout
 import dev.sebastiano.clockblocker.opus.widget.rc.TwoClocksRemote
 import dev.sebastiano.clockblocker.opus.widget.rc.WidgetModel
@@ -64,7 +66,7 @@ class RemoteSemanticsTest {
         val plan = DemoPlans.lisbonTokyo(now, DemoPlans.Scenario.AvoidLight)
         val current = (WidgetStateMapper.map(plan, now) as WidgetState.Active).current.shouldNotBeNull()
         val logs = listOfNotNull(logged?.let { AdviceLog(current.adviceId, it) })
-        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES)
+        val state = WidgetStateMapper.map(plan, now, logs, route = DemoPlans.ROUTE, placeNames = DemoPlans.PLACE_NAMES, trip = DemoPlans.trip())
         return WidgetModel(state, WidgetTexts.from(context, state, is24Hour = true), WidgetPalette.of(WidgetTheme.Light))
     }
 
@@ -145,6 +147,21 @@ class RemoteSemanticsTest {
             main.description.shouldNotBeNull() shouldContain "Tokyo · Day 2. "
             main.description shouldContain "until 16:30 (08:30 in Lisbon)"
         }
+    }
+
+    @Test
+    fun `Route globe speaks the route and current advice across layouts`() {
+        val model = model()
+        val large = nodes(300, 300) { RouteGlobeRemote(model, RouteGlobeLayout.Large) }
+        large.filter { it.description == "Tokyo · Day 2. L I S to H N D" } shouldHaveSize 1
+        large.first { it.description?.contains(" local, ") == true }.description.shouldNotBeNull() shouldContain
+            "until 16:30 (08:30 in Lisbon)"
+
+        val tall = nodes(180, 300) { RouteGlobeRemote(model, RouteGlobeLayout.Tall) }
+            .first { it.description?.contains(" local, ") == true }
+        tall.clickable shouldBe true
+        tall.description.shouldNotBeNull() shouldContain "Tokyo · Day 2. L I S to H N D. "
+        tall.description shouldContain "until 16:30 (08:30 in Lisbon)"
     }
 
     @Test

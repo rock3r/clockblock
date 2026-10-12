@@ -100,6 +100,13 @@ enum class TwoClocksLayout {
  */
 enum class NextUpLayout { Small, Medium, Wide, Square, Tall, Ribbon }
 
+/**
+ * Route globe size buckets: 1×1 and 1-row strips (globe alone), 2×2 (route strip + globe + two-line caption),
+ * 2×3 (route strip + globe + now card), 2×2 landscape / 4×2 (globe beside now card, with header strip on 4×2),
+ * and 4×3+ (header strip + globe beside now card + Up next).
+ */
+enum class RouteGlobeLayout { Compact, Square, Tall, Wide, Large }
+
 private val CornerRadius = 24.rdp
 private val InnerRadius = 16.rdp
 
@@ -222,6 +229,115 @@ fun TwoClocksRemote(
     }
 }
 
+/**
+ * Route globe widget: the orthographic day-and-night globe ([WidgetGlobeCanvas]) showing the trip's route and
+ * active flight leg, with the current advice and upcoming blocks at larger sizes.
+ */
+@RemoteComposable
+@Composable
+fun RouteGlobeRemote(
+    model: WidgetModel,
+    layout: RouteGlobeLayout = RouteGlobeLayout.Square,
+    cell: CellDp = WidgetSizes.smallest(WidgetSizes.ROUTE_GLOBE, layout).fitAt,
+) {
+    val p = model.palette
+    val texts = model.texts
+    val fit = LabelFit.routeGlobe(LocalContext.current, texts, layout, cell)
+    val withCardHeader = listOfNotNull(texts.header, texts.contentDescription).joinToString(". ").rs
+    val now = fit.now
+    val empty = fit.empty
+    val rounded = RemoteModifier.fillMaxSize().clip(RemoteRoundedCornerShape(CornerRadius)).background(Color(p.surface).rc)
+    if (model.state !is WidgetState.Active || empty != null) {
+        MainRegion(model, texts.contentDescription.rs, rounded) { empty?.let { EmptyContent(model, it) } }
+        return
+    }
+    val box = LabelFit.globeBox(layout, cell, fit)
+    when {
+        layout == RouteGlobeLayout.Compact -> MainRegion(model, texts.contentDescription.rs, rounded) {
+            RemoteBox(modifier = RemoteModifier.fillMaxSize().padding(STRIP_PAD_DP.rdp), contentAlignment = RemoteAlignment.Center) {
+                WidgetGlobeCanvas(model, box.width, box.height)
+            }
+        }
+        layout == RouteGlobeLayout.Square || now == null -> {
+            val desc = listOfNotNull(texts.routeDescription?.takeIf { fit.headerRoute }, texts.contentDescription).joinToString(". ").rs
+            MainRegion(model, desc, rounded) {
+                SquareGlobe(model, fit.caption, fit.headerRoute, box)
+            }
+        }
+        layout == RouteGlobeLayout.Tall -> {
+            val desc = listOfNotNull(texts.header, texts.routeDescription?.takeIf { fit.headerRoute }, texts.contentDescription).joinToString(". ").rs
+            MainRegion(model, desc, rounded) {
+                val route = texts.route?.takeIf { fit.headerRoute }
+                RemoteColumn(
+                    modifier = RemoteModifier.fillMaxSize().padding(CLOCKS_TALL_PAD_DP.rdp),
+                    horizontalAlignment = RemoteAlignment.CenterHorizontally,
+                ) {
+                    if (route != null) {
+                        RemoteBox(
+                            modifier = RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = 0.rdp, end = 0.rdp, bottom = HEADER_STRIP_BOTTOM_DP.rdp),
+                            contentAlignment = RemoteAlignment.Center,
+                        ) { RouteDots(route, p) }
+                    }
+                    RemoteBox(modifier = RemoteModifier.fillMaxWidth().weight(1f), contentAlignment = RemoteAlignment.Center) {
+                        WidgetGlobeCanvas(model, box.width, box.height)
+                    }
+                    NowCard(model, now, RemoteModifier.fillMaxWidth().padding(start = 0.rdp, top = CARD_TOP_DP.rdp, end = 0.rdp, bottom = 0.rdp))
+                }
+            }
+        }
+        else -> Surface(p.surface) {
+            val hasStrip = fit.headerStrip != null || fit.headerRoute
+            val large = layout == RouteGlobeLayout.Large
+            RemoteColumn(modifier = RemoteModifier.fillMaxSize().padding(SURFACE_PAD_DP.rdp)) {
+                if (hasStrip) {
+                    HeaderStrip(
+                        model,
+                        fit,
+                        RemoteModifier.fillMaxWidth().padding(
+                            start = HEADER_STRIP_SIDE_DP.rdp,
+                            top = 0.rdp,
+                            end = HEADER_STRIP_SIDE_DP.rdp,
+                            bottom = HEADER_STRIP_BOTTOM_DP.rdp,
+                        ),
+                    )
+                }
+                MainRegion(
+                    model,
+                    if (hasStrip) texts.contentDescription.rs else withCardHeader,
+                    RemoteModifier.fillMaxWidth().weight(1f),
+                ) {
+                    RemoteRow(modifier = RemoteModifier.fillMaxSize(), verticalAlignment = RemoteAlignment.CenterVertically) {
+                        RemoteBox(modifier = RemoteModifier.fillMaxHeight().weight(1f), contentAlignment = RemoteAlignment.Center) {
+                            WidgetGlobeCanvas(model, box.width, box.height)
+                        }
+                        RemoteBox(
+                            modifier = RemoteModifier
+                                .fillMaxHeight()
+                                .weight(CARD_WEIGHT)
+                                .padding(start = CARD_GAP_DP.rdp, top = 0.rdp, end = 0.rdp, bottom = 0.rdp),
+                            contentAlignment = RemoteAlignment.CenterStart,
+                        ) {
+                            NowCard(model, now, RemoteModifier.fillMaxWidth(), withHeader = !hasStrip)
+                        }
+                    }
+                }
+                if (large) {
+                    UpNext(
+                        model,
+                        fit.upNext,
+                        RemoteModifier.fillMaxWidth().padding(
+                            start = UP_NEXT_SIDE_LARGE_DP.rdp,
+                            top = UP_NEXT_TOP_LARGE_DP.rdp,
+                            end = UP_NEXT_SIDE_LARGE_DP.rdp,
+                            bottom = 0.rdp,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** 2×2: the Two skies dial laid out for [box], with a two-line caption under it. */
 @RemoteComposable
 @Composable
@@ -240,6 +356,34 @@ private fun SquareDial(model: WidgetModel, caption: CaptionFit?, box: CellDp) {
         if (title != null) {
             // Two short lines rather than "Avoid light · until 18:00": that never fit a real 2×2 cell.
             // Width-constrained (fillMaxWidth): centred text needs it (see [Label]).
+            FittedLabel(title, p.onSurface, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
+            caption.detail?.let {
+                FittedLabel(it, p.onSurfaceVariant, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+/** 2×2 Route globe: optional dot-matrix route strip above the globe, two-line caption below it. */
+@RemoteComposable
+@Composable
+private fun SquareGlobe(model: WidgetModel, caption: CaptionFit?, headerRoute: Boolean, box: CellDp) {
+    val p = model.palette
+    val route = model.texts.route?.takeIf { headerRoute }
+    RemoteColumn(
+        modifier = RemoteModifier.fillMaxSize().padding(SQUARE_DIAL_PAD_DP.rdp),
+        horizontalAlignment = RemoteAlignment.CenterHorizontally,
+        verticalArrangement = RemoteArrangement.spacedBy(LINE_GAP_DP.rdp),
+    ) {
+        if (route != null) {
+            RouteDots(route, p)
+        }
+        RemoteBox(
+            modifier = RemoteModifier.fillMaxWidth().weight(1f),
+            contentAlignment = RemoteAlignment.Center,
+        ) { WidgetGlobeCanvas(model, box.width, box.height) }
+        val title = caption?.title
+        if (title != null) {
             FittedLabel(title, p.onSurface, weight = FontWeight.SemiBold, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())
             caption.detail?.let {
                 FittedLabel(it, p.onSurfaceVariant, align = TextAlign.Center, modifier = RemoteModifier.fillMaxWidth())

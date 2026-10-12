@@ -1,7 +1,7 @@
 # Surfaces: notifications and widgets
 
 Outside the app, the plan appears in three places: one ongoing "Now" notification, short reminders before advice
-starts, and two home-screen widgets (*Two clocks* and *Next up*). One scheduler controls all of them. It wakes up
+starts, and three home-screen widgets (*Two clocks*, *Next up* and *Route globe*). One scheduler controls all of them. It wakes up
 at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface from the
 same plan at the same moment, so right after each refresh they all agree. Between
 refreshes they can drift: a delayed scheduler wake-up (see [The scheduler](#the-scheduler)) leaves them behind
@@ -303,7 +303,7 @@ Users can control each channel in Android settings. The channels are created in
 
 ## Widgets
 
-The `:widget` module provides two widgets. Both can be placed on the home screen. Both declare the `keyguard`
+The `:widget` module provides three widgets. All three can be placed on the home screen. All three declare the `keyguard`
 category too, which matters on tablets and in hub mode. On phones, the lock-screen view of the plan is the Now
 notification.
 
@@ -353,41 +353,53 @@ The *Next up* widget shows the current advice with a countdown where it fits. Th
 beside the glyph (see `remote_next_up_buckets.png`). The 1×1 tile shows a short label, and the countdown only in a
 block's last hour. When the plan has no advice left, it shows "Clockblocked" (the 1×1 tile says "Adapted").
 
+![Route globe widgets: the 2×2 globe in light (whole upcoming route), dark and night-safe (active leg highlighted with the traveller marker), the empty state, and the 4×2 layout comparing pre-trip against in-flight](screenshots/widgets/remote_route_globe.png)
+
+The *Route globe* widget draws the trip's route across a 3D orthographic day-and-night Earth
+([`WidgetGlobe`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetGlobe.kt), sharing
+`GlobeGeo`, `land_dots.bin` and `SubsolarPoint` with the plan screen's `RouteGlobe`). Before the first departure,
+it shows the whole route (origin → connections → destination) with no active-leg highlight or traveller marker.
+Once the trip is underway, it frames and highlights the active leg (in the air, or the next leg during a connection)
+and draws the traveller marker along the great-circle arc when in flight, with the solar terminator, sunlit ocean
+glow and night-side city lights at the capture instant. Dots of the same brightness share one `GlobeOp.Dots` bucket
+(and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`), spatially culled to at most one frontmost dot per 2D
+grid cell so limb overdraw is eliminated and every size bucket stays under 24 KB.
+
 ### Sizes
 
 Each widget picks a layout for the space it gets: the launcher picks from the size map and swaps layouts while the
 user resizes. Every "Up next" entry shows its start time in the other zone too, like every other time on the
 widgets. The table shows the layout on a typical portrait home screen.
 
-| Cells | Two clocks | Next up |
-|---|---|---|
-| 1×1 | Two strips with local time | Glyph and label (the countdown in a block's last hour) |
-| 2×1 | Two strips with local and body time | Glyph, label, "until" line and the other zone's time |
-| 4×1 | Two strips with both times, the bars' labels and the jet lag | Row with the countdown, the other zone's time and Done |
-| 2×2 | Two skies and a two-line caption | Countdown, label, "until / then", the other zone and Done |
-| 4×2 | The 4×3 layout | The 4×1 row plus up to three "Up next" capsules |
-| 2×3 | Two skies, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route |
-| 4×3 | A header strip with the route, Two skies, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider |
+| Cells | Two clocks | Next up | Route globe |
+|---|---|---|---|
+| 1×1 | Two strips with local time | Glyph and label (the countdown in a block's last hour) | The route globe on its own |
+| 2×1 | Two strips with local and body time | Glyph, label, "until" line and the other zone's time | The route globe on its own |
+| 4×1 | Two strips with both times, the bars' labels and the jet lag | Row with the countdown, the other zone's time and Done | The route globe on its own |
+| 2×2 | Two skies and a two-line caption | Countdown, label, "until / then", the other zone and Done | The route ("LIS → HND"), the globe and a two-line caption |
+| 4×2 | The 4×3 layout | The 4×1 row plus up to three "Up next" capsules | A header strip with the route, the globe and the now card |
+| 2×3 | Two skies, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route | The route, the globe and the now card |
+| 4×3 | A header strip with the route, Two skies, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider | A header strip with the route, the globe, the now card, two "Up next" rows and the adaptation bar |
 
 Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row next to Done: the label, and the
 "until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 1×1 and a 2×1 Two clocks
 get the short, wide Two strips with the bars' labels. A 2×2 Two clocks gets the Two strips, the now card and Done
-side by side, and a 2×2 Next up gets the 4×2 capsules.
+side by side, a 2×2 Route globe gets the globe and the now card side by side, and a 2×2 Next up gets the 4×2 capsules.
 
 [`WidgetSizes`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetSizes.kt) lists every
 layout with its minimum size in dp. The launcher plays the layout whose minimum is closest to the widget's size
 among those that fit. A layout can have a short and a taller entry: the taller one has room for the "until" line or
 a second "Up next" row.
 
-| Layout | Next up minimums | Two clocks minimums |
-|---|---|---|
-| 1×1 | 57×51 | 57×51 |
-| 2×1 row | 117×80, 117×100 | 117×51, 117×84 |
-| 4×1 row | 250×46, 250×84 | 250×51, 250×84 |
-| 2×2 | 111×146 | 101×121 |
-| Dial (or strips) and card side by side | 250×110 (capsules) | 269×108 |
-| 2×3 | 111×240, 120×330, 250×240 | 123×248 |
-| 4×3 | — | 269×220 |
+| Layout | Next up minimums | Two clocks minimums | Route globe minimums |
+|---|---|---|---|
+| 1×1 | 57×51 | 57×51 | 57×51 |
+| 2×1 row | 117×80, 117×100 | 117×51, 117×84 | 117×51, 117×84 |
+| 4×1 row | 250×46, 250×84 | 250×51, 250×84 | 250×51, 250×84 |
+| 2×2 | 111×146 | 101×121 | 101×121, 123×146 |
+| Dial, strips or globe and card side by side | 250×110 (capsules) | 269×108 | 250×108, 269×146 |
+| 2×3 | 111×240, 120×330, 250×240 | 123×248 | 123×248 |
+| 4×3 | — | 269×220 | 269×220 |
 
 The minimums sit at or below the cells of the Android docs' example device, so each common cell gets the layout
 it was designed for. A portrait n×m cell is (73n − 16) × (118m − 16) dp; a landscape one is (142n − 15) × (66m − 15)
@@ -395,7 +407,7 @@ dp.
 
 ### Labels never clip
 
-No label is cut off or ends in "…" at any size from 57×51 dp (a 1×1 cell) up, at font scales up to 1.3×. Both
+No label is cut off or ends in "…" at any size from 57×51 dp (a 1×1 cell) up, at font scales up to 1.3×. All three
 widgets declare that size as their smallest (`minResizeWidth` / `minResizeHeight`), so a launcher can't shrink one
 below it. The launcher can't measure text, so
 [`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) decides at capture
@@ -458,8 +470,8 @@ checks the dial's ink against its face and skies in every widget palette.
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
 designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
-Clocks header strip, next to "Tokyo · Day 2", and at the end of the "Up next" title on the 2×3 and 4×3 Next up.
-Screen readers read the codes letter by letter.
+Clocks header strip, next to "Tokyo · Day 2", at the end of the "Up next" title on the 2×3 and 4×3 Next up, and
+at the top of the 2×2, 2×3, 4×2 and 4×3 Route globe layouts. Screen readers read the codes letter by letter.
 
 Places are named after the trip, so the header and the other-zone times match the route. An SFO trip reads "San
 Francisco · Day 2", not "Los Angeles" (the city of its `America/Los_Angeles` zone).
@@ -473,8 +485,8 @@ What a screen reader hears matches what the widget shows:
   Melatonin". Two clocks says this after both clocks and the jet lag phrase.
 - Next up adds the live countdown in words, worked out by the launcher like the visible one:
   "1 hour 10 minutes left".
-- Two clocks layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3 header strip is
-  its own tap target, so its place, day and route ("L I S to H N D") reach the screen reader.
+- Two clocks and Route globe layouts with a now card (2×3, 4×2) start with its header ("Tokyo · Day 2"). The 4×3
+  header strip is its own tap target, so its place, day and route ("L I S to H N D") reach the screen reader.
   [`RemoteSemanticsTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteSemanticsTest.kt)
   plays the documents in the View player and reads back its accessibility nodes.
 
@@ -482,12 +494,15 @@ What a screen reader hears matches what the widget shows:
 
 ![Next up at 2×2, 2×3, 4×2 and 4×3, including "Skipped" and "✓ Done" chips and the adapted state](screenshots/widgets/remote_next_up_buckets.png)
 
+![Route globe in every layout: the pure globe at 1×1 and in the 2×1 and 4×1 strips; the route, globe and now card at 2×3 (including night-safe and lock-screen redaction); and the 4×3 layout with the header strip, globe, now card, "Up next" rows and adaptation bar](screenshots/widgets/remote_route_globe_buckets.png)
+
 ### Lock-screen widgets
 
 When "Hide details on the lock screen" (`AppSettings.hideLockScreenDetails`) is on, a widget placed on the lock
 screen (host category `WIDGET_CATEGORY_KEYGUARD`) shows the redacted plan, like the notification's public version:
-no route, no city or other-zone times, melatonin shown as "Plan step" with a neutral glyph, and no melatonin
-marks on the dial. The header keeps only the plan day ("Day 2"), and the adapted state says "Your body is on
+no route, no city or other-zone times, melatonin shown as "Plan step" with a neutral glyph, no melatonin
+marks on the dial, and on Route globe a calm day-and-night Earth with no route arcs, stops or traveller marker. The
+header keeps only the plan day ("Day 2"), and the adapted state says "Your body is on
 local time". Times and the kind of block stay. Home-screen widgets keep every detail.
 [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) decides per
 widget id from the host category (a bit mask, so keyguard may come with other bits), and
@@ -514,7 +529,7 @@ button is a second host action in the Remote Compose document.
 
 Widgets follow the app's theme setting (light, dark or system). When "Night-safe automatically" is on and the
 current advice is avoid light or sleep, they switch to night-safe: true black, dim amber text and buttons, no
-tinted cards, and dimmed advice colours and sky.
+tinted cards, and dimmed advice colours, sky and globe.
 
 ### Widget options
 
@@ -522,7 +537,7 @@ Each placed *Two clocks* widget has its own options (#52). For now there is one:
 or Precise ([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)). The widget declares
 `android:configure` with `reconfigurable|configuration_optional`, so the launcher doesn't open the screen when the
 widget is placed, and offers it later (touch and hold the widget, then Reconfigure or the pencil, depending on the
-launcher). *Next up* has no options yet, so it declares no configuration screen.
+launcher). *Next up* and *Route globe* have no options yet, so they declare no configuration screen.
 
 ![The Customise widget screen on a phone: the Two clocks widget previewed at its home-screen size, then the Body ring choice as two cards, Simple (selected) and Precise, each drawing the dial that way with a radio button, its name and what it shows](screenshots/widgets/widget_config.png)
 

@@ -4,12 +4,18 @@ import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
 import dev.sebastiano.clockblocker.opus.core.circadian.currentDay
 import dev.sebastiano.clockblocker.opus.core.circadian.displayZonesAt
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.toDialState
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeGeo
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceLog
 import dev.sebastiano.clockblocker.opus.core.model.AdviceOutcome
 import dev.sebastiano.clockblocker.opus.core.model.JetLagPlan
 import dev.sebastiano.clockblocker.opus.core.model.Place
+import dev.sebastiano.clockblocker.opus.core.model.Sun
 import dev.sebastiano.clockblocker.opus.core.model.Trip
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.collections.immutable.toImmutableList
@@ -24,6 +30,8 @@ object WidgetStateMapper {
      * @param placeNames the trip's city per zone ([placeNames] of the trip), if the trip could be read.
      * @param placeCodes the IATA code of each of those places ([placeCodes] of the trip).
      * @param places the place that names each zone ([places] of the trip): the dial's sky follows its sun.
+     * @param trip the trip itself, so the route globe can frame the whole route before departure or the active leg
+     *   during the trip.
      */
     fun map(
         plan: JetLagPlan?,
@@ -33,6 +41,7 @@ object WidgetStateMapper {
         placeNames: Map<String, String> = emptyMap(),
         placeCodes: Map<String, String> = emptyMap(),
         places: Map<String, Place> = emptyMap(),
+        trip: Trip? = null,
     ): WidgetState {
         if (plan == null) return WidgetState.NoTrip
 
@@ -82,7 +91,65 @@ object WidgetStateMapper {
             route = route,
             placeNames = placeNames,
             placeCodes = placeCodes,
+            globe = globe(trip, now, stage, places, plan.originZoneId, plan.destinationZoneId),
         )
+    }
+
+    /**
+     * The route globe for [trip] at [now]: before the first flight departs (or while [stage] is [WidgetState.Stage.Upcoming])
+     * it frames the whole route (`activeLeg = null`, no traveller marker); once the trip has started it highlights the
+     * active leg (in flight, the next flight during a layover, or the final leg after landing) and places the marker
+     * along the route. When [trip] isn't given, a single leg is built from the endpoints in [places] if both are known.
+     */
+    fun globe(
+        trip: Trip?,
+        now: Instant,
+        stage: WidgetState.Stage,
+        places: Map<String, Place> = emptyMap(),
+        originZoneId: String? = null,
+        destinationZoneId: String? = null,
+    ): WidgetGlobe {
+        val subsolar = Sun.subsolarPoint(now)
+        if (trip != null && trip.legs.isNotEmpty()) {
+            val legs = trip.legs.map { leg ->
+                GlobeLeg(
+                    from = GlobeStop(GeoPoint(leg.origin.latitude, leg.origin.longitude), leg.origin.displayCode),
+                    to = GlobeStop(GeoPoint(leg.destination.latitude, leg.destination.longitude), leg.destination.displayCode),
+                )
+            }
+            val first = trip.legs.first()
+            if (now.isBefore(first.departure) || stage == WidgetState.Stage.Upcoming) {
+                return WidgetGlobe(legs = legs, activeLeg = null, marker = null, subsolar = subsolar)
+            }
+            for (i in trip.legs.indices) {
+                val leg = trip.legs[i]
+                if (now.isBefore(leg.departure)) {
+                    return WidgetGlobe(legs = legs, activeLeg = i, marker = legs[i].from.point, subsolar = subsolar)
+                }
+                if (now.isBefore(leg.arrival)) {
+                    val span = Duration.between(leg.departure, leg.arrival).toMillis().toDouble()
+                    val elapsed = Duration.between(leg.departure, now).toMillis().toDouble()
+                    val fraction = if (span > 0.0) (elapsed / span).coerceIn(0.0, 1.0) else 0.0
+                    val marker = GlobeGeo.interpolate(legs[i].from.point, legs[i].to.point, fraction)
+                    return WidgetGlobe(legs = legs, activeLeg = i, marker = marker, subsolar = subsolar)
+                }
+            }
+            return WidgetGlobe(legs = legs, activeLeg = legs.lastIndex, marker = legs.last().to.point, subsolar = subsolar)
+        }
+        val origin = originZoneId?.let(places::get)
+        val destination = destinationZoneId?.let(places::get)
+        if (origin != null && destination != null) {
+            val from = GlobeStop(GeoPoint(origin.latitude, origin.longitude), origin.displayCode)
+            val to = GlobeStop(GeoPoint(destination.latitude, destination.longitude), destination.displayCode)
+            val upcoming = stage == WidgetState.Stage.Upcoming
+            return WidgetGlobe(
+                legs = listOf(GlobeLeg(from, to)),
+                activeLeg = if (upcoming) null else 0,
+                marker = if (upcoming) null else to.point,
+                subsolar = subsolar,
+            )
+        }
+        return WidgetGlobe(legs = emptyList(), activeLeg = null, marker = null, subsolar = subsolar)
     }
 
     /**
@@ -141,6 +208,7 @@ object WidgetStateMapper {
                 next = state.dial.next?.takeUnless { it.type.isPrivate },
                 placeName = null,
             ),
+            globe = state.globe.copy(legs = emptyList(), activeLeg = null, marker = null),
             redacted = true,
         )
     }

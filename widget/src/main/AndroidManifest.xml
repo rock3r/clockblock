@@ -36,6 +36,22 @@
                 android:resource="@xml/widget_next_up_info" />
         </receiver>
 
+        <receiver
+            android:name=".RouteGlobeWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_route_globe_label"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_route_globe_info" />
+        </receiver>
+
         <!--
             Per-widget options (#52). Exported because the launcher starts it (Reconfigure); it checks that the widget
             id is one of ours before showing anything. Instantiated by metrox-android's MetroAppComponentFactory.
