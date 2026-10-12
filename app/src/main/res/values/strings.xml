@@ -3,4 +3,11 @@
     <string name="nav_now">Now</string>
     <string name="nav_trips">Trips</string>
     <string name="nav_settings">Settings</string>
+    <!-- The pane beside Trips on wide windows, while no trip is open. -->
+    <string name="plan_placeholder_title">Pick a trip</string>
+    <string name="plan_placeholder_body">Its plan opens here: what to do now, and the days ahead.</string>
+    <string name="plan_placeholder_title_no_trips">Your plans open here</string>
+    <string name="plan_placeholder_body_no_trips">Plan a trip, or try the demo, and its days show up beside your list.</string>
+    <!-- The handle between Trips and a trip's plan on wide windows, for accessibility services. -->
+    <string name="pane_handle_description">Resize the trips list and the plan</string>
 </resources>

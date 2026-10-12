@@ -356,28 +356,6 @@ class TransitionPlannerTest {
         }
 
         @Test
-        fun `an active plan with a route gets a 15-minute globe refresh across pre-departure, flights, layovers and sleep`() {
-            val plan = planOf(
-                advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
-                advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
-                advice(Sleep, "2026-10-10T17:00", "2026-10-10T22:00"),
-            )
-
-            // Pre-departure: refreshes solar lighting every 15 minutes.
-            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T09:00")) shouldBe utc("2026-10-10T09:15")
-            // In flight: refreshes both the traveller marker and solar lighting.
-            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T14:07:30Z")) shouldBe utc("2026-10-10T14:22")
-            // Layover and scheduled sleep: still refreshes solar lighting silently.
-            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T15:30")) shouldBe utc("2026-10-10T15:45")
-            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T19:30")) shouldBe utc("2026-10-10T19:45")
-            // Once all advice has ended: no more refreshes.
-            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-11T05:00")) shouldBe null
-            // A same-zone plan with no flights has no route globe.
-            val noRoute = planOf(advice(Sleep, "2026-10-10T22:00", "2026-10-11T06:00"), origin = "Europe/London", destination = "Europe/London")
-            TransitionPlanner.nextGlobeRefresh(noRoute, utc("2026-10-10T12:00")) shouldBe null
-        }
-
-        @Test
         fun `the widget dial's next refresh is the earlier of a block coming into view and a moment ending`() {
             val plan = planOf(
                 advice(Melatonin, "2026-10-10T19:00"),
@@ -386,6 +364,55 @@ class TransitionPlannerTest {
 
             TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T19:01")
             TransitionPlanner.nextDialRefresh(plan, utc("2026-10-10T19:01")) shouldBe utc("2026-10-11T08:00")
+        }
+    }
+
+    @Nested
+    inner class GlobeTicks {
+        // Two legs with a layover, then a month of post-arrival advice (as a real plan has).
+        private val plan = planOf(
+            advice(Flight, "2026-10-10T12:00", "2026-10-10T15:00", id = "leg-1"),
+            advice(Flight, "2026-10-10T23:00", "2026-10-11T05:00", id = "leg-2"),
+            advice(Sleep, "2026-10-10T17:00", "2026-10-10T22:00"),
+            advice(SeeBrightLight, "2026-11-08T08:00", "2026-11-08T10:00"),
+        )
+
+        @Test
+        fun `a trip weeks away arms no periodic tick, only one when the travel window opens`() {
+            // Weeks before departure the globe changes only with the day-night line: no tick until a day before.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-09-20T09:00")) shouldBe utc("2026-10-09T12:00")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-09T11:59")) shouldBe utc("2026-10-09T12:00")
+        }
+
+        @Test
+        fun `on the ground around the flights the day-night line is refreshed hourly`() {
+            // The day before departure, on the hour.
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-09T12:00")) shouldBe utc("2026-10-09T13:00")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T09:20")) shouldBe utc("2026-10-10T10:00")
+            // A layover, scheduled sleep included (the tick is silent).
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T15:30")) shouldBe utc("2026-10-10T16:00")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T19:30")) shouldBe utc("2026-10-10T20:00")
+        }
+
+        @Test
+        fun `in flight the traveller marker is refreshed every 15 minutes`() {
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T12:00")) shouldBe utc("2026-10-10T12:15")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-10T14:07:30Z")) shouldBe utc("2026-10-10T14:22")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-11T04:50")) shouldBe utc("2026-10-11T05:05")
+        }
+
+        @Test
+        fun `after landing the hourly tick stops a day later, though the plan goes on`() {
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-11T05:00")) shouldBe utc("2026-10-11T06:00")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-12T04:30")) shouldBe utc("2026-10-12T05:00")
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-12T05:00")) shouldBe null
+            TransitionPlanner.nextGlobeRefresh(plan, utc("2026-10-20T12:00")) shouldBe null
+        }
+
+        @Test
+        fun `a plan without flights has no globe tick`() {
+            val noRoute = planOf(advice(Sleep, "2026-10-10T22:00", "2026-10-11T06:00"), origin = "Europe/London", destination = "Europe/London")
+            TransitionPlanner.nextGlobeRefresh(noRoute, utc("2026-10-10T12:00")) shouldBe null
         }
     }
 }

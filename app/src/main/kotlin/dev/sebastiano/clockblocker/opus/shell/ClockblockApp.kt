@@ -7,6 +7,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
@@ -89,8 +90,9 @@ fun ClockblockAppRoot(
 
 /**
  * Adaptive chrome around [AppNavDisplay]: a short navigation bar on compact windows and a navigation rail on
- * wider ones (M3 Expressive `NavigationSuiteScaffold`), hidden during onboarding, in the trip editor and on a
- * pushed trip plan.
+ * wider ones (M3 Expressive `NavigationSuiteScaffold`). [ShellLayout] decides the rest: Trips and a trip's plan
+ * side by side on wide windows (rail kept), a pushed plan without the navigation on phones, and no navigation
+ * during onboarding or in the trip editor.
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -101,15 +103,22 @@ fun ClockblockShell(
     modifier: Modifier = Modifier,
 ) {
     val adaptiveInfo = currentWindowAdaptiveInfoV2()
+    val sizeClass = adaptiveInfo.windowSizeClass
     val suiteType = suiteTypeFor(
         default = NavigationSuiteScaffoldDefaults.navigationSuiteType(adaptiveInfo),
-        minWidthDp = adaptiveInfo.windowSizeClass.minWidthDp,
-        minHeightDp = adaptiveInfo.windowSizeClass.minHeightDp,
+        minWidthDp = sizeClass.minWidthDp,
+        minHeightDp = sizeClass.minHeightDp,
         tabletop = adaptiveInfo.windowPosture.isTabletop,
     )
+    val layout = shellLayoutFor(minWidthDp = sizeClass.minWidthDp, minHeightDp = sizeClass.minHeightDp)
+    // The M3 directive (pane count, the gap between panes, and hinges to keep content off on foldables), held to
+    // one pane where the layout says so (short windows).
+    val directive = calculatePaneScaffoldDirective(adaptiveInfo).let {
+        if (layout.listDetail) it else it.copy(maxHorizontalPartitions = 1)
+    }
 
     val route = navigator.currentRoute
-    val showSuite = route !is OnboardingRoute && route !is TripEditorRoute && route !is PlanRoute
+    val showSuite = layout.showsNavigation(route)
     val suiteState = rememberNavigationSuiteScaffoldState(
         if (showSuite) NavigationSuiteScaffoldValue.Visible else NavigationSuiteScaffoldValue.Hidden,
     )
@@ -150,6 +159,7 @@ fun ClockblockShell(
             navigator = navigator,
             destinations = destinations,
             hasTrips = hasTrips,
+            directive = directive,
         )
     }
 }
@@ -185,8 +195,11 @@ object ShellTestTags {
     const val NavTrips = "nav_trips"
     const val NavSettings = "nav_settings"
 
-    /** The hairline between the trips and plan panes in the list-detail layout. */
-    const val PaneDivider = "shell_pane_divider"
+    /** The drag handle between the trips and plan panes in the list-detail layout. */
+    const val PaneHandle = "shell_pane_handle"
+
+    /** The detail pane beside Trips while no trip is open. */
+    const val PlanPlaceholder = "shell_plan_placeholder"
 
     /** Tag wrapping every screen: `route_onboarding`, `route_now`, `route_trips`, `route_plan`, … */
     fun route(route: AppRoute): String = "route_" + when (route) {

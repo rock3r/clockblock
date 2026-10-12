@@ -102,6 +102,17 @@ class WidgetUpdaterTest {
         return id
     }
 
+    /**
+     * Removes [id] as the platform does before it sends the delete broadcast. Robolectric's `AppWidgetManager` shadow
+     * has no unbind, so this drops the id from its private table.
+     */
+    private fun unplace(id: Int) {
+        val table = org.robolectric.shadows.ShadowAppWidgetManager::class.java.getDeclaredField("widgetInfos")
+            .apply { isAccessible = true }
+            .get(shadowOf(manager)) as MutableMap<*, *>
+        table.remove(id)
+    }
+
     /** Every text widget [id] was rendered with: what its layouts show and what TalkBack reads. */
     private fun texts(id: Int): String = rendered[id].shouldNotBeNull().allText()
 
@@ -219,6 +230,7 @@ class WidgetUpdaterTest {
         surface.hasPlacedGlobe.shouldBeTrue()
         rearmed.get() shouldBe 1
 
+        unplace(globe)
         provider.onReceive(
             app,
             Intent(AppWidgetManager.ACTION_APPWIDGET_DELETED)

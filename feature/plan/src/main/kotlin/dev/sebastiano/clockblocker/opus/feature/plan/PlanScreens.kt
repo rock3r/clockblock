@@ -3,19 +3,14 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.data.export.ExportLabels
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.labelRes
-import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.TwoClocksArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.zacsweers.metrox.viewmodel.assistedMetroViewModel
 import kotlinx.coroutines.Dispatchers
@@ -102,16 +97,4 @@ fun PlanScreen(
 internal fun fileNameFor(title: String): String {
     val base = title.replace(Regex("[^\\p{L}\\p{N}]+"), "-").trim('-').ifBlank { "trip" }
     return "$base-jet-lag-plan.ics"
-}
-
-/** Detail-pane placeholder on large screens when no trip is selected. */
-@Composable
-fun PlanEmptyPane(onNewTrip: () -> Unit, modifier: Modifier = Modifier) {
-    PlanEmptyState(
-        art = { TwoClocksArt(Modifier.size(200.dp), progress = 0.35f) },
-        title = stringResource(R.string.plan_pane_title),
-        body = stringResource(R.string.plan_pane_body),
-        onNewTrip = onNewTrip,
-        modifier = modifier.testTag(PlanTags.EmptyPane),
-    )
 }

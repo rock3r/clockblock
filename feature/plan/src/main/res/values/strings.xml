@@ -12,8 +12,6 @@
     <string name="plan_open_trips">See past trips</string>
     <string name="plan_missing_title">This trip is gone</string>
     <string name="plan_missing_body">It may have been deleted. Your other trips are safe.</string>
-    <string name="plan_pane_title">Pick a trip or plan a new one</string>
-    <string name="plan_pane_body">Its plan appears here: what to do now, and the days ahead.</string>
 
     <!-- Header -->
     <string name="plan_navigate_up">Back</string>
