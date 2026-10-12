@@ -6,6 +6,7 @@ import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.ShiftDirection
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -125,6 +126,8 @@ data class EditorForm(
      * [BodyClockStartChoice]).
      */
     val bodyClockStartPicked: Boolean = false,
+    /** With [returnFlight] off: Save also deletes the trip's existing return trip ([TripEditorUiState.returnTrip]). */
+    val deleteReturnTrip: Boolean = false,
 )
 
 /**
@@ -189,15 +192,23 @@ data class TripEditorUiState(
     val delayLegIndex: Int = 0,
     /** The planner's take on the draft, once every leg is complete and error-free (null until then). */
     val preview: ShiftPreview? = null,
+    /** The planner couldn't plan this draft (or there's no profile): Your shift says so instead of waiting. */
+    val previewUnavailable: Boolean = false,
     /** The profile's home zone (null before onboarding). */
     val homeZoneId: String? = null,
     /** Where the body clock starts, when that choice matters for this draft (null: not offered). */
     val bodyClockStart: BodyClockStartChoice? = null,
     /**
-     * The trip being edited already flew back when it was opened (it has a `returnDeparture`): its return trip, if
-     * any, was made before, so Save only updates the date and adds no second one.
+     * The trip being edited already flew back when it was opened (it has a `returnDeparture`). Without a [returnTrip]
+     * to move, Save then only updates the date and adds no return trip.
      */
     val returnAlreadySet: Boolean = false,
+    /**
+     * The trip that flies back from the one being edited ([dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripLinks]):
+     * linked when the editor opened, or relinked when the switch was turned back on. Save moves it to the return date
+     * instead of adding a second one, and with the switch off keeps it (or deletes it, [EditorForm.deleteReturnTrip]).
+     */
+    val returnTrip: Trip? = null,
 ) {
     val legs: List<LegDraft> get() = form.legs
 
@@ -213,7 +224,10 @@ data class TripEditorUiState(
     val offersReturnFlight: Boolean get() = mode != EditorMode.Return
 
     /** Save also creates the return trip (reversed legs, like Create return trip). */
-    val createsReturnTrip: Boolean get() = offersReturnFlight && form.returnFlight && !returnAlreadySet
+    val createsReturnTrip: Boolean get() = offersReturnFlight && form.returnFlight && returnTrip == null && !returnAlreadySet
+
+    /** Save moves the existing [returnTrip] to the return date. */
+    val movesReturnTrip: Boolean get() = offersReturnFlight && form.returnFlight && returnTrip != null
 
     /** The return flight, as local time where the trip ends; null while the switch is off or has no date. */
     val returnLocal: LocalDateTime?

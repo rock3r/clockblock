@@ -25,6 +25,7 @@ object TripsTestTags {
     fun tripMenu(tripId: String) = "trip_menu_$tripId"
 
     const val EditorSave = "editor_save"
+    const val EditorPlaceDetails = "editor_place_details"
     const val EditorClose = "editor_close"
     const val EditorAddLeg = "editor_add_leg"
     const val EditorTitle = "editor_title"
@@ -44,6 +45,7 @@ object TripsTestTags {
     const val EditorPreview = "editor_preview"
     const val EditorSaveHint = "editor_save_hint"
     const val EditorReturnSwitch = "editor_return_switch"
+    const val EditorReturnDelete = "editor_return_delete"
     const val EditorPlaceSheet = "editor_place_sheet"
     const val EditorPlaceSearch = "editor_place_search"
     const val EditorGlobe = "editor_globe"

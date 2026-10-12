@@ -95,11 +95,15 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.cityLabel
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.formatDuration
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.rememberDateFormatter
+import dev.sebastiano.clockblocker.opus.feature.trips.ui.utcOffsetLabel
 import java.time.Duration
+import java.time.Instant
+import java.time.LocalTime
 import kotlin.math.abs
 
 /**
- * One flight as a ticket (the editor's boarding pass): FROM and TO as big dot-matrix codes with the city under each,
+ * One flight as a ticket (the editor's boarding pass): FROM and TO as big dot-matrix codes with the city, the airport's
+ * name and its UTC offset under each (at that end's flight time, once a date is known: offsets change with DST),
  * joined by the route arc and a swap button; departure and arrival as compact date and time chips (local time at
  * each airport), with "+1 day" in the attention colour when the flight lands on another calendar day; inline issues
  * with their fixes; and, past the perforation, the stub: time in the air and an optional flight number.
@@ -291,6 +295,7 @@ private fun RouteRow(
                 RouteEnd(
                     label = stringResource(R.string.editor_from),
                     place = from,
+                    at = from?.let { leg.departureAt(it) },
                     alignEnd = false,
                     tag = TripsTestTags.editorFrom(index),
                     onClick = { onPickPlace(PlaceFieldRef(index, LegEnd.Origin)) },
@@ -301,6 +306,7 @@ private fun RouteRow(
                 RouteEnd(
                     label = stringResource(R.string.editor_to),
                     place = to,
+                    at = to?.let { leg.arrivalAt(it) },
                     alignEnd = true,
                     tag = TripsTestTags.editorTo(index),
                     onClick = { onPickPlace(PlaceFieldRef(index, LegEnd.Destination)) },
@@ -344,13 +350,16 @@ private val SwapTopGap = 2.dp
 private val SwapClearance = 56.dp
 
 /**
- * One end of the route: "FROM", the code (or `· · ·`), and the city (or "Choose airport"). A button that opens the
- * airport search; TalkBack reads "From, Lisbon, L I S", with "Change airport" as the action.
+ * One end of the route: "FROM", the code (or `· · ·`), the city (or "Choose airport"), and under it the airport's name
+ * (when it isn't just the city, so LHR and LGW tell apart) with the zone's UTC offset at [at]: "Heathrow · GMT+1". A
+ * button that opens the airport search; TalkBack reads "From, London, L H R, London Heathrow Airport, GMT+1", with
+ * "Change airport" as the action.
  */
 @Composable
 private fun RouteEnd(
     label: String,
     place: Place?,
+    at: Instant?,
     alignEnd: Boolean,
     tag: String,
     onClick: () -> Unit,
@@ -360,8 +369,11 @@ private fun RouteEnd(
     val colors = MaterialTheme.colorScheme
     val codeColor by animateColorAsState(if (place != null) colors.onSurface else colors.onSurfaceVariant, motion.colour(), label = "code")
     val city = place?.cityLabel
+    val airport = place?.airportLabel
+    val offset = at?.let { place?.utcOffsetLabel(it) }
+    val details = listOfNotNull(airport, offset).takeIf { it.isNotEmpty() }?.joinToString(DetailsSeparator)
     val actionLabel = stringResource(if (place != null) R.string.editor_place_change else R.string.editor_place_choose)
-    val description = listOfNotNull(label, city, place?.displayCode?.let(::spellOut)).joinToString(", ")
+    val description = listOfNotNull(label, city, place?.displayCode?.let(::spellOut), airport, offset).joinToString(", ")
     Column(
         Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
@@ -394,8 +406,48 @@ private fun RouteEnd(
             overflow = TextOverflow.Ellipsis,
             textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
         )
+        if (details != null) {
+            Text(
+                details,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
+                modifier = Modifier.testTag(TripsTestTags.EditorPlaceDetails),
+            )
+        }
     }
 }
+
+private const val DetailsSeparator = " · "
+
+/** When the leg leaves [origin], as far as it's known (noon until a time is picked); null without a date. */
+private fun LegDraft.departureAt(origin: Place): Instant? =
+    departureDate?.atTime(departureTime ?: LocalTime.NOON)?.atZone(origin.zone)?.toInstant()
+
+/** When the leg lands at [destination] (its departure date until an arrival date is known); null without a date. */
+private fun LegDraft.arrivalAt(destination: Place): Instant? =
+    (arrivalDate ?: departureDate)?.atTime(arrivalTime ?: LocalTime.NOON)?.atZone(destination.zone)?.toInstant()
+
+/**
+ * The airport's name for the ticket, without what the ticket already says: null for a plain city or when the name is
+ * just the city; "Heathrow" for "London Heathrow Airport" in London, "Humberto Delgado" for "Lisbon Humberto Delgado
+ * Airport".
+ */
+internal val Place.airportLabel: String?
+    get() {
+        if (code.isBlank()) return null
+        val trimmed = name.trim()
+            .removeSuffix(" International Airport").removeSuffix(" Airport")
+            .let { n -> if (city.isNotBlank() && n.startsWith("$city ", ignoreCase = true)) n.substring(city.length + 1) else n }
+            .trim()
+        return trimmed.takeIf { it.isNotBlank() && it.folded() != city.folded() }
+    }
+
+/** Case- and accent-insensitive form, so "Zürich" (the airport) matches "Zurich" (the city). */
+private fun String.folded(): String =
+    java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").lowercase()
 
 /**
  * Swaps From and To. Each tap turns the arrows half a turn (a state change, so the non-bouncy data token; snaps

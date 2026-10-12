@@ -61,6 +61,12 @@ data class Trip(
      * has been there a while.
      */
     val bodyClockStartZoneId: String? = null,
+    /**
+     * Id of the trip that flies back from this one, made by the editor's Return flight switch or Create return trip.
+     * Kept when the switch is turned off without deleting that trip, so turning it back on reuses it. May point at a
+     * trip deleted since: readers treat a missing trip as no link.
+     */
+    val returnTripId: String? = null,
 ) {
     init {
         require(legs.isNotEmpty()) { "A trip needs at least one flight" }

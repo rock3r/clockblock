@@ -50,6 +50,14 @@ class YourShiftCardTest : TripsScreenshotTest() {
     }
 
     @Test
+    fun whenThePlannerFailsItSaysSoInsteadOfWorkingForever() {
+        setContent(qualifiers = "w411dp-h200dp") { YourShiftCard(preview = null, pending = true, unavailable = true) }
+        compose.onNodeWithText(context.getString(R.string.editor_shift_unavailable)).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.editor_shift_pending)).assertDoesNotExist()
+        capture("editor_shift_unavailable")
+    }
+
+    @Test
     fun beforeTheDraftCanBePlannedItSaysWhatItNeeds() {
         setContent { YourShiftCard(preview = null) }
         compose.onNodeWithText(context.getString(R.string.editor_shift_empty)).assertIsDisplayed()
