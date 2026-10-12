@@ -228,21 +228,11 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
     Text(stringResource(R.string.chronotype_reveal_plan), style = small, color = colors.onSurfaceVariant, textAlign = align, modifier = Modifier.fillMaxWidth())
 }
 
-/** Where a chronotype's day peaks: the sky's hour, the sun's place along its path (0 = rising, 1 = set), and moon or sun. */
-private data class SkyPose(val hour: Float, val position: Float, val evening: Boolean)
-
-private fun Chronotype.pose(): SkyPose = when (this) {
-    Chronotype.DefiniteMorning -> SkyPose(6.4f, 0.16f, evening = false)
-    Chronotype.ModerateMorning -> SkyPose(8.5f, 0.32f, evening = false)
-    Chronotype.Intermediate -> SkyPose(13f, 0.5f, evening = false)
-    Chronotype.ModerateEvening -> SkyPose(19.3f, 0.72f, evening = true)
-    Chronotype.DefiniteEvening -> SkyPose(23.5f, 0.86f, evening = true)
-}
-
 /**
  * [ChronotypeSky] grown into the reveal's illustration: the sky of the hour the day peaks, the dashed sun path over a
- * horizon, and the sun (or the moon, with a few stars) at its place. [entrance] (0 → 1, read in the draw phase) rises
- * the sun from the horizon and warms the sky from three hours earlier. A new [chronotype] moves it to its new place.
+ * layered landscape, and the sun (or the moon, with stars and constellations) at its place. [entrance] (0 → 1, read in
+ * the draw phase) rises the sun from the horizon and warms the sky from three hours earlier. A new [chronotype] moves
+ * it to its new place.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -262,55 +252,28 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
     }
     val sunRotation = rememberAmbient(!reduce, ClockblockMotion.SunRotationMillis, reverse = false)
     val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
-    val sunPath = remember { MaterialShapes.Sunny.toPath().asComposePath() }
+    val sunPath = remember { MaterialShapes.VerySunny.toPath().asComposePath() }
     val sunBounds = remember(sunPath) { sunPath.getBounds() }
+    val starDiamond = remember { MaterialShapes.PuffyDiamond.toPath().asComposePath() }
+    val starBounds = remember(starDiamond) { starDiamond.getBounds() }
 
     Canvas(modifier.clip(RoundedCornerShape(RevealCorner))) {
         val e = entrance()
         val h = hour.value - (1f - e) * EntranceHours
         val gradient = sky.gradientAt(((h % 24f) + 24f) % 24f)
-        drawRect(Brush.verticalGradient(listOf(gradient.top, gradient.bottom)))
-        val w = size.width
-        val ht = size.height
-        val horizon = ht * 0.78f
-
-        // Stars, for evening types (they fade with the moon).
-        val m = moon.value
-        if (m > 0f) {
-            Stars.forEachIndexed { i, (sx, sy, r) ->
-                val phase = (twinkle.value + i * 0.33f) % 1f
-                val alpha = (0.55f + 0.45f * phase) * m * e
-                drawCircle(StarColor.copy(alpha = alpha), r * w, Offset(sx * w, sy * ht))
-            }
-        }
-
-        val arc = Path().apply { arcTo(Rect(w * 0.1f, ht * 0.22f, w * 0.9f, horizon * 2f - ht * 0.22f), 180f, 180f, true) }
-        drawPath(arc, Color.White.copy(alpha = 0.55f), style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))))
-        drawRect(Color.Black.copy(alpha = 0.10f), topLeft = Offset(0f, horizon), size = androidx.compose.ui.geometry.Size(w, ht - horizon))
-
-        val pos = position.value * e
-        val angle = PI * (1.0 - pos)
-        val rx = w * 0.4f
-        val ry = horizon - ht * 0.22f
-        val p = Offset(w / 2f + (rx * cos(angle)).toFloat(), horizon - (ry * sin(angle)).toFloat())
-        val r = w * 0.12f
-        // Below the horizon line the sun hides behind the ground (it rises out of it).
-        withTransform({ clipRect(bottom = horizon) }) {
-            if (m < 1f) {
-                val s = 2.4f * r / maxOf(sunBounds.width, sunBounds.height)
-                withTransform({
-                    translate(p.x - sunBounds.center.x * s, p.y - sunBounds.center.y * s)
-                    scale(s, s, pivot = Offset.Zero)
-                }) {
-                    rotate(sunRotation.value * 45f, pivot = sunBounds.center) { drawPath(sunPath, art.tertiary.copy(alpha = 1f - m)) }
-                }
-            }
-            if (m > 0f) {
-                val disc = Path().apply { addOval(Rect(p, r)) }
-                val bite = Path().apply { addOval(Rect(Offset(p.x + r * 0.55f, p.y - r * 0.45f), r * 0.85f)) }
-                drawPath(Path.combine(PathOperation.Difference, disc, bite), MoonColor.copy(alpha = m))
-            }
-        }
+        drawChronotypeScene(
+            gradient = gradient,
+            tertiary = art.tertiary,
+            sunPath = sunPath,
+            sunBounds = sunBounds,
+            starDiamond = starDiamond,
+            starBounds = starBounds,
+            position = position.value,
+            moonFraction = moon.value,
+            entrance = e,
+            sunRotation = sunRotation.value,
+            twinkle = twinkle.value,
+        )
     }
 }
 
@@ -322,17 +285,6 @@ private fun rememberAmbient(enabled: Boolean, periodMillis: Int, reverse: Boolea
     return transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "revealPhase")
 }
 
-/** Star positions (fractions of the art) and radii, kept clear of the moon's path. */
-private val Stars = listOf(
-    Triple(0.18f, 0.16f, 0.012f),
-    Triple(0.34f, 0.08f, 0.009f),
-    Triple(0.52f, 0.14f, 0.011f),
-    Triple(0.70f, 0.07f, 0.008f),
-    Triple(0.86f, 0.20f, 0.010f),
-)
-
-private val StarColor = Color(0xFFFFF4D6)
-private val MoonColor = Color(0xFFF3EBD3)
 private val RevealArtSize = 200.dp
 private val ShortPaneHeight = 480.dp
 private val RevealCorner = 32.dp
@@ -341,3 +293,4 @@ private const val WordsStartAt = 0.7f
 
 /** The sky warms through the last few hours before the peak during the entrance. */
 private const val EntranceHours = 3f
+
