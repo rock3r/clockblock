@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -97,39 +97,48 @@ fun BodyClockSky(
     val pixelMode = ClockblockTheme.pixelMode
     val pixelSun = MaterialShapes.PixelCircle.sharedUnitPath()
     Box(
-        modifier.drawBehind {
-            if (pixelMode) {
-                // 8-bit easter egg: flat bands sampled from the same gradient.
-                val bands = gradient.bands(SkyPixelBands)
-                val bandHeight = size.height / bands.size
-                bands.forEachIndexed { i, color ->
-                    drawRect(color, topLeft = Offset(0f, i * bandHeight), size = Size(size.width, bandHeight + 1f))
-                }
-            } else {
-                drawRect(gradient.verticalBrush(0f, size.height))
-            }
-            if (!showCelestial) return@drawBehind
-            val night = !position.isSun
-            if (night) drawStars(moonColor.copy(alpha = if (nightSafe) 0.35f else 0.7f))
+        // The gradient's shader, the 8-bit bands and the moon are built once per size and sky (about once a minute,
+        // or per scrub frame), not on every draw.
+        modifier.drawWithCache {
+            val brush = if (pixelMode) null else gradient.verticalBrush(0f, size.height)
+            val bands = if (pixelMode) gradient.bands(SkyPixelBands) else emptyList()
             val r = minOf(size.height * 0.16f, 28.dp.toPx())
             val c = Offset(size.width * position.x, size.height * position.y)
-            if (position.isSun) {
-                translate(c.x, c.y) {
-                    if (pixelMode) {
-                        scale(r * 2f, r * 2f, pivot = Offset.Zero) { drawPath(pixelSun, sunColor) }
-                    } else {
-                        rotate(position.x * 90f, pivot = Offset.Zero) {
-                            scale(r * 2.2f, r * 2.2f, pivot = Offset.Zero) { drawPath(sunny, sunColor) }
-                        }
-                    }
-                }
-            } else {
-                val moon = Path().apply {
+            val moon = if (showCelestial && !position.isSun) {
+                Path().apply {
                     addOval(androidx.compose.ui.geometry.Rect(c, r))
                     val bite = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c + Offset(r * 0.45f, -r * 0.35f), r * 0.85f)) }
                     op(this, bite, PathOperation.Difference)
                 }
-                drawPath(moon, moonColor)
+            } else {
+                null
+            }
+            onDrawBehind {
+                if (brush == null) {
+                    // 8-bit easter egg: flat bands sampled from the same gradient.
+                    val bandHeight = size.height / bands.size
+                    bands.forEachIndexed { i, color ->
+                        drawRect(color, topLeft = Offset(0f, i * bandHeight), size = Size(size.width, bandHeight + 1f))
+                    }
+                } else {
+                    drawRect(brush)
+                }
+                if (!showCelestial) return@onDrawBehind
+                val night = !position.isSun
+                if (night) drawStars(moonColor.copy(alpha = if (nightSafe) 0.35f else 0.7f))
+                if (position.isSun) {
+                    translate(c.x, c.y) {
+                        if (pixelMode) {
+                            scale(r * 2f, r * 2f, pivot = Offset.Zero) { drawPath(pixelSun, sunColor) }
+                        } else {
+                            rotate(position.x * 90f, pivot = Offset.Zero) {
+                                scale(r * 2.2f, r * 2.2f, pivot = Offset.Zero) { drawPath(sunny, sunColor) }
+                            }
+                        }
+                    }
+                } else if (moon != null) {
+                    drawPath(moon, moonColor)
+                }
             }
         },
     ) {

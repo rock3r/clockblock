@@ -91,6 +91,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DetailLevel
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
@@ -615,7 +616,13 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 val heroKeys = sections.heroKeys
                 val railList = if (expanded) rail else screen.list
                 val railStart = if (expanded) 1 else heroKeys.size + 1
-                val bottomPadding = padding.calculateBottomPadding() + if (shortWindow) 80.dp else 104.dp
+                // The Scaffold's padding changes on every frame of the header's collapse: it is only ever read in
+                // layout (ScaffoldEdges), never here, or the whole plan (rail rows included) recomposed per frame.
+                val listBottom = remember(padding, shortWindow) { ScaffoldEdges(padding, bottom = true, extraBottom = if (shortWindow) 80.dp else 104.dp) }
+                val toolbarEdges = remember(padding, shortWindow) {
+                    ScaffoldEdges(padding, extraTop = if (shortWindow) 12.dp else 28.dp, bottom = true, extraBottom = if (shortWindow) 8.dp else 16.dp)
+                }
+                val belowHeader = remember(padding) { ScaffoldEdges(padding, top = true) }
                 val toolbarScroll = remember(density) { ToolbarScrollState(with(density) { ToolbarHideDistance.toPx() }) }
 
                 suspend fun scrollRail(rowIndex: Int, offset: Int) {
@@ -674,10 +681,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                                         enter = slideInVertically(motion.navigationSpatial()) { it },
                                         exit = slideOutVertically(motion.navigationSpatial()) { it },
                                     )
-                                    .padding(
-                                        top = if (shortWindow) 12.dp else 28.dp,
-                                        bottom = padding.calculateBottomPadding() + if (shortWindow) 8.dp else 16.dp,
-                                    ),
+                                    .padding(toolbarEdges),
                                 contentAlignment = Alignment.BottomCenter,
                             ) {
                                 PlanToolbar(
@@ -725,13 +729,13 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                             screen.pendingScrollKey = key
                         }
                     }
-                    Row(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+                    Row(Modifier.fillMaxSize().padding(belowHeader)) {
                         Column(
                             Modifier
                                 .weight(0.46f)
                                 .fillMaxHeight()
                                 .verticalScroll(screen.pane)
-                                .padding(bottom = bottomPadding),
+                                .padding(listBottom),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             heroKeys.forEach { key -> sections.Section(key, railDayInView) }
@@ -741,7 +745,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                             LazyColumn(
                                 state = rail,
                                 modifier = Modifier.fillMaxSize().nestedScroll(toolbarScroll.connection).then(railGestures).testTag(PlanTags.Rail),
-                                contentPadding = PaddingValues(bottom = bottomPadding),
+                                contentPadding = listBottom,
                             ) {
                                 item("rail-title") {
                                     SectionTitle(
@@ -807,11 +811,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                         // Padding (not contentPadding) on top so sticky day headers pin below the header.
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding())
+                            .padding(belowHeader)
                             .nestedScroll(toolbarScroll.connection)
                             .then(railGestures)
                             .testTag(PlanTags.Rail),
-                        contentPadding = PaddingValues(bottom = bottomPadding),
+                        contentPadding = listBottom,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         heroKeys.forEach { key -> item(key, contentType = key) { sections.Section(key) } }
@@ -1200,4 +1204,26 @@ private fun rememberHeaderNext(plan: JetLagPlan, now: Instant): HeaderNext? {
     } else {
         HeaderNext(stringResource(R.string.plan_next_later, label, time.local), time.secondary)
     }
+}
+
+/**
+ * The Scaffold's [scaffold] padding on the top edge (when [top]) and the bottom edge (when [bottom]), plus [extraTop]
+ * and [extraBottom], read only when layout asks for it. The collapsing header changes the Scaffold's padding on every
+ * frame of a scroll; read in composition, it recomposed the whole plan per frame (perf trace).
+ */
+@Stable
+private class ScaffoldEdges(
+    private val scaffold: PaddingValues,
+    private val top: Boolean = false,
+    private val extraTop: Dp = 0.dp,
+    private val bottom: Boolean = false,
+    private val extraBottom: Dp = 0.dp,
+) : PaddingValues {
+    override fun calculateTopPadding(): Dp = (if (top) scaffold.calculateTopPadding() else 0.dp) + extraTop
+
+    override fun calculateBottomPadding(): Dp = (if (bottom) scaffold.calculateBottomPadding() else 0.dp) + extraBottom
+
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
 }

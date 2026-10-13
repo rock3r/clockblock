@@ -103,10 +103,12 @@ import kotlin.math.abs
 internal sealed interface RailRow {
     val key: String
 
+    @Immutable
     data class Earlier(val count: Int, val expanded: Boolean) : RailRow {
         override val key: String get() = "rail-earlier"
     }
 
+    @Immutable
     data class Header(val day: RailDay, val isToday: Boolean) : RailRow {
         override val key: String get() = "rail-day-${day.day.index}-${day.day.date}"
     }
@@ -115,6 +117,7 @@ internal sealed interface RailRow {
      * The zone the rail's times are shown in changes here (the day before was in [from], the next one is in [to]),
      * usually at landing. [at] is the first instant shown in [to].
      */
+    @Immutable
     data class ZoneSwitch(val day: RailDay, val from: ZoneId, val to: ZoneId, val at: Instant) : RailRow {
         override val key: String get() = "rail-zone-${day.day.index}-${day.day.date}"
     }
@@ -130,6 +133,7 @@ internal sealed interface RailRow {
      * row starts), so the strip down the rail is one continuous gradient. [connectBelow]: the line joining the
      * capsules carries on below this one (to the next block, or to a Now marker after the day's last block).
      */
+    @Immutable
     data class Block(
         val day: RailDay,
         val item: RailItem,
@@ -148,6 +152,7 @@ internal sealed interface RailRow {
      * [bandAt]: the instant whose body-clock sky the marker's slice of the strip shows (null = no strip here).
      * [lineAbove]/[lineBelow]: the line joining the capsules runs through the marker from a block above / to one below.
      */
+    @Immutable
     data class NowMarker(
         val day: RailDay,
         val instant: Instant,

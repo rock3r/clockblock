@@ -78,6 +78,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -96,6 +98,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
@@ -191,6 +194,8 @@ internal fun PlanHeader(
     val gradient = ClockblockTheme.sky.gradientAt(foreground.bodyTime, foreground.daylight.sunriseHour, foreground.daylight.sunsetHour)
     val ink = gradient.contentColor()
     var atStartEdge by remember { mutableStateOf(false) }
+    // The header's expanded height in px, as HeaderLayout last measured it (read in layout only).
+    val expandedHeight = remember { mutableIntStateOf(0) }
     SkyStatusBarIcons(ink, ownsStatusBar = atStartEdge)
     val collapsedFraction: () -> Float = { if (shortWindow) 1f else scrollBehavior.state.collapsedFraction }
     val celestialFrame by rememberUpdatedState(foreground)
@@ -211,13 +216,16 @@ internal fun PlanHeader(
             .onGloballyPositioned { atStartEdge = it.positionInWindow().x < 1f && it.positionInWindow().y < 1f }
             .clipToBounds(),
     ) {
-        HeaderSky(fade, live, Modifier.matchParentSize())
+        // The sky keeps the expanded header's size: collapsing only clips it (the box above), so a scroll never
+        // re-measures or re-draws it (perf trace: it re-recorded its gradient on every frame of a collapse).
+        HeaderSky(fade, live, Modifier.matchParentSize().atHeight { expandedHeight.intValue })
         // Stars and the ambient plane, behind everything else on the sky.
         HeaderAtmosphere(frame, headerAmbient, ink, collapsedFraction, Modifier.matchParentSize())
         CompositionLocalProvider(LocalContentColor provides ink) {
             HeaderLayout(
                 scrollBehavior = scrollBehavior,
                 shortWindow = shortWindow,
+                expandedHeight = expandedHeight,
                 navRow = {
                     HeaderNavRow(
                         title = title,
@@ -254,13 +262,14 @@ internal fun PlanHeader(
  * and the [fade] at its foot. Expanded, it is all three; collapsing (the scroll behaviour's height offset, read in
  * layout, so scrolling never recomposes) it shrinks to the navigation row, clipping the block from the bottom.
  * The expanded height comes from the content (it grows with the font size), and is what the scroll behaviour may
- * take away.
+ * take away. It is published in [expandedHeight] (px) for the sky behind, which keeps that size.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HeaderLayout(
     scrollBehavior: TopAppBarScrollBehavior,
     shortWindow: Boolean,
+    expandedHeight: MutableIntState,
     navRow: @Composable () -> Unit,
     expanded: @Composable () -> Unit,
     fade: @Composable () -> Unit,
@@ -273,11 +282,12 @@ private fun HeaderLayout(
         val block = blocks.firstOrNull()?.measure(loose)
         val foot = fades.firstOrNull()?.measure(Constraints.fixedWidth(width))
         val collapsedHeight = nav.height
-        val expandedHeight = collapsedHeight + (block?.height ?: 0)
-        val limit = (collapsedHeight - expandedHeight).toFloat()
+        val fullHeight = collapsedHeight + (block?.height ?: 0)
+        if (expandedHeight.intValue != fullHeight) expandedHeight.intValue = fullHeight
+        val limit = (collapsedHeight - fullHeight).toFloat()
         if (state.heightOffsetLimit != limit) state.heightOffsetLimit = limit
         if (shortWindow && state.heightOffset != 0f) state.heightOffset = 0f
-        val height = if (shortWindow) collapsedHeight else (expandedHeight + state.heightOffset).roundToInt().coerceIn(collapsedHeight, expandedHeight)
+        val height = if (shortWindow) collapsedHeight else (fullHeight + state.heightOffset).roundToInt().coerceIn(collapsedHeight, fullHeight)
         layout(width, height) {
             block?.placeRelative(0, collapsedHeight)
             foot?.placeRelative(0, height - foot.height)
@@ -413,6 +423,16 @@ private fun HeaderExpanded(title: String, route: HeaderRoute?, subtitle: String,
             }
         }
     }
+}
+
+/**
+ * Lays this out [height] px tall (read in layout; never less than the incoming height) from the top of its slot,
+ * reporting the slot's own size: the parent's clip shows the top part.
+ */
+private fun Modifier.atHeight(height: () -> Int): Modifier = layout { measurable, constraints ->
+    val full = maxOf(height(), constraints.maxHeight)
+    val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, full))
+    layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
 }
 
 /** Where the sky melts into the page: a gradient into the surface, gone once collapsed (read in the layer). */
