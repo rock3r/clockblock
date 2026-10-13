@@ -440,6 +440,8 @@ internal data class StopLabelInput(
     val oy: Float,
     val width: Float,
     val height: Float,
+    /** The candidate side this label used on the previous frame, or -1. Used for hysteresis. */
+    val previousSide: Int = -1,
 )
 
 internal data class StopLabelPlacement(
@@ -449,11 +451,18 @@ internal data class StopLabelPlacement(
     val scrimTop: Float,
     val scrimRight: Float,
     val scrimBottom: Float,
+    /** Which candidate side was chosen, to feed back as [StopLabelInput.previousSide] next frame. */
+    val side: Int = 0,
 )
 
 /**
  * Places each visible stop's airport-code label beside its dot, choosing the candidate side (right, left, above,
  * below or diagonal) that avoids overlapping other stop dots and already-placed labels.
+ *
+ * Hysteresis: a label keeps last frame's side ([StopLabelInput.previousSide]) unless another side is better by more
+ * than [switchCost]. Without it, a label whose side just grazes the canvas edge (a sub-pixel clamp) flips to the
+ * other side of its dot and back from one frame to the next while the globe turns or zooms. Near an edge the label
+ * now slides along the edge (clamped) until switching is clearly worth it.
  */
 internal fun placeStopLabels(
     stops: List<StopLabelInput>,
@@ -462,6 +471,7 @@ internal fun placeStopLabels(
     dotRadius: Float,
     gap: Float,
     pad: Float,
+    switchCost: Float = gap * 3f,
 ): List<StopLabelPlacement> {
     if (stops.isEmpty()) return emptyList()
     val placed = ArrayList<StopLabelPlacement>(stops.size)
@@ -480,7 +490,8 @@ internal fun placeStopLabels(
         )
         var best: StopLabelPlacement? = null
         var bestScore = Float.POSITIVE_INFINITY
-        for ((rawLeft, rawTop) in candidates) {
+        for ((side, candidate) in candidates.withIndex()) {
+            val (rawLeft, rawTop) = candidate
             val maxLeft = (canvasWidth - w - pad).coerceAtLeast(pad)
             val maxTop = (canvasHeight - h - pad).coerceAtLeast(pad)
             val left = rawLeft.coerceIn(pad, maxLeft)
@@ -507,11 +518,11 @@ internal fun placeStopLabels(
                 )
             }
             val clampPenalty = kotlin.math.abs(left - rawLeft) + kotlin.math.abs(top - rawTop)
-            val score = overlap * 100f + clampPenalty
+            val stickiness = if (s.previousSide >= 0 && side != s.previousSide) switchCost else 0f
+            val score = overlap * 100f + clampPenalty + stickiness
             if (score < bestScore) {
                 bestScore = score
-                best = StopLabelPlacement(left, top, sLeft, sTop, sRight, sBottom)
-                if (score == 0f) break
+                best = StopLabelPlacement(left, top, sLeft, sTop, sRight, sBottom, side)
             }
         }
         placed += best!!
@@ -619,6 +630,9 @@ private class GlobeRenderer {
     private val landBuckets = Array(LandLevels * DepthBands) { FloatArray(0) }
     private val landCounts = IntArray(LandLevels * DepthBands)
     private val cityBuckets = Array(DepthBands) { FloatArray(0) }
+
+    /** Each stop's label side from the last frame (-1 = not shown), for label hysteresis. */
+    private var labelSides = IntArray(0)
     private val cityCounts = IntArray(DepthBands)
     private val seaLitBuckets = Array(DepthBands) { FloatArray(0) }
     private val seaLitCounts = IntArray(DepthBands)
@@ -866,6 +880,7 @@ private class GlobeRenderer {
                     oy = oy,
                     width = layout.size.width.toFloat(),
                     height = layout.size.height.toFloat(),
+                    previousSide = labelSides.getOrElse(i) { -1 },
                 )
             }
             val placements = placeStopLabels(
@@ -876,9 +891,12 @@ private class GlobeRenderer {
                 gap = gap,
                 pad = pad,
             )
+            if (labelSides.size != stops.size) labelSides = IntArray(stops.size) { -1 }
+            labelSides.fill(-1)
             for (k in visibleIndices.indices) {
                 val layout = layouts[visibleIndices[k]]
                 val p = placements[k]
+                labelSides[visibleIndices[k]] = p.side
                 drawRoundRect(
                     colors.scrim,
                     topLeft = Offset(p.scrimLeft, p.scrimTop),

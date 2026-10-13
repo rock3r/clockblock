@@ -188,6 +188,43 @@ class GlobeGeoTest {
     }
 
     @Test
+    fun `a label near the canvas edge keeps its side instead of flipping frame to frame`() {
+        // A stop whose right-side label pokes 1 px past the canvas edge: without history it moves to the left side,
+        // but with last frame's side (right = 0) it slides 1 px along the edge instead of jumping across the dot.
+        val width = 28f
+        val ox = 280f - 4f - width - 9.5f + 1f
+        fun place(x: Float, previous: Int) = placeStopLabels(
+            stops = listOf(StopLabelInput(ox = x, oy = 140f, width = width, height = 16f, previousSide = previous)),
+            canvasWidth = 280f,
+            canvasHeight = 280f,
+            dotRadius = 3.5f,
+            gap = 9.5f,
+            pad = 4f,
+        ).single()
+        place(ox, previous = -1).side shouldBe 1
+        place(ox, previous = 0).side shouldBe 0
+        // Frame after frame it stays put while the dot wiggles by sub-pixel amounts.
+        var side = 0
+        repeat(20) { frame ->
+            side = place(ox + if (frame % 2 == 0) 0.4f else -0.4f, previous = side).side
+            side shouldBe 0
+        }
+    }
+
+    @Test
+    fun `a label moves to the other side once its own side is mostly off the canvas`() {
+        val placement = placeStopLabels(
+            stops = listOf(StopLabelInput(ox = 270f, oy = 140f, width = 28f, height = 16f, previousSide = 0)),
+            canvasWidth = 280f,
+            canvasHeight = 280f,
+            dotRadius = 3.5f,
+            gap = 9.5f,
+            pad = 4f,
+        ).single()
+        placement.side shouldBe 1
+    }
+
+    @Test
     fun `placeStopLabels spreads out labels for nearby stops so their scrims do not overlap`() {
         // Three nearby European stops (like LHR, CDG, LIS on a 280x280 canvas).
         val placements = placeStopLabels(
