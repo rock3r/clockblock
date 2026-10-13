@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -195,7 +196,9 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     ) {
         val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > maxHeight)
         val short = maxHeight < 480.dp
-        Column(Modifier.fillMaxSize()) {
+        // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
+        // instead of spreading to the window edges.
+        Column(Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter)) {
             OnboardingTopBar(step, onSkip = actions::skip)
             steps.transition.AnimatedContent(
                 transitionSpec = { steps.transitionFor(initialState, targetState) },
@@ -334,3 +337,6 @@ private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean) {
         Text(stringResource(R.string.onboarding_back))
     }
 }
+
+/** Onboarding never grows wider than this: past it, the window only gains margins. */
+private val OnboardingMaxWidth = 1080.dp

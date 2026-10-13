@@ -228,10 +228,24 @@ ends. The splash screen stays up while the shell is still loading.
 ### Adaptive layout
 
 [`ClockblockShell`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/shell/ClockblockApp.kt) uses
-`NavigationSuiteScaffold`, which shows a bottom bar on phones and a navigation rail on wider windows. The
-navigation is hidden during onboarding, in the trip editor, and when viewing a trip's plan pushed from the Trips
-tab (`PlanRoute`). On wide windows, the Trips screen lays out trip cards in a two-column grid and the plan screen
-shows its hero column and timeline side by side.
+`NavigationSuiteScaffold`, which shows a bottom bar on phones and a navigation rail on wider windows (and on
+landscape phones). [`ShellLayout`](../app/src/main/kotlin/dev/sebastiano/clockblocker/opus/shell/ShellLayout.kt)
+decides the rest from the window's size class:
+
+| Window | Trips and a trip's plan | Navigation over a trip's plan |
+|---|---|---|
+| Compact (phones in portrait) | the plan is pushed full screen, with an up arrow | hidden |
+| Short (phones in landscape, under 480 dp tall) | the plan is pushed full screen, with an up arrow | hidden |
+| Medium (tablets in portrait, unfolded foldables held upright) | the plan is pushed, with an up arrow | rail stays |
+| Expanded and wider, at least 480 dp tall | side by side: Trips list, then the plan (`ListDetailSceneStrategy`) | rail stays |
+
+Side by side, the plan has no up arrow, the open trip is highlighted in the list, and a placeholder fills the
+detail pane until a trip is picked. Back (or re-selecting Trips) closes the plan. A drag handle between the panes
+resizes them, snapping to the default list width, half and half, or a wide list. The M3 pane directive also keeps
+panes off a foldable's hinge. The navigation is always hidden during onboarding and in the trip editor, which stay
+full screen. Inside each screen, layouts follow the space they get rather than the window: the Trips grid has two
+columns from 720 dp, the plan shows its hero column and timeline side by side from 840 dp (600 dp on short
+windows), and Settings, the trip editor and onboarding cap their width on large windows.
 
 During the user's body night (by the plan, or by the usual sleep window when there is no plan), the shell
 switches the whole app to calmer motion. Separately, the plan screen switches to the dark, dim Night-safe theme

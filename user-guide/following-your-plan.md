@@ -9,8 +9,13 @@ it. If you want to know why a block is there, tap **Why?**.
 - The **Now** tab shows the plan for the trip that matters right now: the one in progress, or else the next
   upcoming one. When all your trips are in the past, **Now** offers to plan your next trip or open **Trips** to
   look back at past plans.
-- On the **Trips** tab, tap any upcoming or past trip card to open its plan full screen. Use the back button in the
-  top bar (or the system back gesture) to return to **Trips**.
+- On the **Trips** tab, tap any upcoming or past trip card to open its plan. On a phone it opens full screen; use
+  the back button in the top bar (or the system back gesture) to return to **Trips**. On a tablet in portrait, it
+  opens the same way but the navigation rail stays at the side.
+- On a tablet in landscape, or any other wide window (an unfolded foldable held sideways, a large desktop window),
+  the plan opens beside your trips instead, and the trip you opened is outlined in the list. Tap another trip to
+  switch, and go back (or tap **Trips** again) to close the plan. Drag the handle between the two to give the list
+  or the plan more room.
 
 ## The plan screen
 
