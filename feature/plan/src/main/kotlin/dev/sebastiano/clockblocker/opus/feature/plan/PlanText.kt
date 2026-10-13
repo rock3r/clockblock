@@ -95,13 +95,16 @@ internal fun Resources.formatDuration(duration: Duration): String {
 internal fun formatDuration(duration: Duration): String = LocalContext.current.resources.formatDuration(duration)
 
 /**
- * A timeline row's time line: the [range] and its [duration] on one line ("22:45 – 01:00 · 2 h 15 min"). Each half
- * keeps its spaces unbreakable, so a narrow row (large font, 12-hour clock) wraps only between the two.
+ * A timeline time range ("10:00 PM – 1:00 AM") that may only break after its dash: each time keeps its AM/PM.
+ * [RangeAndDuration] puts the duration beside it, or under it when the line can't hold both.
  */
-internal fun railTimeLine(range: String, duration: String?): String {
-    fun String.unbroken() = replace(' ', '\u00A0')
-    return if (duration.isNullOrBlank()) range.unbroken() else range.unbroken() + " · " + duration.unbroken()
-}
+internal fun railRange(range: String): String = range.replace(' ', '\u00A0').replace("\u00A0\u2013\u00A0", "\u00A0\u2013 ")
+
+/** A city next to timeline times ("Los Angeles") that never breaks: it moves to the next line whole. */
+internal fun railCity(city: String): String = city.replace(' ', '\u00A0')
+
+/** A timeline duration ("3 h 30 min") that never breaks: it moves to the next line whole. */
+internal fun railDuration(duration: String): String = duration.replace(' ', '\u00A0')
 
 /** "−1" with a true minus sign for pre-trip day indices. */
 internal fun signedIndex(index: Int): String = if (index < 0) "\u2212${-index}" else "+$index"

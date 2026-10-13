@@ -3,6 +3,7 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,6 +48,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -349,12 +352,12 @@ internal fun rememberTimeColumnTop(): Dp {
     }
 }
 
-/** The text column's top padding in a block row. */
-private val TextColumnTop = 12.dp
-private val TimeColumnGap = 12.dp
-
 private val CapsuleWidth = 44.dp
 private val RowGap = 6.dp
+
+/** The text column's top (and bottom) padding in a block row: level with the capsule's top, plus a little air. */
+private val TextColumnTop = RowGap + 6.dp
+private val TimeColumnGap = 12.dp
 
 /** Capsule height: "height = duration", compressed so a night's sleep doesn't take a whole screen. */
 private fun capsuleHeight(duration: Duration, moment: Boolean): Dp {
@@ -431,7 +434,7 @@ private fun EarlierToggle(row: RailRow.Earlier, onToggle: () -> Unit) {
 }
 
 /** Centre of the rail column (the capsules' axis), from the start of the column. */
-private val RailColumnWidth = CapsuleWidth + 12.dp
+internal val RailColumnWidth = CapsuleWidth + 12.dp
 
 /**
  * This row's slice of the body-clock sky strip behind the capsules: [top] at the row's top edge to [bottom] at its
@@ -454,7 +457,7 @@ private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, round
     drawPath(band, Brush.verticalGradient(listOf(top, bottom)), alpha = SkyBandAlpha)
 }
 
-private const val SkyBandAlpha = 0.16f
+internal const val SkyBandAlpha = 0.16f
 
 @Composable
 private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeColumn: Dp) {
@@ -556,22 +559,31 @@ internal fun utcLabel(offset: ZoneOffset): String {
 private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn: Dp, timeTop: Dp, highlighted: Boolean) {
     val advice = row.item.advice
     val day = row.day
-    val role = ClockblockTheme.adviceColors[advice.type]
-    val scheme = MaterialTheme.colorScheme
+    val colors = rememberRailColors()
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     val sky = ClockblockTheme.sky
     val isNow = row.item.status == RailStatus.Now
     val past = row.item.status == RailStatus.Past
     val emphasised = isNow || highlighted
+    // Past rows step back through colour roles (never alpha), so their text keeps 4.5:1.
+    val quiet = past && !emphasised
+    val capsule = colors.capsule(
+        advice.type,
+        when {
+            isNow -> CapsuleState.Now
+            quiet -> CapsuleState.Past
+            else -> CapsuleState.Upcoming
+        },
+    )
     val height = capsuleHeight(advice.duration, advice.type.isMoment || advice.start == advice.end)
     val label = advice.type.label()
     val range = formatter.range(advice.start, advice.end, day.zone, resources)
-    val secondaryRange = formatter.range(advice.start, advice.end, day.secondaryZone, resources) + " " + day.secondaryZone.cityName()
-    // "22:45 – 01:00 · 2 h 15 min" on one line (moments have no duration); the detail (a flight's route and number,
-    // or the advice's own note) gets its own line under the other zone's times.
+    val secondaryRange = formatter.range(advice.start, advice.end, day.secondaryZone, resources)
+    val secondaryCity = day.secondaryZone.cityName()
+    // "22:45 – 01:00 · 2 h 15 min" (moments have no duration); the detail (a flight's route and number, or the
+    // advice's own note) gets its own line under the other zone's times.
     val duration = if (advice.type.isMoment) null else formatDuration(advice.duration)
-    val timeLine = railTimeLine(range, duration)
     val detail = when (advice.type) {
         AdviceType.Flight -> flightDetails(renderer.flightRoute(advice.id), advice.detail).joinToString(" · ").ifBlank { null }
         else -> advice.detail
@@ -583,37 +595,49 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     // Keyed on the palette too, so Night-safe's sky cross-fade reaches rows already on screen.
     val bodyTop = remember(advice.start, sky) { sky.gradientAt(renderer.bodyHour(advice.start)).mid }
     val bodyBottom = remember(row.bandEnd, sky) { sky.gradientAt(renderer.bodyHour(row.bandEnd)).mid }
-    val rowShape = RoundedCornerShape(24.dp)
+    val rowShape = RoundedCornerShape(RowCorner)
+    val checkable = advice.type != AdviceType.Flight
     RailRowLayout(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = RowOuterPadding)
+            .then(if (emphasised) Modifier.emphasisedCard(colors.emphasisedRow, if (isNow) colors.nowEdge else colors.highlightEdge) else Modifier)
             .clip(rowShape)
-            .then(if (emphasised) Modifier.background(scheme.surfaceContainerHigh, rowShape) else Modifier)
             .clickable(role = Role.Button, onClickLabel = stringResource(R.string.plan_open_why)) { renderer.onBlockClick(advice.id) }
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = RowInnerPadding)
             .testTag(PlanTags.block(advice.id))
             // The row speaks as one button; the blocks riding inside it (children) stay their own buttons.
             .semantics {
-                contentDescription = listOfNotNull(description, inFlightText.takeIf { row.item.inFlight }, duration, detail, secondaryRange).joinToString(". ")
+                contentDescription = listOfNotNull(
+                    description,
+                    inFlightText.takeIf { row.item.inFlight },
+                    duration,
+                    detail,
+                    "$secondaryRange $secondaryCity",
+                ).joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
     ) {
         // Time column: start time, upright = local (dial type rule). Blank when the row above starts at the same
         // time, so the column only ever moves forward. Its top padding puts the time on the title's first baseline.
+        // Now leads in the primary colour; past times step back.
         Column(Modifier.width(timeColumn).padding(top = timeTop).clearAndSetSemantics {}) {
             if (row.showTime) {
                 Text(
                     formatter.format(advice.start.atZone(day.zone).toLocalTime()),
                     style = ClockblockTheme.textStyles.timeTitle,
-                    color = if (emphasised) scheme.onSurface else scheme.onSurfaceVariant,
+                    color = when {
+                        isNow -> colors.nowTime
+                        quiet -> colors.quietText
+                        else -> colors.text
+                    },
                 )
                 formatter.marker(advice.start.atZone(day.zone).toLocalTime())?.let {
                     // One line whatever the locale: a marker wider than the column is cut short, the row never grows.
                     Text(
                         it,
                         style = MaterialTheme.typography.labelSmall,
-                        color = scheme.onSurfaceVariant,
+                        color = colors.quietText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -621,7 +645,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
             }
         }
         // Rail column: the body-clock sky strip, connector line, the capsule (height = duration).
-        val connector = scheme.outlineVariant
+        val connector = MaterialTheme.colorScheme.outlineVariant
         Box(
             Modifier
                 .width(RailColumnWidth)
@@ -634,6 +658,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                 }
                 .clearAndSetSemantics {},
         ) {
+            val capsuleShape = RoundedCornerShape(CapsuleWidth / 2)
             Box(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -641,26 +666,27 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                     .width(CapsuleWidth)
                     .heightIn(min = height)
                     .fillMaxHeight()
-                    .alpha(if (past && !emphasised) 0.55f else 1f)
-                    .clip(RoundedCornerShape(CapsuleWidth / 2))
-                    .background(if (isNow) role.color else role.container)
+                    .clip(capsuleShape)
+                    .background(capsule.fill)
                     .drawBehind {
-                        val ink = (if (isNow) role.onColor else role.onContainer).copy(alpha = 0.22f)
                         when (advice.type) {
-                            AdviceType.AvoidLight -> drawHatch(ink)
-                            AdviceType.Sleep -> drawStarDots(ink.copy(alpha = 0.5f))
-                            AdviceType.Nap, AdviceType.OptionalNap -> drawRoundDots(ink)
+                            AdviceType.AvoidLight -> drawHatch(capsule.ink)
+                            AdviceType.Sleep -> drawStarDots(capsule.ink.copy(alpha = capsule.ink.alpha * 0.5f))
+                            AdviceType.Nap, AdviceType.OptionalNap -> drawRoundDots(capsule.ink)
                             // Avoid caffeine: the struck-through glyph carries it; a strike across a tall capsule
                             // read as a stray line.
                             else -> Unit
                         }
-                    },
+                    }
+                    // The edge in the advice hue's deep tone: the pill reads as a pill on the page, the Now card and
+                    // the strip alike (pale containers alone sat a tone away from them).
+                    .border(CapsuleEdgeWidth, capsule.edge, capsuleShape),
             ) {
                 AdviceGlyph(
                     advice.type,
                     active = isNow,
                     size = 36.dp,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp).alpha(if (quiet) PastGlyphAlpha else 1f),
                 )
                 if (row.nowFraction != null) {
                     // Where now falls inside the block: a marker line across the capsule.
@@ -669,7 +695,7 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                             .align(BiasAlignment(0f, row.nowFraction * 2f - 1f))
                             .fillMaxWidth()
                             .height(3.dp)
-                            .background(scheme.onSurface),
+                            .background(capsule.mark),
                     )
                 }
             }
@@ -678,16 +704,16 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
         Column(
             Modifier
                 .heightIn(min = height + RowGap * 2)
-                .padding(top = RowGap + 6.dp, bottom = RowGap + 6.dp),
+                .padding(top = TextColumnTop, bottom = TextColumnTop),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            // The text lines share their width with the check-off slot; the chips below keep the column's full width.
-            Row(verticalAlignment = Alignment.Top) {
-                Column(
-                    Modifier.weight(1f).alpha(if (past && !emphasised) 0.7f else 1f).clearAndSetSemantics {},
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
+            Box {
+                Column(Modifier.fillMaxWidth().clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    // Titles leave room for the check-off slot (on every row but flights, so titles wrap at the same
+                    // width down the rail); the time lines under them run the column's full width, so a range and
+                    // its duration share a line on a phone at the default font size.
                     FlowRow(
+                        Modifier.padding(end = if (checkable) CheckOffTarget else 0.dp),
                         itemVerticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -695,32 +721,37 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                         Text(
                             label,
                             style = if (emphasised) MaterialTheme.typography.titleMediumEmphasized else MaterialTheme.typography.titleMedium,
+                            color = if (quiet) colors.quietText else colors.text,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (isNow) {
-                            Surface(shape = CircleShape, color = scheme.primary, contentColor = scheme.onPrimary) {
-                                Text(nowText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary) {
+                                Text(nowText, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
                             }
                         }
                         if (row.item.inFlight) InFlightBadge(inFlightText)
                         row.item.outcome?.let { OutcomeBadge(it) }
                     }
-                    Text(
-                        rangeWithDuration(timeLine, scheme.onSurfaceVariant),
+                    RangeAndDuration(
+                        range = range,
+                        duration = duration,
                         style = ClockblockTheme.textStyles.timeLabel,
-                        color = scheme.onSurface,
+                        color = if (quiet) colors.quietText else colors.text,
+                        quiet = colors.quietText,
                     )
-                    Text(secondaryRange, style = SecondaryTimeStyle(), color = scheme.onSurfaceVariant)
+                    ZonedTimes(secondaryRange, secondaryCity, SecondaryTimeStyle(), colors.quietText)
                     if (!detail.isNullOrBlank()) {
-                        Text(detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(detail, style = MaterialTheme.typography.bodySmall, color = colors.quietText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                // Check-off slot: on every row but flights (which just happen), so titles wrap at the same width down
-                // the rail; the circle itself only shows once the block has started (you can't log the future). It
-                // sits level with the title, its 48 dp target reaching up into the row's top padding.
-                if (advice.type != AdviceType.Flight) {
-                    Box(Modifier.offset(y = -CheckOffLift).size(CheckOffTarget), contentAlignment = Alignment.Center) {
+                // Check-off: the circle only shows once the block has started (you can't log the future). It sits
+                // level with the title, its 48 dp target reaching up into the row's top padding.
+                if (checkable) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).offset(y = -CheckOffLift).size(CheckOffTarget),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         if (row.item.status != RailStatus.Future) {
                             CheckOffCircle(
                                 done = row.item.outcome == AdviceOutcome.Done,
@@ -747,16 +778,73 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
     }
 }
 
-private val RailTextGap = 12.dp
+/**
+ * The Now row's (or a highlighted row's) card: [fill] with an [edge] outline, inset [CardInset] from the row's top
+ * and bottom so two emphasised rows in a row read as two cards, not one block. Drawn behind the row, so it never
+ * changes the row's size (the dial's highlight moving from row to row doesn't shift the rail).
+ */
+private fun Modifier.emphasisedCard(fill: Color, edge: Color): Modifier = drawBehind {
+    val inset = CardInset.toPx()
+    val stroke = CardEdgeWidth.toPx()
+    val radius = CornerRadius(RowCorner.toPx())
+    val top = Offset(0f, inset)
+    val cardSize = Size(size.width, (size.height - inset * 2f).coerceAtLeast(0f))
+    drawRoundRect(fill, topLeft = top, size = cardSize, cornerRadius = radius)
+    drawRoundRect(
+        edge,
+        topLeft = top + Offset(stroke / 2f, stroke / 2f),
+        size = Size((cardSize.width - stroke).coerceAtLeast(0f), (cardSize.height - stroke).coerceAtLeast(0f)),
+        cornerRadius = CornerRadius(radius.x - stroke / 2f),
+        style = Stroke(stroke),
+    )
+}
 
-/** [line] ("22:45 – 01:00 · 2 h 15 min") with the part after the separator (the duration) in [quiet]. */
-private fun rangeWithDuration(line: String, quiet: Color): AnnotatedString {
-    val split = line.indexOf(" · ")
-    if (split < 0) return AnnotatedString(line)
-    return buildAnnotatedString {
-        append(line.substring(0, split))
-        withStyle(SpanStyle(color = quiet)) { append(line.substring(split)) }
+private val RowCorner = 24.dp
+private val CardInset = 2.dp
+private val CardEdgeWidth = 2.dp
+private val CapsuleEdgeWidth = 1.5.dp
+private const val PastGlyphAlpha = 0.7f
+
+/** Padding around a rail row (outside its card) and inside it. */
+internal val RowOuterPadding = 8.dp
+internal val RowInnerPadding = 8.dp
+
+internal val RailTextGap = 12.dp
+
+/**
+ * A time range and its duration ("22:45 – 01:00 · 2 h 15 min"): on one line, the duration in [quiet] after a
+ * " · ", when both fit; otherwise the duration moves whole to the next line and the separator goes with it, so a
+ * large font or a 12-hour clock never leaves a dangling " ·" (review of #149). Without a [duration] (a moment), just
+ * the range.
+ */
+@Composable
+internal fun RangeAndDuration(range: String, duration: String?, style: TextStyle, color: Color, quiet: Color, modifier: Modifier = Modifier) {
+    val rangeText = railRange(range)
+    if (duration.isNullOrBlank()) {
+        Text(rangeText, style = style, color = color, modifier = modifier)
+        return
     }
+    InlineOrStacked(
+        first = { Text(rangeText, style = style, color = color) },
+        second = { Text(railDuration(duration), style = style, color = quiet) },
+        separator = { Text(Separator, style = style, color = quiet, modifier = Modifier.testTag(InlineSeparatorTag).clearAndSetSemantics {}) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * The other zone's times and its city ("15:00 – 18:00 Los Angeles"): on one line when they fit, else the whole city
+ * moves under the times (never "Los" / "Angeles").
+ */
+@Composable
+internal fun ZonedTimes(range: String, city: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
+    InlineOrStacked(
+        first = { Text(railRange(range), style = style, color = color) },
+        // Unbreakable, so on its own line too it stays whole ("Port of Spain", never "Port of" / "Spain").
+        second = { Text(railCity(city), style = style, color = color) },
+        separator = { Text(" ", style = style) },
+        modifier = modifier,
+    )
 }
 
 /**
@@ -766,6 +854,23 @@ private fun rangeWithDuration(line: String, quiet: Color): AnnotatedString {
 @Composable
 @ReadOnlyComposable
 private fun SecondaryTimeStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
+
+/** A nested chip's other-zone times: the smallest label size with tabular digits (still at 4.5:1). */
+@Composable
+@ReadOnlyComposable
+internal fun ChipSecondaryTimeStyle(): TextStyle = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")
+
+/** A nested chip's chrome around its text column: padding, glyph and the gap after it. */
+internal val ChipStartPadding = 4.dp
+internal val ChipEndPadding = 10.dp
+internal val ChipGlyphSize = 28.dp
+internal val ChipGlyphGap = 6.dp
+internal val ChipChromeWidth = ChipStartPadding + ChipEndPadding + ChipGlyphSize + ChipGlyphGap
+
+/** A nested chip's own times: label size with tabular digits. */
+@Composable
+@ReadOnlyComposable
+private fun ChipTimeStyle(): TextStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
 
 /**
  * A rail row's three columns, in order: time, rail (sky band and capsule) and text. The text column's own height sets
@@ -864,40 +969,63 @@ private fun outcomeLabel(outcome: AdviceOutcome): String = stringResource(
 private fun ChildBlockChip(item: RailItem, day: RailDay, highlighted: Boolean, onClick: () -> Unit) {
     val advice = item.advice
     val role = ClockblockTheme.adviceColors[advice.type]
+    val colors = rememberRailColors()
     val formatter = rememberTimeFormatter()
     val resources = LocalContext.current.resources
     val isNow = item.status == RailStatus.Now
     val past = item.status == RailStatus.Past
+    // On now (or highlighted): its advice container with the capsule's edge. At rest: outlined on the row, never a
+    // grey fill (it read as another advice pill). Past chips step back through colour roles, not alpha.
+    val lit = isNow || highlighted
+    val quiet = past && !lit
     val description = blockDescription(advice, day)
     val nowText = stringResource(R.string.plan_now)
     val outcomeText = item.outcome?.let { outcomeLabel(it) }
-    val secondary = formatter.range(advice.start, advice.end, day.secondaryZone, resources) + " " + day.secondaryZone.cityName()
+    val secondaryRange = formatter.range(advice.start, advice.end, day.secondaryZone, resources)
+    val city = day.secondaryZone.cityName()
+    val duration = if (advice.type.isMoment) null else formatDuration(advice.duration)
+    val content = when {
+        lit -> role.onContainer
+        quiet -> colors.quietText
+        else -> colors.text
+    }
+    val quietContent = if (lit) role.onContainer else colors.quietText
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = if (isNow || highlighted) role.container else MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = if (isNow || highlighted) role.onContainer else MaterialTheme.colorScheme.onSurface,
+        color = if (lit) role.container else colors.chip,
+        contentColor = content,
+        border = BorderStroke(if (lit) CapsuleEdgeWidth else 1.dp, if (lit) colors.edge(advice.type) else colors.chipEdge),
         modifier = Modifier
-            .alpha(if (past && !highlighted) 0.7f else 1f)
             .testTag(PlanTags.block(advice.id))
             .semantics {
-                contentDescription = listOfNotNull(description, advice.detail, secondary).joinToString(". ")
+                contentDescription = listOfNotNull(description, duration, advice.detail, "$secondaryRange $city").joinToString(". ")
                 if (isNow) stateDescription = nowText else if (outcomeText != null) stateDescription = outcomeText
             },
     ) {
         Row(
-            Modifier.heightIn(min = 40.dp).padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp).clearAndSetSemantics {},
+            Modifier.heightIn(min = 40.dp).padding(start = ChipStartPadding, end = ChipEndPadding, top = 6.dp, bottom = 6.dp).clearAndSetSemantics {},
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AdviceGlyph(advice.type, active = isNow, size = 28.dp)
-            Spacer(Modifier.width(8.dp))
-            Column {
+            AdviceGlyph(advice.type, active = isNow, size = ChipGlyphSize, modifier = Modifier.alpha(if (quiet) PastGlyphAlpha else 1f))
+            Spacer(Modifier.width(ChipGlyphGap))
+            Column(Modifier.weight(1f, fill = false)) {
                 Text(advice.type.label(), style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    formatter.range(advice.start, advice.end, day.zone, resources) + (advice.detail?.let { " · $it" } ?: ""),
-                    style = ClockblockTheme.textStyles.timeLabel,
+                // A step smaller than the row's own times: the chip is the lower-priority block, and its narrower
+                // column keeps a range on one line at large font sizes.
+                RangeAndDuration(
+                    range = formatter.range(advice.start, advice.end, day.zone, resources),
+                    duration = duration,
+                    style = ChipTimeStyle(),
+                    color = content,
+                    quiet = quietContent,
                 )
-                Text(secondary, style = SecondaryTimeStyle(), color = LocalContentColor.current.copy(alpha = 0.8f))
+                // Label size, so "02:00 – 02:30 Los Angeles" keeps its city on the line in the chip's narrower column
+                // at the default font size; larger fonts move the whole city under the times.
+                ZonedTimes(secondaryRange, city, ChipSecondaryTimeStyle(), quietContent)
+                advice.detail?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = quietContent, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
             }
             item.outcome?.let {
                 Spacer(Modifier.width(8.dp))

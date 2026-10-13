@@ -50,9 +50,10 @@ data class SkyStar(
     /**
      * Its alpha [sessionMillis] into an ambient session (negative = no session: at rest). A twinkle dips below the
      * resting brightness and comes back, slowly (one breath every [TwinklePeriodMillis] or so), and eases in and
-     * out over the session's edges, so nothing pops.
+     * out over the session's edges (its start, and its end at [sessionLengthMillis], the caller's real session length),
+     * so nothing pops: at the end it is back at its resting brightness, the same as at rest.
      */
-    fun alphaAt(sessionMillis: Long, sessionLengthMillis: Long = DefaultSessionMillis): Float {
+    fun alphaAt(sessionMillis: Long, sessionLengthMillis: Long): Float {
         if (!twinkles || sessionMillis < 0L) return brightness
         val envelope = min(
             (sessionMillis / TwinkleEaseMillis.toFloat()).coerceIn(0f, 1f),
@@ -71,7 +72,6 @@ data class SkyStar(
         const val TwinkleDepth = 0.85f
 
         const val TwinkleEaseMillis = 3_000L
-        const val DefaultSessionMillis = 45_000L
     }
 }
 
@@ -139,12 +139,13 @@ private const val GlowAfterSetHours = 0.75f
 
 /**
  * The stars of [stars] inside [area], in [color] scaled by [visibility] (see [starVisibility]) and each star's own
- * alpha [sessionMillis] into an ambient session (negative = at rest). A few of the brighter ones get a faint halo.
+ * alpha [sessionMillis] into an ambient session [sessionLengthMillis] long (negative = at rest). A few of the brighter
+ * ones get a faint halo.
  */
-fun DrawScope.drawSkyStars(stars: SkyStars, area: Rect, color: Color, visibility: Float, sessionMillis: Long = -1L) {
+fun DrawScope.drawSkyStars(stars: SkyStars, area: Rect, color: Color, visibility: Float, sessionMillis: Long, sessionLengthMillis: Long) {
     if (visibility <= 0f) return
     stars.points.forEachIndexed { i, star ->
-        val alpha = star.alphaAt(sessionMillis) * visibility * color.alpha
+        val alpha = star.alphaAt(sessionMillis, sessionLengthMillis) * visibility * color.alpha
         val centre = Offset(area.left + star.x * area.width, area.top + star.y * area.height)
         val r = star.radius * density
         drawCircle(color.copy(alpha = alpha), r, centre)

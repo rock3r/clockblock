@@ -16,22 +16,19 @@ import java.util.Locale
 internal fun dayStripNumber(day: PlanDay): String? = if (day.kind == DayKind.Travel) null else signedIndex(day.index)
 
 /**
- * The weekday under a day pill: "Sun". A travel day spans from its first take-off to its last landing, each read on
- * the clock where it happens ([zoneAt]: the zone the traveller is in at an instant), so an overnight flight reads
- * "Mon–Tue". A travel day without flights reads its own date's weekday.
+ * The weekday under a day pill: "Sun", or "Mon–Tue" when [to] is a different date from [from] (a travel day's span,
+ * see [dayDates]).
  */
-internal fun dayWeekdays(day: PlanDay, zoneAt: (Instant) -> ZoneId, locale: Locale = Locale.getDefault()): String {
-    val (from, to) = dayDates(day, zoneAt)
-    return weekdaySpan(from, to, locale)
-}
-
-/** "Sun", or "Mon–Tue" when [to] is a different date from [from]. */
 internal fun weekdaySpan(from: LocalDate, to: LocalDate, locale: Locale = Locale.getDefault()): String {
     val format = WeekdayFormat.withLocale(locale)
     return if (from == to) format.format(from) else format.format(from) + "\u2013" + format.format(to)
 }
 
-/** The local dates [day] covers: its own date, or a travel day's take-off and landing dates (see [dayWeekdays]). */
+/**
+ * The local dates [day] covers: its own date, or a travel day's take-off and landing dates, each read on the clock
+ * where it happens ([zoneAt]: the zone the traveller is in at an instant), so an overnight flight spans "Mon–Tue". A
+ * travel day without flights covers its own date.
+ */
 internal fun dayDates(day: PlanDay, zoneAt: (Instant) -> ZoneId): Pair<LocalDate, LocalDate> {
     val flights = day.advice.filter { it.type == AdviceType.Flight }
     if (day.kind != DayKind.Travel || flights.isEmpty()) return day.date to day.date

@@ -52,11 +52,19 @@ class SkyAtmosphereTest {
     @Test
     fun `stars twinkle around their brightness only while a session runs, and rest exactly there otherwise`() {
         val star = SkyStar(0.5f, 0.5f, 1f, 0.8f, phase = 1.2f, twinkles = true)
-        star.alphaAt(sessionMillis = -1L) shouldBe 0.8f
-        val samples = (0..40).map { star.alphaAt(sessionMillis = 10_000L + it * 250L) }
+        star.alphaAt(sessionMillis = -1L, sessionLengthMillis = 45_000L) shouldBe 0.8f
+        val samples = (0..40).map { star.alphaAt(sessionMillis = 10_000L + it * 250L, sessionLengthMillis = 45_000L) }
         (samples.min() < 0.8f) shouldBe true
         samples.all { it in 0f..0.8f } shouldBe true
         // A steady star never moves.
-        star.copy(twinkles = false).alphaAt(sessionMillis = 12_345L) shouldBe 0.8f
+        star.copy(twinkles = false).alphaAt(sessionMillis = 12_345L, sessionLengthMillis = 45_000L) shouldBe 0.8f
+    }
+
+    @Test
+    fun `a twinkle eases out at the session's real end, so resting after it never jumps`() {
+        val star = SkyStar(0.5f, 0.5f, 1f, 0.8f, phase = 0.3f, twinkles = true)
+        listOf(20_000L, 45_000L, 90_000L).forEach { length ->
+            star.alphaAt(sessionMillis = length, sessionLengthMillis = length) shouldBe 0.8f
+        }
     }
 }

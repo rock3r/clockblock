@@ -4,24 +4,31 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
 import org.junit.jupiter.api.Test
 
-/** The timeline's time line: the range and the duration on one line ("22:45 – 01:00 · 2 h 15 min"). */
+/**
+ * The timeline's time texts. The range and its duration are separate texts ([RangeAndDuration] puts them on one line
+ * or stacks them, see `RailRowLayoutTest`); these helpers only decide where each may break on its own.
+ */
 class RailTimeLineTest {
 
     @Test
-    fun `the duration follows the range on the same line`() {
-        railTimeLine("22:45 – 01:00", "2 h 15 min") shouldBe "22:45\u00A0–\u00A001:00 · 2\u00A0h\u00A015\u00A0min"
+    fun `a range breaks only after its dash`() {
+        railRange("22:45 – 01:00") shouldBe "22:45\u00A0– 01:00"
+        railRange("10:00 PM – 1:00 AM") shouldBe "10:00\u00A0PM\u00A0– 1:00\u00A0AM"
     }
 
     @Test
-    fun `a narrow row breaks only between the range and the duration`() {
-        val line = railTimeLine("10:00 PM – 1:00 AM", "3 h")
-        line.substringBefore(" · ") shouldNotContain " "
-        line.substringAfter(" · ") shouldNotContain " "
-        line shouldBe "10:00\u00A0PM\u00A0–\u00A01:00\u00A0AM · 3\u00A0h"
+    fun `a moment's single time never breaks`() {
+        railRange("10:00 PM") shouldBe "10:00\u00A0PM"
     }
 
     @Test
-    fun `no duration leaves the range alone`() {
-        railTimeLine("22:00", null) shouldBe "22:00"
+    fun `a city never breaks`() {
+        railCity("Port of Spain") shouldBe "Port\u00A0of\u00A0Spain"
+    }
+
+    @Test
+    fun `a duration never breaks`() {
+        railDuration("2 h 15 min") shouldNotContain " "
+        railDuration("2 h 15 min") shouldBe "2\u00A0h\u00A015\u00A0min"
     }
 }

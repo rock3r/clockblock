@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.contentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -109,6 +111,30 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
         compose.waitForIdle()
         compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_dark.png")
+    }
+
+    /**
+     * The header sky's rare ambient session mid-crossing: by day the plane and its fading contrail, by night the
+     * stars (some mid-twinkle) and the plane's blinking light, no contrail.
+     */
+    @Test
+    fun headerAmbientDay() = ambientSnap("header_ambient_day", java.time.LocalTime.of(14, 0))
+
+    @Test
+    fun headerAmbientNight() = ambientSnap("header_ambient_night", java.time.LocalTime.of(23, 30))
+
+    private fun ambientSnap(name: String, body: java.time.LocalTime) = snap(name) {
+        val ambient = androidx.compose.runtime.remember {
+            HeaderAmbient().apply { sessionMillis = PlaneStartMillis + PlaneCrossMillis * 6 / 10 }
+        }
+        val frame = HeaderFrame(body, body, HeaderDaylight.Default)
+        val ink = ClockblockTheme.sky.gradientAt(body.hour + body.minute / 60f).let {
+            it.contentColor()
+        }
+        Box(Modifier.size(400.dp, 200.dp)) {
+            dev.sebastiano.clockblocker.opus.core.designsystem.component.BodyClockSky(bodyTime = body, modifier = Modifier.matchParentSize(), showCelestial = false)
+            HeaderAtmosphere({ frame }, ambient, ink, { 0f }, Modifier.matchParentSize())
+        }
     }
 
     @Test
@@ -233,11 +259,20 @@ class PlanScreenshotTest {
     fun railTall() = snap("rail_tall") { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
 
     @Test
-    fun railScrolled() {
-        snap("rail_scrolled", capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
+    fun railScrolled() = railScrolledSnap("rail_scrolled")
+
+    /** The rail's readability in dark theme and at 1.5× font: past rows, the Now card, a nested chip, the strip. */
+    @Test
+    fun railScrolledDark() = railScrolledSnap("rail_scrolled_dark", darkTheme = true)
+
+    @Test
+    fun railScrolledFontScale() = railScrolledSnap("rail_scrolled_font_1_5", fontScale = 1.5f)
+
+    private fun railScrolledSnap(name: String, darkTheme: Boolean = false, fontScale: Float? = null) {
+        snap(name, darkTheme = darkTheme, fontScale = fontScale, capture = false) { PlanContent(ready(PlanFixtures.MidAdaptation), actions) }
         compose.onNodeWithTag(PlanTags.Rail).performScrollToIndex(9)
         compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeDown(startY = centerY, endY = centerY + 40f) }
-        compose.captureRoboImageInvalidated("src/test/screenshots/plan_rail_scrolled.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_$name.png")
     }
 
     /** Compact phone: the dial gives up size so the Now card's Done is on screen at rest (issue #11). */
@@ -327,15 +362,23 @@ class PlanScreenshotTest {
 
     /** Travel day on the rail: blocks on board carry "In flight", and a divider marks the switch to London time. */
     @Test
-    fun railTravelDay() {
-        snap("rail_travel_day", capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+    fun railTravelDay() = railTravelDaySnap("rail_travel_day")
+
+    @Test
+    fun railTravelDayDark() = railTravelDaySnap("rail_travel_day_dark", darkTheme = true)
+
+    @Test
+    fun railTravelDayFontScale() = railTravelDaySnap("rail_travel_day_font_1_5", fontScale = 1.5f)
+
+    private fun railTravelDaySnap(name: String, darkTheme: Boolean = false, fontScale: Float? = null) {
+        snap(name, darkTheme = darkTheme, fontScale = fontScale, capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
         // Land on the zone switch into London time, then back off a little so the in-flight rows above it show too.
         compose.onNodeWithTag(PlanTags.Rail).performScrollToNode(hasTestTag(PlanTags.zoneSwitch(1)))
         compose.onNodeWithTag(PlanTags.Rail).performTouchInput {
             swipeDown(startY = centerY - 300f, endY = centerY + 300f, durationMillis = 1_000)
         }
         compose.waitForIdle()
-        compose.captureRoboImageInvalidated("src/test/screenshots/plan_rail_travel_day.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_$name.png")
     }
 
     @Test

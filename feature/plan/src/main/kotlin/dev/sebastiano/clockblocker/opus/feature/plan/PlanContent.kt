@@ -97,6 +97,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.sebastiano.clockblocker.opus.core.designsystem.dial.spec.DetailLevel
 import dev.sebastiano.clockblocker.opus.core.circadian.bodyClockTimeAt
 import dev.sebastiano.clockblocker.opus.core.circadian.secondaryZoneFor
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
@@ -142,6 +143,8 @@ internal class PlanActions(
     val onUndo: (adviceId: String, previous: AdviceOutcome?) -> Unit = { _, _ -> },
     val onSnooze: (adviceId: String) -> Unit = {},
     val onCelebrationShown: () -> Unit = {},
+    /** Reserves the header's ambient sky session before it starts (false: not due, or another header took it). */
+    val reserveAmbientSky: suspend () -> Boolean = { true },
 )
 
 /**
@@ -554,11 +557,11 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         } else {
             null
         }
-        val headerNext = rememberHeaderNext(plan, shown.instant)
+        // From now, never from a picked or scrubbed moment: "Next" counts down to something real.
+        val headerNext = rememberHeaderNext(plan, state.now)
         val sections = PlanSections(
             state, shown, preview != null, routes, actions, screen, showSnack, showActionSnack, dialSize,
             anchor = anchor, anchorZone = anchorZone, strip = strip,
-            upcomingNext = headerNext.takeIf { shortWindow },
         )
         // The real day where the traveller is, for the header's sky and sun path (issue #21): once per place and date
         // (the place can change within a zone and a date, e.g. a same-day flight inside one zone).
@@ -594,6 +597,8 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     // Compact phones or narrow windows draw the dial without its offset pill: the header says it there instead.
                     showBodyShift = dialSide < FullDialMinSize,
                     ambient = state.easterEggs,
+                    ambientDue = state.ambientSky,
+                    reserveAmbient = actions.reserveAmbientSky,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },
@@ -885,7 +890,6 @@ private class PlanSections(
     val anchor: Instant = state.now,
     val anchorZone: ZoneId = state.moment.zone,
     val strip: DayStripModel? = null,
-    val upcomingNext: HeaderNext? = null,
 ) {
     val heroKeys: List<String> = buildList {
         if (strip?.first == true) add(KeyDays)
@@ -1057,7 +1061,7 @@ private class PlanSections(
                 modifier = modifier,
             )
             shown.stage == PlanStage.Complete -> CompleteCard(state.plan, state.outcomes, modifier)
-            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier, next = upcomingNext)
+            shown.stage == PlanStage.Upcoming -> UpcomingCard(state.plan, shown, modifier)
             else -> FreeTimeCard(shown, previewing, modifier, previewDay = previewDay)
         }
     }
@@ -1185,8 +1189,8 @@ private val HeroReserve = 468.dp
 private val ShortWindowMaxHeight = 480.dp
 private val ShortTwoPaneMinWidth = 600.dp
 
-/** The dial's smallest side that draws its Full level (with the offset pill); smaller is Simple. */
-private val FullDialMinSize = 250.dp
+/** The dial's smallest side that draws its Full level (with the offset pill); smaller is Simple. The dial's own rule. */
+private val FullDialMinSize = DetailLevel.FullMinDp.dp
 
 /**
  * The header's next action at [now] ([nextAction]): a countdown with its time when it starts within a day ("Next:
