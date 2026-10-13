@@ -202,49 +202,49 @@ private fun DrawScope.drawChronotypeScene(
     if (chronotype != null) {
         when (chronotype) {
             Chronotype.DefiniteMorning -> {
-                eSky = (e * 1.5f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.6f) * 2f).coerceIn(0f, 1f)
+                eSky = (e / 0.7f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.6f) / 0.4f).coerceIn(0f, 1f)
                 eStars = e
             }
             Chronotype.ModerateMorning -> {
-                eSky = (e * 1.4f).coerceIn(0f, 1f)
-                eHills = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.3f) * 2f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.4f) * 1.5f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
+                eSky = (e / 0.7f).coerceIn(0f, 1f)
+                eHills = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
                 eStars = e
             }
             Chronotype.Intermediate -> {
-                eSky = (e * 1.3f).coerceIn(0f, 1f)
-                eHills = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.3f) * 2f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
+                eSky = (e / 0.7f).coerceIn(0f, 1f)
+                eHills = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
                 eStars = e
             }
             Chronotype.ModerateEvening -> {
-                eSky = (e * 1.5f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.4f) * 1.5f).coerceIn(0f, 1f)
-                eStars = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.6f) * 2f).coerceIn(0f, 1f)
+                eSky = (e / 0.7f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                eStars = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.6f) / 0.4f).coerceIn(0f, 1f)
             }
             Chronotype.DefiniteEvening -> {
-                eSky = (e * 1.5f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
-                eStars = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.7f) * 3f).coerceIn(0f, 1f)
+                eSky = (e / 0.7f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
+                eStars = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.7f) / 0.3f).coerceIn(0f, 1f)
             }
         }
     }
