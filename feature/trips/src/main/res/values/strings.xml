@@ -24,7 +24,7 @@
     <string name="trips_upcoming_empty_none_body">When you plan your next trip, it will show up on Now and any following trips will wait here.</string>
     <string name="trips_upcoming_empty_open_now">Go to Now</string>
 
-    <!-- Past trips globe sheet. -->
+    <!-- Past trips globe (full screen over the Trips screen). -->
     <string name="past_globe_title">Where you\'ve been</string>
     <plurals name="past_globe_trips">
         <item quantity="one">%1$d trip</item>
@@ -43,13 +43,16 @@
     <string name="past_globe_stat_distance_value">%1$s km</string>
     <string name="past_globe_stat_distance_label">Distance flown</string>
     <string name="past_globe_stat_shift_value">%1$s h</string>
-    <string name="past_globe_stat_shift_label">Time zones crossed</string>
+    <string name="past_globe_stat_shift_label">Hours of time difference</string>
     <plurals name="past_globe_stat_saved_value">
         <item quantity="one">~%1$d day</item>
         <item quantity="other">~%1$d days</item>
     </plurals>
     <string name="past_globe_stat_saved_label">Jet lag saved</string>
-    <string name="past_globe_tap_hint">Tap a flight arc to open that trip\'s plan.</string>
+    <string name="past_globe_tap_hint">Drag to turn the globe. Tap a flight to see its trip.</string>
+    <!-- A past flight on the globe, when tapped: "Lisbon to Tokyo · Apr 2026". -->
+    <string name="past_globe_leg_name">%1$s to %2$s · %3$s</string>
+    <string name="past_globe_open_trip">Open trip</string>
     <string name="past_globe_leg_action">Open %1$s to %2$s</string>
 
     <!-- FAB menu. -->
@@ -239,7 +242,10 @@
     <string name="globe_hours_west_fraction">%1$.1f hours west</string>
     <string name="globe_expand">Show the globe full size</string>
     <string name="globe_title">Your route</string>
-    <string name="globe_tap_hint">Tap a flight to go to its ticket.</string>
+    <string name="globe_tap_hint">Drag to turn the globe. Tap a flight to pick its ticket.</string>
+    <!-- A flight on the editor's globe, when tapped: "Flight 2 · Doha to Tokyo". -->
+    <string name="globe_leg_name">Flight %1$d · %2$s to %3$s</string>
+    <string name="globe_go_to_ticket">Go to ticket</string>
     <string name="globe_leg_action">Go to flight %1$d: %2$s to %3$s</string>
 
     <!-- Your shift. -->

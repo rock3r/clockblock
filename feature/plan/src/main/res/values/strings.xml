@@ -202,6 +202,10 @@
     <string name="plan_world_light">It\'s %1$s and light in %2$s</string>
     <string name="plan_world_in_air_dark">In the air to %2$s, where it\'s %1$s and dark</string>
     <string name="plan_world_in_air_light">In the air to %2$s, where it\'s %1$s and light</string>
+    <!-- The world caption with the trip's other zone: "It's 03:10 and dark in Tokyo · 19:10 in Lisbon". -->
+    <string name="plan_world_with_secondary">%1$s · %2$s in %3$s</string>
+    <!-- A flight on the world globe, when tapped: "Flight 2 · Doha to Tokyo". -->
+    <string name="plan_world_leg_name">Flight %1$d · %2$s to %3$s</string>
     <string name="plan_world_route">%1$s to %2$s</string>
     <string name="plan_world_route_via">%1$s to %2$s via %3$s</string>
     <plurals name="plan_world_hours_east">

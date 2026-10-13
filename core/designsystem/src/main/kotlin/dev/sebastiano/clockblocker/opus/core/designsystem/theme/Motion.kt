@@ -5,11 +5,13 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.DecayAnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.InfiniteRepeatableSpec
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.snap
@@ -86,6 +88,18 @@ class ClockblockMotion internal constructor(
 
     /** Elements read as data: settle without overshoot. */
     fun <T> dataSpatial(): FiniteAnimationSpec<T> = dataScheme.defaultSpatialSpec()
+
+    /**
+     * A camera move: the plan's dial ↔ world zoom settling after a pinch or a back gesture, a globe zooming or
+     * re-centring. Standard (no bounce: a wobbling camera reads as the world wobbling); snaps when motion is reduced.
+     */
+    fun <T> zoomSpatial(): FiniteAnimationSpec<T> = dataScheme.defaultSpatialSpec()
+
+    /**
+     * A flung globe coasting to a stop: an exponential decay (no spring, so it never bounces back). Callers skip the
+     * coast when [reduceMotion] (the globe stays where the finger left it).
+     */
+    fun <T> globeFling(): DecayAnimationSpec<T> = exponentialDecay(frictionMultiplier = GlobeFlingFriction)
 
     /** Inner body ring rotating towards alignment on a day change. Slow, Standard (near-critically damped). */
     fun <T> dialDayRotation(): FiniteAnimationSpec<T> = dataScheme.slowSpatialSpec()
@@ -172,6 +186,9 @@ class ClockblockMotion internal constructor(
 
         /** One shape of the moon egg's phase chain. */
         const val EggStepMillis = 320
+
+        /** How quickly a flung globe slows down (1 = Compose's default friction; higher stops sooner). */
+        const val GlobeFlingFriction = 2.5f
 
         /** Material fade-through: the outgoing screen fades in 90 ms, then the incoming one in 210 ms. */
         const val NavigationFadeOutMillis = 90

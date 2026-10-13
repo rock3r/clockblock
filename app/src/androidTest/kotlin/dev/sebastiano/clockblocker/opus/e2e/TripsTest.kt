@@ -138,7 +138,7 @@ class TripsTest : ClockblockE2eTest() {
     }
 
     @Test
-    fun pastTripsOpenFromNowAndShowPastGlobeSheet() {
+    fun pastTripsOpenFromNowAndShowTheFullScreenPastGlobe() {
         seedOnboarded()
         val pastDay = LocalDate.now(ZoneId.systemDefault()).minusDays(20)
         seedTrip(DemoData.sfoToLhr(pastDay, id = "past-sfo-lhr"))
@@ -153,9 +153,12 @@ class TripsTest : ClockblockE2eTest() {
         awaitTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
         awaitTag(TripsTestTags.tripCard("past-sfo-lhr")).scrollToIfScrollable().assertIsDisplayed()
 
-        // Tapping the Past trips header opens the globe sheet with all past routes and stats.
+        // Tapping the Past trips header opens the full-screen globe with all past routes and stats; Back closes it.
         awaitTag(TripsTestTags.section(TripPhase.Past.name)).scrollIntoViewAndClick()
-        awaitTag(TripsTestTags.PastGlobeSheet).assertIsDisplayed()
+        awaitTag(TripsTestTags.PastGlobeOverlay).assertIsDisplayed()
         awaitTag(TripsTestTags.PastGlobe).assertIsDisplayed()
+        awaitTag(TripsTestTags.PastGlobeStats).assertIsDisplayed()
+        device.pressBack()
+        awaitGone(TripsTestTags.PastGlobeOverlay)
     }
 }

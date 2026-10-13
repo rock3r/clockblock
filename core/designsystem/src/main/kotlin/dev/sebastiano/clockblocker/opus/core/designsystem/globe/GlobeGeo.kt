@@ -182,6 +182,45 @@ object GlobeGeo {
         return best
     }
 
+    /** How far a drag can tilt the view from the equator: further would flip the globe over a pole. */
+    const val MaxDragLatitude: Double = 85.0
+
+    /**
+     * The view after a drag of ([dx], [dy]) in units of the globe's radius on screen (right and down positive): the
+     * surface follows the finger, so dragging right turns the view west and dragging down brings the north to the
+     * middle. A sideways drag turns the globe by more away from the equator (where a parallel is shorter), so the
+     * point in the middle of the view keeps up with the finger, up to 3× near the poles. The latitude stays within
+     * ±[MaxDragLatitude]; the longitude is left unwrapped, so a drag across the date line never jumps.
+     */
+    fun dragged(view: GlobeView, dx: Double, dy: Double): GlobeView {
+        val parallel = cos(Math.toRadians(view.latitude)).coerceAtLeast(MinParallelScale)
+        return GlobeView(
+            latitude = (view.latitude + Math.toDegrees(dy)).coerceIn(-MaxDragLatitude, MaxDragLatitude),
+            longitude = view.longitude - Math.toDegrees(dx / parallel),
+        )
+    }
+
+    private const val MinParallelScale = 1.0 / 3.0
+
+    /**
+     * Which of [stops] a tap at ([x], [y]) on the unit disc (east and north positive) picks: the nearest one on the
+     * visible face within [tolerance] (disc units). Null: none.
+     */
+    fun hitStop(x: Double, y: Double, stops: List<GeoPoint>, view: GlobeView, tolerance: Double): Int? {
+        var best: Int? = null
+        var bestDistance = tolerance
+        stops.forEachIndexed { index, stop ->
+            val p = orthographic(stop, view)
+            if (!p.visible) return@forEachIndexed
+            val d = hypot(x - p.x, y - p.y)
+            if (d <= bestDistance) {
+                bestDistance = d
+                best = index
+            }
+        }
+        return best
+    }
+
     /** Shortest turn from longitude [from] to [to], in degrees (−180, 180]: the globe never spins the long way. */
     fun longitudeDelta(from: Double, to: Double): Double {
         val d = ((to - from) % 360.0 + 540.0) % 360.0 - 180.0

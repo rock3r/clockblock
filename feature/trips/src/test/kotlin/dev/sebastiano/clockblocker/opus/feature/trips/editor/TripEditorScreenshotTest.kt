@@ -219,17 +219,31 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         capture(name)
     }
 
-    /** The full-size globe (the sheet's content): airport codes beside the stops, the active flight bright. */
+    /** The full-screen globe over the editor: airport codes beside the stops, the active flight bright. */
     @Test
-    fun globeFullSize() {
+    fun globeFullScreen() = globeFullScreen("editor_globe_overlay")
+
+    @Test
+    fun globeFullScreenDark() = globeFullScreen("editor_globe_overlay_dark", darkTheme = true)
+
+    private fun globeFullScreen(name: String, darkTheme: Boolean = false) {
         val vm = viewModel(TripEditorArgs(tripId = DemoData.LhrSydId))
         main.dispatcher.scheduler.advanceUntilIdle()
-        setContent(qualifiers = "w411dp-h891dp") {
+        setContent(darkTheme = darkTheme, qualifiers = "w411dp-h891dp") {
             val state by vm.state.collectAsStateWithLifecycle()
             val route = EditorRoute.of(state.legs)
-            GlobeSheetContent(route, routeDescription(route, null), clock.instant(), activeLeg = 1, onLegClick = {})
+            EditorGlobeOverlay(
+                route = route,
+                description = routeDescription(route, null),
+                now = clock.instant(),
+                activeLeg = 1,
+                visible = true,
+                onActivateLeg = {},
+                onGoToTicket = {},
+                onDismiss = {},
+            )
         }
-        capture("editor_globe_sheet")
+        capture(name)
     }
 
     /** LIS Wed 7 Oct 09:00 → HND, the arrival estimated from the distance (lands the next day). */

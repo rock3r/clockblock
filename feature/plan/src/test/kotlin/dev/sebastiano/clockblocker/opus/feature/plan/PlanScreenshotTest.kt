@@ -38,6 +38,8 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import dev.sebastiano.clockblocker.opus.core.model.Advice
 import dev.sebastiano.clockblocker.opus.core.model.AdviceReason
 import kotlinx.collections.immutable.toImmutableList
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,6 +71,7 @@ class PlanScreenshotTest {
         darkTheme: Boolean = false,
         fontScale: Float? = null,
         capture: Boolean = true,
+        reduceMotion: Boolean = true,
         content: @Composable () -> Unit,
     ) {
         Settings.System.putString(
@@ -79,7 +82,7 @@ class PlanScreenshotTest {
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides if (fontScale != null) Density(density.density, fontScale) else density) {
-                ClockblockTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = true) {
+                ClockblockTheme(darkTheme = darkTheme, dynamicColor = false, reduceMotion = reduceMotion) {
                     Box(Modifier.background(MaterialTheme.colorScheme.surface)) { content() }
                 }
             }
@@ -111,6 +114,66 @@ class PlanScreenshotTest {
         compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
         compose.waitForIdle()
         compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_dark.png")
+    }
+
+    /** The world full screen over the plan (its full-screen button): zoomable, airport codes, caption as subtitle. */
+    @Test
+    fun worldFullScreen() = worldFullScreen("world_full_screen")
+
+    @Test
+    fun worldFullScreenDark() = worldFullScreen("world_full_screen_dark", darkTheme = true)
+
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    private fun worldFullScreen(name: String, darkTheme: Boolean = false) {
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(ApplicationProvider.getApplicationContext())
+        snap(name, darkTheme = darkTheme, capture = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.WorldFullScreen).performClick()
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_$name.png")
+    }
+
+    /**
+     * The plan in the right-hand pane of a wide window: the full-screen world covers its pane only, edge to edge, and
+     * leaves the other pane alone.
+     */
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    @Config(qualifiers = "w1000dp-h720dp-xhdpi")
+    fun worldFullScreenInAPane() {
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(ApplicationProvider.getApplicationContext())
+        snap("world_full_screen_pane", capture = false) {
+            androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(0.4f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer))
+                Box(Modifier.weight(0.6f).fillMaxHeight()) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+            }
+        }
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.WorldFullScreen).performClick()
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_full_screen_pane.png")
+    }
+
+    /** Half way through the zoom out, fingers still down: the dial shrinking onto the plane's spot, the globe pulling back. */
+    @Test
+    fun worldZoomMid() {
+        dev.sebastiano.clockblocker.opus.core.designsystem.globe.RouteGlobeDefaults.preload(ApplicationProvider.getApplicationContext())
+        snap("world_zoom_mid", capture = false, reduceMotion = false) { PlanContent(ready(PlanFixtures.InFlight), actions) }
+        compose.onNodeWithTag(PlanTags.Dial).performTouchInput {
+            down(0, center - androidx.compose.ui.geometry.Offset(100f, 0f))
+            down(1, center + androidx.compose.ui.geometry.Offset(100f, 0f))
+            // ×1.34: half way on the zoom's log scale. The fingers stay down.
+            repeat(6) { step ->
+                advanceEventTime(16)
+                val d = 100f + 34f * (step + 1) / 6f
+                moveTo(0, center - androidx.compose.ui.geometry.Offset(d, 0f))
+                moveTo(1, center + androidx.compose.ui.geometry.Offset(d, 0f))
+            }
+        }
+        compose.waitForIdle()
+        compose.captureRoboImageInvalidated("src/test/screenshots/plan_world_zoom_mid.png")
     }
 
     /**

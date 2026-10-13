@@ -86,6 +86,24 @@ internal object DuskPalette {
     val Ivory = Color(0xFFF3EBD3)
     val Velvet = Color(0xFFE3A49F)
     val VelvetContainer = Color(0xFF5C1A1B)
+
+    // The route globe (a night-sky object; see GlobeColors). Its ocean, glow, city lights and route come from the
+    // sky ramp and Marigold above; these are the few it adds: the limb, warm land, the sea's halftone, a pale route.
+    val GlobeRim = Color(0xFF3B4290)
+    val GlobeLand = Color(0xFFF4EFE6)
+    val GlobeSea = Color(0xFF9FB4FF)
+    val GlobeRouteDim = Color(0xFFFFE2A6)
+
+    // The night-safe globe: warm, dim amber on near-black (no blue, no bright white).
+    val NightGlobeOcean = Color(0xFF050300)
+    val NightGlobeOceanDay = Color(0xFF241504)
+    val NightGlobeRim = Color(0xFF4A3319)
+    val NightGlobeSea = Color(0xFF6E5536)
+    val NightGlobeCityLight = Color(0xFFD99B4E)
+    val NightGlobeRoute = Color(0xFFD98A1C)
+    val NightGlobeRouteDim = Color(0xFF8E6830)
+    val NightGlobeStop = Color(0xFFD9B88C)
+    val NightGlobeScrim = Color(0xCC050300)
 }
 
 internal val ClockblockLightColors: ColorScheme = with(DuskPalette) {

@@ -146,9 +146,17 @@ private fun TripsScaffold(
     val menuBack = rememberFabMenuBack(expanded = fabExpanded && !shortWindow, onCollapse = { fabExpanded = false })
     val canAdd = !state.loading && !state.isEmpty
     val returnCandidate = state.returnCandidate.takeIf { callbacks.onCreateReturnTrip != null }
+    // The past-trips globe covers the whole Trips screen (or its pane), so it lives out here, over the Scaffold.
+    var pastGlobeOpen by rememberSaveable { mutableStateOf(false) }
+    val pastStats = remember(state.past) { PastTripsStats.of(state.past) }
+    val pastGlobeShown = pastGlobeOpen && !pastStats.isEmpty
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            // TalkBack stays in the globe while it covers the screen.
+            .then(if (pastGlobeShown) Modifier.clearAndSetSemantics { } else Modifier),
         topBar = {
             TripsSkyTopBar(
                 title = stringResource(R.string.trips_title),
@@ -188,12 +196,21 @@ private fun TripsScaffold(
                 onTryDemo = callbacks.onTryDemo,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
-            else -> TripsGrid(state, callbacks, selectedTripId, padding, fabClearance = !shortWindow, now = now)
+            else -> TripsGrid(state, callbacks, selectedTripId, padding, fabClearance = !shortWindow, onOpenGlobe = { pastGlobeOpen = true })
         }
         FabMenuScrim(
             visible = fabExpanded && !shortWindow,
             collapseProgress = menuBack::collapseProgress,
             onDismiss = { fabExpanded = false },
+        )
+    }
+    if (!pastStats.isEmpty) {
+        PastTripsGlobeOverlay(
+            stats = pastStats,
+            now = now,
+            visible = pastGlobeShown,
+            onOpenTrip = callbacks.onOpenTrip,
+            onDismiss = { pastGlobeOpen = false },
         )
     }
 }
@@ -354,11 +371,9 @@ private fun TripsGrid(
     selectedTripId: String?,
     padding: PaddingValues,
     fabClearance: Boolean,
-    now: Instant,
+    onOpenGlobe: () -> Unit,
 ) {
     var upcomingCollapsed by rememberSaveable { mutableStateOf(false) }
-    var pastGlobeOpen by rememberSaveable { mutableStateOf(false) }
-    val pastStats = remember(state.past) { PastTripsStats.of(state.past) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val columns = if (maxWidth >= TwoColumnMinWidth) 2 else 1
@@ -399,21 +414,12 @@ private fun TripsGrid(
             if (state.past.isNotEmpty()) {
                 pastSection(
                     trips = state.past,
-                    onOpenGlobe = { pastGlobeOpen = true },
+                    onOpenGlobe = onOpenGlobe,
                     selectedTripId = selectedTripId,
                     callbacks = callbacks,
                 )
             }
         }
-    }
-
-    if (pastGlobeOpen && !pastStats.isEmpty) {
-        PastTripsGlobeSheet(
-            stats = pastStats,
-            now = now,
-            onOpenTrip = callbacks.onOpenTrip,
-            onDismiss = { pastGlobeOpen = false },
-        )
     }
 }
 
@@ -516,7 +522,7 @@ private fun UpcomingSectionHeader(count: Int, collapsed: Boolean, onToggle: () -
 }
 
 /**
- * Header for the Past trips section: tapping it opens [PastTripsGlobeSheet] with all past flight arcs crisscrossed
+ * Header for the Past trips section: tapping it opens [PastTripsGlobeOverlay] with all past flight arcs crisscrossed
  * across the globe and summary travel statistics.
  */
 @Composable

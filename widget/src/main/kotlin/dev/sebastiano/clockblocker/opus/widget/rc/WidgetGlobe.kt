@@ -14,8 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GeoPoint
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeColors
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeGeo
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeLeg
 import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeStop
@@ -63,9 +65,9 @@ internal sealed interface GlobeOp {
 }
 
 /**
- * Colours of the widget route globe. Like the in-app `RouteGlobe`, the globe is a night-sky object in both Light and
- * Dark themes; in [WidgetTheme.NightSafe] it switches to warm, dimmed amber on near-black so the widget never emits
- * blue or bright white light during an avoid-light or sleep window.
+ * Colours of the widget route globe: the in-app [GlobeColors], as ints for Remote Compose. Like the in-app `RouteGlobe`,
+ * the globe is a night-sky object in both Light and Dark themes; in [WidgetTheme.NightSafe] it switches to warm, dimmed
+ * amber on near-black so the widget never emits blue or bright white light during an avoid-light or sleep window.
  */
 internal data class WidgetGlobePalette(
     val ocean: Int,
@@ -81,32 +83,22 @@ internal data class WidgetGlobePalette(
     val scrim: Int,
 ) {
     companion object {
-        val Standard = WidgetGlobePalette(
-            ocean = 0xFF0B1026.toInt(),
-            oceanDay = 0xFF2A2E6E.toInt(),
-            rim = 0xFF3B4290.toInt(),
-            land = 0xFFF4EFE6.toInt(),
-            sea = 0xFF9FB4FF.toInt(),
-            cityLight = 0xFFFFD29D.toInt(),
-            route = 0xFFFFB000.toInt(),
-            routeDim = 0xFFFFE2A6.toInt(),
-            stop = 0xFFFFFFFF.toInt(),
-            label = 0xFFFFFFFF.toInt(),
-            scrim = 0xB3000000.toInt(),
-        )
+        val Standard = of(GlobeColors.Standard)
 
-        val NightSafe = WidgetGlobePalette(
-            ocean = 0xFF050300.toInt(),
-            oceanDay = 0xFF241504.toInt(),
-            rim = 0xFF4A3319.toInt(),
-            land = 0xFFB7A48D.toInt(),
-            sea = 0xFF6E5536.toInt(),
-            cityLight = 0xFFD99B4E.toInt(),
-            route = 0xFFD98A1C.toInt(),
-            routeDim = 0xFF8E6830.toInt(),
-            stop = 0xFFD9B88C.toInt(),
-            label = 0xFFD9B88C.toInt(),
-            scrim = 0xCC050300.toInt(),
+        val NightSafe = of(GlobeColors.NightSafe)
+
+        private fun of(colors: GlobeColors) = WidgetGlobePalette(
+            ocean = colors.ocean.toArgb(),
+            oceanDay = colors.oceanDay.toArgb(),
+            rim = colors.rim.toArgb(),
+            land = colors.land.toArgb(),
+            sea = colors.sea.toArgb(),
+            cityLight = colors.cityLight.toArgb(),
+            route = colors.route.toArgb(),
+            routeDim = colors.routeDim.toArgb(),
+            stop = colors.stop.toArgb(),
+            label = colors.label.toArgb(),
+            scrim = colors.scrim.toArgb(),
         )
 
         fun of(theme: WidgetTheme): WidgetGlobePalette =

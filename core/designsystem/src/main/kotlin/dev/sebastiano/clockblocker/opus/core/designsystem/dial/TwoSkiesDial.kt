@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
@@ -25,8 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import dev.sebastiano.clockblocker.opus.core.designsystem.globe.Pinch
-import dev.sebastiano.clockblocker.opus.core.designsystem.globe.pinchGesture
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
 import androidx.compose.ui.platform.LocalView
@@ -66,12 +65,13 @@ import kotlin.math.min
  * this composable adds the interaction. Drag the hand to scrub (hour-tick haptics, [onScrub]); tap the centre to
  * return to now. Easter egg: long-press the centre, then spin a full turn counter-clockwise → [onRewind].
  *
+ * A second finger on the dial is never a scrub: a host's pinch (the plan's way to the world) wraps the dial, and
+ * the dial neither starts a scrub when a second finger follows the first nor keeps one a second finger interrupts.
+ *
  * @param returnOnRelease when true, lifting the finger after a scrub snaps the hand back to now right after
  *   [onScrubEnd]: a "peek" preview rather than a persistent one.
  * @param onRingsAligned called once the inner ring has finished turning into alignment (after the CONFIRM click).
  * @param bodyRing what the inner ring shows: the turned local sky (default) or the planner's biological night.
- * @param onPinchOut a two-finger pinch out (the plan's way to the globe). One finger still scrubs, taps and
- *   long-presses as before: the pinch only takes over once a second finger is down.
  * @param extraActions more TalkBack custom actions after Next block / Previous block / Back to now.
  */
 @Composable
@@ -85,13 +85,11 @@ fun TwoSkiesDial(
     returnOnRelease: Boolean = false,
     onRingsAligned: (() -> Unit)? = null,
     bodyRing: BodyRingMode = BodyRingMode.Simple,
-    onPinchOut: (() -> Unit)? = null,
     extraActions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
     val view = LocalView.current
-    val currentOnPinchOut by rememberUpdatedState(onPinchOut)
     val scope = rememberCoroutineScope()
     val measurer = rememberTextMeasurer(cacheSize = 128)
     val formatter = rememberTimeFormatter()
@@ -220,7 +218,6 @@ fun TwoSkiesDial(
                     CustomAccessibilityAction(nowLabel) { animateScrubTo(0f); true },
                 ) + extraActions
             }
-            .pinchGesture(enabled = onPinchOut != null) { if (it == Pinch.Out) currentOnPinchOut?.invoke() }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -232,6 +229,14 @@ fun TwoSkiesDial(
                         val allowEgg = easterEggsEnabled && currentOnRewind != null && !reduce
                         val longPress = if (allowEgg) awaitLongPressOrCancellation(down.id) else null
                         if (longPress == null) {
+                            // Only a finger lifted on its own is a tap. A second finger (a pinch to the world, which
+                            // takes the gesture over) or a cancelled touch leaves the hand and the cards as they are.
+                            val tapped = if (allowEgg) {
+                                currentEvent.changes.none { it.pressed || it.isConsumed }
+                            } else {
+                                waitForUpOrCancellation() != null && currentEvent.changes.none { it.pressed }
+                            }
+                            if (!tapped) return@awaitEachGesture
                             // A tap on the centre returns the hand to now; the cards travel with it. A landing at
                             // offset 0 (now on the face, but the other run of a repeated hour) is a preview too.
                             if (scrub.value != 0f || landing != null) {
@@ -288,20 +293,65 @@ fun TwoSkiesDial(
                         return@awaitEachGesture
                     }
                     if (currentOnScrub == null) return@awaitEachGesture
-                    // Scrub: jump the hand under the finger, then follow incrementally (clamped to the window).
+                    // Scrub. It doesn't start on touch-down: a second finger landing a moment later is a pinch (the
+                    // plan's way to the world), which must never move the hand or the cards. So the hand only jumps
+                    // under the finger once it has moved past the touch slop or rested for a tap's time with no
+                    // second finger; a lift before then is a tap on the ring (the hand jumps there, as before).
+                    val startScrub = scrub.value
+                    val startLanding = landed
+                    val slop = viewConfiguration.touchSlop
+                    var lifted = false
+                    var pinched = false
+                    // Where the finger was last seen before the scrub starts (past the slop, or still resting).
+                    var latest = down.position
+                    withTimeoutOrNull(ScrubStartMillis) {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                            if (event.changes.count { it.pressed } > 1 || change == null || change.isConsumed) {
+                                pinched = event.changes.count { it.pressed } > 1 || change?.isConsumed == true
+                                lifted = !pinched
+                                break
+                            }
+                            if (!change.pressed) {
+                                lifted = true
+                                break
+                            }
+                            latest = change.position
+                            if ((change.position - down.position).getDistance() > slop) break
+                        }
+                    }
+                    if (pinched) return@awaitEachGesture
+                    // Jump the hand under the finger, then follow incrementally (clamped to the window).
                     val now = currentState.localMinute
                     var offset = DialGeometry.relativeMinute(
                         now,
                         DialGeometry.minuteForAngle(DialGeometry.angleOf(down.position.x - c.x, down.position.y - c.y)),
                     )
                     var lastAngle = DialGeometry.angleOf(down.position.x - c.x, down.position.y - c.y)
-                    scope.launch { scrub.snapTo(offset) }
-                    haptics.update(offset)
-                    report(offset)
+                    // The finger may have moved on while the scrub waited: the hand follows it there too, so a quick
+                    // drag and release lands where the finger let go.
+                    if (latest != down.position) {
+                        val angle = DialGeometry.angleOf(latest.x - c.x, latest.y - c.y)
+                        offset = (offset + DialGeometry.angleDelta(lastAngle, angle) / 360f * DialGeometry.MinutesPerDay)
+                            .coerceIn(-DialState.PastWindowMinutes, DialGeometry.MinutesPerDay - DialState.PastWindowMinutes - 1f)
+                        lastAngle = angle
+                    }
+                    val first = offset
+                    scope.launch { scrub.snapTo(first) }
+                    haptics.update(first)
+                    report(first)
                     down.consume()
-                    while (true) {
+                    var cancelled = false
+                    while (!lifted) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        // A second finger (or the pinch above taking the gesture) mid-scrub: the scrub never
+                        // happened. The hand and the cards go back to where they were before this touch.
+                        if (event.changes.count { it.pressed } > 1 || change.isConsumed) {
+                            cancelled = true
+                            break
+                        }
                         if (!change.pressed) break
                         if (change.positionChange() == Offset.Zero) continue
                         val angle = DialGeometry.angleOf(change.position.x - c.x, change.position.y - c.y)
@@ -313,6 +363,16 @@ fun TwoSkiesDial(
                         haptics.update(o)
                         report(o)
                         change.consume()
+                    }
+                    if (cancelled) {
+                        scope.launch { scrub.snapTo(startScrub) }
+                        if (startScrub != 0f || startLanding != null) {
+                            report(startScrub, startLanding?.at, startLanding?.anchor ?: currentState.instant)
+                        } else {
+                            landed = null
+                            currentOnScrubEnd?.invoke()
+                        }
+                        return@awaitEachGesture
                     }
                     // A peek ends as one event: the hand snaps home on the same frame the cards return to now
                     // (no animation, so no velocity to hand over).
@@ -340,6 +400,9 @@ fun TwoSkiesDial(
         drawDialSpec(spec, measurer, fonts, pixelGlyphs)
     }
 }
+
+/** How long a finger rests on the ring before it scrubs without moving: a pinch's second finger lands sooner. */
+private const val ScrubStartMillis = 100L
 
 /**
  * The Two skies dial as a still picture at [state] (no gestures, no semantics): previews, sheets and the

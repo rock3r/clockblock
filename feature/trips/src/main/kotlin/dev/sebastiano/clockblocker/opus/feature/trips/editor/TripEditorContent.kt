@@ -81,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -167,7 +168,8 @@ fun TripEditorContent(
     val route = remember(state.legs) { EditorRoute.of(state.legs) }
     val routeDescription = routeDescription(route, state.preview?.let(ShiftSummary::of))
     val active = activeLeg.coerceIn(0, (state.legs.size - 1).coerceAtLeast(0))
-    // A tap on a flight (on the globe, small or full size): go to its ticket and make it the active one.
+    // A tap on a flight (on the small globe, or Go to ticket on the full-screen one): go to its ticket and make it the
+    // active one. The full-screen globe plays its exit while the ticket comes into view behind it.
     val goToLeg: (Int) -> Unit = { index ->
         activeLeg = index
         globeExpanded = false
@@ -179,79 +181,90 @@ fun TripEditorContent(
         }
     }
     val requestClose = { if (state.dirty) confirmDiscard = true else onClose() }
-    BackHandler(enabled = state.dirty && !confirmDiscard) { confirmDiscard = true }
+    // Back closes the full-screen globe first (it has its own handler).
+    BackHandler(enabled = state.dirty && !confirmDiscard && !(globeExpanded && !route.isEmpty)) { confirmDiscard = true }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            when (state.mode) {
-                                EditorMode.New -> R.string.editor_title_new
-                                EditorMode.Edit -> R.string.editor_title_edit
-                                EditorMode.Return -> R.string.editor_title_return
-                            },
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = requestClose, modifier = Modifier.testTag(TripsTestTags.EditorClose)) {
-                        Icon(painterResource(R.drawable.ic_trips_close), contentDescription = stringResource(R.string.editor_close))
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-        bottomBar = {
-            if (!state.loading && !state.notFound) PrimaryActionBar(state, onSave = actions::save)
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        when {
-            state.loading -> Box(Modifier.fillMaxSize().padding(padding))
-            state.notFound -> NotFound(onClose, Modifier.fillMaxSize().padding(padding))
-            else -> EditorBody(
-                state = state,
-                actions = actions,
-                snackbarHostState = snackbarHostState,
-                onPick = { picker = it },
-                contentPadding = padding,
-                tickets = tickets,
-                activeLeg = active,
-                onActiveLeg = { activeLeg = it },
-                globe = if (route.isEmpty) {
-                    null
-                } else {
-                    {
-                        EditorGlobe(
-                            route = route,
-                            description = routeDescription,
-                            now = now,
-                            activeLeg = active,
-                            onLegClick = goToLeg,
-                            onExpand = { globeExpanded = true },
+    val globeShown = globeExpanded && !route.isEmpty
+    Box(modifier) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior.nestedScrollConnection)
+                // TalkBack stays in the full-screen globe while it covers the editor.
+                .then(if (globeShown) Modifier.clearAndSetSemantics { } else Modifier),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                when (state.mode) {
+                                    EditorMode.New -> R.string.editor_title_new
+                                    EditorMode.Edit -> R.string.editor_title_edit
+                                    EditorMode.Return -> R.string.editor_title_return
+                                },
+                            ),
                         )
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = requestClose, modifier = Modifier.testTag(TripsTestTags.EditorClose)) {
+                            Icon(painterResource(R.drawable.ic_trips_close), contentDescription = stringResource(R.string.editor_close))
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+            },
+            bottomBar = {
+                if (!state.loading && !state.notFound) PrimaryActionBar(state, onSave = actions::save)
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { padding ->
+            when {
+                state.loading -> Box(Modifier.fillMaxSize().padding(padding))
+                state.notFound -> NotFound(onClose, Modifier.fillMaxSize().padding(padding))
+                else -> EditorBody(
+                    state = state,
+                    actions = actions,
+                    snackbarHostState = snackbarHostState,
+                    onPick = { picker = it },
+                    contentPadding = padding,
+                    tickets = tickets,
+                    activeLeg = active,
+                    onActiveLeg = { activeLeg = it },
+                    globe = if (route.isEmpty) {
+                        null
+                    } else {
+                        {
+                            EditorGlobe(
+                                route = route,
+                                description = routeDescription,
+                                now = now,
+                                activeLeg = active,
+                                onLegClick = goToLeg,
+                                onExpand = { globeExpanded = true },
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+
+        picker?.let { target -> PickerDialog(target, state, actions, onDismiss = { picker = null }) }
+
+        // The full-screen globe covers the editor (or its pane): drawn over the Scaffold, never in a window of its own.
+        if (!route.isEmpty) {
+            EditorGlobeOverlay(
+                route = route,
+                description = routeDescription,
+                now = now,
+                activeLeg = active,
+                visible = globeShown,
+                onActivateLeg = { activeLeg = it },
+                onGoToTicket = goToLeg,
+                onDismiss = { globeExpanded = false },
             )
         }
-    }
-
-    picker?.let { target -> PickerDialog(target, state, actions, onDismiss = { picker = null }) }
-
-    if (globeExpanded && !route.isEmpty) {
-        GlobeSheet(
-            route = route,
-            description = routeDescription,
-            now = now,
-            activeLeg = active,
-            onLegClick = goToLeg,
-            onDismiss = { globeExpanded = false },
-        )
     }
 
     state.search?.let { search ->

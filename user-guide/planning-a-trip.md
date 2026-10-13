@@ -20,8 +20,10 @@ ago"), and about how many days the plan needs to adapt you ("~5 days to adapt") 
 body clock got all the way there). Past trips sit at the bottom of the list in quieter colours, still easy to
 read. A trip stays on **Now** until its plan ends, including the last night's sleep, and only then moves to **Past
 trips**: **Now** and **Trips** never show the same trip, and never skip one. Tap the **Past trips**
-heading to open a globe with all your past routes drawn across it, along with your total distance, airports
-visited, hours of time-zone shift and estimated days of jet lag saved.
+heading to open a big globe over the whole screen with all your past routes drawn across it, along with your total
+distance, airports visited, hours of time difference (every flight's change of clock, added up) and estimated days of
+jet lag saved. Drag the globe to turn it and pinch to zoom. Tap a flight to see which trip it was, then **Open trip**
+to go to its plan. Close it with the close button or go back.
 
 During a trip, the sky behind the **Trips** title follows your body clock, and the subtitle shows your body clock
 time.
@@ -30,7 +32,7 @@ To add another trip, tap the **New trip** button in the corner. It offers **New 
 destination of the trip you're on (or the last one you took), and **Try a demo trip**. On short windows, such as a
 phone in landscape, a **+** button sits in the top bar instead, so it never covers a trip card.
 
-<img src="images/add-menu.png" alt="The Trips screen with Upcoming and Past trips, and the add menu open: New trip, Return from London and Try a demo trip." width="280" /> <img src="images/past-trips-globe.png" alt="The past-trips sheet over the Trips screen, headed Where you've been, 2 trips · 3 flights, with a dark globe showing the flight arcs to London, Singapore and Sydney and four stat cards: 4 airports visited, 25,793 km distance flown, 17 h time zones crossed and ~7 days jet lag saved." width="280" />
+<img src="images/add-menu.png" alt="The Trips screen with Upcoming and Past trips, and the add menu open: New trip, Return from London and Try a demo trip." width="280" /> <img src="images/past-trips-globe.png" alt="The past-trips globe over the whole Trips screen on a night sky, headed Where you've been, 4 trips · 5 flights. A big globe shows orange arcs crisscrossing between SFO, JFK, LIS, LHR, CDG, HND and SIN, with zoom buttons beside it. Four stat tiles under it: 8 airports visited, 42,781 km distance flown, 31 h hours of time difference and ~10 days jet lag saved. Under them: Drag to turn the globe. Tap a flight to see its trip." width="280" />
 
 ## Adding flights
 
@@ -71,7 +73,7 @@ time changes and in which direction ("+9 h east"), and about how many days it ta
 with no plan ("About 4 days with the plan, 7 without"). It updates as you edit. If the planner can't work out a
 plan for the flights as entered, it says so; check their dates and times.
 
-<img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-size globe in a sheet over the editor, headed Your route, London to Sydney via Singapore, 10 hours east. The globe labels LHR and SIN beside their dots on the bright arc; the arc to Sydney fades off the right edge. Under it: Tap a flight to go to its ticket." width="280" />
+<img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-screen globe over the editor on a night sky, headed Your route, London to Sydney via Singapore. The globe is turned to the second flight: a bright orange arc from SIN to SYD, with the first flight fading in faintly from the top. Zoom buttons sit at the bottom right, and a line says: Drag to turn the globe. Tap a flight to pick its ticket." width="280" />
 
 Once a flight has both airports, **Your shift** also shows a small globe with your route. Each flight is an arc
 along the shortest path over the Earth, and each airport is a dot. The shaded half of the globe is where it's night
@@ -79,10 +81,12 @@ right now. With more than one flight, the globe turns to the flight you're editi
 others. Tap one of the other flights on the globe to scroll to its ticket. When a route wraps round the world, the
 flights on the far side show through the globe as faint dashes.
 
-Tap anywhere else on the globe to see it full size. The full-size globe labels each airport with its code.
-Tap a flight there to go to its ticket, or swipe the sheet down (or go back) to close it. With TalkBack, the globe
-reads out the trip, for example "Lisbon to Tokyo via Doha, 9 hours east". With more than one flight it also offers
-an action per flight, such as **Go to flight 2: Doha to Tokyo**.
+Tap anywhere else on the globe to see it full screen. The full-screen globe labels each airport with its code. Drag
+it to turn it, pinch or use the + and − buttons to zoom, and double-tap to frame your route again. Tap a flight there
+to make it the ticket you're editing and see its name, then **Go to ticket** to close the globe and scroll to that
+ticket. Close it with the close button or go back. With TalkBack, the globe reads out the trip, for example "Lisbon
+to Tokyo via Doha, 9 hours east". With more than one flight it also offers an action per flight, such as **Go to
+flight 2: Doha to Tokyo**, and the full-screen globe offers actions to turn, zoom and re-centre it.
 
 If you stay at a stop for three days or more, the plan treats that stop as a destination of its own and adapts
 you to it before the next flight.
