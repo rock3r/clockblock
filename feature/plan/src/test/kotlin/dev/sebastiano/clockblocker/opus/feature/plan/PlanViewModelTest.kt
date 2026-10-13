@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
 
 class PlanViewModelTest {
     @get:Rule
@@ -39,6 +40,7 @@ class PlanViewModelTest {
     private val logs = FakeAdviceLogRepository()
     private val settings = FakeSettingsRepository()
     private val celebrations = FakeCelebrationStore()
+    private val ambientSky = FakeAmbientSkyStore()
     private val snoozed = mutableListOf<String>()
 
     private fun viewModel(id: String? = tripId) = PlanViewModel(
@@ -49,6 +51,7 @@ class PlanViewModelTest {
         settingsRepository = settings,
         profileRepository = FakeProfileRepository.onboarded(),
         celebrationStore = celebrations,
+        ambientSkyStore = ambientSky,
         snoozer = { snoozed += it },
         icsExporter = IcsExporter(),
         clock = clock,
@@ -67,6 +70,21 @@ class PlanViewModelTest {
             ready.moment.active?.type shouldBe AdviceType.SeeBrightLight
             ready.kind shouldBe PlanKind.Adapt
             ready.celebrate.shouldBeFalse()
+        }
+    }
+
+    @Test
+    fun `the ambient sky plays once, then rests for the gap`() = runTest {
+        val vm = viewModel()
+        vm.state.test {
+            awaitReady().ambientSky.shouldBeTrue()
+            vm.reserveAmbientSky() shouldBe true
+            // Taken: a second header asking now gets nothing.
+            vm.reserveAmbientSky() shouldBe false
+            awaitReady { !it.ambientSky }
+            ambientSky.last shouldBe PlanFixtures.FakePreTrip
+            clock.advanceBy(AmbientSkyGap)
+            awaitReady { it.ambientSky }
         }
     }
 
@@ -226,5 +244,18 @@ internal class FakeCelebrationStore : CelebrationStore {
 
     override suspend fun markCelebrated(tripId: String) {
         state.update { it + tripId }
+    }
+}
+
+/** In-memory [AmbientSkyStore]. */
+internal class FakeAmbientSkyStore : AmbientSkyStore {
+    private val state = MutableStateFlow<Instant?>(null)
+    val last: Instant? get() = state.value
+    override val lastSession: Flow<Instant?> = state
+
+    override suspend fun reserve(at: Instant): Boolean {
+        if (!ambientSkyDue(state.value, at)) return false
+        state.value = at
+        return true
     }
 }

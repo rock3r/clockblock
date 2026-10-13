@@ -2,6 +2,13 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
+import io.kotest.assertions.withClue
 import android.content.Context
 import android.provider.Settings
 import androidx.compose.foundation.layout.Box
@@ -880,16 +887,13 @@ class PlanContentTest {
             .assertContentDescriptionContains("13:30", substring = true)
             .assertContentDescriptionContains("Los Angeles", substring = true)
 
-        // Picking Day 3 updates the header's Next action to that day's next block; Day 4 at 11:00 is already in the
-        // plan's final block, so Next disappears.
-        compose.onNodeWithTag(PlanTags.dayPill(3)).performClick()
+        // Picking another day (or scrubbing) previews it, but "Next" is about now: the countdown keeps counting from
+        // the real time, never from a previewed one (review of #157).
+        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.NextAction)
             .assertIsDisplayed()
-            .assertContentDescriptionContains("See some light", substring = true)
-        compose.onNodeWithTag(PlanTags.dayPill(4)).performClick()
-        compose.waitForIdle()
-        compose.onNodeWithTag(PlanTags.NextAction).assertDoesNotExist()
+            .assertContentDescriptionContains("in 2 h 30 min", substring = true)
         compose.onNodeWithTag(PlanTags.dayPill(2)).performClick()
         compose.waitForIdle()
 
@@ -940,14 +944,16 @@ class PlanContentTest {
 
     @Test
     @Config(qualifiers = "w500dp-h400dp-xhdpi")
-    fun `short window - the collapsed header and the upcoming card keep the first action, and the list scrolls`() {
+    fun `short window - the collapsed header keeps the first action whole, the card doesn't repeat it, and the list scrolls`() {
         show(ready(Instant.parse("2026-06-10T16:00:00Z")))
         compose.onNodeWithTag(PlanTags.NextAction)
             .assertIsDisplayed()
             .assertTextContains("Thu 11 Jun 20:00", substring = true)
             .assertTextContains("04:00 London +1", substring = true)
+        // The secondary zone is laid out whole, not ellipsized away (review of #157).
+        compose.onNodeWithText("04:00 London +1", substring = true, useUnmergedTree = true).assertNotCutShort()
         compose.onNode(hasText("Thu 11 Jun 20:00", substring = true) and hasAnyAncestor(hasTestTag(PlanTags.NowCard)))
-            .assertExists()
+            .assertDoesNotExist()
         // Touch-scrolling the list on a short window is not swallowed by the collapsed app bar.
         repeat(3) { compose.onNodeWithTag(PlanTags.Rail).performTouchInput { swipeUp() } }
         compose.waitForIdle()
@@ -955,13 +961,42 @@ class PlanContentTest {
     }
 
     @Test
+    @Config(qualifiers = "w500dp-h400dp-xhdpi")
+    fun `short window at a large font - the header's next action wraps rather than losing its other zone`() {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(ready(Instant.parse("2026-06-10T16:00:00Z")), actions) }
+            }
+        }
+        compose.onNodeWithText("04:00 London +1", substring = true, useUnmergedTree = true).assertIsDisplayed().assertNotCutShort()
+        compose.onNodeWithText("Thu 11 Jun 20:00", substring = true, useUnmergedTree = true).assertNotCutShort()
+    }
+
+    /** The text is laid out in full: not ellipsized, not clipped to fewer lines than it needs. */
+    private fun SemanticsNodeInteraction.assertNotCutShort(): SemanticsNodeInteraction {
+        val results = mutableListOf<TextLayoutResult>()
+        fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
+        val layout = results.single()
+        withClue("text cut short: ${layout.layoutInput.text}") {
+            layout.didOverflowHeight shouldBe false
+            (0 until layout.lineCount).none { layout.isLineEllipsized(it) } shouldBe true
+            // Every character is laid out (nothing clipped off the end).
+            layout.getLineEnd(layout.lineCount - 1, visibleEnd = true) shouldBe layout.layoutInput.text.length
+        }
+        return this
+    }
+
+    @Test
     fun `header ambient waits before starting a session and reacts to reduceMotion`() {
         compose.mainClock.autoAdvance = false
         var reduceMotion by mutableStateOf(false)
+        var due by mutableStateOf(true)
         lateinit var ambient: HeaderAmbient
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = reduceMotion) {
-                ambient = rememberHeaderAmbient(enabled = true)
+                // Like the screen: starting the session marks it played, so it is no longer due.
+                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { due = false; true })
             }
         }
         ambient.sessionMillis shouldBe -1L
@@ -977,10 +1012,130 @@ class PlanContentTest {
         compose.mainClock.advanceTimeByFrame()
         ambient.sessionMillis shouldBe -1L
 
-        // Turning Reduce motion back off starts the ambient timer again.
+        // That session was spent: turning Reduce motion back off doesn't replay it (it isn't due again yet).
         reduceMotion = false
         Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis * 3)
+        ambient.sessionMillis shouldBe -1L
+    }
+
+    @Test
+    fun `header ambient plays one session when due, to its end, and never on a timer`() {
+        compose.mainClock.autoAdvance = false
+        var due by mutableStateOf(true)
+        var starts = 0
+        lateinit var ambient: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                // Like the screen: starting the session marks it played, so it is no longer due.
+                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
+            }
+        }
         compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
-        (ambient.sessionMillis > 0L) shouldBe true
+        starts shouldBe 1
+        // No longer due, but the session under way plays on.
+        compose.mainClock.advanceTimeBy(AmbientSessionMillis / 2)
+        (ambient.sessionMillis > AmbientSessionMillis / 3) shouldBe true
+        compose.mainClock.advanceTimeBy(AmbientSessionMillis)
+        ambient.sessionMillis shouldBe -1L
+        // Then the sky stays still: no second session however long the screen stays open.
+        compose.mainClock.advanceTimeBy(10 * 60_000L)
+        ambient.sessionMillis shouldBe -1L
+        starts shouldBe 1
+    }
+
+    @Test
+    fun `two headers share one session - the one that didn't start gives its grant up`() {
+        compose.mainClock.autoAdvance = false
+        var due by mutableStateOf(true)
+        var visibleB by mutableStateOf(false)
+        var starts = 0
+        lateinit var a: HeaderAmbient
+        lateinit var b: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                // Both read the same persisted gate; whichever starts marks it played for both.
+                a = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
+                b = rememberHeaderAmbient(allowed = true, due = due, visible = { visibleB }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
+            }
+        }
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
+        starts shouldBe 1
+        (a.sessionMillis > 0L) shouldBe true
+        // The other header shows up later: the session is spent, so it stays still.
+        visibleB = true
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis * 3)
+        starts shouldBe 1
+        b.sessionMillis shouldBe -1L
+    }
+
+    @Test
+    fun `two headers asking at the same moment - the shared reservation lets only one play`() {
+        compose.mainClock.autoAdvance = false
+        var taken = false
+        var starts = 0
+        lateinit var a: HeaderAmbient
+        lateinit var b: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                // Both see due = true (the store's update hasn't reached them yet); the reservation is the arbiter.
+                val reserve: suspend () -> Boolean = { if (taken) false else { taken = true; starts++; true } }
+                a = rememberHeaderAmbient(allowed = true, due = true, visible = { true }, reserve = reserve)
+                b = rememberHeaderAmbient(allowed = true, due = true, visible = { true }, reserve = reserve)
+            }
+        }
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 2_000)
+        starts shouldBe 1
+        listOf(a.sessionMillis, b.sessionMillis).count { it > 0L } shouldBe 1
+    }
+
+    @Test
+    fun `header ambient never starts when it isn't due`() {
+        compose.mainClock.autoAdvance = false
+        var starts = 0
+        lateinit var ambient: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                ambient = rememberHeaderAmbient(allowed = true, due = false, visible = { true }, reserve = { starts++; true })
+            }
+        }
+        compose.mainClock.advanceTimeBy(5 * 60_000L)
+        ambient.sessionMillis shouldBe -1L
+        starts shouldBe 0
+    }
+
+    @Test
+    fun `header ambient waits while the header can't show it, and pauses a session when it collapses`() {
+        compose.mainClock.autoAdvance = false
+        var visible by mutableStateOf(false)
+        var starts = 0
+        lateinit var ambient: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                ambient = rememberHeaderAmbient(allowed = true, due = true, visible = { visible }, reserve = { starts++; true })
+            }
+        }
+        // Collapsed (or a short window): nothing starts, and the session isn't spent.
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis * 3)
+        starts shouldBe 0
+        visible = true
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
+        starts shouldBe 1
+        compose.mainClock.advanceTimeBy(5_000L)
+        val before = ambient.sessionMillis
+        (before > 0L) shouldBe true
+        // Collapsing the header pauses the session's clock (and its frame loop).
+        visible = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        val paused = ambient.sessionMillis
+        compose.mainClock.advanceTimeBy(20_000L)
+        ambient.sessionMillis shouldBe paused
+        visible = true
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(1_000L)
+        (ambient.sessionMillis > paused) shouldBe true
     }
 }

@@ -19,4 +19,6 @@ dependencies {
     api(libs.roborazzi.junit.rule)
     api(libs.androidx.compose.ui.test.junit4)
     api(libs.androidx.test.core)
+    // material-color-utilities (shipped inside Material Components): wallpaper-seeded schemes for colour audits.
+    implementation(libs.google.material)
 }

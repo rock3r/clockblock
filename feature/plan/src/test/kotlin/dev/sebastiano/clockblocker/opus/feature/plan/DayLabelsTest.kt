@@ -27,6 +27,10 @@ class DayLabelsTest {
         Advice(id, AdviceType.Flight, start.toInstant(), end.toInstant(), AdviceReason.TravelMarker)
 
     /** Los Angeles until 18:00 UTC on 16 Jun 2026, London after: a stand-in for the plan's zones. */
+    /** What a day pill shows under its number: [weekdaySpan] of [dayDates]. */
+    private fun dayWeekdays(day: PlanDay, zoneAt: (Instant) -> ZoneId, locale: Locale): String =
+        dayDates(day, zoneAt).let { (from, to) -> weekdaySpan(from, to, locale) }
+
     private fun zoneAt(landing: Instant): (Instant) -> ZoneId = { at -> if (at.isBefore(landing)) la else london }
 
     @Test

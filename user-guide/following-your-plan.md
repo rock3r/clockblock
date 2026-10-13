@@ -19,14 +19,14 @@ it. If you want to know why a block is there, tap **Why?**.
 
 ## The plan screen
 
-<img src="images/plan-now.png" alt="The plan screen for Lisbon to Tokyo on pre-trip day −1, body 2½ hours ahead. Below the header, a strip of day pills with Pre −1 picked. The dial shows 18:06 in Lisbon and 20:48 body, with an arc saying Avoid light until 20:00, then sleep. The Now card says Avoid light, 1 h 54 min left, until 20:00 (04:00 Tokyo the next day), Also now: Avoid caffeine, with a Done button." width="300" />
+<img src="images/plan-now.png" alt="The plan screen for Rome to New York on Day 1, Adapting. The header shows FCO to JFK and Next: Avoid caffeine in 8 h, at 16:00 (22:00 Rome). Below, day pills from −1 to +3 with +1 picked. The dial shows 08:00 in New York and 10:28 body, 2½ h ahead, with an arc saying Avoid light until 09:00, then avoid caffeine. The Now card says Avoid light, 1 h left, until 09:00." width="300" />
 
 From top to bottom:
 
 1. **The header** shows the airport codes and the trip, the day of the plan ("Day 2 · Adapting" or "Pre-trip day −1";
    on a small phone it also says how far off your body clock is, when the dial leaves out its pill) and the next block
    to start ("Next: Avoid caffeine in 1 h 20 min" with the time in both zones, or its date and time when it's more than
-   a day away). Its sky and its sun or moon show your body's time of day, with stars when your body is at night. A
+   a day away). "Next" always counts from now, even while you look at another day or drag the dial. Its sky and its sun or moon show your body's time of day, with stars when your body is at night. A
    faint ring on the sun's dotted path marks where the sun is by the clock, and a line joins the two when your body is
    half an hour or more off.
 2. **The day strip** has one pill per day of the plan (see below).
@@ -103,8 +103,8 @@ The card shows:
 
 - "NOW" and how much time is left in the block.
 - What to do, in large text (for example **Sleep** or **Avoid caffeine**), and a short tip.
-- Other blocks that are also active, each on its own row with its symbol and name, such as "Also now · Avoid
-  caffeine".
+- Other blocks that are also active, each on its own row with its symbol, "Also now" and its name, such as
+  **Also now** Avoid caffeine.
 - When it ends: "until 15:00", with the same moment in your other time zone next to it ("07:00 Los Angeles").
 
 When you've done it, tap **Done**, at the bottom right of the card. The small arrow next to Done offers **Skipped**, **Can't do this** and
@@ -134,14 +134,20 @@ claims it's faster. See [the science](../docs/science.md) for details.
 
 ### The timeline
 
-<img src="images/timeline.png" alt="The Your plan timeline at the end of the travel day: Avoid light 22:45 to 01:00, marked In flight, with a Peak fatigue chip inside it, then a divider saying Switching to Tokyo time, UTC+9, +8 h from Lisbon. Below, Day 1, Thu 8 Oct, marked Arrival, with Sleep 09:00 to 10:00 and See bright light 10:00 to 15:00. Each block also shows the time in Lisbon. A toolbar at the bottom has Now, Day and Why?." width="300" />
+<img src="images/timeline.png" alt="The Your plan timeline on Day 1, Mon 12 Oct, in New York with Rome 6 h ahead. The block happening now, Avoid light 04:00 to 09:00 · 5 h, sits in an outlined card with a Now label, its start time in colour and a line across its striped capsule; a past Nap chip (05:00 to 05:30 · 30 min) rides inside it. Below, Avoid caffeine 16:00 to 22:00 · 6 h, See some light 17:00 to 21:00 · 4 h and See bright light 21:00 to 22:00 · 1 h, each capsule with a coloured edge and each block showing the time in Rome. A toolbar at the bottom has Now, Day and Why?." width="300" />
 
 The timeline lists every day of the plan: pre-trip days, the travel day, the days after you land, and the day you're
 adapted. Each block shows its local time and how long it lasts on one line ("22:45 – 01:00 · 2 h 15 min") and,
-underneath, the time at the other end of the trip. Earlier days are folded away; tap **Show N
-earlier days** to see them. Tap any block to read why it's there.
+underneath, the time at the other end of the trip. With large text, the duration moves to its own line. Earlier days
+are folded away; tap **Show N earlier days** to see them. Tap any block to read why it's there.
 
 A few details help you read it:
+
+- The block happening now sits in an outlined card, with its start time in colour, a **Now** label and a line
+  across its capsule at the current time. Blocks that are over are greyed back a little; blocks still to come are
+  in full colour.
+- Each block's capsule has its advice colour, a coloured edge and a pattern (stripes for Avoid light, stars for
+  Sleep, dots for naps), so you can tell them apart even if you can't tell the colours apart.
 
 - A short block that falls inside a longer one, such as **Caffeine OK** during **See bright light**, is shown as a
   small chip inside the longer block. Tap the chip to read about it.
@@ -217,7 +223,7 @@ Instead of a Now card, the plan sometimes shows a message. The picture shows a p
 | Message | What it means |
 |---|---|
 | Your plan starts … | The plan hasn't started yet. It shows when the plan begins and how long adapting should take; the first block is in the header above. |
-| Free time | Nothing to do right now. Live your life. |
+| Free time | Nothing to do right now. Live your life. What's next is in the header. While you look at another day or drag the dial, the card also says what comes next from that moment. |
 | Short trip: staying on home time | You're back before your body could settle, so the plan keeps your body on home time. |
 | No jet lag expected | Home and destination keep nearly the same hours. Keep your usual sleep and get some morning daylight. |
 | Trip complete | The plan is over. It shows how many blocks you did, skipped or couldn't do. |
