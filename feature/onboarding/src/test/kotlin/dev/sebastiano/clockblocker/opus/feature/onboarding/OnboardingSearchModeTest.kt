@@ -281,6 +281,6 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
         )
 
         fun searchState(query: String, results: ImmutableList<Place>) =
-            onboardingState(OnboardingStep.HomeZone, query = query).copy(results = results)
+            onboardingState(OnboardingStep.HomeZone, query = query).copy(results = results, searchMatchingQuery = query)
     }
 }
