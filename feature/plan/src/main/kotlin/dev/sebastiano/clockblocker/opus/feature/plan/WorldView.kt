@@ -73,6 +73,7 @@ import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.roundToInt
 import dev.sebastiano.clockblocker.opus.core.designsystem.R as DesignR
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
 
 /** Below this sun height (degrees) the place counts as dark: sunset, with refraction. */
 private const val DarkBelowDegrees = -0.833
@@ -376,7 +377,15 @@ private fun WorldCaption(caption: String, modifier: Modifier) {
  * codes beside their dots and the caption under the title. Close, Back (predictive) or the close button return.
  */
 @Composable
-internal fun PlanWorldOverlay(trip: Trip, plan: JetLagPlan, at: Instant, visible: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PlanWorldOverlay(
+    trip: Trip,
+    plan: JetLagPlan,
+    at: Instant,
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    cover: GlobeOverlayCover? = null,
+) {
     val legs = rememberWorldLegs(trip)
     val position = remember(trip, at) { trip.positionAt(at) }
     val state = rememberRouteGlobeState()
@@ -394,6 +403,7 @@ internal fun PlanWorldOverlay(trip: Trip, plan: JetLagPlan, at: Instant, visible
         title = routeTitle(trip),
         subtitle = whereYouAre(trip, plan, at),
         state = state,
+        cover = cover,
         modifier = modifier.testTag(PlanTags.WorldOverlay),
         globe = { globeModifier ->
             RouteGlobe(

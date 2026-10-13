@@ -84,6 +84,8 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.FilledTonalButton
 import java.time.Instant
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.hiddenUnder
 
 /** Everything the trips list can ask its host or ViewModel to do. Null = not offered by the host. */
 class TripsCallbacks(
@@ -150,13 +152,16 @@ private fun TripsScaffold(
     var pastGlobeOpen by rememberSaveable { mutableStateOf(false) }
     val pastStats = remember(state.past) { PastTripsStats.of(state.past) }
     val pastGlobeShown = pastGlobeOpen && !pastStats.isEmpty
+    val pastGlobeCover = remember { GlobeOverlayCover() }
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection)
             // TalkBack stays in the globe while it covers the screen.
-            .then(if (pastGlobeShown) Modifier.clearAndSetSemantics { } else Modifier),
+            .then(if (pastGlobeShown) Modifier.clearAndSetSemantics { } else Modifier)
+            // Not drawn under the full-screen globe once it covers the list.
+            .hiddenUnder(pastGlobeCover),
         topBar = {
             TripsSkyTopBar(
                 title = stringResource(R.string.trips_title),
@@ -211,6 +216,7 @@ private fun TripsScaffold(
             visible = pastGlobeShown,
             onOpenTrip = callbacks.onOpenTrip,
             onDismiss = { pastGlobeOpen = false },
+            cover = pastGlobeCover,
         )
     }
 }

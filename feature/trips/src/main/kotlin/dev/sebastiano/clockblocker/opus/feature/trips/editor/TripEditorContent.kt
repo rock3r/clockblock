@@ -101,6 +101,8 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.hiddenUnder
 
 /**
  * Stateful editor entry: collects the ViewModel, forwards saves to [onDone] and guards unsaved changes
@@ -186,13 +188,16 @@ fun TripEditorContent(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     val globeShown = globeExpanded && !route.isEmpty
+    val globeCover = remember { GlobeOverlayCover() }
     Box(modifier) {
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 // TalkBack stays in the full-screen globe while it covers the editor.
-                .then(if (globeShown) Modifier.clearAndSetSemantics { } else Modifier),
+                .then(if (globeShown) Modifier.clearAndSetSemantics { } else Modifier)
+                // Not drawn under the full-screen globe once it covers the editor.
+                .hiddenUnder(globeCover),
             topBar = {
                 TopAppBar(
                     title = {
@@ -263,6 +268,7 @@ fun TripEditorContent(
                 onActivateLeg = { activeLeg = it },
                 onGoToTicket = goToLeg,
                 onDismiss = { globeExpanded = false },
+                cover = globeCover,
             )
         }
     }

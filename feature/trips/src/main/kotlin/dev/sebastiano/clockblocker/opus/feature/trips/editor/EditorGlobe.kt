@@ -29,6 +29,7 @@ import dev.sebastiano.clockblocker.opus.feature.trips.ui.cityLabel
 import java.time.Instant
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
 
 /**
  * The route as the globe sees it: the legs that have both airports, with the index of each in the editor's list
@@ -157,6 +158,7 @@ internal fun EditorGlobeOverlay(
     onGoToTicket: (Int) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    cover: GlobeOverlayCover? = null,
 ) {
     val labels = legLabels(route)
     val legs = rememberNamedLegs(route)
@@ -173,6 +175,7 @@ internal fun EditorGlobeOverlay(
         title = stringResource(R.string.globe_title),
         subtitle = description,
         state = state,
+        cover = cover,
         modifier = modifier.testTag(TripsTestTags.EditorGlobeOverlay),
         globe = { globeModifier ->
             RouteGlobe(

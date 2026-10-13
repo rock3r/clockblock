@@ -46,6 +46,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
 
 /**
  * Aggregated route and travel statistics across all completed trips, for the past-trips globe.
@@ -133,6 +134,7 @@ internal fun PastTripsGlobeOverlay(
     onOpenTrip: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    cover: GlobeOverlayCover? = null,
 ) {
     val state = rememberRouteGlobeState()
     LaunchedEffect(visible) {
@@ -172,6 +174,7 @@ internal fun PastTripsGlobeOverlay(
         title = stringResource(R.string.past_globe_title),
         subtitle = stringResource(R.string.past_globe_subtitle, tripsLabel, flightsLabel),
         state = state,
+        cover = cover,
         modifier = modifier.testTag(TripsTestTags.PastGlobeOverlay),
         globe = { globeModifier ->
             RouteGlobe(
