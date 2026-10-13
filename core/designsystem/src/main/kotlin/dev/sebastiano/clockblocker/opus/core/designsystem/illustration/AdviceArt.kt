@@ -250,9 +250,6 @@ fun PillowMoonArt(
         ink(pillow, width = 2f)
         ink(path { arcTo(34f, 76f, 10f, 205f, 110f, forceMoveTo = true) }, width = 1.8f, color = colors.highlight)
         ink(path { arcTo(58f, 73f, 12.5f, 210f, 115f, forceMoveTo = true) }, width = 1.8f, color = colors.highlight)
-        if (PillowSmile) {
-            ink(path { arcTo(56f, 78f, 14f, 25f, 130f, forceMoveTo = true) }, width = 1.5f, color = colors.ink.copy(alpha = 0.28f))
-        }
 
         val zs = listOf(Triple(84f, 45f, 11f), Triple(94f, 31f, 14f), Triple(104f, 16f, 17f))
         zs.forEachIndexed { i, (zx, zy, size) ->
@@ -537,9 +534,3 @@ fun RunningLowArt(
         ink(body, width = 2.5f)
     }
 }
-
-/**
- * The pillow's centred crease reads as a smile, against design.md §2.4's "no faces". The owner hasn't decided whether
- * to keep it; flip this to drop it (and re-record the pillow goldens).
- */
-private const val PillowSmile = true
