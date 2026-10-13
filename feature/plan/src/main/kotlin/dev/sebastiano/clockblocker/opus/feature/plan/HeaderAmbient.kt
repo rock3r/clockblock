@@ -46,9 +46,13 @@ which ends it for good: it isn't replayed when [allowed] comes back). While [vis
 @Composable
 internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -> Boolean, onSessionStart: () -> Unit): HeaderAmbient {
     val ambient = remember { HeaderAmbient() }
-    // Latched: marking the session as played turns [due] off, which must not cut short the session it started.
+    // Latched while a session runs: marking it played turns [due] off, which must not cut short the session it
+    // started. A grant that hasn't started yet goes with [due] (another header may have just spent the session).
     var granted by remember { mutableStateOf(false) }
-    LaunchedEffect(due) { if (due) granted = true }
+    var running by remember { mutableStateOf(false) }
+    LaunchedEffect(due) {
+        if (due) granted = true else if (!running) granted = false
+    }
     val currentVisible by rememberUpdatedState(visible)
     val currentOnStart by rememberUpdatedState(onSessionStart)
     val active = allowed && granted && !ClockblockTheme.motion.reduceMotion
@@ -68,6 +72,7 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
                 if (hidden == null) break
             }
             started = true
+            running = true
             currentOnStart()
             var elapsed = 0f
             var lastFrame = withFrameMillis { it }
@@ -85,6 +90,7 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
             }
         } finally {
             ambient.sessionMillis = -1L
+            running = false
             // A started session spends the grant however it ends (played out, or cut short by Reduce motion, a sleep
             // window or Night-safe), so the gate turning back on never replays it before it's due again.
             if (started) granted = false

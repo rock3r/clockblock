@@ -1082,6 +1082,32 @@ class PlanContentTest {
     }
 
     @Test
+    fun `two headers share one session - the one that didn't start gives its grant up`() {
+        compose.mainClock.autoAdvance = false
+        var due by mutableStateOf(true)
+        var visibleB by mutableStateOf(false)
+        var starts = 0
+        lateinit var a: HeaderAmbient
+        lateinit var b: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                // Both read the same persisted gate; whichever starts marks it played for both.
+                a = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, onSessionStart = { starts++; due = false })
+                b = rememberHeaderAmbient(allowed = true, due = due, visible = { visibleB }, onSessionStart = { starts++; due = false })
+            }
+        }
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
+        starts shouldBe 1
+        (a.sessionMillis > 0L) shouldBe true
+        // The other header shows up later: the session is spent, so it stays still.
+        visibleB = true
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis * 3)
+        starts shouldBe 1
+        b.sessionMillis shouldBe -1L
+    }
+
+    @Test
     fun `header ambient never starts when it isn't due`() {
         compose.mainClock.autoAdvance = false
         var starts = 0
