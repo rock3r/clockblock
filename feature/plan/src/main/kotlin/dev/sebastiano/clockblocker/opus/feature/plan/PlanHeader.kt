@@ -154,7 +154,7 @@ internal data class HeaderNext(val headline: String, val detail: String)
  *
  * [ambient]: the sky may come alive once in a while ([HeaderAmbient]); off under Reduce motion, in sleep windows, in
  * Night-safe and on short windows (where the header stays collapsed and can't show it). [ambientDue]: it last played
- * long enough ago ([ambientSkyDue]); [onAmbientStart] fires when a session starts.
+ * long enough ago ([ambientSkyDue]); [reserveAmbient] reserves a session atomically before it starts.
  *
  * [next] is the next action from *now* (never from a previewed or scrubbed moment): the Now card shows what the
  * preview is about.
@@ -181,7 +181,7 @@ internal fun PlanHeader(
     showBodyShift: Boolean = false,
     ambient: Boolean = false,
     ambientDue: Boolean = false,
-    onAmbientStart: () -> Unit = {},
+    reserveAmbient: suspend () -> Boolean = { true },
 ) {
     val live = HeaderFrame(moment.bodyTime, moment.instant.atZone(moment.zone).toLocalTime(), daylight)
     val fade = rememberSkyFade(skyKey, live)
@@ -200,7 +200,7 @@ internal fun PlanHeader(
         due = ambientDue,
         // Past half way collapsed the sky's atmosphere has faded out: a session waits rather than drawing nothing.
         visible = { collapsedFraction() < 0.5f },
-        onSessionStart = onAmbientStart,
+        reserve = reserveAmbient,
     )
     val stage = stageLabel(moment, firstDay)
     val bodyShift = if (showBodyShift) bodyShiftLabel(moment.bodyAheadHours) else null

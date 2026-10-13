@@ -78,7 +78,9 @@ class PlanViewModelTest {
         val vm = viewModel()
         vm.state.test {
             awaitReady().ambientSky.shouldBeTrue()
-            vm.ambientSkyStarted()
+            vm.reserveAmbientSky() shouldBe true
+            // Taken: a second header asking now gets nothing.
+            vm.reserveAmbientSky() shouldBe false
             awaitReady { !it.ambientSky }
             ambientSky.last shouldBe PlanFixtures.FakePreTrip
             clock.advanceBy(AmbientSkyGap)
@@ -251,7 +253,9 @@ internal class FakeAmbientSkyStore : AmbientSkyStore {
     val last: Instant? get() = state.value
     override val lastSession: Flow<Instant?> = state
 
-    override suspend fun markSession(at: Instant) {
+    override suspend fun reserve(at: Instant): Boolean {
+        if (!ambientSkyDue(state.value, at)) return false
         state.value = at
+        return true
     }
 }

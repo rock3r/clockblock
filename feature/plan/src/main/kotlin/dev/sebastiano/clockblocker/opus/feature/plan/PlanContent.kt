@@ -143,8 +143,8 @@ internal class PlanActions(
     val onUndo: (adviceId: String, previous: AdviceOutcome?) -> Unit = { _, _ -> },
     val onSnooze: (adviceId: String) -> Unit = {},
     val onCelebrationShown: () -> Unit = {},
-    /** The header's ambient sky started a session (it then rests for a long while). */
-    val onAmbientSkyStarted: () -> Unit = {},
+    /** Reserves the header's ambient sky session before it starts (false: not due, or another header took it). */
+    val reserveAmbientSky: suspend () -> Boolean = { true },
 )
 
 /**
@@ -598,7 +598,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                     showBodyShift = dialSide < FullDialMinSize,
                     ambient = state.easterEggs,
                     ambientDue = state.ambientSky,
-                    onAmbientStart = actions.onAmbientSkyStarted,
+                    reserveAmbient = actions.reserveAmbientSky,
                 )
             },
             snackbarHost = { SnackbarHost(screen.snackbar, Modifier.padding(bottom = 72.dp)) },

@@ -35,16 +35,17 @@ internal class HeaderAmbient {
 
 /**
  * The header's [HeaderAmbient]. A session may run while [allowed] (easter eggs on, not Night-safe, not a short
- * window) once [due] (it last played long enough ago); [onSessionStart] fires as it starts, so it isn't due again for
- * a long while. That only stops the *next* session: the one under way plays to its end (unless [allowed] turns off,
-which ends it for good: it isn't replayed when [allowed] comes back). While [visible] is false (the
- * header collapsed) a session waits, frame loop and clock stopped, and resumes when the sky shows again.
+ * window) once [due] (it last played long enough ago). Before it starts it must [reserve] the session: an atomic
+ * check-and-mark in the shared store, so of two headers on screen at once (two windows) only one plays, and nothing
+ * is due again for a long while. That only stops the *next* session: the one under way plays to its end (unless
+ * [allowed] turns off, which ends it for good: it isn't replayed when [allowed] comes back). While [visible] is false
+ * (the header collapsed) a session waits, frame loop and clock stopped, and resumes when the sky shows again.
  *
  * Self-timed: every wait and the session clock follow [MotionDurationScale]; with animations removed (scale 0) no
  * session starts, and one under way pauses.
  */
 @Composable
-internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -> Boolean, onSessionStart: () -> Unit): HeaderAmbient {
+internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -> Boolean, reserve: suspend () -> Boolean): HeaderAmbient {
     val ambient = remember { HeaderAmbient() }
     // Latched while a session runs: marking it played turns [due] off, which must not cut short the session it
     // started. A grant that hasn't started yet goes with [due] (another header may have just spent the session).
@@ -54,7 +55,7 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
         if (due) granted = true else if (!running) granted = false
     }
     val currentVisible by rememberUpdatedState(visible)
-    val currentOnStart by rememberUpdatedState(onSessionStart)
+    val currentReserve by rememberUpdatedState(reserve)
     val active = allowed && granted && !ClockblockTheme.motion.reduceMotion
     LaunchedEffect(active) {
         ambient.sessionMillis = -1L
@@ -71,9 +72,13 @@ internal fun rememberHeaderAmbient(allowed: Boolean, due: Boolean, visible: () -
                 val hidden = withTimeoutOrNull(wait) { snapshotFlow { showing() }.first { !it } }
                 if (hidden == null) break
             }
+            // Someone else (another header) got the session first: give the grant up.
+            if (!currentReserve()) {
+                granted = false
+                return@LaunchedEffect
+            }
             started = true
             running = true
-            currentOnStart()
             var elapsed = 0f
             var lastFrame = withFrameMillis { it }
             while (elapsed < AmbientSessionMillis) {

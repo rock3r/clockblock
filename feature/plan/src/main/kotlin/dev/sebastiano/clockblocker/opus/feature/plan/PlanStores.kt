@@ -80,7 +80,11 @@ interface AmbientSkyStore {
     /** The last session's start, or null if it never played. */
     val lastSession: Flow<Instant?>
 
-    suspend fun markSession(at: Instant)
+    /**
+     * Atomically: if a session is due at [at] ([ambientSkyDue]), marks one as started then and returns true; otherwise
+     * returns false. Two headers asking at once get one true between them.
+     */
+    suspend fun reserve(at: Instant): Boolean
 }
 
 /** [AmbientSkyStore] in a tiny private SharedPreferences file: UI bookkeeping, like [PreferencesCelebrationStore]. */
@@ -96,9 +100,13 @@ class PreferencesAmbientSkyStore(
 
     override val lastSession: Flow<Instant?> get() = flow { state.collect { emit(it) } }.flowOn(dispatchers.io).distinctUntilChanged()
 
-    override suspend fun markSession(at: Instant) = withContext(dispatchers.io) {
-        state.value = at
-        prefs.edit { putLong(KEY, at.toEpochMilli()) }
+    override suspend fun reserve(at: Instant): Boolean = withContext(dispatchers.io) {
+        synchronized(this@PreferencesAmbientSkyStore) {
+            if (!ambientSkyDue(state.value, at)) return@withContext false
+            state.value = at
+            prefs.edit { putLong(KEY, at.toEpochMilli()) }
+            true
+        }
     }
 
     companion object {

@@ -185,10 +185,8 @@ class PlanViewModel(
         viewModelScope.launch { celebrationStore.markCelebrated(id) }
     }
 
-    /** The header's ambient sky started playing: it won't again for [AmbientSkyGap]. */
-    fun ambientSkyStarted() {
-        viewModelScope.launch { ambientSkyStore.markSession(clock.instant()) }
-    }
+    /** Reserves the header's ambient sky session now (false: not due, or already taken): see [AmbientSkyStore.reserve]. */
+    suspend fun reserveAmbientSky(): Boolean = ambientSkyStore.reserve(clock.instant())
 
     /** The plan as an iCalendar document (null while nothing is loaded). */
     fun calendar(labels: ExportLabels): String? = readyPlan?.let { icsExporter.export(it.plan, it.trip, labels) }

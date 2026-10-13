@@ -1033,7 +1033,7 @@ class PlanContentTest {
         compose.setContent {
             ClockblockTheme(dynamicColor = false, reduceMotion = reduceMotion) {
                 // Like the screen: starting the session marks it played, so it is no longer due.
-                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, onSessionStart = { due = false })
+                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { due = false; true })
             }
         }
         ambient.sessionMillis shouldBe -1L
@@ -1065,7 +1065,7 @@ class PlanContentTest {
         compose.setContent {
             ClockblockTheme(dynamicColor = false) {
                 // Like the screen: starting the session marks it played, so it is no longer due.
-                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, onSessionStart = { starts++; due = false })
+                ambient = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
             }
         }
         compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
@@ -1092,8 +1092,8 @@ class PlanContentTest {
         compose.setContent {
             ClockblockTheme(dynamicColor = false) {
                 // Both read the same persisted gate; whichever starts marks it played for both.
-                a = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, onSessionStart = { starts++; due = false })
-                b = rememberHeaderAmbient(allowed = true, due = due, visible = { visibleB }, onSessionStart = { starts++; due = false })
+                a = rememberHeaderAmbient(allowed = true, due = due, visible = { true }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
+                b = rememberHeaderAmbient(allowed = true, due = due, visible = { visibleB }, reserve = { val ok = due; if (ok) { starts++; due = false }; ok })
             }
         }
         compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 500)
@@ -1108,13 +1108,33 @@ class PlanContentTest {
     }
 
     @Test
+    fun `two headers asking at the same moment - the shared reservation lets only one play`() {
+        compose.mainClock.autoAdvance = false
+        var taken = false
+        var starts = 0
+        lateinit var a: HeaderAmbient
+        lateinit var b: HeaderAmbient
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false) {
+                // Both see due = true (the store's update hasn't reached them yet); the reservation is the arbiter.
+                val reserve: suspend () -> Boolean = { if (taken) false else { taken = true; starts++; true } }
+                a = rememberHeaderAmbient(allowed = true, due = true, visible = { true }, reserve = reserve)
+                b = rememberHeaderAmbient(allowed = true, due = true, visible = { true }, reserve = reserve)
+            }
+        }
+        compose.mainClock.advanceTimeBy(AmbientFirstDelayMillis + 2_000)
+        starts shouldBe 1
+        listOf(a.sessionMillis, b.sessionMillis).count { it > 0L } shouldBe 1
+    }
+
+    @Test
     fun `header ambient never starts when it isn't due`() {
         compose.mainClock.autoAdvance = false
         var starts = 0
         lateinit var ambient: HeaderAmbient
         compose.setContent {
             ClockblockTheme(dynamicColor = false) {
-                ambient = rememberHeaderAmbient(allowed = true, due = false, visible = { true }, onSessionStart = { starts++ })
+                ambient = rememberHeaderAmbient(allowed = true, due = false, visible = { true }, reserve = { starts++; true })
             }
         }
         compose.mainClock.advanceTimeBy(5 * 60_000L)
@@ -1130,7 +1150,7 @@ class PlanContentTest {
         lateinit var ambient: HeaderAmbient
         compose.setContent {
             ClockblockTheme(dynamicColor = false) {
-                ambient = rememberHeaderAmbient(allowed = true, due = true, visible = { visible }, onSessionStart = { starts++ })
+                ambient = rememberHeaderAmbient(allowed = true, due = true, visible = { visible }, reserve = { starts++; true })
             }
         }
         // Collapsed (or a short window): nothing starts, and the session isn't spent.
