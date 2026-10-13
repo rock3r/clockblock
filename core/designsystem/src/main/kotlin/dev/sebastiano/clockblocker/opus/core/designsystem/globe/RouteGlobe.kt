@@ -35,6 +35,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -242,6 +243,9 @@ fun RouteGlobe(
     val zoomOut = stringResource(R.string.globe_action_zoom_out)
     val recentre = stringResource(R.string.globe_action_recentre)
     val legCodes = stringResource(R.string.globe_leg_codes)
+    // TalkBack is only offered the zoom directions that can still change it, like the buttons' enabled state.
+    val canZoomIn by remember(state) { derivedStateOf { state.zoom < RouteGlobeState.MaxZoom } }
+    val canZoomOut by remember(state) { derivedStateOf { state.zoom > 1f } }
 
     Canvas(
         modifier
@@ -270,8 +274,10 @@ fun RouteGlobe(
                         add(CustomAccessibilityAction(turnWest) { scope.launch { state.turnBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
                         add(CustomAccessibilityAction(turnNorth) { scope.launch { state.tiltBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
                         add(CustomAccessibilityAction(turnSouth) { scope.launch { state.tiltBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
-                        if (zoomable) {
+                        if (zoomable && canZoomIn) {
                             add(CustomAccessibilityAction(zoomIn) { scope.launch { state.zoomTo(state.zoom * RouteGlobeDefaults.ZoomStep, spec()) }; true })
+                        }
+                        if (zoomable && canZoomOut) {
                             add(CustomAccessibilityAction(zoomOut) { scope.launch { state.zoomTo(state.zoom / RouteGlobeDefaults.ZoomStep, spec()) }; true })
                         }
                         if (state.moved) add(CustomAccessibilityAction(recentre) { scope.launch { state.recentre(spec()) }; true })

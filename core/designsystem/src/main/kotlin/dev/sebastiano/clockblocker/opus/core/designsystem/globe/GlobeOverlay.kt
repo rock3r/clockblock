@@ -43,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -227,13 +229,19 @@ fun GlobeOverlay(
             throw e
         }
     }
-    SkyStatusBarIcons(ink = Color.White, ownsStatusBar = visible)
+    // Like the sky headers, it owns the status bar's icons only from the window's top-start edge: in a trailing pane the
+    // leading pane's header keeps them.
+    var atTopStart by remember { mutableStateOf(false) }
+    SkyStatusBarIcons(ink = Color.White, ownsStatusBar = visible && atTopStart)
 
     transition.AnimatedVisibility(
         visible = { it },
         enter = fadeIn(motion.colour()) + scaleIn(motion.navigationSpatial(), initialScale = 0.92f),
         exit = fadeOut(motion.colour()) + scaleOut(motion.navigationSpatial(), targetScale = 0.92f),
-        modifier = modifier,
+        modifier = modifier.onGloballyPositioned {
+            val position = it.positionInWindow()
+            atTopStart = position.x < 1f && position.y < 1f
+        },
     ) {
         val sky = ClockblockTheme.sky[SkyPhase.Night]
         val ink = GlobeColors.current.label
