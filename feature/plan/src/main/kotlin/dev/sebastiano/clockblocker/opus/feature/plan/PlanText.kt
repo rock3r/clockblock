@@ -100,6 +100,9 @@ internal fun formatDuration(duration: Duration): String = LocalContext.current.r
  */
 internal fun railRange(range: String): String = range.replace(' ', '\u00A0').replace("\u00A0\u2013\u00A0", "\u00A0\u2013 ")
 
+/** A city next to timeline times ("Los Angeles") that never breaks: it moves to the next line whole. */
+internal fun railCity(city: String): String = city.replace(' ', '\u00A0')
+
 /** A timeline duration ("3 h 30 min") that never breaks: it moves to the next line whole. */
 internal fun railDuration(duration: String): String = duration.replace(' ', '\u00A0')
 

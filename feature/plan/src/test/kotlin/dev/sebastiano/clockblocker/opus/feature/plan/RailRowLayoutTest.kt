@@ -94,7 +94,7 @@ class RailRowLayoutTest {
     fun `a nested chip keeps its other zone's city on the line at the default font size`() {
         chipZoneLine(fontScale = 1f)
         val range = compose.onNodeWithText(railRange("02:00 – 02:30")).getUnclippedBoundsInRoot()
-        val city = compose.onNodeWithText("Los Angeles").getUnclippedBoundsInRoot()
+        val city = compose.onNodeWithText(railCity("Los Angeles")).getUnclippedBoundsInRoot()
         (city.top < range.bottom && range.top < city.bottom) shouldBe true
         (city.left >= range.right) shouldBe true
     }
@@ -103,7 +103,7 @@ class RailRowLayoutTest {
     fun `a nested chip at a large font moves the whole city under its times`() {
         chipZoneLine(fontScale = 1.5f)
         val range = compose.onNodeWithText(railRange("02:00 – 02:30")).getUnclippedBoundsInRoot()
-        val city = compose.onNodeWithText("Los Angeles").getUnclippedBoundsInRoot()
+        val city = compose.onNodeWithText(railCity("Los Angeles")).getUnclippedBoundsInRoot()
         (city.top >= range.bottom) shouldBe true
         ((city.bottom - city.top) < (range.bottom - range.top) * 1.5f) shouldBe true
     }
@@ -118,7 +118,7 @@ class RailRowLayoutTest {
             }
         }
         val range = compose.onNodeWithText(railRange("02:00 – 02:30")).getUnclippedBoundsInRoot()
-        val city = compose.onNodeWithText("Los Angeles").getUnclippedBoundsInRoot()
+        val city = compose.onNodeWithText(railCity("Los Angeles")).getUnclippedBoundsInRoot()
         (city.top >= range.bottom) shouldBe true
         // One line, not "Los" / "Angeles".
         ((city.bottom - city.top) < (range.bottom - range.top) * 1.5f) shouldBe true

@@ -22,6 +22,11 @@ class RailTimeLineTest {
     }
 
     @Test
+    fun `a city never breaks`() {
+        railCity("Port of Spain") shouldBe "Port\u00A0of\u00A0Spain"
+    }
+
+    @Test
     fun `a duration never breaks`() {
         railDuration("2 h 15 min") shouldNotContain " "
         railDuration("2 h 15 min") shouldBe "2\u00A0h\u00A015\u00A0min"

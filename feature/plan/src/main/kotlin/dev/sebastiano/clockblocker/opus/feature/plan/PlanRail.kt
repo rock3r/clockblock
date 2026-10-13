@@ -840,7 +840,8 @@ internal fun RangeAndDuration(range: String, duration: String?, style: TextStyle
 internal fun ZonedTimes(range: String, city: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
     InlineOrStacked(
         first = { Text(railRange(range), style = style, color = color) },
-        second = { Text(city, style = style, color = color) },
+        // Unbreakable, so on its own line too it stays whole ("Port of Spain", never "Port of" / "Spain").
+        second = { Text(railCity(city), style = style, color = color) },
         separator = { Text(" ", style = style) },
         modifier = modifier,
     )
