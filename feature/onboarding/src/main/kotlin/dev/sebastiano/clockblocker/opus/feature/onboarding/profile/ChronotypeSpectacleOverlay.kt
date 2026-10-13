@@ -214,8 +214,9 @@ fun ChronotypeSpectacleOverlay(
                     Spacer(Modifier.size(8.dp))
                     TextButton(
                         onClick = {
+                            val openPicker = wordsProgress() > 0.68f
                             skipped = true
-                            onFinished(true)
+                            onFinished(openPicker)
                         },
                         modifier = Modifier.heightIn(min = 48.dp).staggeredWord(wordsProgress, 0.68f, 1.00f),
                     ) { Text(stringResource(R.string.chronotype_reveal_other)) }
