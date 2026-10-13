@@ -9,6 +9,7 @@ import dev.sebastiano.clockblocker.opus.core.data.TripRepository
 import dev.sebastiano.clockblocker.opus.core.data.time.AppDispatchers
 import dev.sebastiano.clockblocker.opus.core.data.trip.FlightEstimates
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
+import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripLinks
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripIssue
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripTitleSuggester
 import dev.sebastiano.clockblocker.opus.core.data.trip.TripValidator
@@ -85,6 +86,9 @@ class TripEditorViewModel(
     private var baseline: EditorForm? = null
     private var original: Trip? = null
     private var outbound: Trip? = null
+
+    /** Every trip when the editor opened: where a linked return trip (or one to relink) is looked up. */
+    private var allTrips: List<Trip> = emptyList()
     private var searchJob: Job? = null
     private var popularJob: Job? = null
     private var popularPlaces: List<Place>? = null
@@ -96,6 +100,7 @@ class TripEditorViewModel(
     }
 
     private suspend fun load() {
+        allTrips = trips.trips.first()
         val (mode, form) = when {
             args.tripId != null -> {
                 val trip = trips.trip(args.tripId).first()
@@ -127,6 +132,7 @@ class TripEditorViewModel(
             mode = mode,
             homeZoneId = home,
             returnAlreadySet = original?.returnDeparture != null,
+            returnTrip = original?.let { ReturnTripLinks.linked(it, allTrips) },
         )
         _state.value = derive(base, form)
         schedulePreview(_state.value)
@@ -214,19 +220,33 @@ class TripEditorViewModel(
     override fun onReturnTimeChange(time: LocalTime) = editForm { it.copy(returnFlight = true, returnTime = time) }
 
     /**
-     * On: suggests flying back [ReturnTripFactory.DefaultStay] after the last landing, at the time of day the trip
-     * leaves (as Create return trip does), unless a date is already set. With nothing to go on yet, the date stays
-     * empty for the user to pick. Off: forgets the return.
+     * On: an edited trip that already has a return trip (linked, or one left behind when the switch was turned off,
+     * see [ReturnTripLinks.reusable]) takes that trip's departure, and Save moves that trip rather than adding one.
+     * Otherwise it suggests flying back [ReturnTripFactory.DefaultStay] after the last landing, at the time of day the
+     * trip leaves (as Create return trip does), unless a date is already set. With nothing to go on yet, the date stays
+     * empty for the user to pick. Off: forgets the return date; an existing return trip stays unless the user also
+     * asks to delete it ([onDeleteReturnTripChange]).
      */
-    override fun onReturnFlightChange(on: Boolean) = editForm { form ->
-        if (!on) return@editForm form.copy(returnFlight = false, returnDate = null, returnTime = null)
-        val landed = form.legs.lastOrNull()?.let { it.arrivalDate ?: it.departureDate }
-        form.copy(
-            returnFlight = true,
-            returnDate = form.returnDate ?: landed?.plusDays(ReturnTripFactory.DefaultStay.toDays()),
-            returnTime = form.returnTime ?: form.legs.firstOrNull()?.departureTime ?: DefaultReturnTime,
-        )
+    override fun onReturnFlightChange(on: Boolean) {
+        if (on && _state.value.returnTrip == null) {
+            val reusable = original?.let { ReturnTripLinks.reusable(it, allTrips) }
+            if (reusable != null) _state.update { it.copy(returnTrip = reusable) }
+        }
+        val existing = _state.value.returnTrip?.legs?.first()?.departureLocal
+        editForm { form ->
+            if (!on) return@editForm form.copy(returnFlight = false, returnDate = null, returnTime = null)
+            val landed = form.legs.lastOrNull()?.let { it.arrivalDate ?: it.departureDate }
+            form.copy(
+                returnFlight = true,
+                returnDate = form.returnDate ?: existing?.toLocalDate() ?: landed?.plusDays(ReturnTripFactory.DefaultStay.toDays()),
+                returnTime = form.returnTime ?: existing?.toLocalTime() ?: form.legs.firstOrNull()?.departureTime ?: DefaultReturnTime,
+                deleteReturnTrip = false,
+            )
+        }
     }
+
+    /** With the switch off: whether Save also deletes the trip's existing return trip (kept by default). */
+    override fun onDeleteReturnTripChange(delete: Boolean) = editForm { it.copy(deleteReturnTrip = delete) }
 
     override fun onStrategyChange(strategy: AdaptationStrategy?) = editForm { it.copy(strategy = strategy) }
 
@@ -395,7 +415,15 @@ class TripEditorViewModel(
 
     // endregion
 
-    /** Persists the trip (and links a return trip to its outbound), then emits [TripEditorEvent.Saved]. */
+    /**
+     * Persists the trip, then keeps its return trip in step and emits [TripEditorEvent.Saved]:
+     * - switch on with a return trip already linked (or relinked): moves that trip to the new departure;
+     * - switch on without one: adds it (reversed, like Create return trip) and links it;
+     * - switch off: keeps the return trip (and the link, so turning the switch on again reuses it), or deletes it
+     *   when asked to;
+     * - a return trip being edited moves its outbound's return date along; a new one made by Create return trip is
+     *   linked to its outbound.
+     */
     override fun save() {
         val current = _state.value
         if (!current.canSave) return
@@ -404,19 +432,47 @@ class TripEditorViewModel(
         viewModelScope.launch {
             val destination = legs.last().destination
             val returnLocal = current.returnLocal
-            val returnDeparture = returnLocal?.atZone(destination.zone)?.toInstant()
-            val trip = Trip(
+            val existingReturn = current.returnTrip?.let { trips.trip(it.id).first() }
+            var trip = Trip(
                 id = original?.id ?: newId(),
                 title = current.effectiveTitle,
                 legs = legs,
                 createdAt = original?.createdAt ?: clock.instant(),
                 strategyOverride = current.form.strategy,
-                returnDeparture = returnDeparture,
+                returnDeparture = returnLocal?.atZone(destination.zone)?.toInstant(),
                 bodyClockStartZoneId = current.effectiveBodyClockStartZoneId,
+                // A link to a trip that's gone (deleted since) is dropped.
+                returnTripId = existingReturn?.id,
             )
+            if (current.offersReturnFlight) {
+                when {
+                    current.form.returnFlight && returnLocal != null && existingReturn != null -> {
+                        val moved = returnTrips.moveTo(existingReturn, returnLocal)
+                        if (moved != existingReturn) trips.upsert(moved)
+                        trip = trip.copy(returnDeparture = moved.departure, returnTripId = moved.id)
+                    }
+                    current.createsReturnTrip && returnLocal != null -> {
+                        val back = returnTripOf(trip, returnLocal, current.homeZoneId)
+                        trips.upsert(back)
+                        trip = trip.copy(returnTripId = back.id)
+                    }
+                    !current.form.returnFlight && existingReturn != null && current.form.deleteReturnTrip -> {
+                        trips.delete(existingReturn.id)
+                        trip = trip.copy(returnTripId = null)
+                    }
+                }
+            }
             trips.upsert(trip)
-            if (current.createsReturnTrip && returnLocal != null) trips.upsert(returnTripOf(trip, returnLocal, current.homeZoneId))
-            outbound?.let { out -> if (out.returnDeparture == null) trips.upsert(returnTrips.linkOutbound(out, trip)) }
+            outbound?.let { out ->
+                if (ReturnTripLinks.linked(out, allTrips) == null) trips.upsert(returnTrips.linkOutbound(out, trip))
+            }
+            original?.let { before ->
+                // Editing a return trip: its outbound's return date follows it (unless that trip is now one way).
+                val out = ReturnTripLinks.outboundOf(before, allTrips)?.let { trips.trip(it.id).first() }
+                if (out?.returnDeparture != null && out.returnDeparture != trip.departure) {
+                    trips.upsert(out.copy(returnDeparture = trip.departure, returnTripId = trip.id))
+                }
+            }
             baseline = current.form
             _state.update { it.copy(saving = false, dirty = false) }
             events.send(TripEditorEvent.Saved(trip.id))
@@ -504,7 +560,8 @@ class TripEditorViewModel(
     /**
      * Re-plans the draft (debounced, off the main thread) when what the planner sees changed: legs, strategy,
      * return or where the body clock starts. Titles and flight numbers don't move the plan, so typing them never re-runs it. The previous preview
-     * stays up while a new one is computed, and goes away as soon as the draft can't be planned.
+     * stays up while a new one is computed, and goes away as soon as the draft is incomplete or has errors. When the
+     * planner can't plan the draft (or there's no profile), the preview is cleared and marked unavailable.
      */
     private fun schedulePreview(state: TripEditorUiState) {
         val trip = if (!state.loading && state.complete && !state.hasErrors) previewTripOf(state) else null
@@ -512,14 +569,20 @@ class TripEditorViewModel(
         previewTrip = trip
         previewJob?.cancel()
         if (trip == null) {
-            _state.update { it.copy(preview = null) }
+            _state.update { it.copy(preview = null, previewUnavailable = false) }
             return
         }
         previewJob = viewModelScope.launch {
             delay(PreviewDebounceMillis)
-            val profile = profiles.profile.first() ?: return@launch
-            val plan = withContext(dispatchers.default) { runCatching { planner.plan(trip, profile, clock.instant()) }.getOrNull() }
-                ?: return@launch
+            val profile = profiles.profile.first()
+            val plan = profile?.let {
+                withContext(dispatchers.default) { runCatching { planner.plan(trip, it, clock.instant()) }.getOrNull() }
+            }
+            if (plan == null) {
+                // Never leave an older draft's numbers (or "Working out…") up for one that can't be planned.
+                _state.update { if (previewTrip == trip) it.copy(preview = null, previewUnavailable = true) else it }
+                return@launch
+            }
             val preview = ShiftPreview(
                 shiftHours = plan.shiftHours,
                 direction = plan.direction,
@@ -527,7 +590,7 @@ class TripEditorViewModel(
                 daysToAdapt = plan.estimatedDaysToAdapt,
                 daysWithoutPlan = plan.estimatedDaysWithoutPlan,
             )
-            _state.update { if (previewTrip == trip) it.copy(preview = preview) else it }
+            _state.update { if (previewTrip == trip) it.copy(preview = preview, previewUnavailable = false) else it }
         }
     }
 

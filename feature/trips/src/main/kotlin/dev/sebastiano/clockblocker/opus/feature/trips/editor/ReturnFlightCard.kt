@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -30,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.feature.trips.R
 import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
 import dev.sebastiano.clockblocker.opus.feature.trips.ui.cityLabel
@@ -38,8 +40,9 @@ import dev.sebastiano.clockblocker.opus.feature.trips.ui.rememberDateFormatter
 /**
  * "Return flight · One way / not sure yet": a switch right on the editor. On, it asks when you fly back (local time
  * where the trip ends, a week after landing suggested) and Save also adds the return trip, the way Create return trip
- * does. Editing a trip that already flies back only moves the date. The date row grows in on the container token
- * (a rare setup choice); under reduce motion it simply appears, and the switch carries the state either way.
+ * does. Editing a trip that already has a return trip moves that trip with the date. Off, an existing return trip
+ * stays in the trips list, with a checkbox to delete it too. The rows grow in on the container token (a rare setup
+ * choice); under reduce motion they simply appear, and the switch carries the state either way.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -48,6 +51,7 @@ internal fun ReturnFlightCard(
     onToggle: (Boolean) -> Unit,
     onPick: (PickerTarget) -> Unit,
     modifier: Modifier = Modifier,
+    onDeleteReturnTrip: (Boolean) -> Unit = {},
 ) {
     val on = state.form.returnFlight
     val origin = state.legs.firstOrNull()?.origin?.place
@@ -131,6 +135,7 @@ internal fun ReturnFlightCard(
                         when {
                             error -> stringResource(R.string.editor_return_before_landing, destination?.cityLabel.orEmpty())
                             state.createsReturnTrip -> stringResource(R.string.editor_return_creates)
+                            state.movesReturnTrip -> stringResource(R.string.editor_return_moves)
                             else -> stringResource(R.string.editor_return_hint)
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -138,6 +143,41 @@ internal fun ReturnFlightCard(
                     )
                 }
             }
+            val kept = state.returnTrip
+            AnimatedVisibility(
+                visible = !on && kept != null,
+                enter = expandVertically(motion.containerSpatial()) + fadeIn(motion.fade()),
+                exit = shrinkVertically(motion.containerSpatial()) + fadeOut(motion.fade()),
+            ) {
+                if (kept != null) KeptReturnTrip(kept, delete = state.form.deleteReturnTrip, onDelete = onDeleteReturnTrip)
+            }
+        }
+    }
+}
+
+/** Switch off, return trip still there: says it stays, and offers to delete it on Save. */
+@Composable
+private fun KeptReturnTrip(trip: Trip, delete: Boolean, onDelete: (Boolean) -> Unit) {
+    val dates = rememberDateFormatter()
+    val route = stringResource(R.string.editor_return_route, trip.origin.cityLabel, trip.destination.cityLabel)
+    Column(Modifier.padding(start = 20.dp, end = 12.dp, bottom = 8.dp)) {
+        Text(
+            stringResource(R.string.editor_return_kept, route, dates.format(trip.legs.first().departureLocal.toLocalDate())),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 8.dp),
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .toggleable(value = delete, role = Role.Checkbox, onValueChange = onDelete)
+                .testTag(TripsTestTags.EditorReturnDelete),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = delete, onCheckedChange = null)
+            Spacer(Modifier.width(12.dp))
+            Text(stringResource(R.string.editor_return_delete), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

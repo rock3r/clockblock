@@ -32,7 +32,8 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsTestTags
  * "Your shift": what the planner makes of the trip as entered, live, before the main action. Every number comes from
  * the [ShiftPreview] the ViewModel computed with the real planner, summarised by [ShiftSummary] ("+9 h east", "About
  * 4 days with the plan, 7 without"); nothing is guessed here. Until the draft can be planned it says what it needs
- * ([blocked]: the flights are in but have errors to fix; [pending]: they're complete and the planner is still working).
+ * ([blocked]: the flights are in but have errors to fix; [pending]: they're complete and the planner is still working;
+ * [unavailable]: the planner couldn't plan them, so it never sits on "Working out…" or shows an older draft's numbers).
  * Static (no motion): it simply updates when the draft changes.
  *
  * @param globe **Globe slot (UX plan, PR 4).** The route globe goes here, above the summary, about 180 dp tall: the
@@ -46,6 +47,7 @@ internal fun YourShiftCard(
     modifier: Modifier = Modifier,
     blocked: Boolean = false,
     pending: Boolean = false,
+    unavailable: Boolean = false,
     globe: (@Composable () -> Unit)? = null,
 ) {
     val summary = preview?.let(ShiftSummary::of)
@@ -66,7 +68,7 @@ internal fun YourShiftCard(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ShiftSummaryText(summary, blocked, pending)
+                    ShiftSummaryText(summary, blocked, pending, unavailable)
                 }
                 if (globe == null && summary is ShiftSummary.Shift) {
                     Spacer(Modifier.width(12.dp))
@@ -86,13 +88,14 @@ internal fun YourShiftCard(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ShiftSummaryText(summary: ShiftSummary?, blocked: Boolean, pending: Boolean) {
+private fun ShiftSummaryText(summary: ShiftSummary?, blocked: Boolean, pending: Boolean, unavailable: Boolean) {
     val headline = MaterialTheme.typography.headlineSmallEmphasized
     when (summary) {
         null -> Text(
             stringResource(
                 when {
                     blocked -> R.string.editor_shift_blocked
+                    unavailable -> R.string.editor_shift_unavailable
                     pending -> R.string.editor_shift_pending
                     else -> R.string.editor_shift_empty
                 },
@@ -114,8 +117,7 @@ private fun ShiftSummaryText(summary: ShiftSummary?, blocked: Boolean, pending: 
                 style = ClockblockTheme.textStyles.timeHeadline,
             )
             Text(
-                pluralStringResource(R.plurals.editor_shift_with, summary.daysWithPlan, summary.daysWithPlan) + ", " +
-                    pluralStringResource(R.plurals.editor_shift_without, summary.daysWithoutPlan, summary.daysWithoutPlan),
+                pluralStringResource(R.plurals.editor_shift_days, summary.daysWithPlan, summary.daysWithPlan, summary.daysWithoutPlan),
                 style = MaterialTheme.typography.bodyLarge,
             )
             if (summary.longWay) {
