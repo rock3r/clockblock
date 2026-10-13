@@ -412,11 +412,17 @@ private fun EditorBody(
         }
         if (state.offersReturnFlight) {
             Spacer(Modifier.height(8.dp))
-            ReturnFlightCard(state, onToggle = actions::onReturnFlightChange, onPick = onPick)
+            ReturnFlightCard(state, onToggle = actions::onReturnFlightChange, onPick = onPick, onDeleteReturnTrip = actions::onDeleteReturnTripChange)
         }
     }
     val details: @Composable ColumnScope.() -> Unit = {
-        YourShiftCard(state.preview, blocked = state.hasErrors, pending = state.complete && !state.hasErrors, globe = globe)
+        YourShiftCard(
+            state.preview,
+            blocked = state.hasErrors,
+            pending = state.complete && !state.hasErrors,
+            unavailable = state.previewUnavailable,
+            globe = globe,
+        )
         Spacer(Modifier.height(16.dp))
         TripDetails(state, actions)
     }

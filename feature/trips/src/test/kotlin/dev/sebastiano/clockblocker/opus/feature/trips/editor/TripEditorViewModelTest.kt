@@ -1,6 +1,8 @@
 package dev.sebastiano.clockblocker.opus.feature.trips.editor
 
 import app.cash.turbine.test
+import dev.sebastiano.clockblocker.opus.core.circadian.JetLagPlanner
+import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.data.trip.IssueSeverity
 import dev.sebastiano.clockblocker.opus.core.data.trip.ReturnTripFactory
@@ -46,7 +48,7 @@ class TripEditorViewModelTest {
     private val planner = FakeJetLagPlanner()
     private val profiles = FakeProfileRepository.onboarded()
 
-    private fun viewModel(args: TripEditorArgs = TripEditorArgs()) = TripEditorViewModel(
+    private fun viewModel(args: TripEditorArgs = TripEditorArgs(), planner: JetLagPlanner = this.planner) = TripEditorViewModel(
         args = args,
         trips = trips,
         places = search,
@@ -424,6 +426,116 @@ class TripEditorViewModelTest {
         }
     }
 
+    /** Saves a new LIS → HND trip with the Return flight switch on (HND → LIS on 9 July, 11:30); returns (outbound, back). */
+    private suspend fun kotlinx.coroutines.test.TestScope.saveLisbonTokyoWithReturn(): Pair<Trip, Trip> {
+        val vm = viewModel()
+        vm.fillLisbonTokyo()
+        vm.onReturnFlightChange(true)
+        vm.onReturnDateChange(LocalDate.of(2026, 7, 9))
+        vm.onReturnTimeChange(LocalTime.of(11, 30))
+        vm.save()
+        advanceUntilIdle()
+        val outbound = trips.current.single { it.legs.first().origin == DemoData.LIS }
+        return outbound to trips.current.single { it.id == outbound.returnTripId }
+    }
+
+    private fun returnTripsOf(outbound: Trip) =
+        trips.current.filter { it.legs.first().origin == outbound.destination && it.legs.last().destination == outbound.origin }
+
+    @Test
+    fun `a saved return flight is linked to its return trip by id`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+        outbound.returnTripId shouldBe back.id
+        outbound.returnDeparture shouldBe back.departure
+    }
+
+    @Test
+    fun `switching the return flight off, saving, then on again reuses the same return trip`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+
+        val off = viewModel(TripEditorArgs(tripId = outbound.id))
+        off.state.value.returnTrip?.id shouldBe back.id
+        off.onReturnFlightChange(false)
+        off.save()
+        advanceUntilIdle()
+        trips.current.single { it.id == outbound.id }.returnDeparture.shouldBeNull()
+        returnTripsOf(outbound).map { it.id } shouldContainExactly listOf(back.id) // Kept, not orphaned.
+
+        val on = viewModel(TripEditorArgs(tripId = outbound.id))
+        on.onReturnFlightChange(true)
+        on.state.value.createsReturnTrip shouldBe false
+        on.state.value.movesReturnTrip shouldBe true
+        on.state.value.form.returnDate shouldBe LocalDate.of(2026, 7, 9) // Its own date, not a fresh suggestion.
+        on.state.value.form.returnTime shouldBe LocalTime.of(11, 30)
+        on.save()
+        advanceUntilIdle()
+        returnTripsOf(outbound).map { it.id } shouldContainExactly listOf(back.id)
+        trips.current.single { it.id == outbound.id }.let {
+            it.returnTripId shouldBe back.id
+            it.returnDeparture shouldBe back.departure
+        }
+    }
+
+    @Test
+    fun `a return trip orphaned before links had ids is picked up again when the switch goes back on`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+        // What the earlier editor left behind: switch off saved, no link at all.
+        trips.upsert(trips.current.single { it.id == outbound.id }.copy(returnDeparture = null, returnTripId = null))
+
+        val vm = viewModel(TripEditorArgs(tripId = outbound.id))
+        vm.state.value.returnTrip.shouldBeNull()
+        vm.onReturnFlightChange(true)
+        vm.state.value.returnTrip?.id shouldBe back.id
+        vm.save()
+        advanceUntilIdle()
+        returnTripsOf(outbound).map { it.id } shouldContainExactly listOf(back.id)
+        trips.current.single { it.id == outbound.id }.returnTripId shouldBe back.id
+    }
+
+    @Test
+    fun `changing the return date moves the existing return trip with it`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+        val vm = viewModel(TripEditorArgs(tripId = outbound.id))
+        vm.state.value.form.returnFlight shouldBe true
+        vm.onReturnDateChange(LocalDate.of(2026, 7, 12))
+        vm.onReturnTimeChange(LocalTime.of(8, 0))
+        vm.save()
+        advanceUntilIdle()
+        val moved = returnTripsOf(outbound).single()
+        moved.id shouldBe back.id
+        moved.legs.single().departureLocal shouldBe LocalDateTime.of(2026, 7, 12, 8, 0)
+        moved.legs.single().duration shouldBe back.legs.single().duration
+        trips.current.single { it.id == outbound.id }.returnDeparture shouldBe moved.departure
+    }
+
+    @Test
+    fun `switching the return flight off can delete the return trip too`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+        val vm = viewModel(TripEditorArgs(tripId = outbound.id))
+        vm.onReturnFlightChange(false)
+        vm.state.value.form.deleteReturnTrip shouldBe false
+        vm.onDeleteReturnTripChange(true)
+        vm.state.value.dirty shouldBe true
+        vm.save()
+        advanceUntilIdle()
+        trips.current.none { it.id == back.id } shouldBe true
+        trips.current.single { it.id == outbound.id }.let {
+            it.returnTripId.shouldBeNull()
+            it.returnDeparture.shouldBeNull()
+        }
+    }
+
+    @Test
+    fun `editing a return trip's departure moves its outbound's return date along`() = runTest(main.dispatcher) {
+        val (outbound, back) = saveLisbonTokyoWithReturn()
+        val vm = viewModel(TripEditorArgs(tripId = back.id))
+        vm.onDepartureDateChange(0, LocalDate.of(2026, 7, 10))
+        vm.save()
+        advanceUntilIdle()
+        val edited = trips.current.single { it.id == back.id }
+        trips.current.single { it.id == outbound.id }.returnDeparture shouldBe edited.departure
+    }
+
     @Test
     fun `a return trip doesn't offer a return flight of its own`() = runTest(main.dispatcher) {
         val vm = viewModel(TripEditorArgs(returnOfTripId = DemoData.SfoLhrId))
@@ -624,6 +736,30 @@ class TripEditorViewModelTest {
         vm.fillLisbonTokyoDeparture()
         advanceUntilIdle()
         vm.state.value.preview.shouldBeNull()
+        vm.state.value.previewUnavailable shouldBe true
+    }
+
+    @Test
+    fun `when the planner fails the preview says so instead of keeping an older draft's numbers`() = runTest(main.dispatcher) {
+        var fail = false
+        val flaky = JetLagPlanner { trip, profile, now -> if (fail) error("engine hiccup") else planner.plan(trip, profile, now) }
+        val vm = viewModel(planner = flaky)
+        vm.fillLisbonTokyoDeparture()
+        advanceUntilIdle()
+        vm.state.value.preview.shouldNotBeNull()
+        vm.state.value.previewUnavailable shouldBe false
+
+        fail = true
+        vm.onStrategyChange(AdaptationStrategy.StayOnHomeTime)
+        advanceUntilIdle()
+        vm.state.value.preview.shouldBeNull()
+        vm.state.value.previewUnavailable shouldBe true
+
+        fail = false
+        vm.onStrategyChange(null)
+        advanceUntilIdle()
+        vm.state.value.preview.shouldNotBeNull()
+        vm.state.value.previewUnavailable shouldBe false
     }
 
     // endregion

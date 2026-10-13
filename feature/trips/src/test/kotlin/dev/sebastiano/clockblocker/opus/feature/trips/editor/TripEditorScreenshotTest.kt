@@ -156,6 +156,32 @@ class TripEditorScreenshotTest : TripsScreenshotTest() {
         qualifiers = "w411dp-h1700dp",
     )
 
+    /**
+     * Editing SFO → LHR, whose return trip exists, with the Return flight switch turned off: the card says the return
+     * trip stays and offers to delete it too.
+     */
+    @Test
+    fun returnFlightOffKeepsReturnTrip() = editor(withLinkedReturn().apply { onReturnFlightChange(false) }, "editor_return_kept", qualifiers = "w411dp-h1500dp")
+
+    @Test
+    fun returnFlightOffKeepsReturnTripDark() =
+        editor(withLinkedReturn().apply { onReturnFlightChange(false) }, "editor_return_kept_dark", darkTheme = true, qualifiers = "w411dp-h1500dp")
+
+    /** The same trip with the switch on: the hint says Save moves the return trip rather than adding one. */
+    @Test
+    fun returnFlightMovesReturnTrip() = editor(withLinkedReturn(), "editor_return_moves", qualifiers = "w411dp-h1500dp")
+
+    private fun withLinkedReturn(): TripEditorViewModel {
+        val factory = ReturnTripFactory(clock, TripTitleSuggester())
+        val outbound = DemoData.sfoToLhr()
+        val back = factory.create(outbound, java.time.LocalDateTime.of(2026, 6, 22, 11, 0)) { "sfo-lhr-back" }
+        kotlinx.coroutines.runBlocking {
+            trips.upsert(back)
+            trips.upsert(factory.linkOutbound(outbound, back))
+        }
+        return viewModel(TripEditorArgs(tripId = outbound.id))
+    }
+
     @Test
     fun searching() {
         val vm = viewModel()

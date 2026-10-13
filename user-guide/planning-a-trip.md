@@ -12,10 +12,14 @@ see an example plan for a flight from San Francisco to London a few days from no
 
 Your current or next trip lives on the **Now** tab. The **Trips** tab holds any later **Upcoming** trips and your
 **Past trips**. Each card shows the airport codes with the route drawn as an arc between them, the cities or trip
-title, the flight times and any stops on one line ("Thu, Jun 25, 21:35 → Sat, Jun 27, 06:05 · 1 stop · via SIN"),
+title, the flight times and any stops on one line ("Thu, Jun 25, 21:35 LHR → Sat, Jun 27, 06:05 SYD · 1 stop · via
+SIN": each time is local to the airport beside it),
 how many hours the time changes ("+8 h east"), when the plan starts ("Starts in 8 days") or ended ("Ended 15d
 ago"), and about how many days the plan needs to adapt you ("~5 days to adapt") or how the trip finished
-("Adapted", "Stayed on home time"). Past trips are toned down at the bottom of the list. Tap the **Past trips**
+("Adapted", "Stayed on home time", or "70% adapted" when your next trip, such as the flight home, began before your
+body clock got all the way there). Past trips sit at the bottom of the list in quieter colours, still easy to
+read. A trip stays on **Now** until its plan ends, including the last night's sleep, and only then moves to **Past
+trips**: **Now** and **Trips** never show the same trip, and never skip one. Tap the **Past trips**
 heading to open a big globe over the whole screen with all your past routes drawn across it, along with your total
 distance, airports visited, hours of time difference (every flight's change of clock, added up) and estimated days of
 jet lag saved. Drag the globe to turn it and pinch to zoom. Tap a flight to see which trip it was, then **Open trip**
@@ -36,6 +40,9 @@ phone in landscape, a **+** button sits in the top bar instead, so it never cove
 
 Each flight is a ticket: the airport codes big at the top, the departure and arrival below, and the time in the air
 at the bottom.
+
+Under each code, the ticket shows the city and, in smaller type, the airport's name (when it isn't just the city,
+so London Heathrow and London Gatwick tell apart) and its UTC offset at the time of the flight ("Heathrow", "GMT+1").
 
 1. Tap **FROM** on the ticket. A search sheet opens: type a city, an airport name or a three-letter code (for
    example LIS) and pick the airport. The search works offline. Before you type, the sheet offers a few popular
@@ -63,7 +70,8 @@ The app works out the time difference and the flight duration for you, including
 
 When the flights are complete, **Your shift** under the flights shows what the plan will do: how many hours the
 time changes and in which direction ("+9 h east"), and about how many days it takes to adapt with the plan compared
-with no plan ("About 4 days with the plan, 7 without"). It updates as you edit.
+with no plan ("About 4 days with the plan, 7 without"). It updates as you edit. If the planner can't work out a
+plan for the flights as entered, it says so; check their dates and times.
 
 <img src="images/route-globe.png" alt="The Edit trip screen for London to Sydney via Singapore. Under the second ticket and the Return flight switch, the Your shift card shows a small dark globe with the route: a bright orange arc from London to Singapore and a fainter one going on towards Sydney at the edge. Below it: +10 h east." width="280" /> <img src="images/route-globe-full.png" alt="The full-screen globe over the editor on a night sky, headed Your route, London to Sydney via Singapore. The globe is turned to the second flight: a bright orange arc from SIN to SYD, with the first flight fading in faintly from the top. Zoom buttons sit at the bottom right, and a line says: Drag to turn the globe. Tap a flight to pick its ticket." width="280" />
 
@@ -153,7 +161,11 @@ route reversed, with the flight times copied from the way out, so check them aga
 **Edit**. If the return would leave before you land, the card says so and the plan can't be built until you fix
 the date.
 
-Editing a trip that already has a return flight only changes its date: it doesn't add a second return trip.
+Editing a trip that already has a return trip never adds a second one. Change the return date and time, and the
+return trip moves with them (its flight lengths, connections and flight numbers stay as they were). Turn **Return
+flight** off and the return trip stays in your trips, unless you also tick **Delete the return trip too**. Turn it
+back on later and the app picks up that same return trip again, at its own date. Editing the return trip itself
+moves the return date of the trip it brings you back from.
 
 You can also open a trip's menu (the three dots on its card) and choose **Create return trip**, or tap **New
 trip** in the corner and then **Return from** the destination. The app reverses the route and suggests times.

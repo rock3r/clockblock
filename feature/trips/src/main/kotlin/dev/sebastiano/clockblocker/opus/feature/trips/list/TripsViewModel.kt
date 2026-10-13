@@ -85,7 +85,7 @@ class TripsViewModel(
         val summaries = pairs.map { (trip, plan) ->
             TripSummaries.summarize(trip, plan, now, today, titles.suggest(trip))
         }
-        val partitioned = TripSummaries.partition(summaries)
+        val partitioned = TripSummaries.partition(summaries, now)
         val inProgress = summaries.filter { it.phase == TripPhase.InProgress }
         TripsUiState(
             loading = false,
@@ -130,7 +130,10 @@ class TripsViewModel(
         viewModelScope.launch { trips.upsert(trip) }
     }
 
-    /** Copies a trip with fresh ids (so it gets its own plan) and the same flights. */
+    /**
+     * Copies a trip with fresh ids (so it gets its own plan) and the same flights. The copy isn't linked to the
+     * original's return trip: that one still belongs to the original.
+     */
     fun duplicate(tripId: String) {
         viewModelScope.launch {
             val trip = trips.trip(tripId).first() ?: return@launch
@@ -138,6 +141,7 @@ class TripsViewModel(
                 id = UUID.randomUUID().toString(),
                 legs = trip.legs.map { it.copy(id = UUID.randomUUID().toString()) },
                 createdAt = clock.instant(),
+                returnTripId = null,
             )
             trips.upsert(copy)
             events.send(TripsEvent.Duplicated(copy.id))
