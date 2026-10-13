@@ -456,8 +456,8 @@ internal fun whereYouAre(trip: Trip, plan: JetLagPlan, at: Instant): String {
         position.place.cityLabel(),
     )
     val secondary = remember(plan, zone) { plan.secondaryZoneFor(zone) }
-    val sameClock = secondary.rules.getOffset(at) == zone.rules.getOffset(at)
-    if (sameClock) return local
+    // Zones that happen to share an offset (Lisbon and London) are still two places: only the same zone drops it.
+    if (secondary == zone) return local
     return stringResource(R.string.plan_world_with_secondary, local, secondaryTime(formatter, at, secondary), secondary.cityName())
 }
 

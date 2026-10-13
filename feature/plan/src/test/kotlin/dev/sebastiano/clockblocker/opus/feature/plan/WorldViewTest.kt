@@ -36,6 +36,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.format.DateTimeFormatter
+import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
+import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.Trip
+import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
+import java.time.Instant
+import java.time.LocalDateTime
 
 /** The world behind the dial: the pinch zoom, its TalkBack equivalents, the caption and the full-screen globe. */
 @OptIn(ExperimentalTestApi::class)
@@ -266,6 +272,30 @@ class WorldViewTest {
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.WorldOverlay).assertDoesNotExist()
         compose.onNodeWithTag(PlanTags.World).assertExists()
+    }
+
+    @Test
+    fun `zones that share an offset still show the other city's time`() {
+        val lisbonLondon = Trip(
+            id = "lis-lhr",
+            title = "Lisbon → London",
+            legs = listOf(
+                FlightLeg(
+                    id = "lis-lhr-1",
+                    origin = DemoData.LIS,
+                    destination = DemoData.LHR,
+                    departureLocal = LocalDateTime.of(2026, 6, 15, 10, 0),
+                    arrivalLocal = LocalDateTime.of(2026, 6, 15, 12, 40),
+                ),
+            ),
+            createdAt = Instant.parse("2026-05-15T00:00:00Z"),
+        )
+        val plan = FakeJetLagPlanner().plan(lisbonLondon, DemoData.profile, DemoData.Now)
+        var text = ""
+        compose.setContent { ClockblockTheme(dynamicColor = false) { text = whereYouAre(lisbonLondon, plan, Instant.parse("2026-06-16T10:00:00Z")) } }
+        compose.waitForIdle()
+        text shouldContain "London"
+        text shouldContain "Lisbon"
     }
 
     @Test
