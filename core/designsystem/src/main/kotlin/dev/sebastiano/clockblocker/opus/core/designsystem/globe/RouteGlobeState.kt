@@ -150,12 +150,23 @@ class RouteGlobeState internal constructor(initial: GlobeView) {
     }
 
     /** A release with ([vx], [vy]) in radii per second: the globe coasts on [decay] in the same direction. */
-    internal suspend fun fling(vx: Float, vy: Float, decay: DecayAnimationSpec<Float>) = coroutineScope {
+    internal suspend fun fling(vx: Float, vy: Float, decay: DecayAnimationSpec<Float>) {
         dragView = null
-        latitude.updateBounds(-GlobeGeo.MaxDragLatitude.toFloat(), GlobeGeo.MaxDragLatitude.toFloat())
-        launch { longitude.animateDecay(-Math.toDegrees(vx.toDouble()).toFloat(), decay) }
-        launch { latitude.animateDecay(Math.toDegrees(vy.toDouble()).toFloat(), decay) }
+        flinging = true
+        try {
+            coroutineScope {
+                latitude.updateBounds(-GlobeGeo.MaxDragLatitude.toFloat(), GlobeGeo.MaxDragLatitude.toFloat())
+                launch { longitude.animateDecay(-Math.toDegrees(vx.toDouble()).toFloat(), decay) }
+                launch { latitude.animateDecay(Math.toDegrees(vy.toDouble()).toFloat(), decay) }
+            }
+        } finally {
+            flinging = false
+        }
     }
+
+    /** True while the globe coasts after a flick (a touch then catches it at once). */
+    internal var flinging: Boolean = false
+        private set
 
     internal fun endDrag() {
         dragView = null

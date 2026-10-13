@@ -333,7 +333,9 @@ fun RouteGlobe(
                     Modifier.pointerInput(interaction) {
                         awaitEachGesture {
                             awaitFirstDown(requireUnconsumed = false)
-                            scope.launch { state.stop() }
+                            // A touch catches a coasting globe at once; a turn to a newly framed leg only stops once
+                            // the touch turns out to be a drag (a tap leaves the framing to finish).
+                            if (state.flinging) scope.launch { state.stop() }
                             val slop = viewConfiguration.touchSlop
                             var dragging = false
                             var pan = Offset.Zero
@@ -360,6 +362,7 @@ fun RouteGlobe(
                                     zoom *= zoomChange
                                     val zoomMotion = abs(1f - zoom) * event.calculateCentroidSize(useCurrent = false)
                                     dragging = pan.getDistance() > slop || zoomMotion > slop
+                                    if (dragging) scope.launch { state.stop() }
                                 }
                                 if (dragging) {
                                     val radius = globeRadius(size.width.toFloat(), size.height.toFloat()) * state.zoom
@@ -819,10 +822,14 @@ private class GlobeRenderer {
                 val pz = stops.z[i]
                 if (rotation.depth(px, py, pz) < 0f) continue
                 val layout = layouts.getOrNull(i) ?: continue
+                val ox = cx + rotation.x(px, py) * radius
+                val oy = cy - rotation.y(px, py, pz) * radius
+                // Zoomed in, a stop on the near side can still be off the canvas: no label for a dot you can't see.
+                if (ox < 0f || ox > size.width || oy < 0f || oy > size.height) continue
                 visibleIndices += i
                 inputs += StopLabelInput(
-                    ox = cx + rotation.x(px, py) * radius,
-                    oy = cy - rotation.y(px, py, pz) * radius,
+                    ox = ox,
+                    oy = oy,
                     width = layout.size.width.toFloat(),
                     height = layout.size.height.toFloat(),
                 )
