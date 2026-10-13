@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -51,6 +54,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,14 +63,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
@@ -83,7 +85,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
@@ -107,6 +109,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -119,7 +122,6 @@ import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.RollingMetricText
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyPalette
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
@@ -226,7 +228,9 @@ private fun SleepDialImpl(
     maxDialSize: Dp,
     maxHeight: Dp,
 ) {
-    var schedule by rememberSaveable { mutableStateOf(SleepSchedule.WorkDays) }
+    // An explicit key: rotating a phone swaps the step between its one- and two-pane layouts, which moves the dial in
+    // the tree; a position-based key would forget which schedule was being edited.
+    var schedule by rememberSaveable(key = "sleepDialSchedule") { mutableStateOf(SleepSchedule.WorkDays) }
     val editingDaysOff = twoSchedules && schedule == SleepSchedule.DaysOff
     val window = if (editingDaysOff) daysOff ?: work else work
     val onWindowChange = if (editingDaysOff) onDaysOffChange else onWorkChange
@@ -242,6 +246,7 @@ private fun SleepDialImpl(
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val measurer = rememberTextMeasurer(cacheSize = 8)
+    val toggleLabelStyle = MaterialTheme.typography.labelLarge
 
     val currentWindow by rememberUpdatedState(window)
     val currentOnChange by rememberUpdatedState(onWindowChange)
@@ -315,7 +320,11 @@ private fun SleepDialImpl(
     val wakeText = formatter.format(window.wake)
     val durationMinutes = SleepDialMath.durationMinutes(window)
     val durationText = formatDuration(durationMinutes)
-    val description = stringResource(R.string.sleep_dial_description, bedText, wakeText, durationText)
+    val scheduleName = stringResource(if (editingDaysOff) R.string.sleep_days_off else R.string.sleep_work_days)
+    val scheduleLabel = stringResource(R.string.sleep_schedule_prefix)
+    /** With two schedules, TalkBack hears which one a node edits: "Days off: Bedtime, 23:30". */
+    fun named(text: String) = if (twoSchedules) scheduleLabel.format(scheduleName, text) else text
+    val description = named(stringResource(R.string.sleep_dial_description, bedText, wakeText, durationText))
     val laterLabel = stringResource(R.string.sleep_action_later)
     val earlierLabel = stringResource(R.string.sleep_action_earlier)
     // Readouts follow a drag live; they only roll for discrete changes (MOTION.md: never per-frame values).
@@ -323,7 +332,7 @@ private fun SleepDialImpl(
     val durationFormat: (Float) -> String = remember(resources) { { formatDuration(resources, it.roundToInt()) } }
     val durationTemplate = remember(resources) { formatDuration(resources, DurationTemplateMinutes) }
 
-    val dialContent = @Composable {
+    val dialContent: @Composable (centreToggle: Boolean) -> Unit = { centreToggle ->
         BoxWithConstraints(Modifier) {
             val sidePx = constraints.maxWidth.toFloat()
             Canvas(
@@ -455,7 +464,7 @@ private fun SleepDialImpl(
             // Centre readout: duration, or the 24:12 peek. Both lines step down in size on small dials (the
             // settings editor on a landscape phone) instead of clipping to "7 h 35 / of". The duration is sized
             // for the widest value ("22 h 55 m"), not the current one, so dragging never makes it grow and shrink.
-            val centreWidthPx = (sidePx * 0.48f).roundToInt()
+            val centreWidthPx = (sidePx * CentreWidthFraction).roundToInt()
             val durationStyle = remember(measurer, textStyles.timeHeadline, durationTemplate, centreWidthPx, density) {
                 measurer.fitted(textStyles.timeHeadline.copy(fontSize = 30.sp), listOf(durationTemplate), centreWidthPx, 12.sp)
             }
@@ -487,8 +496,8 @@ private fun SleepDialImpl(
                                 modifier = Modifier.testTag(SleepDialTags.Duration),
                             )
                         }
-                        // With two schedules the toggle under the duration names the night; the caption makes room.
-                        if (peek || !twoSchedules) {
+                        // With the toggle in the centre it names the night under the duration; the caption makes room.
+                        if (peek || !centreToggle) {
                             val caption = MaterialTheme.typography.labelLarge
                             BasicText(
                                 text = stringResource(if (peek) R.string.sleep_egg_caption else R.string.sleep_duration_caption),
@@ -499,9 +508,9 @@ private fun SleepDialImpl(
                         }
                     }
                 }
-                if (twoSchedules) {
-                    Spacer(Modifier.size(6.dp))
-                    ScheduleToggle(schedule, ::switchTo, Modifier.fillMaxWidth())
+                if (centreToggle) {
+                    Spacer(Modifier.size(CentreToggleGap))
+                    ScheduleToggle(schedule, ::switchTo, toggleLabelStyle, inCentre = true, modifier = Modifier.fillMaxWidth())
                 }
             }
 
@@ -510,9 +519,11 @@ private fun SleepDialImpl(
                 val time = if (handle == SleepHandle.Bedtime) window.bedtime else window.wake
                 val minute = SleepDialMath.minuteOf(time)
                 val timeText = formatter.format(time)
-                val label = stringResource(
-                    if (handle == SleepHandle.Bedtime) R.string.sleep_handle_bedtime_description else R.string.sleep_handle_wake_description,
-                    timeText,
+                val label = named(
+                    stringResource(
+                        if (handle == SleepHandle.Bedtime) R.string.sleep_handle_bedtime_description else R.string.sleep_handle_wake_description,
+                        timeText,
+                    ),
                 )
                 Box(
                     Modifier
@@ -562,36 +573,55 @@ private fun SleepDialImpl(
         }
     }
 
-    val pillsContent = @Composable {
+    /** The two pills, side by side, or one above the other ([stacked]) in the column beside a short dial. */
+    val pillsContent: @Composable (stacked: Boolean) -> Unit = { stacked ->
         BoxWithConstraints(Modifier) {
             // Both pills share one fitted style, sized for the widest time this format can show ("10:55 PM"), so
             // the times never resize while the dial is dragged, at any font scale.
-            val pillInnerPx = with(density) { ((maxWidth - PillGap) / 2 - PillPadding * 2).roundToPx() }
+            val pillWidth = if (stacked) maxWidth else (maxWidth - PillGap) / 2
+            val pillInnerPx = with(density) { (pillWidth - PillPadding * 2).roundToPx() }
             val timeTemplates = remember(formatter) { TimeTemplates.map { formatter.formatFull(it) } }
             val timeStyle = remember(measurer, textStyles.timeTitle, timeTemplates, pillInnerPx, density) {
                 measurer.fitted(textStyles.timeTitle, timeTemplates, pillInnerPx, 12.sp)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PillGap)) {
+            val pills = @Composable { pillModifier: Modifier ->
                 SleepTimePill(
                     label = stringResource(R.string.sleep_bedtime),
                     time = window.bedtime,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
-                    onClickLabel = stringResource(R.string.sleep_pick_bedtime),
+                    onClickLabel = stringResource(
+                        when {
+                            !twoSchedules -> R.string.sleep_pick_bedtime
+                            editingDaysOff -> R.string.sleep_pick_bedtime_days_off
+                            else -> R.string.sleep_pick_bedtime_work_days
+                        },
+                    ),
                     onClick = { picking = SleepHandle.Bedtime },
                     tag = SleepDialTags.BedtimePill,
-                    modifier = Modifier.weight(1f),
+                    modifier = pillModifier,
                 ) { drawPath(crescent(size.minDimension / 2f, center), colors.primary) }
                 SleepTimePill(
                     label = stringResource(R.string.sleep_wake),
                     time = window.wake,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
-                    onClickLabel = stringResource(R.string.sleep_pick_wake),
+                    onClickLabel = stringResource(
+                        when {
+                            !twoSchedules -> R.string.sleep_pick_wake
+                            editingDaysOff -> R.string.sleep_pick_wake_days_off
+                            else -> R.string.sleep_pick_wake_work_days
+                        },
+                    ),
                     onClick = { picking = SleepHandle.Wake },
                     tag = SleepDialTags.WakePill,
-                    modifier = Modifier.weight(1f),
+                    modifier = pillModifier,
                 ) { drawSun(sunPath, center, size.minDimension, sunColor) }
+            }
+            if (stacked) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(PillGap)) { pills(Modifier.fillMaxWidth()) }
+            } else {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(PillGap)) { pills(Modifier.weight(1f)) }
             }
         }
     }
@@ -619,24 +649,111 @@ private fun SleepDialImpl(
         }
     }
 
-    // Dial, pills, hint. The pills are measured first so the ring takes what [maxHeight] leaves (never less than
-    // MinFitDialSize); the hint is left out of the fit, it appears only for unusual nights and may scroll.
-    Layout(contents = listOf(dialContent, pillsContent, hintContent), modifier = modifier) { (dialM, pillsM, hintM), constraints ->
+    // The toggle outside the dial, for when whole labels don't fit its centre (large fonts, small dials).
+    val outerToggleContent = @Composable {
+        ScheduleToggle(schedule, ::switchTo, toggleLabelStyle, inCentre = false, modifier = Modifier.fillMaxWidth())
+    }
+    val toggleLabels = listOf(stringResource(R.string.sleep_work_days), stringResource(R.string.sleep_days_off))
+    val pillLabelStyle = MaterialTheme.typography.labelLarge
+
+    // Two arrangements. Stacked (the usual one): [toggle], dial, pills, hint; the pills are measured first so the ring
+    // takes what [maxHeight] leaves (never less than MinFitDialSize). Side by side (short, wide spaces such as a
+    // landscape phone): the dial on the start side and a column with [toggle] and the two pills (one above the other
+    // when the height allows, else side by side),
+    // chosen when it gives a clearly bigger ring, or overflows [maxHeight] less. The hint is left out of the fit: it
+    // appears only for unusual nights and may scroll.
+    //
+    // The Work days | Days off toggle sits in the dial's centre only while both labels fit there whole (at 85 % of
+    // their size at most) on 48 dp tabs; otherwise it moves out of the dial at full width, where its labels may wrap,
+    // and the ring makes room for it. The choice is made from measured text, so it holds at any font scale.
+    SubcomposeLayout(modifier) { constraints ->
         val width = if (constraints.hasBoundedWidth) constraints.maxWidth else maxDialSize.roundToPx()
-        val pillsWidth = min(width, PillsMaxWidth.roundToPx())
-        val pills = pillsM.map { it.measure(Constraints.fixedWidth(pillsWidth)) }
-        val pillsHeight = pills.maxOfOrNull { it.height } ?: 0
         val gap = PillsTopGap.roundToPx()
-        val byHeight = if (maxHeight.isFinite) maxHeight.roundToPx() - gap - pillsHeight else Int.MAX_VALUE
-        val side = minOf(width, maxDialSize.roundToPx(), maxOf(byHeight, MinFitDialSize.roundToPx()))
-        val dial = dialM.map { it.measure(Constraints.fixed(side, side)) }
-        val hints = hintM.map { it.measure(Constraints(maxWidth = width)) }
+        val pillGap = PillGap.roundToPx()
+        val maxDialPx = maxDialSize.roundToPx()
+        val minFit = MinFitDialSize.roundToPx()
+        val bounded = maxHeight.isFinite
+        val maxH = if (bounded) maxHeight.roundToPx() else Int.MAX_VALUE
+        val durationHeight = measurer.measure(durationTemplate, textStyles.timeHeadline.copy(fontSize = 30.sp), maxLines = 1).size.height
+        fun centreFits(side: Int) = twoSchedules && centreToggleFits(side, measurer, toggleLabelStyle, toggleLabels, durationHeight)
+        fun sideFor(budget: Int) = minOf(width, maxDialPx, maxOf(budget, minFit))
+
+        // Estimates from measured text (subcomposing both arrangements would put every node in the tree twice).
+        val pillEstimate = maxOf(
+            PillMinHeight.roundToPx(),
+            measurer.measure("Bg", pillLabelStyle, maxLines = 1).size.height +
+                measurer.measure(formatter.formatFull(TimeTemplates.last()), textStyles.timeTitle, maxLines = 1).size.height +
+                (PillVerticalPadding * 2).roundToPx(),
+        )
+        fun toggleEstimate(toggleWidth: Int): Int {
+            val room = (toggleWidth / 2 - ToggleTextChrome.roundToPx()).coerceAtLeast(1)
+            val label = toggleLabels.maxOf { measurer.measure(it, toggleLabelStyle, maxLines = 2, constraints = Constraints(maxWidth = room)).size.height }
+            return maxOf(MinTabSize.roundToPx(), label + (ToggleInset * 2 + 16.dp).roundToPx())
+        }
+        val pillsWidth = min(width, PillsMaxWidth.roundToPx())
+        val stackedFirst = sideFor(maxH - gap - pillEstimate)
+        val stackedToggle = if (!twoSchedules || centreFits(stackedFirst)) 0 else toggleEstimate(pillsWidth) + gap
+        val stackedSide = if (stackedToggle == 0) stackedFirst else sideFor(maxH - gap - pillEstimate - stackedToggle)
+        val stackedOverflow = (stackedToggle + stackedSide + gap + pillEstimate - maxH).coerceAtLeast(0)
+
+        // The dial takes the height; the column takes the rest of the width (at least SideColumnWidth), so the pills
+        // get room for their labels at large fonts.
+        val sideBySideSide = minOf(width - gap - SideColumnWidth.roundToPx(), maxDialPx, maxH)
+        val columnWidth = minOf(width - gap - sideBySideSide, SideColumnMaxWidth.roundToPx())
+        // In the column the pills go one above the other while that fits the height, else side by side.
+        val columnToggle = if (!twoSchedules || centreFits(sideBySideSide)) 0 else toggleEstimate(columnWidth) + gap
+        val stackPills = columnToggle + pillEstimate * 2 + pillGap <= maxH
+        val sideBySide = bounded && sideBySideSide >= minFit && run {
+            val column = columnToggle + if (stackPills) pillEstimate * 2 + pillGap else pillEstimate
+            val overflow = (maxOf(sideBySideSide, column) - maxH).coerceAtLeast(0)
+            overflow < stackedOverflow || (overflow == 0 && sideBySideSide >= stackedSide + SideBySideGain.roundToPx())
+        }
+
+        val hints = subcompose(SleepDialSlot.Hint, hintContent).map { it.measure(Constraints(maxWidth = width)) }
         val hintHeight = hints.maxOfOrNull { it.height } ?: 0
         val layoutWidth = constraints.constrainWidth(width)
-        layout(layoutWidth, constraints.constrainHeight(side + gap + pillsHeight + hintHeight)) {
-            dial.forEach { it.place((layoutWidth - it.width) / 2, 0) }
-            pills.forEach { it.place((layoutWidth - it.width) / 2, side + gap) }
-            hints.forEach { it.place((layoutWidth - it.width) / 2, side + gap + pillsHeight) }
+        if (sideBySide) {
+            val side = sideBySideSide
+            val centreToggle = centreFits(side)
+            val outer = if (twoSchedules && !centreToggle) {
+                subcompose(SleepDialSlot.Toggle, outerToggleContent).map { it.measure(Constraints.fixedWidth(columnWidth)) }
+            } else {
+                emptyList()
+            }
+            val toggleHeight = outer.maxOfOrNull { it.height + gap } ?: 0
+            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(stackPills) }.map { it.measure(Constraints.fixedWidth(columnWidth)) }
+            val columnHeight = toggleHeight + (pills.maxOfOrNull { it.height } ?: 0)
+            val dial = subcompose(SleepDialSlot.Dial) { dialContent(centreToggle) }.map { it.measure(Constraints.fixed(side, side)) }
+            val rowHeight = maxOf(side, columnHeight)
+            val start = (layoutWidth - (side + gap + columnWidth)) / 2
+            val columnX = start + side + gap
+            val columnY = (rowHeight - columnHeight) / 2
+            layout(layoutWidth, constraints.constrainHeight(rowHeight + hintHeight)) {
+                dial.forEach { it.placeRelative(start, (rowHeight - side) / 2) }
+                outer.forEach { it.placeRelative(columnX, columnY) }
+                pills.forEach { it.placeRelative(columnX, columnY + toggleHeight) }
+                hints.forEach { it.placeRelative((layoutWidth - it.width) / 2, rowHeight) }
+            }
+        } else {
+            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(false) }.map { it.measure(Constraints.fixedWidth(pillsWidth)) }
+            val pillsHeight = pills.maxOfOrNull { it.height } ?: 0
+            val heightBudget = maxH - gap - pillsHeight
+            val firstSide = sideFor(heightBudget)
+            val centreToggle = centreFits(firstSide)
+            val outer = if (twoSchedules && !centreToggle) {
+                subcompose(SleepDialSlot.Toggle, outerToggleContent).map { it.measure(Constraints.fixedWidth(pillsWidth)) }
+            } else {
+                emptyList()
+            }
+            val toggleHeight = outer.maxOfOrNull { it.height + gap } ?: 0
+            val side = if (outer.isEmpty()) firstSide else sideFor(heightBudget - toggleHeight)
+            val dial = subcompose(SleepDialSlot.Dial) { dialContent(centreToggle) }.map { it.measure(Constraints.fixed(side, side)) }
+            layout(layoutWidth, constraints.constrainHeight(toggleHeight + side + gap + pillsHeight + hintHeight)) {
+                outer.forEach { it.placeRelative((layoutWidth - it.width) / 2, 0) }
+                dial.forEach { it.placeRelative((layoutWidth - it.width) / 2, toggleHeight) }
+                pills.forEach { it.placeRelative((layoutWidth - it.width) / 2, toggleHeight + side + gap) }
+                hints.forEach { it.placeRelative((layoutWidth - it.width) / 2, toggleHeight + side + gap + pillsHeight) }
+            }
         }
     }
 
@@ -670,10 +787,18 @@ internal fun formatDuration(resources: Resources, minutes: Int): String =
 
 /**
  * "Work days | Days off": which schedule the dial edits. Tabs for TalkBack ("Work days, selected"); the selected
- * one is filled. Labels shrink to fit the dial's centre rather than wrap.
+ * one is filled. [inCentre]: in the dial's centre, both labels share one size fitted to a tab (the layout only puts
+ * the toggle there when that size is at least [CentreLabelMinScale] of [labelStyle]); above the dial, the labels
+ * keep their full size and wrap onto two lines rather than ever clipping.
  */
 @Composable
-private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) -> Unit, modifier: Modifier = Modifier) {
+private fun ScheduleToggle(
+    selected: SleepSchedule,
+    onSelect: (SleepSchedule) -> Unit,
+    labelStyle: TextStyle,
+    inCentre: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.colorScheme
     val motion = ClockblockTheme.motion
     val measurer = rememberTextMeasurer(cacheSize = 4)
@@ -682,12 +807,17 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
         stringResource(if (it == SleepSchedule.WorkDays) R.string.sleep_work_days else R.string.sleep_days_off)
     }
     BoxWithConstraints(modifier) {
-        // Both labels share one size, fitted to the wider of the two in half the toggle (minus the tab's paddings).
-        val labelStyle = MaterialTheme.typography.labelLarge
-        // A dp of slack: a label fitted to the exact pixel can still wrap at its space on some fonts.
-        val segmentPx = with(density) { (maxWidth / 2 - ToggleInset * 2 - ToggleLabelPadding * 2 - 2.dp).roundToPx() }
-        val style = remember(measurer, labelStyle, labels, segmentPx) { measurer.fitted(labelStyle, labels.values.toList(), segmentPx, 8.sp) }
-        Row(Modifier.fillMaxWidth().clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup()) {
+        val segmentPx = with(density) { (maxWidth / 2 - ToggleTextChrome).roundToPx() }
+        val style = if (inCentre) {
+            remember(measurer, labelStyle, labels, segmentPx) {
+                measurer.fitted(labelStyle, labels.values.toList(), segmentPx, labelStyle.fontSize * CentreLabelMinScale)
+            }
+        } else {
+            labelStyle
+        }
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(CircleShape).background(colors.surfaceContainerHighest).selectableGroup(),
+        ) {
             SleepSchedule.entries.forEach { option ->
                 val isSelected = option == selected
                 val fill by animateColorAsState(if (isSelected) colors.primary else Color.Transparent, motion.colour(), label = "scheduleTab")
@@ -695,6 +825,7 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
                 Box(
                     Modifier
                         .weight(1f)
+                        .fillMaxHeight()
                         .heightIn(min = 48.dp)
                         .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(option) })
                         .testTag(if (option == SleepSchedule.WorkDays) SleepDialTags.WorkDays else SleepDialTags.DaysOff)
@@ -707,8 +838,8 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
                         text = labels.getValue(option),
                         style = style.copy(textAlign = TextAlign.Center),
                         color = { ink },
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = if (inCentre) 1 else 2,
+                        softWrap = !inCentre,
                         modifier = Modifier.padding(horizontal = ToggleLabelPadding, vertical = 8.dp),
                     )
                 }
@@ -719,6 +850,39 @@ private fun ScheduleToggle(selected: SleepSchedule, onSelect: (SleepSchedule) ->
 
 private val ToggleInset = 4.dp
 private val ToggleLabelPadding = 6.dp
+
+/** A tab's horizontal chrome around its label, plus a dp of slack (a label fitted to the pixel can still wrap). */
+private val ToggleTextChrome = (ToggleInset + ToggleLabelPadding) * 2 + 2.dp
+
+/** The smallest share of the label style the centre toggle may use; below it, the toggle moves above the dial. */
+private const val CentreLabelMinScale = 0.85f
+
+/** The centre readout's width, as a share of the dial's side (it clears the hour numerals). */
+private const val CentreWidthFraction = 0.48f
+
+/** How tall the centre readout (duration + toggle) may be, as a share of the dial's side, before it meets the ticks. */
+private const val CentreMaxHeightFraction = 0.34f
+private val CentreToggleGap = 6.dp
+private val MinTabSize = 48.dp
+
+/**
+ * Whether the Work days | Days off toggle fits in the centre of a [side]-pixel dial: two tabs of at least 48 dp, both
+ * [labels] whole on one line at [CentreLabelMinScale] of [labelStyle] or more, and the duration line above it, all
+ * inside the hour numerals.
+ */
+private fun Density.centreToggleFits(side: Int, measurer: TextMeasurer, labelStyle: TextStyle, labels: List<String>, durationHeightPx: Int): Boolean {
+    val tabWidth = side * CentreWidthFraction / 2f
+    if (tabWidth < MinTabSize.toPx()) return false
+    val smallest = labelStyle.copy(fontSize = labelStyle.fontSize * CentreLabelMinScale)
+    val widest = labels.maxOf { measurer.measure(it, smallest, maxLines = 1, softWrap = false).size.width }
+    if (widest > tabWidth - ToggleTextChrome.toPx()) return false
+    val labelHeight = measurer.measure(labels.first(), smallest, maxLines = 1).size.height
+    val toggleHeight = maxOf(MinTabSize.toPx(), labelHeight + (ToggleInset * 2 + 16.dp).toPx())
+    return durationHeightPx + CentreToggleGap.toPx() + toggleHeight <= side * CentreMaxHeightFraction
+}
+
+/** The parts of [SleepDial]'s layout. */
+private enum class SleepDialSlot { Toggle, Dial, Pills, Hint }
 
 /**
  * A bedtime or wake readout under the dial: glyph and label over the time, as one button that opens the time
@@ -742,8 +906,8 @@ private fun SleepTimePill(
             Modifier
                 .clip(CircleShape)
                 .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
-                .heightIn(min = 56.dp)
-                .padding(horizontal = PillPadding, vertical = 8.dp)
+                .heightIn(min = PillMinHeight)
+                .padding(horizontal = PillPadding, vertical = PillVerticalPadding)
                 .testTag(tag),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -751,7 +915,16 @@ private fun SleepTimePill(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Canvas(Modifier.size(14.dp), onDraw = glyph)
                 Spacer(Modifier.width(6.dp))
-                Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Steps down a little before it would ever cut the word off (narrow pills at large fonts).
+                val labelStyle = MaterialTheme.typography.labelLarge
+                Text(
+                    label,
+                    style = labelStyle,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(minFontSize = labelStyle.fontSize * 0.8f, maxFontSize = labelStyle.fontSize),
+                )
             }
             MorphingTime(time, style = timeStyle, color = colors.onSurface, animateChanges = animateChanges)
         }
@@ -1073,3 +1246,12 @@ private val PillsTopGap = 12.dp
 private val PillGap = 12.dp
 private val PillPadding = 16.dp
 private val PillsMaxWidth = 360.dp
+private val PillMinHeight = 56.dp
+private val PillVerticalPadding = 8.dp
+
+/** The column beside a short dial (toggle and stacked pills) when the dial and its controls sit side by side. */
+private val SideColumnWidth = 232.dp
+private val SideColumnMaxWidth = 360.dp
+
+/** How much bigger the ring must get before side by side wins over stacked when both fit. */
+private val SideBySideGain = 32.dp

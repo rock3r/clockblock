@@ -5,6 +5,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.Composable
+import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
+import io.kotest.matchers.shouldBe
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
@@ -120,20 +126,36 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
         capture("settings_phone_widgets_fontscale_1_5")
     }
 
-    @Test fun sleepEditor() = snap("settings_editor_sleep") {
-        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = { _, _ -> }, onCancel = {}) }
+    /** The editor the You card opens, on its Sleep tab (the dial, both schedules) and its Chronotype tab. */
+    @Composable
+    private fun You(daysOff: SleepWindow? = DaysOff) {
+        EditorSurface {
+            YouEditor(
+                initialSleep = DemoData.profile.sleep,
+                initialDaysOff = daysOff,
+                initialChronotype = Chronotype.ModerateEvening,
+                onSave = { _, _, _ -> },
+                onCancel = {},
+            )
+        }
     }
 
-    @Test fun sleepEditorDark() = snap("settings_editor_sleep_dark", darkTheme = true) {
-        EditorSurface { SleepEditor(DemoData.profile.sleep, onSave = { _, _ -> }, onCancel = {}) }
+    @Test fun youEditorSleep() = snap("settings_editor_you_sleep") { You() }
+
+    @Test fun youEditorSleepDark() = snap("settings_editor_you_sleep_dark", darkTheme = true) { You() }
+
+    @Test fun youEditorSleepFontScale() = snap("settings_editor_you_sleep_fontscale_1_5", fontScale = 1.5f) { You() }
+
+    @Test fun youEditorChronotype() {
+        setContent { You() }
+        compose.onNodeWithTag(SettingsTags.Chronotype).performClick()
+        capture("settings_editor_you_chronotype")
     }
 
-    @Test fun chronotypeEditor() = snap("settings_editor_chronotype") {
-        EditorSurface { ChronotypeEditor(Chronotype.ModerateEvening, DemoData.profile.sleep, onSave = {}, onCancel = {}) }
-    }
-
-    @Test fun chronotypeEditorFontScale() = snap("settings_editor_chronotype_fontscale_1_5", fontScale = 1.5f) {
-        EditorSurface { ChronotypeEditor(Chronotype.ModerateEvening, DemoData.profile.sleep, onSave = {}, onCancel = {}) }
+    @Test fun youEditorChronotypeFontScale() {
+        setContent(fontScale = 1.5f) { You() }
+        compose.onNodeWithTag(SettingsTags.Chronotype).performClick()
+        capture("settings_editor_you_chronotype_fontscale_1_5")
     }
 
     @Test fun homeEditor() = snap("settings_editor_home") {
@@ -180,6 +202,37 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
         }
     }
 }
+
+/** The You editor on a landscape phone: the dial makes room, so Save stays on screen without scrolling. */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [37], qualifiers = "w860dp-h400dp-land-xxhdpi")
+class SettingsLandscapeScreenshotTest : ClockblockScreenshotTest() {
+    @Test fun youEditor() {
+        setContent {
+            EditorSurface {
+                YouEditor(DemoData.profile.sleep, DaysOff, Chronotype.ModerateEvening, onSave = { _, _, _ -> }, onCancel = {})
+            }
+        }
+        capture("settings_editor_you_landscape")
+        val save = compose.onNodeWithTag(SettingsTags.EditorSave).getUnclippedBoundsInRoot()
+        (save.bottom <= 400.dp) shouldBe true
+    }
+
+    @Test fun youEditorLargeFont() {
+        setContent(fontScale = 1.5f) {
+            EditorSurface {
+                YouEditor(DemoData.profile.sleep, DaysOff, Chronotype.ModerateEvening, onSave = { _, _, _ -> }, onCancel = {})
+            }
+        }
+        capture("settings_editor_you_landscape_fontscale_1_5")
+        val save = compose.onNodeWithTag(SettingsTags.EditorSave).getUnclippedBoundsInRoot()
+        (save.bottom <= 400.dp) shouldBe true
+    }
+}
+
+/** Days off that differ from the demo profile's work days, so both rings show. */
+private val DaysOff = SleepWindow(java.time.LocalTime.of(0, 30), java.time.LocalTime.of(8, 45))
 
 /** Settings, About and Licences on a large landscape screen: the content column stays readable. */
 @RunWith(RobolectricTestRunner::class)

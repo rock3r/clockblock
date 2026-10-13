@@ -3,8 +3,6 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -19,42 +17,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.PathOperation
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asComposePath
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -65,8 +47,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeScene
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.skyPose
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
@@ -74,9 +57,6 @@ import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalTime
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /** Test tags for the e2e suite. */
 object ChronotypeRevealTags {
@@ -105,6 +85,7 @@ fun ChronotypeReveal(
     onPick: (Chronotype) -> Unit,
     wide: Boolean,
     modifier: Modifier = Modifier,
+    daysOffLinked: Boolean = false,
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -114,7 +95,11 @@ fun ChronotypeReveal(
     val wordsAlpha = remember { Animatable(if (start) 0f else 1f) }
     val wordsRise = remember { Animatable(if (start) 1f else 0f) }
     LaunchedEffect(reduce) {
-        if (reduce || played) {
+        val play = !reduce && !played
+        // Counted as played as soon as it starts: leaving mid-entrance (Next during the rise) and coming back
+        // shows the reveal at rest instead of replaying it.
+        played = true
+        if (!play) {
             art.snapTo(1f)
             wordsAlpha.snapTo(1f)
             wordsRise.snapTo(0f)
@@ -125,7 +110,6 @@ fun ChronotypeReveal(
             launch { wordsAlpha.animateTo(1f, motion.colour()) }
             wordsRise.animateTo(0f, motion.containerSpatial())
         }
-        played = true
     }
 
     var showSheet by rememberSaveable { mutableStateOf(false) }
@@ -140,7 +124,7 @@ fun ChronotypeReveal(
             },
             horizontalAlignment = horizontal,
         ) {
-            RevealWords(chronotype, picked, midSleep, align, compact)
+            RevealWords(chronotype, picked, midSleep, daysOffLinked, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
                 onClick = { showSheet = true },
@@ -196,7 +180,7 @@ fun ChronotypeReveal(
 }
 
 @Composable
-private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, align: TextAlign, compact: Boolean) {
+private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, daysOffLinked: Boolean, align: TextAlign, compact: Boolean) {
     val colors = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     Text(
@@ -219,7 +203,12 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
     Spacer(Modifier.size(if (compact) 8.dp else 16.dp))
     val small: TextStyle = MaterialTheme.typography.bodyMedium
     Text(
-        stringResource(R.string.chronotype_reveal_midpoint, formatter.format(midSleep)),
+        // While days off are still linked to work days, the estimate comes from alarm-clock nights: say so, and how to
+        // sharpen it, instead of calling them nights off.
+        stringResource(
+            if (daysOffLinked) R.string.chronotype_reveal_midpoint_linked else R.string.chronotype_reveal_midpoint,
+            formatter.format(midSleep),
+        ),
         style = small,
         color = colors.onSurfaceVariant,
         textAlign = align,
@@ -234,14 +223,11 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
  * the draw phase) rises the sun from the horizon and warms the sky from three hours earlier. A new [chronotype] moves
  * it to its new place.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, modifier: Modifier = Modifier) {
-    val sky = ClockblockTheme.sky
-    val art = ClockblockTheme.artColors
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
-    val target = chronotype.pose()
+    val target = chronotype.skyPose()
     val hour = remember { Animatable(target.hour) }
     val position = remember { Animatable(target.position) }
     val moon = remember { Animatable(if (target.evening) 1f else 0f) }
@@ -250,31 +236,19 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
         launch { position.animateTo(target.position, motion.artEntrance()) }
         moon.animateTo(if (target.evening) 1f else 0f, motion.colour())
     }
-    val sunRotation = rememberAmbient(!reduce, ClockblockMotion.SunRotationMillis, reverse = false)
+    // The rays only turn while a sun shows (an evening type's sky has the moon): no loop runs for nothing.
+    val sunRotation = rememberAmbient(!reduce && !target.evening, ClockblockMotion.SunRotationMillis, reverse = false)
     val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
-    val sunPath = remember { MaterialShapes.VerySunny.toPath().asComposePath() }
-    val sunBounds = remember(sunPath) { sunPath.getBounds() }
-    val starDiamond = remember { MaterialShapes.PuffyDiamond.toPath().asComposePath() }
-    val starBounds = remember(starDiamond) { starDiamond.getBounds() }
-
-    Canvas(modifier.clip(RoundedCornerShape(RevealCorner))) {
-        val e = entrance()
-        val h = hour.value - (1f - e) * EntranceHours
-        val gradient = sky.gradientAt(((h % 24f) + 24f) % 24f)
-        drawChronotypeScene(
-            gradient = gradient,
-            tertiary = art.tertiary,
-            sunPath = sunPath,
-            sunBounds = sunBounds,
-            starDiamond = starDiamond,
-            starBounds = starBounds,
-            position = position.value,
-            moonFraction = moon.value,
-            entrance = e,
-            sunRotation = sunRotation.value,
-            twinkle = twinkle.value,
-        )
-    }
+    ChronotypeScene(
+        hour = { hour.value - (1f - entrance()) * EntranceHours },
+        position = { position.value },
+        moonFraction = { moon.value },
+        entrance = entrance,
+        sunRotation = { sunRotation.value },
+        twinkle = { twinkle.value },
+        modifier = modifier,
+        cornerRadius = RevealCorner,
+    )
 }
 
 /** A 0 → 1 ambient phase on [ClockblockMotion.ambientLoop] when [enabled]; a still 0 otherwise. Read it in draw. */

@@ -34,6 +34,7 @@ import androidx.test.core.app.ApplicationProvider
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
+import io.kotest.matchers.shouldBe
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -121,6 +122,20 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `with days off still linked the reveal doesn't call them nights off`() {
+        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London")))
+        compose.onNodeWithText("Your usual nights are centred on", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("nights off", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `with days off set the reveal speaks of nights off`() {
+        val daysOff = SleepWindow(java.time.LocalTime.of(0, 30), java.time.LocalTime.of(9, 0))
+        show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London", daysOffSleep = daysOff)))
+        compose.onNodeWithText("your nights off are centred on", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun `a picked chronotype says so on the reveal`() {
         show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London", chronotype = Chronotype.DefiniteEvening), chronotypePicked = true))
         compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Night owl"))
@@ -151,6 +166,30 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         show(onboardingState(OnboardingStep.Tools, melatoninAcknowledged = true))
         compose.onNodeWithTag(ToolsTags.Melatonin).performScrollTo().performClick()
         actions.calls shouldContainExactly listOf("melatonin:true")
+    }
+
+    @Test
+    fun `a 3-day head start says gentle effort stops at 2 days`() {
+        val gentleCap = "Gentle effort uses at most 2 days."
+        show(onboardingState(OnboardingStep.Tools, profile = UserProfile("Europe/London", headStartDays = 3, intensity = Intensity.Gentle)))
+        compose.onNodeWithText(gentleCap).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `no gentle note when the head start fits the effort`() {
+        val gentleCap = "Gentle effort uses at most 2 days."
+        show(onboardingState(OnboardingStep.Tools, profile = UserProfile("Europe/London", headStartDays = 3, intensity = Intensity.Balanced)))
+        compose.onNodeWithText(gentleCap).assertDoesNotExist()
+    }
+
+    @Test
+    fun `head start options are radio buttons in one group`() {
+        show(onboardingState(OnboardingStep.Tools))
+        val option = compose.onNodeWithTag(ToolsTags.headStart(2)).performScrollTo().fetchSemanticsNode()
+        val group = generateSequence(option.parent) { it.parent }.firstOrNull {
+            it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.SelectableGroup)
+        }
+        (group != null) shouldBe true
     }
 
     @Test

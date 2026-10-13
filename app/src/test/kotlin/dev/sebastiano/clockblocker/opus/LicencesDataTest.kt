@@ -6,6 +6,9 @@ import com.mikepenz.aboutlibraries.Libs
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.shouldBe
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -41,6 +44,18 @@ class LicencesDataTest {
             "data:iana-tzdb",
             "data:natural-earth",
         )
+    }
+
+    /** `app/config/aboutlibraries/README.md` asks for every custom entry to be credited in NOTICE too; this keeps it so. */
+    @Test
+    fun `every custom entry is credited in NOTICE`() {
+        val notice = java.io.File("../NOTICE").readText()
+        val names = java.io.File("config/aboutlibraries/libraries").listFiles { f -> f.extension == "json" }.orEmpty()
+            .map { kotlinx.serialization.json.Json.parseToJsonElement(it.readText()) }
+            .filter { it.jsonObject["tag"]?.jsonPrimitive?.content != "clockblock" }
+            .map { it.jsonObject.getValue("name").jsonPrimitive.content }
+        names.isEmpty() shouldBe false
+        names.filterNot { notice.contains(it) }.shouldBeEmpty()
     }
 
     @Test

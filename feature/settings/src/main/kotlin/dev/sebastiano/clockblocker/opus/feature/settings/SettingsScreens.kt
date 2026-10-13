@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,18 +38,15 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,16 +56,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,7 +74,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -92,11 +85,11 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.circadian.usualLowestPoint
@@ -120,9 +113,9 @@ import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationPermissionState
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeEstimate
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ConnectedChoice as SharedConnectedChoice
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSky
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.DefaultMaxDialSize
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeSky
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDial
@@ -372,7 +365,7 @@ private fun SettingsEvent.message(context: Context): String = with(context.resou
     }
 }
 
-private enum class ProfileEditor { None, You, Home, Sleep, Chronotype }
+private enum class ProfileEditor { None, You, Home }
 
 /**
  * Stateless Settings UI: a large flexible app bar over grouped, segmented rows. Profile edits open focused
@@ -495,27 +488,6 @@ fun SettingsContent(
                         now = now,
                     )
                 }
-            }
-            ProfileEditor.Sleep -> EditorDialog(onDismiss = { editor = ProfileEditor.None }) {
-                SleepEditor(
-                    initial = profile.sleep,
-                    initialDaysOff = profile.daysOffSleep,
-                    onSave = { work, daysOff ->
-                        actions.updateProfile { it.copy(sleep = work, daysOffSleep = daysOff) }
-                        editor = ProfileEditor.None
-                    },
-                    onCancel = { editor = ProfileEditor.None },
-                    easterEggs = state.easterEggs,
-                )
-            }
-            ProfileEditor.Chronotype -> EditorDialog(onDismiss = { editor = ProfileEditor.None }) {
-                ChronotypeEditor(
-                    initial = profile.chronotype,
-                    workSleep = profile.sleep,
-                    daysOffSleep = profile.daysOffSleep,
-                    onSave = { chronotype -> actions.updateProfile { it.copy(chronotype = chronotype) }; editor = ProfileEditor.None },
-                    onCancel = { editor = ProfileEditor.None },
-                )
             }
         }
     }
@@ -690,9 +662,10 @@ private fun YouCard(
                     modifier = Modifier.size(40.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
+                        // Decorative: the merged card already says "Edit sleep and chronotype" as its click label.
                         Icon(
                             painterResource(R.drawable.settings_ic_edit),
-                            contentDescription = editLabel,
+                            contentDescription = null,
                             tint = colors.onSecondaryContainer,
                             modifier = Modifier.size(20.dp),
                         )
@@ -799,12 +772,7 @@ private fun AppearanceSection(state: SettingsUiState, actions: SettingsActions) 
     }
 }
 
-/**
- * A connected single-choice button group (M3 Expressive). When the options can't each get [minOptionWidth]
- * (scaled with the font) they split into two connected rows, so every label keeps the same, readable size.
- * [showCheck] adds a tick to the selected option.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/** Settings' [SharedConnectedChoice]: [showCheck] adds a tick to the selected option. */
 @Composable
 internal fun <T> ConnectedChoice(
     options: List<T>,
@@ -815,59 +783,16 @@ internal fun <T> ConnectedChoice(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     showCheck: Boolean = true,
-    minOptionWidth: Dp = 64.dp,
-) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val gap = ButtonGroupDefaults.ConnectedSpaceBetween
-        val fontScale = LocalDensity.current.fontScale
-        val perOption = (maxWidth - gap * (options.size - 1)) / options.size
-        val rows = if (options.size > 2 && perOption < minOptionWidth * fontScale) {
-            options.chunked((options.size + 1) / 2)
-        } else {
-            listOf(options)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-            rows.forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    row.forEachIndexed { index, option ->
-                        val checked = option == selected
-                        ToggleButton(
-                            checked = checked,
-                            onCheckedChange = { onSelect(option) },
-                            enabled = enabled,
-                            // These rows sit on surfaceContainer cards, the toggle's default unchecked container:
-                            // lift it a step so unselected options still read as buttons.
-                            colors = ToggleButtonDefaults.colors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            ),
-                            shapes = when (index) {
-                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                row.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                            },
-                            contentPadding = PaddingValues(horizontal = 6.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .semantics { role = Role.RadioButton }
-                                .testTag(tag(option)),
-                        ) {
-                            if (checked && showCheck) {
-                                Icon(painterResource(R.drawable.settings_ic_check), contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(
-                                label(option),
-                                maxLines = 1,
-                                autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = LocalTextStyle.current.fontSize),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+) = SharedConnectedChoice(
+    options = options,
+    selected = selected,
+    onSelect = onSelect,
+    label = label,
+    tag = tag,
+    modifier = modifier,
+    enabled = enabled,
+    checkIcon = if (showCheck) painterResource(R.drawable.settings_ic_check) else null,
+)
 
 @Composable
 private fun RemindersSection(state: SettingsUiState, actions: SettingsActions) {
@@ -1216,45 +1141,6 @@ private fun EditorButtons(onCancel: () -> Unit, onSave: () -> Unit) {
     }
 }
 
-/**
- * Sleep editor: the onboarding dial, both schedules (work days and days off), on drafts; saved only on Save. Days
- * off stay linked to work days (null) until a Days-off handle moves.
- */
-@Composable
-internal fun SleepEditor(
-    initial: SleepWindow,
-    onSave: (work: SleepWindow, daysOff: SleepWindow?) -> Unit,
-    onCancel: () -> Unit,
-    initialDaysOff: SleepWindow? = null,
-    easterEggs: Boolean = false,
-) {
-    var draft by rememberSaveable(stateSaver = SleepWindowSaver) { mutableStateOf(initial) }
-    var draftDaysOff by rememberSaveable(stateSaver = OptionalSleepWindowSaver) { mutableStateOf(initialDaysOff) }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
-        Spacer(Modifier.size(16.dp))
-        // Landscape phones: a full-width dial pushed Save below the fold (and dragging the dial fought the scroll),
-        // so the dial shrinks to what the window height leaves after the title, times and buttons.
-        val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-        val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
-        SleepDial(
-            work = draft,
-            daysOff = draftDaysOff,
-            onWorkChange = { draft = it },
-            onDaysOffChange = { draftDaysOff = it },
-            modifier = Modifier.fillMaxWidth(),
-            easterEggEnabled = easterEggs,
-            maxDialSize = maxDial,
-        )
-        Spacer(Modifier.size(16.dp))
-        EditorButtons(onCancel = onCancel, onSave = { onSave(draft, draftDaysOff) })
-    }
-}
-
-/** Title, bedtime/wake times, buttons, paddings and the dialog's own margins. */
-private val SleepEditorChrome = 290.dp
-private val SleepDialMinSize = 150.dp
-
 private val SleepWindowSaver = androidx.compose.runtime.saveable.Saver<SleepWindow, IntArray>(
     save = { intArrayOf(it.bedtime.toSecondOfDay(), it.wake.toSecondOfDay()) },
     restore = { SleepWindow(java.time.LocalTime.ofSecondOfDay(it[0].toLong()), java.time.LocalTime.ofSecondOfDay(it[1].toLong())) },
@@ -1287,79 +1173,90 @@ internal fun YouEditor(
     val suggested = remember(draftSleep, draftDaysOff) {
         ChronotypeEstimate.estimate(draftDaysOff ?: draftSleep, draftSleep).chronotype
     }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        ConnectedChoice(
-            options = YouEditorTab.entries,
-            selected = tab,
-            onSelect = { tab = it },
-            label = {
-                stringResource(
-                    when (it) {
-                        YouEditorTab.Sleep -> R.string.settings_sleep
-                        YouEditorTab.Chronotype -> R.string.settings_chronotype
-                    },
-                )
-            },
-            tag = {
-                when (it) {
-                    YouEditorTab.Sleep -> SettingsTags.Sleep
-                    YouEditorTab.Chronotype -> SettingsTags.Chronotype
-                }
-            },
-        )
-        Spacer(Modifier.size(16.dp))
-        when (tab) {
-            YouEditorTab.Sleep -> {
-                EditorTitle(stringResource(R.string.settings_sleep_dialog_title))
-                Spacer(Modifier.size(16.dp))
-                val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
-                val maxDial = (windowHeight - SleepEditorChrome).coerceIn(SleepDialMinSize, DefaultMaxDialSize)
-                SleepDial(
-                    work = draftSleep,
-                    daysOff = draftDaysOff,
-                    onWorkChange = { draftSleep = it },
-                    onDaysOffChange = { draftDaysOff = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    easterEggEnabled = easterEggs,
-                    maxDialSize = maxDial,
-                )
+    // The dial gets the height the dialog leaves after the rest of the editor, so Save stays on screen on a landscape
+    // phone (a full-size dial pushed it below the fold, and dragging the dial fought the scroll). The rest is
+    // measured from its text, so the budget holds at any font scale; the dial measures its own toggle and pills.
+    BoxWithConstraints {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val titleStyle = ClockblockTheme.textStyles.editorialTitle
+        val labelStyle = MaterialTheme.typography.labelLarge
+        val title = stringResource(R.string.settings_sleep_dialog_title)
+        // A short dialog (a landscape phone) drops the Sleep tab's title: the selected tab already names it.
+        val showTitle = !constraints.hasBoundedHeight || maxHeight >= ShortEditorHeight
+        val dialHeight = if (constraints.hasBoundedHeight) {
+            with(density) {
+                val contentWidth = (maxWidth - EditorPadding * 2).roundToPx().coerceAtLeast(1)
+                val titleHeight = measurer.measure(title, titleStyle, constraints = Constraints(maxWidth = contentWidth)).size.height.toDp()
+                val controlHeight = maxOf(48.dp, measurer.measure("Save", labelStyle, maxLines = 1).size.height.toDp() + ControlVerticalChrome)
+                // Paddings, the tabs, the title, the buttons and the gaps between them.
+                val title = if (showTitle) titleHeight + EditorGap else 0.dp
+                maxHeight - EditorPadding * 2 - controlHeight - EditorGap - title - EditorGap - controlHeight
             }
-            YouEditorTab.Chronotype -> {
-                EditorTitle(stringResource(R.string.settings_chronotype_dialog_title))
-                Spacer(Modifier.size(16.dp))
-                ChronotypePicker(
-                    selected = draftChronotype,
-                    onSelect = { draftChronotype = it },
-                    suggested = suggested,
-                )
-            }
+        } else {
+            Dp.Infinity
         }
-        Spacer(Modifier.size(16.dp))
-        EditorButtons(onCancel = onCancel, onSave = { onSave(draftSleep, draftDaysOff, draftChronotype) })
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(EditorPadding), horizontalAlignment = Alignment.CenterHorizontally) {
+            ConnectedChoice(
+                options = YouEditorTab.entries,
+                selected = tab,
+                onSelect = { tab = it },
+                label = {
+                    stringResource(
+                        when (it) {
+                            YouEditorTab.Sleep -> R.string.settings_sleep
+                            YouEditorTab.Chronotype -> R.string.settings_chronotype
+                        },
+                    )
+                },
+                tag = {
+                    when (it) {
+                        YouEditorTab.Sleep -> SettingsTags.Sleep
+                        YouEditorTab.Chronotype -> SettingsTags.Chronotype
+                    }
+                },
+            )
+            Spacer(Modifier.size(EditorGap))
+            when (tab) {
+                YouEditorTab.Sleep -> {
+                    if (showTitle) {
+                        EditorTitle(title)
+                        Spacer(Modifier.size(EditorGap))
+                    }
+                    SleepDial(
+                        work = draftSleep,
+                        daysOff = draftDaysOff,
+                        onWorkChange = { draftSleep = it },
+                        onDaysOffChange = { draftDaysOff = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        easterEggEnabled = easterEggs,
+                        maxHeight = dialHeight,
+                    )
+                }
+                YouEditorTab.Chronotype -> {
+                    EditorTitle(stringResource(R.string.settings_chronotype_dialog_title))
+                    Spacer(Modifier.size(EditorGap))
+                    ChronotypePicker(
+                        selected = draftChronotype,
+                        onSelect = { draftChronotype = it },
+                        suggested = suggested,
+                    )
+                }
+            }
+            Spacer(Modifier.size(EditorGap))
+            EditorButtons(onCancel = onCancel, onSave = { onSave(draftSleep, draftDaysOff, draftChronotype) })
+        }
     }
 }
 
-/** Chronotype editor: the five cards with a suggested badge from the user's sleep schedules, on a draft. */
-@Composable
-internal fun ChronotypeEditor(
-    initial: Chronotype,
-    workSleep: SleepWindow,
-    onSave: (Chronotype) -> Unit,
-    onCancel: () -> Unit,
-    daysOffSleep: SleepWindow? = null,
-) {
-    var draft by rememberSaveable { mutableStateOf(initial) }
-    val suggested = remember(workSleep, daysOffSleep) {
-        ChronotypeEstimate.estimate(daysOffSleep ?: workSleep, workSleep).chronotype
-    }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
-        EditorTitle(stringResource(R.string.settings_chronotype_dialog_title))
-        Spacer(Modifier.size(16.dp))
-        ChronotypePicker(selected = draft, onSelect = { draft = it }, suggested = suggested)
-        Spacer(Modifier.size(16.dp))
-        EditorButtons(onCancel = onCancel, onSave = { onSave(draft) })
-    }
-}
+private val EditorPadding = 24.dp
+private val EditorGap = 16.dp
+
+/** Below this height the You editor's Sleep tab leaves out its title. */
+private val ShortEditorHeight = 480.dp
+
+/** A 48 dp-or-taller control's height around its label line (button or connected toggle paddings). */
+private val ControlVerticalChrome = 20.dp
 
 /** Home time zone editor: offline place search; picking a result saves straight away. */
 @Composable
