@@ -596,7 +596,7 @@ internal class LandDots(val mask: Bitmap) {
 
 /** Reused buffers, paths and paints: one per globe on screen. */
 private class GlobeRenderer {
-    // Sea, land and city lights: two shader draws (see GlobeHalftoneShader), nothing per dot on the CPU.
+    // Sea, land and city lights: one shader draw (see GlobeHalftoneShader), nothing per dot on the CPU.
     private val halftone = GlobeHalftoneShader()
 
     /** Each stop's label side from the last frame (-1 = not shown), for label hysteresis. */
@@ -696,21 +696,20 @@ private class GlobeRenderer {
         glowPaint.alpha = ((if (sd >= 0f) 0.95f else 0.35f) * 255).toInt()
         drawContext.canvas.nativeCanvas.drawCircle(cx, cy, radius, glowPaint)
 
-        // Sea halftone.
-        val canvas = drawContext.canvas.nativeCanvas
-        halftone.update(colors, cx, cy, radius, rotation.sinPhi0, rotation.cosPhi0, rotation.sinLambda0, rotation.cosLambda0, px, py, pz)
-        halftone.drawSea(canvas, cx, cy, radius)
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
-        // Route round the back of the globe: see-through, under the land.
+        // Route round the back of the globe: see-through, under the halftone.
         buildRoutes(routes, rotation, cx, cy, radius)
         routes.indices.forEach { i ->
             val alpha = if (active == null || active == i) 0.55f else 0.3f
             drawPath(backPaths[i], colors.routeDim.copy(alpha = alpha), style = s.back)
         }
 
-        // Land and city lights.
-        dots?.let { halftone.drawLand(canvas, cx, cy, radius, it.mask) }
+        // Sea, land and city lights.
+        halftone.draw(
+            drawContext.canvas.nativeCanvas, colors, dots?.mask, size.width, size.height, cx, cy, radius,
+            rotation.sinPhi0, rotation.cosPhi0, rotation.sinLambda0, rotation.cosLambda0, px, py, pz,
+        )
 
         // Route on the visible face: the active leg bright, the others dimmer; a picked leg on a light halo.
         val pickedLeg = (selection as? GlobeSelection.Leg)?.index?.takeIf { it in routes.indices }
