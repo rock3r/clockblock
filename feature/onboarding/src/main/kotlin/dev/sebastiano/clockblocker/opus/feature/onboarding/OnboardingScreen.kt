@@ -197,16 +197,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     var spectacleActive by rememberSaveable { mutableStateOf(false) }
     var justFinishedSpectacle by remember { mutableStateOf(false) }
     val dialBoundsState = remember { mutableStateOf<Rect?>(null) }
-    
-    val step = state.step
-    LaunchedEffect(step) {
-        if (justFinishedSpectacle && step == OnboardingStep.Chronotype) {
-            justFinishedSpectacle = false
-        }
-    }
 
+    val step = state.step
     BackHandler(enabled = spectacleActive) {
         spectacleActive = false
+        justFinishedSpectacle = false
     }
 
     val reduce = ClockblockTheme.reduceMotion
@@ -228,12 +223,35 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         override fun back() {
             if (spectacleActive) {
                 spectacleActive = false
+                justFinishedSpectacle = false
             } else {
                 actions.back()
             }
         }
     }
-    val steps = rememberOnboardingStepTransition(step, onBack = wrappedActions::back)
+    val steps = rememberOnboardingStepTransition(
+        step = step,
+        snap = justFinishedSpectacle,
+        onSettled = { settled ->
+            if (justFinishedSpectacle && settled != OnboardingStep.Sleep) {
+                spectacleActive = false
+                justFinishedSpectacle = false
+            }
+        },
+        onBack = wrappedActions::back,
+    )
+    LaunchedEffect(justFinishedSpectacle) {
+        if (justFinishedSpectacle) {
+            // Give a StateFlow-backed host a frame to deliver the new step; if actions.next() was a non-navigating
+            // mock (e.g. OnboardingActions.None), release the overlay cleanly.
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
+            if (justFinishedSpectacle && currentStep == OnboardingStep.Sleep) {
+                spectacleActive = false
+                justFinishedSpectacle = false
+            }
+        }
+    }
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
@@ -275,7 +293,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val searchMode = step == OnboardingStep.HomeZone && searchFocused && imeTarget > 0 &&
             searchModeFits(heightWithKeyboard, density.fontScale)
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        val frameAlpha = animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "spectacleFade")
+        val hideChrome = spectacleActive && !justFinishedSpectacle
+        val frameAlpha = animateFloatAsState(if (hideChrome) 0f else 1f, motion.fade(), label = "spectacleFade")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         OnboardingFrame(
@@ -283,7 +302,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             topBar = {
                 OnboardingTopBar(
                     step = step,
-                    visible = step != OnboardingStep.Welcome && !searchMode && !spectacleActive,
+                    visible = step != OnboardingStep.Welcome && !searchMode && !hideChrome,
                     alpha = { chrome() * (1f - search.value) * frameAlpha.value },
                     onSkip = wrappedActions::skip,
                 )
@@ -293,7 +312,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     WelcomeDisclaimer(
                         Modifier
                             .graphicsLayer { alpha = (1f - chrome()) * frameAlpha.value }
-                            .then(if (step == OnboardingStep.Welcome && !spectacleActive) Modifier else Modifier.clearAndSetSemantics { }),
+                            .then(if (step == OnboardingStep.Welcome && !hideChrome) Modifier else Modifier.clearAndSetSemantics { }),
                     )
                 }
             },
@@ -302,20 +321,35 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     state, wrappedActions, wide, short = short, welcome = welcome, chrome = chrome,
                     modifier = Modifier
                         .graphicsLayer { alpha = (1f - search.value) * frameAlpha.value }
-                        .then(if (searchMode || spectacleActive) Modifier.clearAndSetSemantics { } else Modifier),
+                        .then(if (searchMode || hideChrome) Modifier.clearAndSetSemantics { } else Modifier),
                 )
             },
             steps = { barHeight, noteHeight ->
                 Box(Modifier.fillMaxSize()) {
                     steps.transition.AnimatedContent(
-                        transitionSpec = { if (justFinishedSpectacle) fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap()) else steps.transitionFor(initialState, targetState) },
+                        transitionSpec = {
+                            if (justFinishedSpectacle) {
+                                fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap())
+                            } else {
+                                steps.transitionFor(initialState, targetState)
+                            }
+                        },
                         contentKey = { it },
-                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = frameAlpha.value },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(if (spectacleActive) Modifier.clearAndSetSemantics { } else Modifier),
                     ) { target ->
                         stepStates.SaveableStateProvider(target.name) {
                             Box(
                                 Modifier
                                     .fillMaxSize()
+                                    .graphicsLayer {
+                                        alpha = if (target == OnboardingStep.Sleep) {
+                                            if (justFinishedSpectacle) 0f else frameAlpha.value
+                                        } else {
+                                            1f
+                                        }
+                                    }
                                     .stepRoom(
                                         top = {
                                             when (target) {
@@ -347,10 +381,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                 wide = wide,
                                 dialBounds = dialBoundsState.value ?: Rect.Zero,
                                 onFinished = {
-                                    spectacleActive = false
-                                    spectaclePlayed = true
-                                    justFinishedSpectacle = true
-                                    actions.next()
+                                    if (!justFinishedSpectacle) {
+                                        spectaclePlayed = true
+                                        justFinishedSpectacle = true
+                                        actions.next()
+                                    }
                                 },
                             )
                         }

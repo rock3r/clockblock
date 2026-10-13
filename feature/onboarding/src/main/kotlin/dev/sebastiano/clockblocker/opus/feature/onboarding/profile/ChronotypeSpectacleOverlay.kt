@@ -80,6 +80,7 @@ fun ChronotypeSpectacleOverlay(
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val phase = remember { Animatable(0f) }
+    var skipped by remember { mutableStateOf(false) }
 
     LaunchedEffect(reduce) {
         if (reduce) {
@@ -92,6 +93,7 @@ fun ChronotypeSpectacleOverlay(
         }
     }
 
+    val currentPhase: () -> Float = { if (skipped) 3f else phase.value }
     val density = LocalDensity.current
     val sky = ClockblockTheme.sky
     val pose = chronotype.skyPose()
@@ -108,7 +110,10 @@ fun ChronotypeSpectacleOverlay(
     BoxWithConstraints(
         modifier
             .fillMaxSize()
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onFinished() }
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                skipped = true
+                onFinished()
+            }
             .clearAndSetSemantics {},
     ) {
         val artSize = if (wide) minOf(260.dp, maxHeight * 0.6f) else SpectacleArtSize
@@ -129,7 +134,7 @@ fun ChronotypeSpectacleOverlay(
                 .onGloballyPositioned { overlayPos = it.boundsInRoot().topLeft }
                 .drawBehind {
                     val targetBounds = artBounds ?: return@drawBehind
-                    val p = phase.value.coerceIn(0f, 3f)
+                    val p = currentPhase().coerceIn(0f, 3f)
                     if (p < 1.05f) {
                         val morphP = p.coerceIn(0f, 1f)
                         val startCenter = if (!dialBounds.isEmpty) {
@@ -183,32 +188,35 @@ fun ChronotypeSpectacleOverlay(
                     ChronotypeScene(
                         chronotype = chronotype,
                         hour = {
-                            val e = (phase.value - 1f).coerceIn(0f, 1f)
+                            val e = (currentPhase() - 1f).coerceIn(0f, 1f)
                             pose.hour - (1f - e) * SpectacleEntranceHours
                         },
                         position = { pose.position },
                         moonFraction = { if (pose.evening) 1f else 0f },
-                        entrance = { (phase.value - 1f).coerceIn(0f, 1f) },
+                        entrance = { (currentPhase() - 1f).coerceIn(0f, 1f) },
                         sunRotation = { 0f },
                         twinkle = { 0.5f },
                         cornerRadius = SpectacleCorner,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                val fadeIn = ((phase.value - 0.96f) / 0.12f).coerceIn(0f, 1f)
+                                val fadeIn = ((currentPhase() - 0.96f) / 0.12f).coerceIn(0f, 1f)
                                 alpha = fadeIn
                             },
                     )
                 }
             }
 
-            val wordsProgress: () -> Float = { (phase.value - 1.85f).coerceIn(0f, 1f) }
+            val wordsProgress: () -> Float = { (currentPhase() - 1.85f).coerceIn(0f, 1f) }
             val words: @Composable ColumnScope.(TextAlign, Alignment.Horizontal, Boolean) -> Unit = { align, horizontal, compact ->
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = horizontal) {
                     RevealWords(chronotype, picked, wordsProgress, midSleep, daysOffLinked, align, compact)
                     Spacer(Modifier.size(8.dp))
                     TextButton(
-                        onClick = {},
+                        onClick = {
+                            skipped = true
+                            onFinished()
+                        },
                         modifier = Modifier.heightIn(min = 48.dp).staggeredWord(wordsProgress, 0.68f, 1.00f),
                     ) { Text(stringResource(R.string.chronotype_reveal_other)) }
                 }

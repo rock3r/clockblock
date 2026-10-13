@@ -217,7 +217,7 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
         compose.mainClock.advanceTimeBy(450)
         compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_4_layers.png")
 
-        compose.mainClock.advanceTimeBy(750)
+        compose.mainClock.advanceTimeBy(850)
         compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_5_final.png")
     }
 

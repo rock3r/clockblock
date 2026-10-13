@@ -326,22 +326,32 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun `spectacle plays once per session on Next from Sleep`() {
+    fun `spectacle plays once per session on Next from Sleep and hides faded sleep step from accessibility`() {
         var state by mutableStateOf(onboardingState(OnboardingStep.Sleep))
-        setContent(reduceMotion = false) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+        val navigating = object : OnboardingActions by actions {
+            override fun next() {
+                actions.next()
+                state = state.copy(step = OnboardingStep.Chronotype)
+            }
+        }
+        setContent(reduceMotion = false) { OnboardingContent(state, navigating, Modifier.fillMaxSize()) }
         compose.waitForIdle()
 
         compose.mainClock.autoAdvance = false
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        compose.mainClock.advanceTimeBy(80)
         actions.calls.shouldBeEmpty()
+        // While the spectacle is active, the faded Sleep step and chrome have their semantics cleared.
+        compose.onNodeWithTag(SleepDialTags.Wake).assertDoesNotExist()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertDoesNotExist()
+        compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
 
         compose.mainClock.autoAdvance = true
         compose.mainClock.advanceTimeBy(3000)
         compose.waitForIdle()
         actions.calls shouldContainExactly listOf("next")
+        compose.onNodeWithTag(ChronotypeRevealTags.Name).assertIsDisplayed()
 
-        state = onboardingState(OnboardingStep.Chronotype)
-        compose.waitForIdle()
         state = onboardingState(OnboardingStep.Sleep)
         compose.waitForIdle()
 
