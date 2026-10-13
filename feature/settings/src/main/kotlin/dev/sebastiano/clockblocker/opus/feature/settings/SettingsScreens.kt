@@ -1274,11 +1274,12 @@ internal fun HomeZoneEditor(
     val formatter = rememberTimeFormatter()
     val colors = MaterialTheme.colorScheme
     var searchMode by remember { mutableStateOf(false) }
+    val motion = ClockblockTheme.motion
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
         AnimatedVisibility(
             visible = !searchMode,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
+            exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade())
         ) {
             Column {
                 EditorTitle(stringResource(R.string.settings_home_dialog_title))
