@@ -110,7 +110,7 @@ object RemindersTags {
 }
 
 @Composable
-internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, actions: OnboardingActions, wide: Boolean) {
+internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, actions: OnboardingActions, wide: Boolean, spectaclePlayed: Boolean = false) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
         OnboardingStep.Welcome -> WelcomeStep(wide)
@@ -146,6 +146,7 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
             onPick = actions::chronotypeChange,
             wide = wide,
             daysOffLinked = state.profile.daysOffSleep == null,
+            alreadyPlayed = spectaclePlayed,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,

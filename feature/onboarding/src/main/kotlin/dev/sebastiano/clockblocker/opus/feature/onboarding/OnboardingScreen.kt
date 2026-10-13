@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -205,21 +206,19 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         }
     }
 
-    val wrappedActions = remember(actions, spectaclePlayed, spectacleActive) {
-        object : OnboardingActions by actions {
-            override fun next() {
-                if (step == OnboardingStep.Sleep && !spectaclePlayed) {
-                    spectacleActive = true
-                } else {
-                    actions.next()
-                }
+    val wrappedActions = object : OnboardingActions by actions {
+        override fun next() {
+            if (state.step == OnboardingStep.Sleep && !spectaclePlayed) {
+                spectacleActive = true
+            } else {
+                actions.next()
             }
-            override fun back() {
-                if (spectacleActive) {
-                    spectacleActive = false
-                } else {
-                    actions.back()
-                }
+        }
+        override fun back() {
+            if (spectacleActive) {
+                spectacleActive = false
+            } else {
+                actions.back()
             }
         }
     }
@@ -249,7 +248,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     steps.transition.AnimatedContent(
                         transitionSpec = {
                             if (justFinishedSpectacle) {
-                                fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                                fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap())
                             } else {
                                 steps.transitionFor(initialState, targetState)
                             }
@@ -259,28 +258,30 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     ) { target ->
                         stepStates.SaveableStateProvider(target.name) {
                             Box(Modifier.fillMaxSize().testTag(OnboardingTags.step(target))) {
-                                OnboardingStepBody(target, state, wrappedActions, wide)
+                                OnboardingStepBody(target, state, wrappedActions, wide, spectaclePlayed = spectaclePlayed)
                             }
                         }
-                    }
-                    
-                    if (spectacleActive && dialBoundsState.value != null) {
-                        ChronotypeSpectacleOverlay(
-                            chronotype = state.profile.chronotype,
-                            dialBounds = dialBoundsState.value!!,
-                            onFinished = {
-                                spectacleActive = false
-                                spectaclePlayed = true
-                                justFinishedSpectacle = true
-                                actions.next()
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
                     }
                 }
                 Box(Modifier.graphicsLayer { alpha = barsAlpha }) {
                     OnboardingBottomBar(state, wrappedActions, wide, short = short)
                 }
+            }
+
+            if (spectacleActive) {
+                ChronotypeSpectacleOverlay(
+                    chronotype = state.profile.chronotype,
+                    midSleep = state.inferred.midSleep,
+                    daysOffLinked = state.profile.daysOffSleep == null,
+                    dialBounds = dialBoundsState.value ?: androidx.compose.ui.geometry.Rect.Zero,
+                    onFinished = {
+                        spectacleActive = false
+                        spectaclePlayed = true
+                        justFinishedSpectacle = true
+                        actions.next()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }

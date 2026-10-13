@@ -8,6 +8,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import io.kotest.matchers.collections.shouldBeEmpty
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -68,28 +72,6 @@ private class RecordingActions : OnboardingActions {
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingContentTest : ClockblockScreenshotTest() {
-
-    @Test
-    fun `spectacle plays once per session on Next from Sleep`() {
-        var state by androidx.compose.runtime.mutableStateOf(onboardingState(OnboardingStep.Sleep))
-        setContent { OnboardingContent(state, actions, androidx.compose.foundation.layout.Modifier.fillMaxSize()) }
-        
-        compose.onNodeWithTag(OnboardingTags.Next).performClick()
-        actions.calls.shouldBeEmpty()
-        
-        compose.mainClock.advanceTimeBy(3000)
-        actions.calls shouldContainExactly listOf("next")
-        
-        state = onboardingState(OnboardingStep.Chronotype)
-        compose.waitForIdle()
-        state = onboardingState(OnboardingStep.Sleep)
-        compose.waitForIdle()
-        
-        actions.calls.clear()
-        compose.onNodeWithTag(OnboardingTags.Next).performClick()
-        actions.calls shouldContainExactly listOf("next")
-    }
-
     private val actions = RecordingActions()
 
     private fun show(state: OnboardingUiState) =
@@ -124,7 +106,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
 
     @Test
     fun `next, back and skip are wired on a middle step`() {
-        show(onboardingState(OnboardingStep.Sleep))
+        show(onboardingState(OnboardingStep.HomeZone))
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         compose.onNodeWithTag(OnboardingTags.Back).performClick()
         compose.onNodeWithTag(OnboardingTags.Skip).performClick()
@@ -135,7 +117,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     fun `the reveal names the chronotype and doesn't sound like me opens the sheet to pick another`() {
         show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London")))
         compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Somewhere in between"))
-        compose.onNodeWithText("From your sleep").assertIsDisplayed()
+        compose.onNodeWithText("Your chronotype").assertIsDisplayed()
         compose.onNodeWithTag(ChronotypeRevealTags.Other).performScrollTo().performClick()
         compose.onNodeWithTag(ChronotypeRevealTags.Sheet).assertExists()
         compose.onNodeWithText("What your sleep suggests").assertExists()
@@ -337,9 +319,29 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     fun `back and next stay on screen on a small phone at the largest font`() {
         setContent(fontScale = 2f) { OnboardingContent(onboardingState(OnboardingStep.Sleep), actions, Modifier.fillMaxSize()) }
         compose.onNodeWithTag(OnboardingTags.Back).assertIsDisplayed()
-        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
         compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
+        actions.calls.shouldBeEmpty()
+    }
+
+    @Test
+    fun `spectacle plays once per session on Next from Sleep`() {
+        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep))
+        setContent { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+        
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        actions.calls.shouldBeEmpty()
+        
+        compose.mainClock.advanceTimeBy(3000)
+        actions.calls shouldContainExactly listOf("next")
+        
+        state = onboardingState(OnboardingStep.Chronotype)
+        compose.waitForIdle()
+        state = onboardingState(OnboardingStep.Sleep)
+        compose.waitForIdle()
+        
+        actions.calls.clear()
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
         actions.calls shouldContainExactly listOf("next")
     }
 }

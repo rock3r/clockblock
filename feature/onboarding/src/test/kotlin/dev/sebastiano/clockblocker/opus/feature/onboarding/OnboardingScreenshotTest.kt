@@ -77,6 +77,7 @@ internal val LarkProfile = UserProfile(
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingScreenshotTest : ClockblockScreenshotTest() {
+    private val actions = OnboardingActions.None
     private fun step(name: String, state: OnboardingUiState, dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
             OnboardingContent(state, OnboardingActions.None, Modifier.fillMaxSize())
@@ -229,6 +230,7 @@ class OnboardingExpandedScreenshotTest : ClockblockScreenshotTest() {
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w860dp-h400dp-land-xxhdpi")
 class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
+    private val actions = OnboardingActions.None
     @Test fun sleep() = snap("onboarding_landscape_3_sleep") {
         OnboardingContent(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile), OnboardingActions.None, Modifier.fillMaxSize())
     }
@@ -273,7 +275,7 @@ class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
     @Test
     fun spectacleFramesEvening() {
         var state = onboardingState(OnboardingStep.Sleep, profile = OwlProfile.copy(chronotype = Chronotype.DefiniteEvening))
-        setContent(reduceMotion = false, dark = true) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+        setContent(reduceMotion = false, darkTheme = true) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
 
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         compose.waitForIdle()

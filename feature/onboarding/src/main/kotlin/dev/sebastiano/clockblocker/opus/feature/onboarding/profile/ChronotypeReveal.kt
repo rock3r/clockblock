@@ -86,10 +86,11 @@ fun ChronotypeReveal(
     wide: Boolean,
     modifier: Modifier = Modifier,
     daysOffLinked: Boolean = false,
+    alreadyPlayed: Boolean = false,
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
-    var played by rememberSaveable { mutableStateOf(false) }
+    var played by rememberSaveable(alreadyPlayed) { mutableStateOf(alreadyPlayed) }
     val start = !reduce && !played
     val art = remember { Animatable(if (start) 0f else 1f) }
     val wordsAlpha = remember { Animatable(if (start) 0f else 1f) }
@@ -124,7 +125,7 @@ fun ChronotypeReveal(
             },
             horizontalAlignment = horizontal,
         ) {
-            RevealWords(chronotype, picked, midSleep, daysOffLinked, align, compact)
+            RevealWords(chronotype, picked, { 1f }, midSleep, daysOffLinked, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
                 onClick = { showSheet = true },
@@ -180,7 +181,7 @@ fun ChronotypeReveal(
 }
 
 @Composable
-private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, daysOffLinked: Boolean, align: TextAlign, compact: Boolean) {
+internal fun RevealWords(chronotype: Chronotype, picked: Boolean, wordsProgress: () -> Float = { 1f }, midSleep: LocalTime, daysOffLinked: Boolean, align: TextAlign, compact: Boolean) {
     val colors = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     Text(
