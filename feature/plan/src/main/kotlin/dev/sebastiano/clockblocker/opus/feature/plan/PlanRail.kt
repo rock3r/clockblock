@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -101,10 +103,12 @@ import kotlin.math.abs
 internal sealed interface RailRow {
     val key: String
 
+    @Immutable
     data class Earlier(val count: Int, val expanded: Boolean) : RailRow {
         override val key: String get() = "rail-earlier"
     }
 
+    @Immutable
     data class Header(val day: RailDay, val isToday: Boolean) : RailRow {
         override val key: String get() = "rail-day-${day.day.index}-${day.day.date}"
     }
@@ -113,6 +117,7 @@ internal sealed interface RailRow {
      * The zone the rail's times are shown in changes here (the day before was in [from], the next one is in [to]),
      * usually at landing. [at] is the first instant shown in [to].
      */
+    @Immutable
     data class ZoneSwitch(val day: RailDay, val from: ZoneId, val to: ZoneId, val at: Instant) : RailRow {
         override val key: String get() = "rail-zone-${day.day.index}-${day.day.date}"
     }
@@ -125,8 +130,10 @@ internal sealed interface RailRow {
      * "See bright light"): they ride along in this row instead of repeating its start time in the time column.
      * [showTime] is false when this block starts at the same time as the row above, so the time column only ever
      * moves forward. The row's slice of the body-clock sky runs from the block's start to [bandEnd] (where the next
-     * row starts), so the strip down the rail is one continuous gradient.
+     * row starts), so the strip down the rail is one continuous gradient. [connectBelow]: the line joining the
+     * capsules carries on below this one (to the next block, or to a Now marker after the day's last block).
      */
+    @Immutable
     data class Block(
         val day: RailDay,
         val item: RailItem,
@@ -136,12 +143,23 @@ internal sealed interface RailRow {
         val children: List<RailItem> = emptyList(),
         val showTime: Boolean = true,
         val bandEnd: Instant = item.advice.end,
+        val connectBelow: Boolean = !last,
     ) : RailRow {
         override val key: String get() = "rail-block-${day.day.index}-${item.advice.id}"
     }
 
-    /** [bandAt]: the instant whose body-clock sky the marker's slice of the strip shows (null = no strip here). */
-    data class NowMarker(val day: RailDay, val instant: Instant, val bandAt: Instant? = null) : RailRow {
+    /**
+     * [bandAt]: the instant whose body-clock sky the marker's slice of the strip shows (null = no strip here).
+     * [lineAbove]/[lineBelow]: the line joining the capsules runs through the marker from a block above / to one below.
+     */
+    @Immutable
+    data class NowMarker(
+        val day: RailDay,
+        val instant: Instant,
+        val bandAt: Instant? = null,
+        val lineAbove: Boolean = false,
+        val lineBelow: Boolean = false,
+    ) : RailRow {
         override val key: String get() = "rail-now"
     }
 }
@@ -179,10 +197,14 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
             val parent = groups.lastOrNull()
             if (parent != null && nestsInside(item.advice, day.items[parent.first].advice)) parent.second += item else groups += i to mutableListOf()
         }
-        val nowGroup = day.nowIndex?.let { n -> groups.indexOfLast { it.first <= n } }
+        // After the day's last block (nowIndex == items.size) the marker goes after it, below: not before its group
+        // too (that added a second "rail-now" row, a duplicate lazy-list key).
+        val nowGroup = day.nowIndex?.takeIf { it < day.items.size }?.let { n -> groups.indexOfLast { it.first <= n } }
         groups.forEachIndexed { g, (i, children) ->
             val item = day.items[i]
-            if (nowGroup == g && !day.nowInsideBlock) add(RailRow.NowMarker(day, now, bandAt = item.advice.start.takeIf { g > 0 }))
+            if (nowGroup == g && !day.nowInsideBlock) {
+                add(RailRow.NowMarker(day, now, bandAt = item.advice.start.takeIf { g > 0 }, lineAbove = g > 0, lineBelow = g > 0))
+            }
             val fraction = if (nowGroup == g && day.nowInsideBlock) {
                 val a = item.advice
                 val span = Duration.between(a.start, a.end).toMillis().toFloat()
@@ -202,10 +224,11 @@ internal fun buildRailRows(days: List<RailDay>, now: Instant, showEarlier: Boole
                     children = children.toList(),
                     showTime = g == 0 || day.items[groups[g - 1].first].advice.start != item.advice.start,
                     bandEnd = next ?: end,
+                    connectBelow = g < groups.lastIndex || day.nowIndex == day.items.size,
                 ),
             )
         }
-        if (day.nowIndex == day.items.size) add(RailRow.NowMarker(day, now))
+        if (day.nowIndex == day.items.size) add(RailRow.NowMarker(day, now, lineAbove = groups.isNotEmpty()))
     }
 }
 
@@ -353,7 +376,11 @@ internal fun rememberTimeColumnTop(): Dp {
 }
 
 private val CapsuleWidth = 44.dp
-private val RowGap = 6.dp
+internal val RowGap = 6.dp
+
+/** The line joining the capsules: its width, and how far it runs on under a capsule (hidden by its fill). */
+private val ConnectorWidth = 2.dp
+private val ConnectorOverlap = 4.dp
 
 /** The text column's top (and bottom) padding in a block row: level with the capsule's top, plus a little air. */
 private val TextColumnTop = RowGap + 6.dp
@@ -441,7 +468,8 @@ internal val RailColumnWidth = CapsuleWidth + 12.dp
  * bottom edge. Neighbouring rows share their edge colour, so the strip reads as one ribbon; only a day's two ends
  * are pill-rounded (square ends read as stray grey rectangles behind the first and last capsules in dark theme).
  */
-private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, roundBottom: Boolean): Modifier = drawBehind {
+private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, roundBottom: Boolean): Modifier = drawWithCache {
+    // Built once per size and colours, not on every frame of a scroll.
     val end = CornerRadius(size.width / 2f)
     val band = Path().apply {
         addRoundRect(
@@ -454,7 +482,8 @@ private fun Modifier.skyBand(top: Color, bottom: Color, roundTop: Boolean, round
             ),
         )
     }
-    drawPath(band, Brush.verticalGradient(listOf(top, bottom)), alpha = SkyBandAlpha)
+    val brush = Brush.verticalGradient(listOf(top, bottom))
+    onDrawBehind { drawPath(band, brush, alpha = SkyBandAlpha) }
 }
 
 internal const val SkyBandAlpha = 0.16f
@@ -463,6 +492,7 @@ internal const val SkyBandAlpha = 0.16f
 private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeColumn: Dp) {
     val formatter = rememberTimeFormatter()
     val color = MaterialTheme.colorScheme.primary
+    val connector = MaterialTheme.colorScheme.outlineVariant
     val sky = ClockblockTheme.sky
     val time = formatter.formatFull(row.instant.atZone(row.day.zone).toLocalTime())
     val band = row.bandAt?.let { at -> remember(at, sky) { sky.gradientAt(renderer.bodyHour(at)).mid } }
@@ -484,6 +514,10 @@ private fun NowMarkerRow(row: RailRow.NowMarker, renderer: RailRenderer, timeCol
                 .then(if (band != null) Modifier.skyBand(band, band, roundTop = false, roundBottom = false) else Modifier)
                 .drawBehind {
                     val y = size.height / 2f
+                    val x = size.width / 2f
+                    // The line joining the capsules runs on through the marker (under its dot), edge to edge.
+                    if (row.lineAbove) drawLine(connector, Offset(x, 0f), Offset(x, y), ConnectorWidth.toPx(), StrokeCap.Butt)
+                    if (row.lineBelow) drawLine(connector, Offset(x, y), Offset(x, size.height), ConnectorWidth.toPx(), StrokeCap.Butt)
                     drawCircle(color, 5.dp.toPx(), Offset(size.width / 2f, y))
                     drawLine(color, Offset(size.width / 2f, y), Offset(size.width, y), 2.dp.toPx(), StrokeCap.Round)
                 },
@@ -652,9 +686,14 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                 .fillMaxHeight()
                 .skyBand(bodyTop, bodyBottom, roundTop = row.first, roundBottom = row.last)
                 .drawBehind {
-                    if (!row.first) {
-                        drawLine(connector, Offset(size.width / 2f, 0f), Offset(size.width / 2f, RowGap.toPx()), 2.dp.toPx(), StrokeCap.Round)
-                    }
+                    // The line joining the capsules: from the row's top edge into this capsule and from under it to the
+                    // row's bottom edge, so it meets the next row's line edge to edge (butt caps: a round cap poked past
+                    // the row edge). It reaches [ConnectorOverlap] under the capsule, which paints over it.
+                    val x = size.width / 2f
+                    val stroke = ConnectorWidth.toPx()
+                    val reach = (RowGap + ConnectorOverlap).toPx()
+                    if (!row.first) drawLine(connector, Offset(x, 0f), Offset(x, reach), stroke, StrokeCap.Butt)
+                    if (row.connectBelow) drawLine(connector, Offset(x, size.height - reach), Offset(x, size.height), stroke, StrokeCap.Butt)
                 }
                 .clearAndSetSemantics {},
         ) {
@@ -671,7 +710,9 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
                     .drawBehind {
                         when (advice.type) {
                             AdviceType.AvoidLight -> drawHatch(capsule.ink)
-                            AdviceType.Sleep -> drawStarDots(capsule.ink.copy(alpha = capsule.ink.alpha * 0.5f))
+                            // Star dots: their ink is solved for contrast (RailColors); a touch larger than the
+                            // default so each dot has a solid core rather than an anti-aliased smudge.
+                            AdviceType.Sleep -> drawStarDots(capsule.ink, radius = StarDotRadius)
                             AdviceType.Nap, AdviceType.OptionalNap -> drawRoundDots(capsule.ink)
                             // Avoid caffeine: the struck-through glyph carries it; a strike across a tall capsule
                             // read as a stray line.
@@ -780,16 +821,19 @@ private fun RailBlockRow(row: RailRow.Block, renderer: RailRenderer, timeColumn:
 
 /**
  * The Now row's (or a highlighted row's) card: [fill] with an [edge] outline, inset [CardInset] from the row's top
- * and bottom so two emphasised rows in a row read as two cards, not one block. Drawn behind the row, so it never
- * changes the row's size (the dial's highlight moving from row to row doesn't shift the rail).
+ * and bottom so two emphasised rows in a row read as two cards, not one block. Drawn behind and around the row, so it
+ * never changes the row's size (the dial's highlight moving from row to row doesn't shift the rail). The fill goes
+ * behind the row's content and the outline over it, so the line joining the capsules (which runs to the row's edges)
+ * passes under the outline instead of striking across it.
  */
-private fun Modifier.emphasisedCard(fill: Color, edge: Color): Modifier = drawBehind {
+private fun Modifier.emphasisedCard(fill: Color, edge: Color): Modifier = drawWithContent {
     val inset = CardInset.toPx()
     val stroke = CardEdgeWidth.toPx()
     val radius = CornerRadius(RowCorner.toPx())
     val top = Offset(0f, inset)
     val cardSize = Size(size.width, (size.height - inset * 2f).coerceAtLeast(0f))
     drawRoundRect(fill, topLeft = top, size = cardSize, cornerRadius = radius)
+    drawContent()
     drawRoundRect(
         edge,
         topLeft = top + Offset(stroke / 2f, stroke / 2f),
@@ -803,6 +847,7 @@ private val RowCorner = 24.dp
 private val CardInset = 2.dp
 private val CardEdgeWidth = 2.dp
 private val CapsuleEdgeWidth = 1.5.dp
+private val StarDotRadius = 1.1.dp
 private const val PastGlyphAlpha = 0.7f
 
 /** Padding around a rail row (outside its card) and inside it. */

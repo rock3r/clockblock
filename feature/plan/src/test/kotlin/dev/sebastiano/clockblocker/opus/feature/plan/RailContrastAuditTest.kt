@@ -82,6 +82,7 @@ class RailContrastAuditTest {
         val palettes = staticPalettes() + dynamicPalettes()
         val rows = mutableListOf<Row>()
         val text = mutableListOf<List<String>>()
+        val stars = mutableListOf<List<String>>()
         assertSoftly {
             palettes.forEach { p ->
                 val rail = RailColors.of(p.scheme, p.advice, p.sky)
@@ -107,6 +108,18 @@ class RailContrastAuditTest {
                     // The mark across a Now capsule where now falls (device QA: onSurface vanished on a dark Avoid light).
                     val nowCapsule = rail.capsule(type, CapsuleState.Now)
                     withClue("${p.name} $type now mark") { ColorMath.contrast(nowCapsule.mark, nowCapsule.fill) shouldBeGreaterThanOrEqual 3f }
+                    // Sleep's star dots against their capsule (owner, device QA: barely visible in light theme): each dot
+                    // a mark you can see, yet quiet (the lowest alpha that gets there, never a solid ink).
+                    if (type == AdviceType.Sleep) {
+                        CapsuleState.entries.forEach { state ->
+                            val c = rail.capsule(type, state)
+                            val dots = ColorMath.contrast(ColorMath.over(c.ink, c.fill), c.fill)
+                            val min = if (state == CapsuleState.Past) PastStarContrast else StarContrast
+                            stars += listOf(p.name, state.name, c.ink.alpha.fmt(2), dots.fmt())
+                            withClue("${p.name} $state sleep star dots") { dots shouldBeGreaterThanOrEqual min }
+                            withClue("${p.name} $state sleep star dots stay quiet") { c.ink.alpha shouldBeLessThan 0.9f }
+                        }
+                    }
                     // Pushing the tone for contrast keeps the hue: the edge still says which advice it is.
                     val source = if (role.hasOutline) role.outline else role.color
                     if (ColorMath.chroma(source) > 0.04f) {
@@ -131,12 +144,12 @@ class RailContrastAuditTest {
                 text += listOf(p.name) + (textNumbers + nowCard + highlight).map { it.fmt() }
             }
         }
-        writeReport(rows, text)
+        writeReport(rows, text, stars)
     }
 
-    private fun Float.fmt() = String.format(Locale.ROOT, "%.1f", this)
+    private fun Float.fmt(decimals: Int = 1) = String.format(Locale.ROOT, "%.${decimals}f", this)
 
-    private fun writeReport(rows: List<Row>, text: List<List<String>>) {
+    private fun writeReport(rows: List<Row>, text: List<List<String>>, stars: List<List<String>>) {
         val out = File("build/reports/rail-contrast.md")
         out.parentFile.mkdirs()
         out.writeText(
@@ -150,6 +163,10 @@ class RailContrastAuditTest {
                 appendLine("| Palette | Text | Quiet text | Now time | Now card outline | Highlight outline |")
                 appendLine("|---|---|---|---|---|---|")
                 text.forEach { appendLine("| " + it.joinToString(" | ") + " |") }
+                appendLine()
+                appendLine("| Palette | Sleep capsule | Star ink alpha | Star dots on capsule (before: 0.11 alpha) |")
+                appendLine("|---|---|---|---|")
+                stars.forEach { appendLine("| " + it.joinToString(" | ") + " |") }
             },
         )
     }
