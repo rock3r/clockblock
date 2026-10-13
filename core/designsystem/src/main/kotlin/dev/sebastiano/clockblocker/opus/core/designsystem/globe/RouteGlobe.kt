@@ -626,18 +626,14 @@ private const val SinSixDegrees = 0.104528f
 /** Reused buffers, paths and paints: one per globe on screen. */
 private class GlobeRenderer {
     // Land and sea dots are batched by brightness and by depth band, so dots shrink and fade towards the horizon
-    // (foreshortening) while the whole cloud still draws in a few dozen drawPoints calls.
-    private val landBuckets = Array(LandLevels * DepthBands) { FloatArray(0) }
-    private val landCounts = IntArray(LandLevels * DepthBands)
-    private val cityBuckets = Array(DepthBands) { FloatArray(0) }
+    // (foreshortening) while the whole cloud still draws in a bounded number of drawPoints calls. Each layer keeps
+    // one buffer sized to its own dot count; buckets are slices of it (see PointBuckets).
+    private val land = PointBuckets(LandLevels * DepthBands)
+    private val cities = PointBuckets(DepthBands)
+    private val seaDots = PointBuckets(DepthBands * 2)
 
     /** Each stop's label side from the last frame (-1 = not shown), for label hysteresis. */
     private var labelSides = IntArray(0)
-    private val cityCounts = IntArray(DepthBands)
-    private val seaLitBuckets = Array(DepthBands) { FloatArray(0) }
-    private val seaLitCounts = IntArray(DepthBands)
-    private val seaDimBuckets = Array(DepthBands) { FloatArray(0) }
-    private val seaDimCounts = IntArray(DepthBands)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -747,14 +743,7 @@ private class GlobeRenderer {
 
         // Sea halftone.
         val sea = SeaGrid
-        for (band in 0 until DepthBands) {
-            if (seaLitBuckets[band].size < sea.size * 2) {
-                seaLitBuckets[band] = FloatArray(sea.size * 2)
-                seaDimBuckets[band] = FloatArray(sea.size * 2)
-            }
-            seaLitCounts[band] = 0
-            seaDimCounts[band] = 0
-        }
+        seaDots.reset(sea.size)
         for (i in 0 until sea.size) {
             val px = sea.x[i]
             val py = sea.y[i]
@@ -763,21 +752,15 @@ private class GlobeRenderer {
             if (depth < 0f) continue
             val ox = cx + rotation.x(px, py) * radius
             val oy = cy - rotation.y(px, py, pz) * radius
-            val band = depthBand(depth)
-            if (seaLit[i]) {
-                val b = seaLitBuckets[band]
-                b[seaLitCounts[band]++] = ox; b[seaLitCounts[band]++] = oy
-            } else {
-                val b = seaDimBuckets[band]
-                b[seaDimCounts[band]++] = ox; b[seaDimCounts[band]++] = oy
-            }
+            seaDots.add(depthBand(depth) * 2 + if (seaLit[i]) 0 else 1, ox, oy)
         }
+        seaDots.sort()
         val seaDot = radius / 105f
         for (band in 0 until DepthBands) {
             val size = seaDot * DepthScale[band]
             val fade = DepthAlpha[band]
-            points(seaLitBuckets[band], seaLitCounts[band], colors.sea.copy(alpha = 0.32f * fade), size)
-            points(seaDimBuckets[band], seaDimCounts[band], colors.sea.copy(alpha = 0.08f * fade), size)
+            points(seaDots, band * 2, colors.sea.copy(alpha = 0.32f * fade), size)
+            points(seaDots, band * 2 + 1, colors.sea.copy(alpha = 0.08f * fade), size)
         }
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
@@ -791,14 +774,8 @@ private class GlobeRenderer {
         // Land, bucketed by brightness so the cloud draws in a handful of calls.
         if (dots != null && landLight != null) {
             val v = dots.vectors
-            for (bucket in landBuckets.indices) {
-                if (landBuckets[bucket].size < v.size * 2) landBuckets[bucket] = FloatArray(v.size * 2)
-                landCounts[bucket] = 0
-            }
-            for (band in 0 until DepthBands) {
-                if (cityBuckets[band].size < v.size * 2) cityBuckets[band] = FloatArray(v.size * 2)
-                cityCounts[band] = 0
-            }
+            land.reset(v.size)
+            cities.reset(v.size)
             for (i in 0 until v.size) {
                 val px = v.x[i]
                 val py = v.y[i]
@@ -810,25 +787,20 @@ private class GlobeRenderer {
                 val light = landLight[i]
                 val level = (light * 4f + depth.coerceIn(0f, 1f) * 1.2f).toInt().coerceIn(0, LandLevels - 1)
                 val band = depthBand(depth)
-                val bucket = level * DepthBands + band
-                val buffer = landBuckets[bucket]
-                buffer[landCounts[bucket]++] = ox
-                buffer[landCounts[bucket]++] = oy
-                if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) {
-                    val c = cityBuckets[band]
-                    c[cityCounts[band]++] = ox; c[cityCounts[band]++] = oy
-                }
+                land.add(level * DepthBands + band, ox, oy)
+                if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) cities.add(band, ox, oy)
             }
+            land.sort()
+            cities.sort()
             val landDot = radius / 60f
             for (level in 0 until LandLevels) {
                 val alpha = 0.14f + level * 0.17f
                 for (band in 0 until DepthBands) {
-                    val bucket = level * DepthBands + band
-                    points(landBuckets[bucket], landCounts[bucket], colors.land.copy(alpha = alpha * DepthAlpha[band]), landDot * DepthScale[band])
+                    points(land, level * DepthBands + band, colors.land.copy(alpha = alpha * DepthAlpha[band]), landDot * DepthScale[band])
                 }
             }
             for (band in 0 until DepthBands) {
-                points(cityBuckets[band], cityCounts[band], colors.cityLight.copy(alpha = 0.9f * DepthAlpha[band]), landDot * 0.75f * DepthScale[band])
+                points(cities, band, colors.cityLight.copy(alpha = 0.9f * DepthAlpha[band]), landDot * 0.75f * DepthScale[band])
             }
         }
 
@@ -961,11 +933,12 @@ private class GlobeRenderer {
         }
     }
 
-    private fun DrawScope.points(buffer: FloatArray, count: Int, color: Color, width: Float) {
+    private fun DrawScope.points(buckets: PointBuckets, bucket: Int, color: Color, width: Float) {
+        val count = buckets.counts[bucket] * 2
         if (count == 0) return
         paint.color = color.toArgb()
         paint.strokeWidth = width
-        drawContext.canvas.nativeCanvas.drawPoints(buffer, 0, count, paint)
+        drawContext.canvas.nativeCanvas.drawPoints(buckets.coords, buckets.offsets[bucket] * 2, count, paint)
     }
 
     /** The view's rotation, applied to unit vectors: three multiply-adds per point. */
@@ -1006,5 +979,55 @@ private class GlobeRenderer {
 
         fun depthBand(depth: Float): Int =
             (kotlin.math.sqrt(depth.coerceIn(0f, 1f)) * DepthBands).toInt().coerceAtMost(DepthBands - 1)
+    }
+}
+
+/**
+ * Points grouped into buckets without a full-size array per bucket: [add] stages each point with its bucket, [sort]
+ * counting-sorts them into one [coords] buffer, and bucket `b` is the slice starting at `offsets[b]` (in points) with
+ * `counts[b]` points. Storage grows to the layer's own point count once and is reused every frame.
+ */
+internal class PointBuckets(private val bucketCount: Int) {
+    var coords = FloatArray(0)
+        private set
+    val counts = IntArray(bucketCount)
+    val offsets = IntArray(bucketCount)
+    private val cursor = IntArray(bucketCount)
+    private var xs = FloatArray(0)
+    private var ys = FloatArray(0)
+    private var tags = ByteArray(0)
+    private var size = 0
+
+    fun reset(capacity: Int) {
+        if (xs.size < capacity) {
+            xs = FloatArray(capacity)
+            ys = FloatArray(capacity)
+            tags = ByteArray(capacity)
+            coords = FloatArray(capacity * 2)
+        }
+        size = 0
+        counts.fill(0)
+    }
+
+    fun add(bucket: Int, x: Float, y: Float) {
+        xs[size] = x
+        ys[size] = y
+        tags[size] = bucket.toByte()
+        counts[bucket]++
+        size++
+    }
+
+    fun sort() {
+        var offset = 0
+        for (b in 0 until bucketCount) {
+            offsets[b] = offset
+            cursor[b] = offset
+            offset += counts[b]
+        }
+        for (i in 0 until size) {
+            val k = cursor[tags[i].toInt()]++
+            coords[k * 2] = xs[i]
+            coords[k * 2 + 1] = ys[i]
+        }
     }
 }
