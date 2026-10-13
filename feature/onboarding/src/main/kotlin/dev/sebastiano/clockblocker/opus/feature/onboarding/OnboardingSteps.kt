@@ -16,6 +16,23 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -93,6 +110,8 @@ object HomeZoneTags {
     const val Search = "home_zone_search"
     const val UseDevice = "home_zone_use_device"
     const val Current = "home_zone_current"
+    const val CloseSearch = "home_zone_close_search"
+    const val ResultCount = "home_zone_result_count"
 
     /** `home_zone_result_LHR` etc. */
     fun result(place: Place): String = "home_zone_result_${place.code.ifBlank { place.city }}"
@@ -108,7 +127,14 @@ object RemindersTags {
 }
 
 @Composable
-internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, actions: OnboardingActions, wide: Boolean) {
+internal fun OnboardingStepBody(
+    step: OnboardingStep,
+    state: OnboardingUiState,
+    actions: OnboardingActions,
+    wide: Boolean,
+    searchMode: Boolean = false,
+    onSearchFocusChange: (Boolean) -> Unit = {},
+) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
         OnboardingStep.Welcome -> WelcomeStep(wide)
@@ -117,7 +143,8 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
             art = { GreatCircleArt(it, progress = 0.62f, animated = animated) },
             headline = stringResource(R.string.home_headline),
             body = stringResource(R.string.home_body),
-        ) { HomeZoneControls(state, actions) }
+            collapsed = searchMode,
+        ) { availableHeight -> HomeZoneControls(state, actions, searchMode, availableHeight, onSearchFocusChange) }
         OnboardingStep.Sleep -> StepLayout(
             wide = wide,
             art = { PillowMoonArt(it, animated = animated) },
@@ -181,6 +208,9 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
  * Shared step layout. Compact: one scrolling column (small art beside the headline, body, controls); every step has
  * the same header so the headline never jumps between steps. Wide: art and words in the left pane, controls in a scrolling
  * right pane. Either way, [controls] gets the height it can use without scrolling.
+ *
+ * [collapsed] (compact only) folds the header away, so the controls get the whole step: the home step's full-height
+ * search. The header shrinks on `navigationSpatial()` (Standard, no bounce; it snaps under reduced motion) and fades.
  */
 @Composable
 private fun StepLayout(
@@ -188,6 +218,7 @@ private fun StepLayout(
     art: @Composable (Modifier) -> Unit,
     headline: String,
     body: String,
+    collapsed: Boolean = false,
     controls: @Composable ColumnScope.(availableHeight: Dp) -> Unit,
 ) {
     if (wide) BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -223,16 +254,25 @@ private fun StepLayout(
             HeaderThenControls(
                 viewportHeight = viewport,
                 header = {
-                    // The art sits beside the headline, not above it: the controls (the sleep dial most of all) need
-                    // the height.
-                    Row(verticalAlignment = Alignment.Top) {
-                        art(Modifier.size(CompactSideArtSize))
-                        Spacer(Modifier.size(12.dp))
-                        StepHeadline(headline)
+                    val motion = ClockblockTheme.motion
+                    AnimatedVisibility(
+                        visible = !collapsed,
+                        enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
+                        exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
+                    ) {
+                        Column {
+                            // The art sits beside the headline, not above it: the controls (the sleep dial most of all) need
+                            // the height.
+                            Row(verticalAlignment = Alignment.Top) {
+                                art(Modifier.size(CompactSideArtSize))
+                                Spacer(Modifier.size(12.dp))
+                                StepHeadline(headline)
+                            }
+                            Spacer(Modifier.size(8.dp))
+                            StepBody(body)
+                            Spacer(Modifier.size(24.dp))
+                        }
                     }
-                    Spacer(Modifier.size(8.dp))
-                    StepBody(body)
-                    Spacer(Modifier.size(24.dp))
                 },
                 controls = controls,
             )
@@ -369,8 +409,152 @@ private fun Badge(text: String) {
     }
 }
 
+/**
+ * The home step's controls: the current zone, the place search and its results.
+ *
+ * [searchMode] is the full-height search (decided by the step's host from the room the keyboard leaves): the zone card
+ * folds away, so the field rises to the top, and the results fill [availableHeight] under it, scrolling on their own
+ * down to the keyboard. Back, the field's arrow, picking a result or hiding the keyboard leave it (focus goes, and the
+ * host folds everything back). The field itself never leaves the composition, so it keeps focus and the keyboard.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingActions) {
+private fun HomeZoneControls(
+    state: OnboardingUiState,
+    actions: OnboardingActions,
+    searchMode: Boolean,
+    availableHeight: Dp,
+    onSearchFocusChange: (Boolean) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val motion = ClockblockTheme.motion
+    val focusManager = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    // Hiding the keyboard (its own button, or Back, which the keyboard takes first) ends the search too.
+    val keyboardUp = WindowInsets.imeAnimationTarget.getBottom(LocalDensity.current) > 0
+    var keyboardSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(focused, keyboardUp) {
+        when {
+            !focused -> keyboardSeen = false
+            keyboardUp -> keyboardSeen = true
+            keyboardSeen -> focusManager.clearFocus()
+        }
+    }
+    // The first Back leaves the search, the next one the step (registered after the step's own handler, so it wins).
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = searchMode,
+        onBackCompleted = { focusManager.clearFocus() },
+    )
+    Column(if (searchMode) Modifier.fillMaxWidth().height(availableHeight) else Modifier.fillMaxWidth()) {
+        AnimatedVisibility(
+            visible = !searchMode,
+            enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
+            exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
+        ) {
+            Column {
+                CurrentZoneCard(state, actions)
+                Spacer(Modifier.size(16.dp))
+            }
+        }
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = actions::queryChange,
+            label = { Text(stringResource(R.string.home_search_label)) },
+            leadingIcon = {
+                AnimatedContent(
+                    targetState = searchMode,
+                    transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
+                    label = "searchLeadingIcon",
+                ) { inSearch ->
+                    if (inSearch) {
+                        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+                        IconButton(onClick = { focusManager.clearFocus() }, modifier = Modifier.testTag(HomeZoneTags.CloseSearch)) {
+                            Icon(
+                                painterResource(R.drawable.onboarding_ic_arrow_back),
+                                contentDescription = stringResource(R.string.home_search_close),
+                                modifier = Modifier.graphicsLayer { scaleX = if (rtl) -1f else 1f },
+                            )
+                        }
+                    } else {
+                        Icon(painterResource(R.drawable.onboarding_ic_search), contentDescription = null)
+                    }
+                }
+            },
+            trailingIcon = if (state.query.isNotEmpty()) {
+                {
+                    IconButton(onClick = { actions.queryChange("") }) {
+                        Icon(painterResource(R.drawable.onboarding_ic_close), contentDescription = stringResource(R.string.home_search_clear))
+                    }
+                }
+            } else {
+                null
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {
+                if (state.searchMatchingQuery == state.query && state.query.isNotBlank()) {
+                    state.results.firstOrNull()?.let { pick(it, actions, focusManager) }
+                }
+            }),
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged {
+                    focused = it.isFocused
+                    onSearchFocusChange(it.isFocused)
+                }
+                .testTag(HomeZoneTags.Search),
+        )
+        Spacer(Modifier.size(12.dp))
+        // With the keyboard up in the normal layout, results start below the fold (under the IME and the Back/Next
+        // bar): scroll the first result (or the "no results" line) into view whenever the search answer changes.
+        val feedback = remember { BringIntoViewRequester() }
+        LaunchedEffect(state.query.isNotBlank(), state.results.firstOrNull()) {
+            if (state.query.isNotBlank()) feedback.bringIntoView()
+        }
+        if (state.query.isNotBlank() && state.searchMatchingQuery == state.query) {
+            // A polite live region: TalkBack reads how many places match as the query changes.
+            Text(
+                if (state.results.isEmpty()) {
+                    stringResource(R.string.home_no_results, state.query.trim())
+                } else {
+                    pluralStringResource(R.plurals.home_results_count, state.results.size, state.results.size)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(start = 4.dp, end = 4.dp, bottom = 8.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite }
+                    .testTag(HomeZoneTags.ResultCount)
+                    .then(if (state.results.isEmpty()) Modifier.bringIntoViewRequester(feedback) else Modifier),
+            )
+        }
+        Column(
+            modifier = if (searchMode) Modifier.weight(1f).verticalScroll(rememberScrollState()) else Modifier,
+            verticalArrangement = Arrangement.spacedBy(SegmentedGap),
+        ) {
+            state.results.forEachIndexed { index, place ->
+                PlaceRow(
+                    place,
+                    state.now,
+                    segmentedShape(index, state.results.size),
+                    onClick = { pick(place, actions, focusManager) },
+                    modifier = if (index == 0) Modifier.bringIntoViewRequester(feedback) else Modifier,
+                )
+            }
+        }
+    }
+}
+
+/** Picks [place] and ends the search (the keyboard goes with the focus). */
+private fun pick(place: Place, actions: OnboardingActions, focusManager: FocusManager) {
+    actions.selectPlace(place)
+    focusManager.clearFocus()
+}
+
+@Composable
+private fun CurrentZoneCard(state: OnboardingUiState, actions: OnboardingActions) {
     val formatter = rememberTimeFormatter()
     val zone = ZoneId.of(state.profile.homeZoneId)
     val colors = MaterialTheme.colorScheme
@@ -404,52 +588,6 @@ private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingAction
                     Text(stringResource(R.string.home_use_device))
                 }
             }
-        }
-    }
-    Spacer(Modifier.size(16.dp))
-    OutlinedTextField(
-        value = state.query,
-        onValueChange = actions::queryChange,
-        label = { Text(stringResource(R.string.home_search_label)) },
-        leadingIcon = { Icon(painterResource(R.drawable.onboarding_ic_search), contentDescription = null) },
-        trailingIcon = if (state.query.isNotEmpty()) {
-            {
-                IconButton(onClick = { actions.queryChange("") }) {
-                    Icon(painterResource(R.drawable.onboarding_ic_close), contentDescription = stringResource(R.string.home_search_clear))
-                }
-            }
-        } else {
-            null
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.fillMaxWidth().testTag(HomeZoneTags.Search),
-    )
-    Spacer(Modifier.size(12.dp))
-    // With the keyboard up, results start below the fold (under the IME and the Back/Next bar): scroll the first
-    // result (or the "no results" line) into view whenever the search answer changes.
-    val feedback = remember { BringIntoViewRequester() }
-    LaunchedEffect(state.query.isNotBlank(), state.results.firstOrNull()) {
-        if (state.query.isNotBlank()) feedback.bringIntoView()
-    }
-    if (state.query.isNotBlank() && state.results.isEmpty()) {
-        Text(
-            stringResource(R.string.home_no_results, state.query.trim()),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp).bringIntoViewRequester(feedback),
-        )
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
-        state.results.forEachIndexed { index, place ->
-            PlaceRow(
-                place,
-                state.now,
-                segmentedShape(index, state.results.size),
-                onClick = { actions.selectPlace(place) },
-                modifier = if (index == 0) Modifier.bringIntoViewRequester(feedback) else Modifier,
-            )
         }
     }
 }
