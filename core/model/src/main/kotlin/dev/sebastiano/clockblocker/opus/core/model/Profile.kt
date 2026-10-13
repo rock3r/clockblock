@@ -100,6 +100,10 @@ object HeadStart {
  * `adjustBeforeDeparture` switch maps on to [HeadStart.DefaultDays] (what it did) and off to 0. The profile store
  * and backups both decode through it, so old files and old backups load the same way. Day counts outside the
  * choices are clamped.
+ *
+ * It also writes the old switch next to the day count, so an older build reading the on-device profile store (after
+ * a downgrade) keeps the user's head start on or off. Backups don't rely on it: they are version 2
+ * (`BackupCodec.CurrentVersion`), which older builds refuse rather than half-import.
  */
 object UserProfileSerializer : JsonTransformingSerializer<UserProfile>(UserProfile.generatedSerializer()) {
     private const val Legacy = "adjustBeforeDeparture"

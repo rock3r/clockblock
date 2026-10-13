@@ -11,6 +11,8 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
@@ -64,18 +66,28 @@ class TripsContentTest : TripsScreenshotTest() {
         show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
         compose.onNodeWithTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.UpcomingEmptyNow).performClick()
-        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyPlan).performClick()
         compose.onNodeWithTag(TripsTestTags.tripCard(TripsSamples.lisbonTokyo.id)).assertIsDisplayed()
-        calls shouldContainExactly listOf("now", "new")
+        calls shouldContainExactly listOf("now")
     }
 
     @Test
-    fun upcomingEmptyCardOffersPlanningWhenOnlyPastTripsExist() {
+    fun onlyTheFabPlansATripWhenNothingFollowsTheNowTrip() {
+        // One "new trip" action on screen at a time: the card doesn't repeat the FAB.
+        show(TripsSamples.state(trips = listOf(DemoData.sfoToLhr(), TripsSamples.lisbonTokyo)))
+        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
+        compose.onNodeWithTag(TripsTestTags.Fab).assertIsDisplayed()
+        compose.onAllNodesWithText("Plan a trip").assertCountEquals(0)
+    }
+
+    @Test
+    fun upcomingEmptyCardLeavesPlanningToTheFabWhenOnlyPastTripsExist() {
         val afterAll = java.time.Instant.parse("2026-08-01T12:00:00Z")
         show(TripsSamples.state(now = afterAll))
         compose.onNodeWithTag(TripsTestTags.UpcomingEmptyState).assertIsDisplayed()
         compose.onNodeWithTag(TripsTestTags.UpcomingEmptyNow).assertDoesNotExist()
-        compose.onNodeWithTag(TripsTestTags.UpcomingEmptyPlan).performClick()
+        compose.onAllNodesWithText("Plan a trip").assertCountEquals(0)
+        compose.onNodeWithTag(TripsTestTags.Fab).performClick()
+        compose.onNodeWithTag(TripsTestTags.NewTrip).performClick()
         compose.onNodeWithTag(TripsTestTags.section(TripPhase.Past.name)).assertIsDisplayed()
         calls shouldContainExactly listOf("new")
     }

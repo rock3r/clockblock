@@ -91,25 +91,17 @@ class DefaultPlanRepository(
     }
 
     /**
-     * Picks the plan relevant at [now]:
-     * 1. among trips whose plan window (first plan day … last plan day, always including the flights)
-     *    contains [now], the one departing last (a return trip's pre-travel days supersede the outbound
-     *    trip's adaptation tail);
-     * 2. otherwise the next trip departing after [now];
-     * 3. otherwise none.
+     * The plan of the [NowTrip] at [now] (the trip under way, latest departure first, or else the next to depart),
+     * or null. Only trips that could be under way are planned to decide: one departing more than [MaxPlanLead] from
+     * now, or landed more than [MaxPlanTail] ago, can't be, whatever its plan.
      */
     suspend fun currentPlan(all: List<Trip>, profile: UserProfile, now: Instant): JetLagPlan? {
-        val sorted = all.sortedBy { it.departure }
-        var active: JetLagPlan? = null
-        for (trip in sorted) {
-            if (trip.arrival.plus(MaxPlanTail).isBefore(now)) continue // Long over.
-            if (trip.departure.minus(MaxPlanLead).isAfter(now)) break // Can't have started; nor can later ones.
-            val plan = planFor(trip, profile)
-            if (now in plan.window(trip)) active = plan
+        val entries = all.map { trip ->
+            val couldBeUnderWay = !trip.arrival.plus(MaxPlanTail).isBefore(now) && !trip.departure.minus(MaxPlanLead).isAfter(now)
+            trip to if (couldBeUnderWay) planFor(trip, profile) else null
         }
-        if (active != null) return active
-        val next = sorted.firstOrNull { it.departure.isAfter(now) } ?: return null
-        return planFor(next, profile)
+        val (trip, plan) = NowTrip.pick(entries, now) ?: return null
+        return plan ?: planFor(trip, profile)
     }
 
     companion object {
@@ -122,23 +114,4 @@ class DefaultPlanRepository(
         /** No plan runs longer than this after arrival. */
         val MaxPlanTail: Duration = Duration.ofDays(30)
     }
-}
-
-/** The span a plan covers: its first day's start to its last day's end, widened to include the flights. */
-internal fun JetLagPlan.window(trip: Trip): ClosedRange<Instant> {
-    var start = trip.departure
-    var end = trip.arrival
-    days.firstOrNull()?.let { first ->
-        val s = first.date.atStartOfDay(java.time.ZoneId.of(first.zoneId)).toInstant()
-        if (s.isBefore(start)) start = s
-    }
-    days.lastOrNull()?.let { last ->
-        val e = last.date.plusDays(1).atStartOfDay(java.time.ZoneId.of(last.zoneId)).toInstant()
-        if (e.isAfter(end)) end = e
-    }
-    allAdvice.forEach {
-        if (it.start.isBefore(start)) start = it.start
-        if (it.end.isAfter(end)) end = it.end
-    }
-    return start..end
 }

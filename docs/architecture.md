@@ -165,11 +165,14 @@ edit to either one gives a new key, and the next read computes a fresh plan. It 
 - A failed computation is not cached, so the next read tries again.
 
 `currentPlan` picks the trip that matters right now. It re-checks once a minute through a
-[`Ticker`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/time/Time.kt). A trip is
-active while `now` is inside its plan window: from the first plan day to the last plan day, always including the
-flights. A plan never starts more than 14 days before departure or runs more than 30 days after arrival. When
-several trips are active, the one that departs last wins, so the days before a return flight replace the end of
-the outbound trip's plan. If no trip is active, the next upcoming trip is used. Logging advice as Done or Skipped
+[`Ticker`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/time/Time.kt). The rule lives in
+[`NowTrip`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/NowTrip.kt), and the Trips
+list uses the same one, so the Now tab and the Trips tab always agree. A trip is active while `now` is inside its
+window: from the start of the first plan day to the end of the last plan day or of its last advice block (the last
+night's sleep runs past midnight), whichever is later, always including the flights. Without a plan, the window
+runs from take-off to two days after landing. A plan never starts more than 14 days before departure or runs more
+than 30 days after arrival. When several trips are active, the one that departs last wins, so the days before a
+return flight replace the end of the outbound trip's plan. If no trip is active, the next upcoming trip is used. Logging advice as Done or Skipped
 does not change the plan.
 
 ## Dependency injection
@@ -274,7 +277,7 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 
 | Feature | Code | Format |
 |---|---|---|
-| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
+| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "clockblock"`, version 2; version 1 files still import) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
 | Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from the positional advice ids, so a second import of an unchanged or lightly changed plan updates events. Re-plans that shift card positions can remap or orphan events. |
 
 Import has two modes, implemented in `BackupManager.restore`:

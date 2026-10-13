@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -117,6 +118,13 @@ internal class ArtScope(
     fun minus(a: Path, b: Path) = Path().apply { op(a, b, PathOperation.Difference) }
     fun intersect(a: Path, b: Path) = Path().apply { op(a, b, PathOperation.Intersect) }
     fun union(a: Path, b: Path) = Path().apply { op(a, b, PathOperation.Union) }
+
+    /**
+     * Draws [block] clipped to [shape]. Use it for strokes of open curves (graticules, rays) that must stop at an
+     * outline: [intersect] is for fills only, because a path boolean op closes every open contour (a curve becomes
+     * a curve-plus-chord sliver, and stroking it draws a lens).
+     */
+    inline fun clipped(shape: Path, block: () -> Unit) = draw.clipPath(shape) { block() }
 
     /** Fill with the cut-paper shadow underneath. */
     fun paper(path: Path, color: Color, shadow: Boolean = true) = with(draw) {

@@ -2,13 +2,7 @@
 <resources>
     <!-- Trips list. Voice: precise, kind, occasionally dry (design.md §2.6). -->
     <string name="trips_title">Trips</string>
-    <string name="trips_app_title">Clockblock</string>
-    <string name="trips_summary_in_progress">%1$d in progress</string>
-    <string name="trips_summary_upcoming">%1$d upcoming</string>
-    <string name="trips_summary_past">%1$d past</string>
-    <string name="trips_summary_separator">" · "</string>
     <string name="trips_settings">Settings</string>
-    <string name="trips_section_in_progress">In progress</string>
     <string name="trips_section_upcoming">Upcoming</string>
     <string name="trips_section_past">Past trips</string>
     <string name="trips_past_globe_action">Show past routes on the globe</string>
@@ -29,7 +23,6 @@
     <string name="trips_upcoming_empty_none_title">No upcoming trips</string>
     <string name="trips_upcoming_empty_none_body">When you plan your next trip, it will show up on Now and any following trips will wait here.</string>
     <string name="trips_upcoming_empty_open_now">Go to Now</string>
-    <string name="trips_upcoming_empty_plan">Plan a trip</string>
 
     <!-- Past trips globe sheet. -->
     <string name="past_globe_title">Where you\'ve been</string>
@@ -90,6 +83,7 @@
     <string name="trip_status_day_of">Day %1$d of %2$d</string>
     <string name="trip_status_day">Day %1$d</string>
     <string name="trip_status_adapted">Adapted</string>
+    <string name="trip_status_partly_adapted">%1$d%% adapted</string>
     <string name="trip_status_home_time">Stayed on home time</string>
     <string name="trip_status_finished">Done</string>
     <string name="trip_shift_east">%1$s east</string>
@@ -101,11 +95,11 @@
         <item quantity="other">%1$d\u00A0stops</item>
     </plurals>
     <string name="trip_route_cities">%1$s → %2$s</string>
-    <string name="trip_time_at">%1$s, %2$s</string>
+    <string name="trip_time_at_place">%1$s, %2$s %3$s</string>
+    <string name="trip_time_place">%1$s %2$s</string>
     <string name="trip_schedule_line">%1$s → %2$s · %3$s</string>
     <string name="trip_departs_description">Departs %1$s, %2$s local time in %3$s</string>
     <string name="trip_arrives_description">Arrives %1$s, %2$s local time in %3$s</string>
-    <string name="trip_adapted_percent">%1$d%% adapted</string>
     <string name="trip_route_art">Flight path from %1$s to %2$s</string>
     <string name="trip_more_actions">More actions for %1$s</string>
     <string name="trip_action_open">Open plan</string>
@@ -226,6 +220,9 @@
     <string name="editor_return_creates">Added to your trips as a trip of its own when you build your plan.</string>
     <string name="editor_return_hint">Lets us spot short trips.</string>
     <string name="editor_return_before_landing">Leaves before you land in %1$s.</string>
+    <string name="editor_return_moves">Your return trip moves to this date when you save.</string>
+    <string name="editor_return_kept">Your return trip, %1$s on %2$s, stays in your trips.</string>
+    <string name="editor_return_delete">Delete the return trip too</string>
 
     <!-- Route globe. -->
     <string name="globe_route">%1$s to %2$s</string>
@@ -250,15 +247,13 @@
     <string name="editor_shift_empty">Add your flights to see how far your body clock has to move.</string>
     <string name="editor_shift_blocked">Fix the flights above to see your shift.</string>
     <string name="editor_shift_pending">Working out your shift…</string>
+    <string name="editor_shift_unavailable">Couldn\'t work out a plan for these flights. Check their dates and times.</string>
     <string name="editor_shift_home_title">Home time</string>
     <string name="editor_shift_none_title">No jet lag</string>
-    <plurals name="editor_shift_with">
-        <item quantity="one">About %1$d day with the plan</item>
-        <item quantity="other">About %1$d days with the plan</item>
-    </plurals>
-    <plurals name="editor_shift_without">
-        <item quantity="one">%1$d without</item>
-        <item quantity="other">%1$d without</item>
+    <!-- One sentence, keyed on the days with the plan (%1$d); %2$d is the days without it. Reorder freely. -->
+    <plurals name="editor_shift_days">
+        <item quantity="one">About %1$d day with the plan, %2$d without</item>
+        <item quantity="other">About %1$d days with the plan, %2$d without</item>
     </plurals>
     <string name="editor_shift_long_way_later">Your body clock goes the long way round: a little later each day.</string>
     <string name="editor_shift_long_way_earlier">Your body clock goes the long way round: a little earlier each day.</string>

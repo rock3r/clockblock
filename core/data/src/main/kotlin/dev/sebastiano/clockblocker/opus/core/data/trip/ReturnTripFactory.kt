@@ -61,8 +61,30 @@ class ReturnTripFactory(
         )
     }
 
-    /** The outbound trip with its `returnDeparture` set, which lets the planner detect short stays. */
-    fun linkOutbound(outbound: Trip, returnTrip: Trip): Trip = outbound.copy(returnDeparture = returnTrip.departure)
+    /**
+     * The outbound trip linked to [returnTrip]: its `returnDeparture` set (which lets the planner detect short stays)
+     * and its `returnTripId` pointing at it (so the editor can move or reuse it later).
+     */
+    fun linkOutbound(outbound: Trip, returnTrip: Trip): Trip =
+        outbound.copy(returnDeparture = returnTrip.departure, returnTripId = returnTrip.id)
+
+    /**
+     * [returnTrip] moved so it departs at [departureLocal] (local time where it leaves): every leg shifts by the same
+     * amount of real time, so flight lengths and connections stay as they were, and each wall-clock time is derived
+     * again through its airport's zone (DST-safe). Everything else the user set on it (flight numbers, title, …) stays.
+     */
+    fun moveTo(returnTrip: Trip, departureLocal: LocalDateTime): Trip {
+        val shift = Duration.between(returnTrip.departure, departureLocal.atZone(returnTrip.origin.zone).toInstant())
+        if (shift.isZero) return returnTrip
+        return returnTrip.copy(
+            legs = returnTrip.legs.map { leg ->
+                leg.copy(
+                    departureLocal = leg.departure.plus(shift).atZone(leg.origin.zone).toLocalDateTime(),
+                    arrivalLocal = leg.arrival.plus(shift).atZone(leg.destination.zone).toLocalDateTime(),
+                )
+            },
+        )
+    }
 
     private fun blockTime(leg: FlightLeg): Duration {
         val d = leg.duration

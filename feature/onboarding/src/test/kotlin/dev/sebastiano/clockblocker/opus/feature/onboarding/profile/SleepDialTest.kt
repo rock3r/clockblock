@@ -217,6 +217,22 @@ class SleepDialTest : ClockblockScreenshotTest() {
         SleepDial(SleepWindow(LocalTime.of(22, 55), LocalTime.of(10, 55)), daysOff, {}, {}, Modifier.padding(16.dp))
     }
 
+    /** A short, wide space (a landscape phone): the dial with the toggle and the pills in a column beside it. */
+    @Test
+    fun two_schedules_short_side_by_side() = snap("sleep_dial_two_short") {
+        SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp), maxHeight = 260.dp)
+    }
+
+    @Test
+    fun two_schedules_short_side_by_side_large_font() = snap("sleep_dial_two_short_fontscale_1_5", fontScale = 1.5f) {
+        SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp), maxHeight = 300.dp)
+    }
+
+    @Test
+    fun two_schedules_largest_font() = snap("sleep_dial_two_fontscale_2", fontScale = 2f) {
+        SleepDial(work, daysOff, {}, {}, Modifier.padding(16.dp))
+    }
+
     /** One frame of the swap with motion on: the rings mid-way through trading radius and thickness. */
     @Test
     fun two_schedules_swap_mid() {
@@ -267,6 +283,74 @@ class SleepDialTest : ClockblockScreenshotTest() {
             click(Offset(center.x + r * cos(a).toFloat(), center.y + r * sin(a).toFloat()))
         }
         compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsSelected()
+    }
+
+    @Test
+    fun toggle_labels_are_whole_at_the_default_size() = assertToggleReadable(fontScale = 1f)
+
+    @Test
+    fun toggle_labels_are_whole_at_a_large_font() = assertToggleReadable(fontScale = 1.5f)
+
+    @Test
+    fun toggle_labels_are_whole_at_the_largest_font() = assertToggleReadable(fontScale = 2f)
+
+    /** A landscape phone: the dial shrinks to the height, and the toggle must still read in full. */
+    @Test
+    fun toggle_labels_are_whole_on_a_short_dial() = assertToggleReadable(fontScale = 1f, maxHeight = 260.dp)
+
+    @Test
+    fun toggle_labels_are_whole_on_a_short_dial_at_a_large_font() = assertToggleReadable(fontScale = 1.5f, maxHeight = 300.dp)
+
+    private fun assertToggleReadable(fontScale: Float, maxHeight: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Infinity) {
+        setContent(fontScale = fontScale) { SleepDial(work, daysOff, {}, {}, maxHeight = maxHeight) }
+        listOf(SleepDialTags.WorkDays to "Work days", SleepDialTags.DaysOff to "Days off").forEach { (tag, label) ->
+            val tab = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            ((tab.right - tab.left) >= 48.dp) shouldBe true
+            ((tab.bottom - tab.top) >= 48.dp) shouldBe true
+            val text = compose.onNodeWithText(label, useUnmergedTree = true)
+            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            text.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            val layout = layouts.single()
+            // Every line fits the width its tab gives it, nothing is cut off at the end, and no line is cut off below.
+            // (Not hasVisualOverflow: centred text lays its paragraph out at the full max width and reports that.)
+            (0 until layout.lineCount).forEach { line ->
+                (layout.getLineRight(line) - layout.getLineLeft(line) <= layout.layoutInput.constraints.maxWidth + 0.5f) shouldBe true
+            }
+            layout.getLineEnd(layout.lineCount - 1, visibleEnd = true) shouldBe label.length
+            layout.didOverflowHeight shouldBe false
+            layout.layoutInput.text.text shouldBe label
+            // Never shrunk past legibility: at least 85 % of the label style.
+            (layout.layoutInput.style.fontSize.value >= 14f * 0.85f) shouldBe true
+            // And the text sits inside its tab.
+            val bounds = text.getUnclippedBoundsInRoot()
+            (bounds.left >= tab.left - 0.5.dp && bounds.right <= tab.right + 0.5.dp) shouldBe true
+        }
+        if (maxHeight != androidx.compose.ui.unit.Dp.Infinity) {
+            val top = minOf(
+                compose.onNodeWithTag(SleepDialTags.Dial).getUnclippedBoundsInRoot().top,
+                compose.onNodeWithTag(SleepDialTags.WorkDays).getUnclippedBoundsInRoot().top,
+            )
+            val bottom = maxOf(
+                compose.onNodeWithTag(SleepDialTags.Dial).getUnclippedBoundsInRoot().bottom,
+                compose.onNodeWithTag(SleepDialTags.WakePill).getUnclippedBoundsInRoot().bottom,
+            )
+            (bottom - top <= maxHeight + 0.5.dp) shouldBe true
+        }
+    }
+
+    @Test
+    fun talkback_names_the_schedule_the_dial_edits() {
+        setContent { SleepDial(work, daysOff, {}, {}) }
+        compose.onNodeWithTag(SleepDialTags.Bedtime).assert(hasContentDescription("Work days: Bedtime, 23:00"))
+        compose.onNodeWithTag(SleepDialTags.Dial).assert(hasContentDescription("Work days", substring = true))
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).fetchSemanticsNode().config[SemanticsActions.OnClick].label shouldBe
+            "set work-day bedtime"
+        compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
+        compose.onNodeWithTag(SleepDialTags.Bedtime).assert(hasContentDescription("Days off: Bedtime, 00:30"))
+        compose.onNodeWithTag(SleepDialTags.Wake).assert(hasContentDescription("Days off: Wake-up, 09:15"))
+        compose.onNodeWithTag(SleepDialTags.Dial).assert(hasContentDescription("Days off", substring = true))
+        compose.onNodeWithTag(SleepDialTags.WakePill).fetchSemanticsNode().config[SemanticsActions.OnClick].label shouldBe
+            "set days-off wake-up time"
     }
 
     @Test

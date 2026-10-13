@@ -23,6 +23,9 @@ interface TripEditorActions {
 
     /** The Return flight switch: on suggests a date (a week after landing), off forgets it. */
     fun onReturnFlightChange(on: Boolean)
+
+    /** With the Return flight switch off: whether Save also deletes the existing return trip. */
+    fun onDeleteReturnTripChange(delete: Boolean)
     fun onStrategyChange(strategy: AdaptationStrategy?)
 
     /** "Body clock when you leave": [fromHome] true = still on home time, false = on the departure city's. */
@@ -55,6 +58,7 @@ interface TripEditorActions {
         override fun onReturnDateChange(date: LocalDate) = Unit
         override fun onReturnTimeChange(time: LocalTime) = Unit
         override fun onReturnFlightChange(on: Boolean) = Unit
+        override fun onDeleteReturnTripChange(delete: Boolean) = Unit
         override fun onStrategyChange(strategy: AdaptationStrategy?) = Unit
         override fun onBodyClockStartChange(fromHome: Boolean) = Unit
         override fun addLeg() = Unit
