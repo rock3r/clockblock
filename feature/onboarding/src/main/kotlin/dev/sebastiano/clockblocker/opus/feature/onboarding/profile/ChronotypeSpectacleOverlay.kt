@@ -113,9 +113,9 @@ fun ChronotypeSpectacleOverlay(
                 
                 translate(left = center.x - size.width/2f, top = center.y - size.height/2f) {
                     if (p < 0.5f) {
-                        drawMorph(morph1, mProgress, shapeColor, rotation, scale = 1f)
+                        drawPath(morph1.toPath(mProgress, size, rotation), shapeColor)
                     } else {
-                        drawMorph(morph2, m2Progress, shapeColor, rotation, scale = 1f)
+                        drawPath(morph2.toPath(m2Progress, size, rotation), shapeColor)
                     }
                 }
             }

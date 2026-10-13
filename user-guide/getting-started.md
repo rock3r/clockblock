@@ -37,17 +37,21 @@ that city, or still on home time. See [Starting away from home](planning-a-trip.
 
 ### 3. When do you usually sleep?
 
-<img src="images/sleep.png" alt="Step 3 of 5, When do you usually sleep: a round dial with a moon at 23:00 and a sun at 07:00 on the inner ring, and a thinner, paler ring outside it for days off, from about half past midnight to half past nine. In the middle, 8 h and a Work days | Days off switch with Work days selected. Below the dial, two buttons: Bedtime 23:00 and Wake 07:00." width="280" />
+<img src="images/sleep.png" alt="Step 3 of 5, When do you usually sleep: a round dial with a moon at 23:00 and a sun at 07:00 on the inner ring, and a thinner, paler ring outside it for days off, from about half past midnight to half past nine. In the middle, 8h of sleep. Beside the dial, Work days and Days off buttons, one above the other, with Work days selected. Below the dial, two buttons: Bedtime 23:00 and Wake 07:00." width="280" />
 
 Drag the moon to your usual bedtime and the sun to your usual wake-up time. The dial holds two schedules:
 
 - **Work days**: your usual nights before work or other early commitments. Plans start from these.
 - **Days off**: the nights you wake up without an alarm.
 
-Switch between them with **Work days | Days off** in the middle of the dial, or tap the thin outer ring: it shows
-the other schedule. With a large font, or when the dial is small (a phone on its side), the switch moves out of the
-dial: above it, or beside it with the two buttons, so its words always fit. Days off start as a copy of work days; move a Days off handle to set them on their own. If your
+Switch between them with the **Work days** and **Days off** buttons beside the dial, or tap the thin outer ring: it
+shows the other schedule. With a very large font or a narrow screen the buttons move above the dial, and on a phone
+on its side they sit beside it with the Bedtime and Wake buttons, so their words always fit. Days off start as a copy
+of work days ("Same as work days until you move a handle"); move a Days off handle to set them on their own. If your
 nights are the same every day, leave Days off alone.
+
+The middle of the dial shows how long you sleep, for example 8h 30m. A very short or very long night gets a note
+under the Bedtime and Wake buttons.
 
 Under the dial, the **Bedtime** and **Wake** buttons show the times of the schedule you're editing and follow the
 dial as you drag. To enter an exact time instead, tap either one: a time picker opens. Its keyboard button lets you

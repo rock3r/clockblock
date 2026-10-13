@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.foundation.layout.fillMaxSize
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -253,23 +254,23 @@ class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
 
         compose.mainClock.advanceTimeBy(200)
         compose.waitForIdle()
-        capture("spectacle_intermediate_1_rising")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_1_rising.png")
 
         compose.mainClock.advanceTimeBy(400)
         compose.waitForIdle()
-        capture("spectacle_intermediate_2_spin")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_2_spin.png")
 
         compose.mainClock.advanceTimeBy(400)
         compose.waitForIdle()
-        capture("spectacle_intermediate_3_pop")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_3_pop.png")
 
         compose.mainClock.advanceTimeBy(600)
         compose.waitForIdle()
-        capture("spectacle_intermediate_4_layers")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_4_layers.png")
 
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
-        capture("spectacle_intermediate_5_final")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_5_final.png")
     }
 
     @Test
@@ -281,13 +282,13 @@ class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
         compose.waitForIdle()
 
         compose.mainClock.advanceTimeBy(500)
-        capture("spectacle_evening_1_spin")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_1_spin.png")
 
         compose.mainClock.advanceTimeBy(1000)
-        capture("spectacle_evening_2_layers")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_2_layers.png")
 
         compose.mainClock.advanceTimeBy(600)
-        capture("spectacle_evening_3_final")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_3_final.png")
     }
 
     @Test
@@ -299,7 +300,7 @@ class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
         compose.waitForIdle()
         
         compose.mainClock.advanceTimeBy(150)
-        capture("spectacle_reduce_motion_mid")
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_reduce_motion_mid.png")
     }
 
 }

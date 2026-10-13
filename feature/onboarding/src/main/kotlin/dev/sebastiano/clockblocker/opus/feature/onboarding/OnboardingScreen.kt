@@ -15,6 +15,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +54,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -206,6 +210,10 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         }
     }
 
+    BackHandler(enabled = spectacleActive) {
+        spectacleActive = false
+    }
+
     val wrappedActions = object : OnboardingActions by actions {
         override fun next() {
             if (state.step == OnboardingStep.Sleep && !spectaclePlayed) {
@@ -267,7 +275,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     OnboardingBottomBar(state, wrappedActions, wide, short = short)
                 }
             }
-
+            
             if (spectacleActive) {
                 ChronotypeSpectacleOverlay(
                     chronotype = state.profile.chronotype,
