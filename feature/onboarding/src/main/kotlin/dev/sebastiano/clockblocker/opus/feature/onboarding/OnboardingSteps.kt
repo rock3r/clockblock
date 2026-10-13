@@ -137,6 +137,8 @@ internal fun OnboardingStepBody(
     searchMode: Boolean = false,
     onSearchFocusChange: (Boolean) -> Unit = {},
     spectaclePlayed: Boolean = false,
+    openChronotypePicker: Boolean = false,
+    onChronotypePickerOpened: () -> Unit = {},
 ) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
@@ -175,6 +177,8 @@ internal fun OnboardingStepBody(
             wide = wide,
             daysOffLinked = state.profile.daysOffSleep == null,
             alreadyPlayed = spectaclePlayed,
+            openPicker = openChronotypePicker,
+            onPickerOpened = onChronotypePickerOpened,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,

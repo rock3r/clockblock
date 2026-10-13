@@ -196,6 +196,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
     var spectacleActive by rememberSaveable { mutableStateOf(false) }
     var justFinishedSpectacle by remember { mutableStateOf(false) }
+    var openChronotypePicker by rememberSaveable { mutableStateOf(false) }
     val dialBoundsState = remember { mutableStateOf<Rect?>(null) }
 
     val step = state.step
@@ -365,6 +366,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                 OnboardingStepBody(
                                     target, state, wrappedActions, wide,
                                     spectaclePlayed = spectaclePlayed,
+                                    openChronotypePicker = openChronotypePicker,
+                                    onChronotypePickerOpened = { openChronotypePicker = false },
                                     searchMode = searchMode && target == OnboardingStep.HomeZone,
                                     onSearchFocusChange = { searchFocused = it },
                                 )
@@ -380,10 +383,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                 daysOffLinked = state.profile.daysOffSleep == null,
                                 wide = wide,
                                 dialBounds = dialBoundsState.value ?: Rect.Zero,
-                                onFinished = {
+                                onFinished = { openPicker ->
                                     if (!justFinishedSpectacle) {
                                         spectaclePlayed = true
                                         justFinishedSpectacle = true
+                                        if (openPicker) openChronotypePicker = true
                                         actions.next()
                                     }
                                 },

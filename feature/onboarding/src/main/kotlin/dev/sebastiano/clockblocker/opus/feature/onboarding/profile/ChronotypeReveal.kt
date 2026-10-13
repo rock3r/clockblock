@@ -87,6 +87,8 @@ fun ChronotypeReveal(
     modifier: Modifier = Modifier,
     daysOffLinked: Boolean = false,
     alreadyPlayed: Boolean = false,
+    openPicker: Boolean = false,
+    onPickerOpened: () -> Unit = {},
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -113,7 +115,13 @@ fun ChronotypeReveal(
         }
     }
 
-    var showSheet by rememberSaveable { mutableStateOf(false) }
+    var showSheet by rememberSaveable { mutableStateOf(openPicker) }
+    LaunchedEffect(openPicker) {
+        if (openPicker) {
+            showSheet = true
+            onPickerOpened()
+        }
+    }
     val artBlock: @Composable (Dp) -> Unit = { size ->
         ChronotypeRevealArt(chronotype, entrance = { art.value }, modifier = Modifier.size(size))
     }

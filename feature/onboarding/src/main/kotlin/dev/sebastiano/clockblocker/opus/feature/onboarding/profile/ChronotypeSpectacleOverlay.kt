@@ -74,7 +74,7 @@ fun ChronotypeSpectacleOverlay(
     daysOffLinked: Boolean,
     wide: Boolean,
     dialBounds: Rect,
-    onFinished: () -> Unit,
+    onFinished: (openPicker: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val motion = ClockblockTheme.motion
@@ -84,12 +84,12 @@ fun ChronotypeSpectacleOverlay(
 
     LaunchedEffect(reduce) {
         if (reduce) {
-            onFinished()
+            onFinished(false)
         } else {
             phase.animateTo(1f, motion.artEntrance())
             phase.animateTo(2f, motion.artEntrance())
             phase.animateTo(3f, motion.artEntrance())
-            onFinished()
+            onFinished(false)
         }
     }
 
@@ -112,7 +112,7 @@ fun ChronotypeSpectacleOverlay(
             .fillMaxSize()
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 skipped = true
-                onFinished()
+                onFinished(false)
             }
             .clearAndSetSemantics {},
     ) {
@@ -215,7 +215,7 @@ fun ChronotypeSpectacleOverlay(
                     TextButton(
                         onClick = {
                             skipped = true
-                            onFinished()
+                            onFinished(true)
                         },
                         modifier = Modifier.heightIn(min = 48.dp).staggeredWord(wordsProgress, 0.68f, 1.00f),
                     ) { Text(stringResource(R.string.chronotype_reveal_other)) }
