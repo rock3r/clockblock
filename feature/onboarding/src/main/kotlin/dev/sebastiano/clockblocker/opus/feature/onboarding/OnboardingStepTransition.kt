@@ -102,8 +102,12 @@ internal class OnboardingStepTransition(
         return ContentTransform(enter, exit, targetContentZIndex = -1f, sizeTransform = SizeTransform(clip = false))
     }
 
-    internal suspend fun settleOn(step: OnboardingStep) {
-        state.animateTo(step)
+    internal suspend fun settleOn(step: OnboardingStep, snap: Boolean = false) {
+        if (snap) {
+            state.snapTo(step)
+        } else {
+            state.animateTo(step)
+        }
         gestureBack = false
     }
 
@@ -136,7 +140,12 @@ internal class OnboardingStepTransition(
  * handler: enabled after the first step, it calls [onBack] on commit.
  */
 @Composable
-internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -> Unit): OnboardingStepTransition {
+internal fun rememberOnboardingStepTransition(
+    step: OnboardingStep,
+    snap: Boolean = false,
+    onSettled: (OnboardingStep) -> Unit = {},
+    onBack: () -> Unit,
+): OnboardingStepTransition {
     val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val axisOffsetPx = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
@@ -145,8 +154,13 @@ internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -
     val steps = remember(seekable, transition, motion, axisOffsetPx, layoutDirection) {
         OnboardingStepTransition(seekable, transition, motion, axisOffsetPx, layoutDirection)
     }
-    // Every step change animates (a committed gesture continues from its current fraction).
-    LaunchedEffect(steps, step) { steps.settleOn(step) }
+    val currentSnap by rememberUpdatedState(snap)
+    val currentOnSettled by rememberUpdatedState(onSettled)
+    // Every step change animates (a committed gesture continues from its current fraction), unless snapped at spectacle hand-off.
+    LaunchedEffect(steps, step) {
+        steps.settleOn(step, snap = currentSnap)
+        currentOnSettled(step)
+    }
 
     val previous = OnboardingStep.entries.getOrNull(step.ordinal - 1)
     val backState = rememberNavigationEventState(currentInfo = NavigationEventInfo.None)

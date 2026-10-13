@@ -69,6 +69,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -134,6 +136,9 @@ internal fun OnboardingStepBody(
     wide: Boolean,
     searchMode: Boolean = false,
     onSearchFocusChange: (Boolean) -> Unit = {},
+    spectaclePlayed: Boolean = false,
+    openChronotypePicker: Boolean = false,
+    onChronotypePickerOpened: () -> Unit = {},
 ) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
@@ -171,6 +176,9 @@ internal fun OnboardingStepBody(
             onPick = actions::chronotypeChange,
             wide = wide,
             daysOffLinked = state.profile.daysOffSleep == null,
+            alreadyPlayed = spectaclePlayed,
+            openPicker = openChronotypePicker,
+            onPickerOpened = onChronotypePickerOpened,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,

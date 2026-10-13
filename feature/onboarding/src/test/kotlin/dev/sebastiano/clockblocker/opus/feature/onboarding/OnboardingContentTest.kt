@@ -8,6 +8,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import io.kotest.matchers.collections.shouldBeEmpty
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -102,7 +106,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
 
     @Test
     fun `next, back and skip are wired on a middle step`() {
-        show(onboardingState(OnboardingStep.Sleep))
+        show(onboardingState(OnboardingStep.HomeZone))
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         compose.onNodeWithTag(OnboardingTags.Back).performClick()
         compose.onNodeWithTag(OnboardingTags.Skip).performClick()
@@ -113,7 +117,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     fun `the reveal names the chronotype and doesn't sound like me opens the sheet to pick another`() {
         show(onboardingState(OnboardingStep.Chronotype, profile = UserProfile("Europe/London")))
         compose.onNodeWithTag(ChronotypeRevealTags.Name).assert(hasText("Somewhere in between"))
-        compose.onNodeWithText("From your sleep").assertIsDisplayed()
+        compose.onNodeWithText("Your chronotype").assertIsDisplayed()
         compose.onNodeWithTag(ChronotypeRevealTags.Other).performScrollTo().performClick()
         compose.onNodeWithTag(ChronotypeRevealTags.Sheet).assertExists()
         compose.onNodeWithText("What your sleep suggests").assertExists()
@@ -318,6 +322,42 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
         compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
+        actions.calls shouldContainExactly listOf("next")
+    }
+
+    @Test
+    fun `spectacle plays once per session on Next from Sleep and hides faded sleep step from accessibility`() {
+        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep))
+        val navigating = object : OnboardingActions by actions {
+            override fun next() {
+                actions.next()
+                state = state.copy(step = OnboardingStep.Chronotype)
+            }
+        }
+        setContent(reduceMotion = false) { OnboardingContent(state, navigating, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        compose.mainClock.advanceTimeBy(80)
+        actions.calls.shouldBeEmpty()
+        // While the spectacle is active, the faded Sleep step and chrome have their semantics cleared.
+        compose.onNodeWithTag(SleepDialTags.Wake).assertDoesNotExist()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertDoesNotExist()
+        compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
+
+        compose.mainClock.autoAdvance = true
+        compose.mainClock.advanceTimeBy(3000)
+        compose.waitForIdle()
+        actions.calls shouldContainExactly listOf("next")
+        compose.onNodeWithTag(ChronotypeRevealTags.Name).assertIsDisplayed()
+
+        state = onboardingState(OnboardingStep.Sleep)
+        compose.waitForIdle()
+
+        actions.calls.clear()
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
         actions.calls shouldContainExactly listOf("next")
     }
 }

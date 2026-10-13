@@ -86,10 +86,13 @@ fun ChronotypeReveal(
     wide: Boolean,
     modifier: Modifier = Modifier,
     daysOffLinked: Boolean = false,
+    alreadyPlayed: Boolean = false,
+    openPicker: Boolean = false,
+    onPickerOpened: () -> Unit = {},
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
-    var played by rememberSaveable { mutableStateOf(false) }
+    var played by rememberSaveable(alreadyPlayed) { mutableStateOf(alreadyPlayed) }
     val start = !reduce && !played
     val art = remember { Animatable(if (start) 0f else 1f) }
     val wordsAlpha = remember { Animatable(if (start) 0f else 1f) }
@@ -112,7 +115,13 @@ fun ChronotypeReveal(
         }
     }
 
-    var showSheet by rememberSaveable { mutableStateOf(false) }
+    var showSheet by rememberSaveable { mutableStateOf(openPicker) }
+    LaunchedEffect(openPicker) {
+        if (openPicker) {
+            showSheet = true
+            onPickerOpened()
+        }
+    }
     val artBlock: @Composable (Dp) -> Unit = { size ->
         ChronotypeRevealArt(chronotype, entrance = { art.value }, modifier = Modifier.size(size))
     }
@@ -124,7 +133,7 @@ fun ChronotypeReveal(
             },
             horizontalAlignment = horizontal,
         ) {
-            RevealWords(chronotype, picked, midSleep, daysOffLinked, align, compact)
+            RevealWords(chronotype, picked, { 1f }, midSleep, daysOffLinked, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
                 onClick = { showSheet = true },
@@ -180,7 +189,15 @@ fun ChronotypeReveal(
 }
 
 @Composable
-private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: LocalTime, daysOffLinked: Boolean, align: TextAlign, compact: Boolean) {
+internal fun RevealWords(
+    chronotype: Chronotype,
+    picked: Boolean,
+    wordsProgress: () -> Float = { 1f },
+    midSleep: LocalTime,
+    daysOffLinked: Boolean,
+    align: TextAlign,
+    compact: Boolean,
+) {
     val colors = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     Text(
@@ -188,7 +205,7 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
         style = MaterialTheme.typography.labelLarge,
         color = colors.primary,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.00f, 0.45f),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 8.dp))
     Text(
@@ -196,10 +213,16 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
         style = if (compact) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
         color = colors.onSurface,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().semantics { heading() }.testTag(ChronotypeRevealTags.Name),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.16f, 0.62f).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 12.dp))
-    Text(chronotype.description(), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, textAlign = align, modifier = Modifier.fillMaxWidth())
+    Text(
+        chronotype.description(),
+        style = MaterialTheme.typography.titleMedium,
+        color = colors.onSurface,
+        textAlign = align,
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.32f, 0.78f),
+    )
     Spacer(Modifier.size(if (compact) 8.dp else 16.dp))
     val small: TextStyle = MaterialTheme.typography.bodyMedium
     Text(
@@ -212,10 +235,24 @@ private fun RevealWords(chronotype: Chronotype, picked: Boolean, midSleep: Local
         style = small,
         color = colors.onSurfaceVariant,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.48f, 0.92f),
     )
-    Text(stringResource(R.string.chronotype_reveal_plan), style = small, color = colors.onSurfaceVariant, textAlign = align, modifier = Modifier.fillMaxWidth())
+    Text(
+        stringResource(R.string.chronotype_reveal_plan),
+        style = small,
+        color = colors.onSurfaceVariant,
+        textAlign = align,
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.58f, 1.00f),
+    )
 }
+
+internal fun Modifier.staggeredWord(progress: () -> Float, start: Float, end: Float): Modifier = graphicsLayer {
+    val p = ((progress() - start) / (end - start)).coerceIn(0f, 1f)
+    alpha = p
+    translationY = -(1f - p) * WordStaggerDrop.toPx()
+}
+
+private val WordStaggerDrop = 12.dp
 
 /**
  * [ChronotypeSky] grown into the reveal's illustration: the sky of the hour the day peaks, the dashed sun path over a
@@ -240,6 +277,7 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
     val sunRotation = rememberAmbient(!reduce && !target.evening, ClockblockMotion.SunRotationMillis, reverse = false)
     val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
     ChronotypeScene(
+        chronotype = chronotype,
         hour = { hour.value - (1f - entrance()) * EntranceHours },
         position = { position.value },
         moonFraction = { moon.value },

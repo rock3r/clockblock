@@ -78,7 +78,7 @@
     <string name="sleep_egg_line">Your body\'s day is about 24.2 hours (Czeisler 1999). That\'s why flying west feels easier.</string>
 
     <!-- 3b. The chronotype worked out from the two usual nights (part of step 3 in the count). -->
-    <string name="chronotype_reveal_kicker">From your sleep</string>
+    <string name="chronotype_reveal_kicker">Your chronotype</string>
     <string name="chronotype_reveal_kicker_picked">Your pick</string>
     <string name="chronotype_reveal_midpoint">Allowing for catch-up sleep, your nights off are centred on %1$s.</string>
     <string name="chronotype_reveal_midpoint_linked">Your usual nights are centred on %1$s. Set your days off on the previous step for a closer estimate.</string>

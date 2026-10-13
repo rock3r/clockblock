@@ -1,6 +1,10 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -77,6 +81,7 @@ internal val LarkProfile = UserProfile(
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingScreenshotTest : ClockblockScreenshotTest() {
+    private val actions = OnboardingActions.None
     private fun step(name: String, state: OnboardingUiState, dark: Boolean = false, fontScale: Float? = null) =
         snap(name, darkTheme = dark, fontScale = fontScale) {
             OnboardingContent(state, OnboardingActions.None, Modifier.fillMaxSize())
@@ -188,6 +193,72 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun toolsAllOnDark() = step("onboarding_5_tools_all_on_dark", allToolsOn(), dark = true)
 
+    @Test
+    fun spectacleFramesIntermediate() {
+        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile.copy(chronotype = Chronotype.Intermediate)))
+        val stepActions = object : OnboardingActions by OnboardingActions.None {
+            override fun next() { state = state.copy(step = OnboardingStep.Chronotype) }
+        }
+        setContent(reduceMotion = false) { OnboardingContent(state, stepActions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+
+        compose.mainClock.advanceTimeBy(80)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_1_rising.png")
+
+        compose.mainClock.advanceTimeBy(90)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_2_spin.png")
+
+        compose.mainClock.advanceTimeBy(110)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_3_pop.png")
+
+        compose.mainClock.advanceTimeBy(450)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_4_layers.png")
+
+        compose.mainClock.advanceTimeBy(850)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_intermediate_5_final.png")
+    }
+
+    @Test
+    fun spectacleFramesEvening() {
+        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep, profile = OwlProfile.copy(chronotype = Chronotype.DefiniteEvening)))
+        val stepActions = object : OnboardingActions by OnboardingActions.None {
+            override fun next() { state = state.copy(step = OnboardingStep.Chronotype) }
+        }
+        setContent(reduceMotion = false, darkTheme = true) { OnboardingContent(state, stepActions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+
+        compose.mainClock.advanceTimeBy(160)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_1_spin.png")
+
+        compose.mainClock.advanceTimeBy(600)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_2_layers.png")
+
+        compose.mainClock.advanceTimeBy(750)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_evening_3_final.png")
+    }
+
+    @Test
+    fun spectacleReduceMotion() {
+        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile.copy(chronotype = Chronotype.Intermediate)))
+        val stepActions = object : OnboardingActions by OnboardingActions.None {
+            override fun next() { state = state.copy(step = OnboardingStep.Chronotype) }
+        }
+        setContent(reduceMotion = true) { OnboardingContent(state, stepActions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+
+        compose.mainClock.advanceTimeBy(120)
+        compose.captureRoboImageInvalidated("src/test/screenshots/spectacle_reduce_motion_mid.png")
+    }
+
     private fun allToolsOn() = onboardingState(
         OnboardingStep.Tools,
         profile = UserProfile(
@@ -229,6 +300,7 @@ class OnboardingExpandedScreenshotTest : ClockblockScreenshotTest() {
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w860dp-h400dp-land-xxhdpi")
 class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
+    private val actions = OnboardingActions.None
     @Test fun sleep() = snap("onboarding_landscape_3_sleep") {
         OnboardingContent(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile), OnboardingActions.None, Modifier.fillMaxSize())
     }
