@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
@@ -160,6 +163,34 @@ class GlobeOverlayTest {
         }
         compose.waitForIdle()
         lightStatusBars shouldBe true
+    }
+
+    @Test
+    fun `once the overlay covers the screen, what is under it stops drawing, and draws again as it leaves`() {
+        val cover = GlobeOverlayCover()
+        var visible by mutableStateOf(false)
+        compose.setContent {
+            ClockblockTheme(dynamicColor = false, reduceMotion = true) {
+                Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().hiddenUnder(cover).testTag("under"))
+                    val state = rememberRouteGlobeState()
+                    GlobeOverlay(visible = visible, onDismiss = {}, title = "Your route", state = state, globe = {}, cover = cover)
+                }
+            }
+        }
+        compose.waitForIdle()
+        cover.covering shouldBe false
+        visible = true
+        compose.waitForIdle()
+        cover.covering shouldBe true
+        compose.mainClock.autoAdvance = false
+        compose.runOnUiThread {
+            visible = false
+            androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+        }
+        compose.mainClock.advanceTimeByFrame()
+        // From the first frame of its exit, the screen under it is drawn again (it shows through the fade).
+        cover.covering shouldBe false
     }
 
     private companion object {

@@ -123,6 +123,8 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.hiddenUnder
+import dev.sebastiano.clockblocker.opus.core.designsystem.globe.GlobeOverlayCover
 
 /** Everything the plan UI can ask of its host. Trip-specific actions are already bound to the shown trip. */
 @Immutable
@@ -571,6 +573,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         // pane), the world closes with it, so the plan isn't left hidden and a later trip doesn't reopen it.
         if (state.trip == null && screen.worldExpanded) SideEffect { screen.worldExpanded = false }
         val worldShown = screen.worldExpanded && state.trip != null
+        val worldCover = remember { GlobeOverlayCover() }
         val route = state.trip?.let { trip ->
             val origin = trip.origin.code
             val destination = trip.destination.code
@@ -581,8 +584,9 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 .fillMaxSize()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .testTag(PlanTags.Screen)
-                // The full-screen world covers the plan: TalkBack stays in it.
-                .then(if (worldShown) Modifier.clearAndSetSemantics { } else Modifier),
+                // The full-screen world covers the plan: TalkBack stays in it, and the plan is not drawn under it.
+                .then(if (worldShown) Modifier.clearAndSetSemantics { } else Modifier)
+                .hiddenUnder(worldCover),
             topBar = {
                 PlanHeader(
                     title = title,
@@ -850,6 +854,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 at = screen.preview ?: anchor,
                 visible = screen.worldExpanded,
                 onDismiss = { screen.worldExpanded = false },
+                cover = worldCover,
             )
         }
 

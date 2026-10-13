@@ -33,6 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +44,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -189,6 +193,24 @@ fun GlobeControls(state: RouteGlobeState, modifier: Modifier = Modifier, zoomabl
 }
 
 /**
+ * Whether a [GlobeOverlay] covers what's under it right now: shown, with its entrance finished and no predictive back
+ * in progress. Pass it to the overlay and put [hiddenUnder] on what the overlay covers. The GPU draws every layer of
+ * a window each frame, even under an opaque overlay: without this, a turning full-screen globe also redraws the whole
+ * screen under it, every frame.
+ */
+@Stable
+class GlobeOverlayCover {
+    var covering: Boolean by mutableStateOf(false)
+        internal set
+}
+
+/**
+ * Stops drawing this while [cover]'s overlay covers it (read in the draw phase: no recomposition). It stays composed
+ * and laid out, so it's back at once when the overlay starts to leave.
+ */
+fun Modifier.hiddenUnder(cover: GlobeOverlayCover): Modifier = graphicsLayer { alpha = if (cover.covering) 0f else 1f }
+
+/**
  * A globe over everything in its container (the whole window, or just its pane in a list-detail layout), edge to
  * edge on the night sky: [title] and [subtitle] at the top beside a close button, the [globe] filling the rest, the
  * [callout] and the [GlobeControls] over its bottom, and [details] (stats) under it, or beside it in a wide window.
@@ -210,6 +232,7 @@ fun GlobeOverlay(
     zoomable: Boolean = true,
     callout: @Composable (Modifier) -> Unit = {},
     details: (@Composable (Modifier) -> Unit)? = null,
+    cover: GlobeOverlayCover? = null,
 ) {
     val motion = ClockblockTheme.motion
     val scope = rememberCoroutineScope()
@@ -218,6 +241,11 @@ fun GlobeOverlay(
     val overlay = remember { SeekableTransitionState(false) }
     LaunchedEffect(visible) { overlay.animateTo(visible) }
     val transition = rememberTransition(overlay, label = "globe overlay")
+    if (cover != null) {
+        val covering = visible && overlay.currentState && overlay.targetState
+        SideEffect { cover.covering = covering }
+        DisposableEffect(cover) { onDispose { cover.covering = false } }
+    }
 
     PredictiveBackHandler(enabled = visible) { progress ->
         try {
