@@ -17,9 +17,10 @@
  * Adapted from Prime Meridian's HalftoneGlobe
  * (https://github.com/c5inco/m3e-vibes/tree/main/apps/prime-meridian, Apache-2.0): the halftone land and sea, the
  * terminator shading by brightness buckets and the lifted great-circle arcs. Clockblock's changes: its own palette
- * and motion tokens, allocation-free drawing (precomputed unit vectors, reused buffers and paths), framing on the
- * active leg, see-through arcs on the back of the globe, airport labels on a scrim, tap-to-pick a leg or an airport,
- * and drag, fling and pinch to turn and zoom.
+ * and motion tokens, the halftone drawn per pixel by a shader (GlobeHalftoneShader: dots squash and fade towards the
+ * limb), allocation-free drawing (precomputed unit vectors, reused paths), framing on the active leg, see-through arcs
+ * on the back of the globe, airport labels on a scrim, tap-to-pick a leg or an airport, and drag, fling and pinch to
+ * turn and zoom.
  */
 package dev.sebastiano.clockblocker.opus.core.designsystem.globe
 

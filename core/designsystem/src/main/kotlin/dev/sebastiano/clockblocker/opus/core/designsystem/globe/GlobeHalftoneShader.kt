@@ -97,7 +97,7 @@ internal class GlobeHalftoneShader {
     }
 
     companion object {
-        /** Builds the land mask bitmap the land layer samples, from [HalftoneGrid.bakeLandMask]. */
+        /** Builds the land mask bitmap the shader samples, from [HalftoneGrid.bakeLandMask]. */
         fun landMask(latitudes: ShortArray, longitudes: ShortArray): Bitmap {
             val bitmap = Bitmap.createBitmap(HalftoneGrid.LandColumns + 1, HalftoneGrid.Land.rows, Bitmap.Config.ALPHA_8)
             bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(HalftoneGrid.bakeLandMask(latitudes, longitudes, bitmap.rowBytes)))
