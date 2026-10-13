@@ -440,6 +440,8 @@ internal data class StopLabelInput(
     val oy: Float,
     val width: Float,
     val height: Float,
+    /** The candidate side this label used on the previous frame, or -1. Used for hysteresis. */
+    val previousSide: Int = -1,
 )
 
 internal data class StopLabelPlacement(
@@ -449,11 +451,18 @@ internal data class StopLabelPlacement(
     val scrimTop: Float,
     val scrimRight: Float,
     val scrimBottom: Float,
+    /** Which candidate side was chosen, to feed back as [StopLabelInput.previousSide] next frame. */
+    val side: Int = 0,
 )
 
 /**
  * Places each visible stop's airport-code label beside its dot, choosing the candidate side (right, left, above,
  * below or diagonal) that avoids overlapping other stop dots and already-placed labels.
+ *
+ * Hysteresis: a label keeps last frame's side ([StopLabelInput.previousSide]) unless another side is better by more
+ * than [switchCost]. Without it, a label whose side just grazes the canvas edge (a sub-pixel clamp) flips to the
+ * other side of its dot and back from one frame to the next while the globe turns or zooms. Near an edge the label
+ * now slides along the edge (clamped) until switching is clearly worth it.
  */
 internal fun placeStopLabels(
     stops: List<StopLabelInput>,
@@ -462,6 +471,7 @@ internal fun placeStopLabels(
     dotRadius: Float,
     gap: Float,
     pad: Float,
+    switchCost: Float = gap * 3f,
 ): List<StopLabelPlacement> {
     if (stops.isEmpty()) return emptyList()
     val placed = ArrayList<StopLabelPlacement>(stops.size)
@@ -480,7 +490,8 @@ internal fun placeStopLabels(
         )
         var best: StopLabelPlacement? = null
         var bestScore = Float.POSITIVE_INFINITY
-        for ((rawLeft, rawTop) in candidates) {
+        for ((side, candidate) in candidates.withIndex()) {
+            val (rawLeft, rawTop) = candidate
             val maxLeft = (canvasWidth - w - pad).coerceAtLeast(pad)
             val maxTop = (canvasHeight - h - pad).coerceAtLeast(pad)
             val left = rawLeft.coerceIn(pad, maxLeft)
@@ -507,11 +518,11 @@ internal fun placeStopLabels(
                 )
             }
             val clampPenalty = kotlin.math.abs(left - rawLeft) + kotlin.math.abs(top - rawTop)
-            val score = overlap * 100f + clampPenalty
+            val stickiness = if (s.previousSide >= 0 && side != s.previousSide) switchCost else 0f
+            val score = overlap * 100f + clampPenalty + stickiness
             if (score < bestScore) {
                 bestScore = score
-                best = StopLabelPlacement(left, top, sLeft, sTop, sRight, sBottom)
-                if (score == 0f) break
+                best = StopLabelPlacement(left, top, sLeft, sTop, sRight, sBottom, side)
             }
         }
         placed += best!!
@@ -614,11 +625,15 @@ private const val SinSixDegrees = 0.104528f
 
 /** Reused buffers, paths and paints: one per globe on screen. */
 private class GlobeRenderer {
-    private val landBuckets = Array(LandLevels) { FloatArray(0) }
-    private val landCounts = IntArray(LandLevels)
-    private var cityBuffer = FloatArray(0)
-    private var seaLitBuffer = FloatArray(0)
-    private var seaDimBuffer = FloatArray(0)
+    // Land and sea dots are batched by brightness and by depth band, so dots shrink and fade towards the horizon
+    // (foreshortening) while the whole cloud still draws in a bounded number of drawPoints calls. Each layer keeps
+    // one buffer sized to its own dot count; buckets are slices of it (see PointBuckets).
+    private val land = PointBuckets(LandLevels * DepthBands)
+    private val cities = PointBuckets(DepthBands)
+    private val seaDots = PointBuckets(DepthBands * 2)
+
+    /** Each stop's label side from the last frame (-1 = not shown), for label hysteresis. */
+    private var labelSides = IntArray(0)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -728,28 +743,25 @@ private class GlobeRenderer {
 
         // Sea halftone.
         val sea = SeaGrid
-        if (seaLitBuffer.size < sea.size * 2) {
-            seaLitBuffer = FloatArray(sea.size * 2)
-            seaDimBuffer = FloatArray(sea.size * 2)
-        }
-        var lit = 0
-        var dim = 0
+        seaDots.reset(sea.size)
         for (i in 0 until sea.size) {
             val px = sea.x[i]
             val py = sea.y[i]
             val pz = sea.z[i]
-            if (rotation.depth(px, py, pz) < 0f) continue
+            val depth = rotation.depth(px, py, pz)
+            if (depth < 0f) continue
             val ox = cx + rotation.x(px, py) * radius
             val oy = cy - rotation.y(px, py, pz) * radius
-            if (seaLit[i]) {
-                seaLitBuffer[lit++] = ox; seaLitBuffer[lit++] = oy
-            } else {
-                seaDimBuffer[dim++] = ox; seaDimBuffer[dim++] = oy
-            }
+            seaDots.add(depthBand(depth) * 2 + if (seaLit[i]) 0 else 1, ox, oy)
         }
+        seaDots.sort()
         val seaDot = radius / 105f
-        points(seaLitBuffer, lit, colors.sea.copy(alpha = 0.32f), seaDot)
-        points(seaDimBuffer, dim, colors.sea.copy(alpha = 0.08f), seaDot)
+        for (band in 0 until DepthBands) {
+            val size = seaDot * DepthScale[band]
+            val fade = DepthAlpha[band]
+            points(seaDots, band * 2, colors.sea.copy(alpha = 0.32f * fade), size)
+            points(seaDots, band * 2 + 1, colors.sea.copy(alpha = 0.08f * fade), size)
+        }
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
         // Route round the back of the globe: see-through, under the land.
@@ -762,12 +774,8 @@ private class GlobeRenderer {
         // Land, bucketed by brightness so the cloud draws in a handful of calls.
         if (dots != null && landLight != null) {
             val v = dots.vectors
-            for (level in 0 until LandLevels) {
-                if (landBuckets[level].size < v.size * 2) landBuckets[level] = FloatArray(v.size * 2)
-                landCounts[level] = 0
-            }
-            if (cityBuffer.size < v.size * 2) cityBuffer = FloatArray(v.size * 2)
-            var cities = 0
+            land.reset(v.size)
+            cities.reset(v.size)
             for (i in 0 until v.size) {
                 val px = v.x[i]
                 val py = v.y[i]
@@ -778,18 +786,22 @@ private class GlobeRenderer {
                 val oy = cy - rotation.y(px, py, pz) * radius
                 val light = landLight[i]
                 val level = (light * 4f + depth.coerceIn(0f, 1f) * 1.2f).toInt().coerceIn(0, LandLevels - 1)
-                val buffer = landBuckets[level]
-                buffer[landCounts[level]++] = ox
-                buffer[landCounts[level]++] = oy
-                if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) {
-                    cityBuffer[cities++] = ox; cityBuffer[cities++] = oy
-                }
+                val band = depthBand(depth)
+                land.add(level * DepthBands + band, ox, oy)
+                if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) cities.add(band, ox, oy)
             }
+            land.sort()
+            cities.sort()
             val landDot = radius / 60f
             for (level in 0 until LandLevels) {
-                points(landBuckets[level], landCounts[level], colors.land.copy(alpha = 0.14f + level * 0.17f), landDot)
+                val alpha = 0.14f + level * 0.17f
+                for (band in 0 until DepthBands) {
+                    points(land, level * DepthBands + band, colors.land.copy(alpha = alpha * DepthAlpha[band]), landDot * DepthScale[band])
+                }
             }
-            points(cityBuffer, cities, colors.cityLight.copy(alpha = 0.9f), landDot * 0.75f)
+            for (band in 0 until DepthBands) {
+                points(cities, band, colors.cityLight.copy(alpha = 0.9f * DepthAlpha[band]), landDot * 0.75f * DepthScale[band])
+            }
         }
 
         // Route on the visible face: the active leg bright, the others dimmer; a picked leg on a light halo.
@@ -840,6 +852,7 @@ private class GlobeRenderer {
                     oy = oy,
                     width = layout.size.width.toFloat(),
                     height = layout.size.height.toFloat(),
+                    previousSide = labelSides.getOrElse(i) { -1 },
                 )
             }
             val placements = placeStopLabels(
@@ -850,9 +863,12 @@ private class GlobeRenderer {
                 gap = gap,
                 pad = pad,
             )
+            if (labelSides.size != stops.size) labelSides = IntArray(stops.size) { -1 }
+            labelSides.fill(-1)
             for (k in visibleIndices.indices) {
                 val layout = layouts[visibleIndices[k]]
                 val p = placements[k]
+                labelSides[visibleIndices[k]] = p.side
                 drawRoundRect(
                     colors.scrim,
                     topLeft = Offset(p.scrimLeft, p.scrimTop),
@@ -917,11 +933,12 @@ private class GlobeRenderer {
         }
     }
 
-    private fun DrawScope.points(buffer: FloatArray, count: Int, color: Color, width: Float) {
+    private fun DrawScope.points(buckets: PointBuckets, bucket: Int, color: Color, width: Float) {
+        val count = buckets.counts[bucket] * 2
         if (count == 0) return
         paint.color = color.toArgb()
         paint.strokeWidth = width
-        drawContext.canvas.nativeCanvas.drawPoints(buffer, 0, count, paint)
+        drawContext.canvas.nativeCanvas.drawPoints(buckets.coords, buckets.offsets[bucket] * 2, count, paint)
     }
 
     /** The view's rotation, applied to unit vectors: three multiply-adds per point. */
@@ -945,5 +962,72 @@ private class GlobeRenderer {
 
     private companion object {
         const val LandLevels = 6
+
+        /**
+         * Depth bands for foreshortening. A dot's band comes from the square root of its depth (the cosine of its angle
+         * to the viewer), which is how a disc on a sphere shrinks towards the limb. Twelve bands keep each step to
+         * about 6% of a dot's size, so a dot crossing a band edge while the globe turns doesn't visibly pop, while
+         * the cloud still draws in a bounded number of drawPoints calls.
+         */
+        const val DepthBands = 12
+
+        /** Dot size per band: 30% at the horizon up to full size facing the viewer. */
+        val DepthScale = FloatArray(DepthBands) { 0.3f + 0.7f * (it + 0.5f) / DepthBands }
+
+        /** Dots also fade towards the horizon, so the limb reads as curving away rather than as a hard edge. */
+        val DepthAlpha = FloatArray(DepthBands) { 0.4f + 0.6f * (it + 0.5f) / DepthBands }
+
+        fun depthBand(depth: Float): Int =
+            (kotlin.math.sqrt(depth.coerceIn(0f, 1f)) * DepthBands).toInt().coerceAtMost(DepthBands - 1)
+    }
+}
+
+/**
+ * Points grouped into buckets without a full-size array per bucket: [add] stages each point with its bucket, [sort]
+ * counting-sorts them into one [coords] buffer, and bucket `b` is the slice starting at `offsets[b]` (in points) with
+ * `counts[b]` points. Storage grows to the layer's own point count once and is reused every frame.
+ */
+internal class PointBuckets(private val bucketCount: Int) {
+    var coords = FloatArray(0)
+        private set
+    val counts = IntArray(bucketCount)
+    val offsets = IntArray(bucketCount)
+    private val cursor = IntArray(bucketCount)
+    private var xs = FloatArray(0)
+    private var ys = FloatArray(0)
+    private var tags = ByteArray(0)
+    private var size = 0
+
+    fun reset(capacity: Int) {
+        if (xs.size < capacity) {
+            xs = FloatArray(capacity)
+            ys = FloatArray(capacity)
+            tags = ByteArray(capacity)
+            coords = FloatArray(capacity * 2)
+        }
+        size = 0
+        counts.fill(0)
+    }
+
+    fun add(bucket: Int, x: Float, y: Float) {
+        xs[size] = x
+        ys[size] = y
+        tags[size] = bucket.toByte()
+        counts[bucket]++
+        size++
+    }
+
+    fun sort() {
+        var offset = 0
+        for (b in 0 until bucketCount) {
+            offsets[b] = offset
+            cursor[b] = offset
+            offset += counts[b]
+        }
+        for (i in 0 until size) {
+            val k = cursor[tags[i].toInt()]++
+            coords[k * 2] = xs[i]
+            coords[k * 2 + 1] = ys[i]
+        }
     }
 }
