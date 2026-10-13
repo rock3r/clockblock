@@ -101,6 +101,29 @@ class RailRowsTest {
     }
 
     @Test
+    fun `the line joining the capsules runs between a day's blocks and through the now marker, never past the day`() {
+        val light = advice("light", AdviceType.SeeBrightLight, "08:00", "10:00")
+        val avoid = advice("avoid", AdviceType.AvoidLight, "20:00", "22:00")
+        val day = plan(PlanDay(1, DayKind.Arrival, day2, "UTC", listOf(light, avoid)))
+
+        // Now between the two blocks: the marker carries the line from one to the other.
+        val between = rows(day, at("12:00"))
+        val marker = between.filterIsInstance<RailRow.NowMarker>().single()
+        (marker.lineAbove to marker.lineBelow) shouldBe (true to true)
+        between.filterIsInstance<RailRow.Block>().map { it.connectBelow } shouldContainExactly listOf(true, false)
+
+        // Now after the day's last block: the line runs on from it to the marker, and stops there.
+        val after = rows(day, at("23:00"))
+        val end = after.filterIsInstance<RailRow.NowMarker>().single()
+        (end.lineAbove to end.lineBelow) shouldBe (true to false)
+        after.filterIsInstance<RailRow.Block>().map { it.connectBelow } shouldContainExactly listOf(true, true)
+
+        // Now before the first block: nothing above it to join.
+        val before = rows(day, at("06:00")).filterIsInstance<RailRow.NowMarker>().single()
+        (before.lineAbove to before.lineBelow) shouldBe (false to false)
+    }
+
+    @Test
     fun `now inside a parent keeps the marker on the parent row`() {
         val light = advice("light", AdviceType.SeeBrightLight, "10:00", "14:00")
         val coffee = advice("coffee", AdviceType.Caffeine, "10:00", "10:30")
