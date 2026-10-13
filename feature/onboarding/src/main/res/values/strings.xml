@@ -53,6 +53,12 @@
     <string name="sleep_dial_description">Sleep from %1$s to %2$s, %3$s.</string>
     <string name="sleep_handle_bedtime_description">Bedtime, %1$s</string>
     <string name="sleep_handle_wake_description">Wake-up, %1$s</string>
+    <!-- TalkBack: which schedule a dial description or handle belongs to, e.g. "Days off: Bedtime, 23:30". -->
+    <string name="sleep_schedule_prefix">%1$s: %2$s</string>
+    <string name="sleep_pick_bedtime_work_days">set work-day bedtime</string>
+    <string name="sleep_pick_wake_work_days">set work-day wake-up time</string>
+    <string name="sleep_pick_bedtime_days_off">set days-off bedtime</string>
+    <string name="sleep_pick_wake_days_off">set days-off wake-up time</string>
     <string name="sleep_action_later">15 minutes later</string>
     <string name="sleep_action_earlier">15 minutes earlier</string>
     <string name="sleep_noon">Noon</string>
@@ -67,6 +73,7 @@
     <string name="chronotype_reveal_kicker">From your sleep</string>
     <string name="chronotype_reveal_kicker_picked">Your pick</string>
     <string name="chronotype_reveal_midpoint">Allowing for catch-up sleep, your nights off are centred on %1$s.</string>
+    <string name="chronotype_reveal_midpoint_linked">Your usual nights are centred on %1$s. Set your days off on the previous step for a closer estimate.</string>
     <string name="chronotype_reveal_plan">Your plans start from your work-day sleep and this rhythm. You can change both in Settings.</string>
     <string name="chronotype_reveal_other">Doesn\'t sound like me</string>
     <string name="chronotype_sheet_title">Which sounds more like you?</string>
@@ -90,10 +97,11 @@
     <string name="tool_planes">I can sleep on planes</string>
     <string name="tool_planes_description">Off means in-flight sleep becomes rest in the dark.</string>
     <string name="tool_naps">Naps are OK</string>
-    <string name="tool_naps_description">Short, timed naps when a long day leaves you tired.</string>
+    <string name="tool_naps_description">Adds optional short naps for when you might be tired. A nap after an extra-long day stays either way.</string>
     <string name="tool_head_start">Head start</string>
     <string name="tool_head_start_description">Shift a little on the days before departure, so you land partly adapted.</string>
     <string name="tool_head_start_none">None</string>
+    <string name="tool_head_start_gentle_cap">Gentle effort uses at most %1$d days.</string>
     <plurals name="tool_head_start_days">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
@@ -125,6 +133,9 @@
     <!-- The sample's body clock offset and its other zone's city (the sample trip is Lisbon to Tokyo). -->
     <string name="reminders_preview_body_offset">7\u00A0h</string>
     <string name="reminders_preview_other_city">Lisbon</string>
+    <!-- The sample notification's header, as the shade shows it: app name • body clock. -->
+    <string name="reminders_preview_header">%1$s • %2$s</string>
+    <string name="reminders_preview_app_name" translatable="false">Clockblock</string>
     <string name="reminders_allow_notifications">Allow notifications</string>
     <string name="reminders_notifications_allowed">Notifications allowed</string>
     <string name="reminders_notifications_off">Notifications are off. You can turn them on in Android\'s settings.</string>

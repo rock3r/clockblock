@@ -143,6 +143,7 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
             midSleep = state.inferred.midSleep,
             onPick = actions::chronotypeChange,
             wide = wide,
+            daysOffLinked = state.profile.daysOffSleep == null,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,
@@ -479,7 +480,7 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
     Column(verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
         Surface(shape = segmentedShape(0, if (state.showExactTiming) 2 else 1), color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp)) {
-                NotificationPreview(state.notificationPreview, onContentWidth = actions::loadNotificationPreview)
+                NotificationPreview(state.notificationPreview, now = state.now, onContentWidth = actions::loadNotificationPreview)
                 Text(
                     stringResource(R.string.reminders_preview_caption),
                     style = MaterialTheme.typography.bodySmall,

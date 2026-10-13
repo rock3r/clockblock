@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.BloomArt
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeSky
+import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.GreatCircleArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.LittleAndOftenArt
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.NightCapsuleArt
@@ -71,6 +73,30 @@ class IllustrationScreenshotTest : ScreenshotTest() {
     @Test fun sheetDark() = snap("art_sheet_dark", darkTheme = true) { ArtSheet() }
     @Test fun sheetNightSafe() = snap("art_sheet_night_safe", nightSafe = true) { ArtSheet() }
     @Test fun sheetOpus() = snap("art_sheet_opus", opusMode = true) { ArtSheet() }
+
+    /** The shared chronotype landscape: all five poses at the picker (52), You card (64) and reveal (200) sizes. */
+    @Test fun chronotypeSkies() = snap("art_chronotype_skies") { ChronotypeSkySheet() }
+    @Test fun chronotypeSkiesDark() = snap("art_chronotype_skies_dark", darkTheme = true) { ChronotypeSkySheet() }
+    @Test fun chronotypeSkiesNightSafe() = snap("art_chronotype_skies_night_safe", nightSafe = true) { ChronotypeSkySheet() }
+}
+
+@Composable
+private fun ChronotypeSkySheet() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+            Chronotype.entries.forEach { c ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ChronotypeSky(c, Modifier.size(52.dp))
+                    ChronotypeSky(c, Modifier.size(64.dp), cornerRadius = 18.dp)
+                }
+            }
+        }
+        Chronotype.entries.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { c -> ChronotypeSky(c, Modifier.size(200.dp), cornerRadius = 32.dp) }
+            }
+        }
+    }
 }
 
 @Composable

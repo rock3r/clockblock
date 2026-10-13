@@ -277,7 +277,7 @@ Jet lag apps break easily on time zones, so the code follows a few strict rules:
 
 | Feature | Code | Format |
 |---|---|---|
-| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "clockblock"`, version 1) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
+| Backup and restore | [`Backup.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/backup/Backup.kt) | Versioned JSON (`"format": "clockblock"`, version 2; version 1 files still import) with the profile, settings, trips and advice logs. Plans are left out because they can be recomputed. |
 | Calendar export | [`IcsExporter.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/export/IcsExporter.kt) | iCalendar (RFC 5545) with a `TZID` and `VTIMEZONE` for each zone the plan uses. Event UIDs come from the positional advice ids, so a second import of an unchanged or lightly changed plan updates events. Re-plans that shift card positions can remap or orphan events. |
 
 Import has two modes, implemented in `BackupManager.restore`:
