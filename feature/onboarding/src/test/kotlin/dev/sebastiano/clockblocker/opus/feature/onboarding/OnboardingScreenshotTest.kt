@@ -240,4 +240,64 @@ class OnboardingLandscapeScreenshotTest : ClockblockScreenshotTest() {
     @Test fun welcome() = snap("onboarding_landscape_1_welcome") {
         OnboardingContent(onboardingState(OnboardingStep.Welcome), OnboardingActions.None, Modifier.fillMaxSize())
     }
+
+    @Test
+    fun spectacleFramesIntermediate() {
+        var state = onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile.copy(chronotype = Chronotype.Intermediate))
+        setContent(reduceMotion = false) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        compose.waitForIdle()
+
+        compose.mainClock.advanceTimeBy(200)
+        compose.waitForIdle()
+        capture("spectacle_intermediate_1_rising")
+
+        compose.mainClock.advanceTimeBy(400)
+        compose.waitForIdle()
+        capture("spectacle_intermediate_2_spin")
+
+        compose.mainClock.advanceTimeBy(400)
+        compose.waitForIdle()
+        capture("spectacle_intermediate_3_pop")
+
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
+        capture("spectacle_intermediate_4_layers")
+
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        capture("spectacle_intermediate_5_final")
+    }
+
+    @Test
+    fun spectacleFramesEvening() {
+        var state = onboardingState(OnboardingStep.Sleep, profile = OwlProfile.copy(chronotype = Chronotype.DefiniteEvening))
+        setContent(reduceMotion = false, dark = true) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        compose.waitForIdle()
+
+        compose.mainClock.advanceTimeBy(500)
+        capture("spectacle_evening_1_spin")
+
+        compose.mainClock.advanceTimeBy(1000)
+        capture("spectacle_evening_2_layers")
+
+        compose.mainClock.advanceTimeBy(600)
+        capture("spectacle_evening_3_final")
+    }
+
+    @Test
+    fun spectacleReduceMotion() {
+        var state = onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile.copy(chronotype = Chronotype.Intermediate))
+        setContent(reduceMotion = true) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        compose.waitForIdle()
+        
+        compose.mainClock.advanceTimeBy(150)
+        capture("spectacle_reduce_motion_mid")
+    }
+
 }

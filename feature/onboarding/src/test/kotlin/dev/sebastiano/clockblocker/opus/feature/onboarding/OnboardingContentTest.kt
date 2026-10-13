@@ -68,6 +68,28 @@ private class RecordingActions : OnboardingActions {
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [37], qualifiers = "w400dp-h860dp-xxhdpi")
 class OnboardingContentTest : ClockblockScreenshotTest() {
+
+    @Test
+    fun `spectacle plays once per session on Next from Sleep`() {
+        var state by androidx.compose.runtime.mutableStateOf(onboardingState(OnboardingStep.Sleep))
+        setContent { OnboardingContent(state, actions, androidx.compose.foundation.layout.Modifier.fillMaxSize()) }
+        
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        actions.calls.shouldBeEmpty()
+        
+        compose.mainClock.advanceTimeBy(3000)
+        actions.calls shouldContainExactly listOf("next")
+        
+        state = onboardingState(OnboardingStep.Chronotype)
+        compose.waitForIdle()
+        state = onboardingState(OnboardingStep.Sleep)
+        compose.waitForIdle()
+        
+        actions.calls.clear()
+        compose.onNodeWithTag(OnboardingTags.Next).performClick()
+        actions.calls shouldContainExactly listOf("next")
+    }
+
     private val actions = RecordingActions()
 
     private fun show(state: OnboardingUiState) =

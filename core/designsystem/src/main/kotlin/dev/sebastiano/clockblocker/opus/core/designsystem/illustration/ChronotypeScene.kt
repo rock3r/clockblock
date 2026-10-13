@@ -81,6 +81,7 @@ fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier, cornerR
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChronotypeScene(
+    chronotype: Chronotype? = null,
     hour: () -> Float,
     position: () -> Float,
     moonFraction: () -> Float,
@@ -106,6 +107,7 @@ fun ChronotypeScene(
                 onDrawBehind {
                     val h = hour()
                     drawChronotypeScene(
+                        chronotype = chronotype,
                         geometry = geometry,
                         shapes = shapes,
                         gradient = sky.gradientAt(((h % 24f) + 24f) % 24f),
@@ -174,6 +176,7 @@ private class SceneGeometry(size: Size, val detailed: Boolean) {
 }
 
 private fun DrawScope.drawChronotypeScene(
+    chronotype: Chronotype?,
     geometry: SceneGeometry,
     shapes: SceneShapes,
     gradient: SkyGradient,
@@ -187,16 +190,75 @@ private fun DrawScope.drawChronotypeScene(
 ) {
     val m = moonFraction.coerceIn(0f, 1f)
     val e = entrance.coerceIn(0f, 1f)
-    val light = SceneLight(position, m)
+
+    var eSky = e
+    var eHills = e
+    var eSunMoon = e
+    var eStars = e
+    var eClouds = e
+    var eDetails = e
+    var eSunPath = e
+
+    if (chronotype != null) {
+        when (chronotype) {
+            Chronotype.DefiniteMorning -> {
+                eSky = (e * 1.5f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.6f) * 2f).coerceIn(0f, 1f)
+                eStars = e
+            }
+            Chronotype.ModerateMorning -> {
+                eSky = (e * 1.4f).coerceIn(0f, 1f)
+                eHills = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.3f) * 2f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.4f) * 1.5f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
+                eStars = e
+            }
+            Chronotype.Intermediate -> {
+                eSky = (e * 1.3f).coerceIn(0f, 1f)
+                eHills = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.3f) * 2f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
+                eStars = e
+            }
+            Chronotype.ModerateEvening -> {
+                eSky = (e * 1.5f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.4f) * 1.5f).coerceIn(0f, 1f)
+                eStars = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.6f) * 2f).coerceIn(0f, 1f)
+            }
+            Chronotype.DefiniteEvening -> {
+                eSky = (e * 1.5f).coerceIn(0f, 1f)
+                eHills = ((e - 0.2f) * 1.5f).coerceIn(0f, 1f)
+                eSunMoon = ((e - 0.1f) * 1.5f).coerceIn(0f, 1f)
+                eSunPath = ((e - 0.3f) * 1.5f).coerceIn(0f, 1f)
+                eStars = ((e - 0.4f) * 2f).coerceIn(0f, 1f)
+                eClouds = ((e - 0.5f) * 2f).coerceIn(0f, 1f)
+                eDetails = ((e - 0.7f) * 3f).coerceIn(0f, 1f)
+            }
+        }
+    }
+        val light = SceneLight(position, m)
     val horizonSky = drawSky(gradient, light)
-    val celestial = celestialPoint(geometry, position * e)
-    drawHorizonGlow(geometry, light, celestial, e)
-    if (m > 0f) drawStars(geometry, shapes, light, twinkle, e)
-    if (light.day > 0.01f) drawClouds(geometry, light, position, e)
-    drawSunPath(geometry, position * e, e)
-    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, e)
-    drawHills(geometry, horizonSky, hills, m, e)
-    if (geometry.detailed) drawDetails(geometry, light, hills, position, e)
+    // We use eSky for sky gradient logic if any, but drawSky doesnt take e. We can just let it fade via alpha later if we want.
+    val celestial = celestialPoint(geometry, position * eSunMoon)
+    drawHorizonGlow(geometry, light, celestial, eSky)
+    if (m > 0f) drawStars(geometry, shapes, light, twinkle, eStars)
+    if (light.day > 0.01f) drawClouds(geometry, light, position, eClouds)
+    drawSunPath(geometry, position * eSunPath, eSunPath)
+    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, eSunMoon)
+    drawHills(geometry, horizonSky, hills, m, eHills)
+    if (geometry.detailed) drawDetails(geometry, light, hills, position, eDetails)
 }
 
 /** How much of each time of day the scene shows: sun (day) or moon ([m]), and the dawn, midday, dusk and deep-night weights. */

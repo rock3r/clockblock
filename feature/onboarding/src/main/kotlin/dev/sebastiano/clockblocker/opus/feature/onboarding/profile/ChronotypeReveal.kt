@@ -240,6 +240,7 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
     val sunRotation = rememberAmbient(!reduce && !target.evening, ClockblockMotion.SunRotationMillis, reverse = false)
     val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
     ChronotypeScene(
+        chronotype = chronotype,
         hour = { hour.value - (1f - entrance()) * EntranceHours },
         position = { position.value },
         moonFraction = { moon.value },

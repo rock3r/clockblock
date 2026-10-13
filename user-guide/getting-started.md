@@ -56,7 +56,7 @@ of sleep.
 
 #### Your chronotype
 
-<img src="images/chronotype.png" alt="Still step 3 of 5: a small sky with the sun high on its path, From your sleep, Somewhere in between, Neither a lark nor an owl. Most people are here. Below: Allowing for catch-up sleep, your nights off are centred on 04:38, and a Doesn't sound like me link." width="280" />
+<img src="images/chronotype.png" alt="Still step 3 of 5: a small sky with the sun high on its path, Your chronotype, Somewhere in between, Neither a lark nor an owl. Most people are here. Below: Allowing for catch-up sleep, your nights off are centred on 04:38, and a Doesn't sound like me link." width="280" />
 
 When you tap **Next**, the app works out your chronotype from those two schedules: Early bird, Morning person,
 Somewhere in between, Evening person or Night owl. It uses the middle of your nights off, allowing for catch-up sleep

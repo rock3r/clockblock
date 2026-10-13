@@ -8,6 +8,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSpectacleOverlay
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,6 +73,9 @@ import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 /** Test tags for the e2e suite. */
+
+val LocalOnboardingDialBounds = compositionLocalOf<androidx.compose.runtime.MutableState<Rect?>> { error("none") }
+
 object OnboardingTags {
     const val Progress = "onboarding_progress"
     const val Next = "onboarding_next"
@@ -183,37 +193,95 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modifier: Modifier = Modifier) {
+    var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
+    var spectacleActive by rememberSaveable { mutableStateOf(false) }
+    var justFinishedSpectacle by remember { mutableStateOf(false) }
+    val dialBoundsState = remember { mutableStateOf<Rect?>(null) }
+    
     val step = state.step
-    val steps = rememberOnboardingStepTransition(step, onBack = actions::back)
-    // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
-    // art entrances don't replay, scroll positions and open helpers stay put).
-    val stepStates = rememberSaveableStateHolder()
-    BoxWithConstraints(
-        modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > maxHeight)
-        val short = maxHeight < 480.dp
-        // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
-        // instead of spreading to the window edges.
-        Column(Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter)) {
-            OnboardingTopBar(step, onSkip = actions::skip)
-            steps.transition.AnimatedContent(
-                transitionSpec = { steps.transitionFor(initialState, targetState) },
-                contentKey = { it },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            ) { target ->
-                stepStates.SaveableStateProvider(target.name) {
-                    Box(Modifier.fillMaxSize().testTag(OnboardingTags.step(target))) {
-                        OnboardingStepBody(target, state, actions, wide)
-                    }
+    LaunchedEffect(step) {
+        if (justFinishedSpectacle && step == OnboardingStep.Chronotype) {
+            justFinishedSpectacle = false
+        }
+    }
+
+    val wrappedActions = remember(actions, spectaclePlayed, spectacleActive) {
+        object : OnboardingActions by actions {
+            override fun next() {
+                if (step == OnboardingStep.Sleep && !spectaclePlayed) {
+                    spectacleActive = true
+                } else {
+                    actions.next()
                 }
             }
-            OnboardingBottomBar(state, actions, wide, short = short)
+            override fun back() {
+                if (spectacleActive) {
+                    spectacleActive = false
+                } else {
+                    actions.back()
+                }
+            }
+        }
+    }
+
+    val steps = rememberOnboardingStepTransition(step, onBack = wrappedActions::back)
+    val stepStates = rememberSaveableStateHolder()
+    
+    CompositionLocalProvider(LocalOnboardingDialBounds provides dialBoundsState) {
+        BoxWithConstraints(
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > maxHeight)
+            val short = maxHeight < 480.dp
+            
+            val motion = ClockblockTheme.motion
+            val barsAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "barsAlpha")
+            val contentAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "contentAlpha")
+
+            Column(Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter)) {
+                Box(Modifier.graphicsLayer { alpha = barsAlpha }) {
+                    OnboardingTopBar(step, onSkip = wrappedActions::skip)
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    steps.transition.AnimatedContent(
+                        transitionSpec = {
+                            if (justFinishedSpectacle) {
+                                fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                            } else {
+                                steps.transitionFor(initialState, targetState)
+                            }
+                        },
+                        contentKey = { it },
+                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = contentAlpha },
+                    ) { target ->
+                        stepStates.SaveableStateProvider(target.name) {
+                            Box(Modifier.fillMaxSize().testTag(OnboardingTags.step(target))) {
+                                OnboardingStepBody(target, state, wrappedActions, wide)
+                            }
+                        }
+                    }
+                    
+                    if (spectacleActive && dialBoundsState.value != null) {
+                        ChronotypeSpectacleOverlay(
+                            chronotype = state.profile.chronotype,
+                            dialBounds = dialBoundsState.value!!,
+                            onFinished = {
+                                spectacleActive = false
+                                spectaclePlayed = true
+                                justFinishedSpectacle = true
+                                actions.next()
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                Box(Modifier.graphicsLayer { alpha = barsAlpha }) {
+                    OnboardingBottomBar(state, wrappedActions, wide, short = short)
+                }
+            }
         }
     }
 }
