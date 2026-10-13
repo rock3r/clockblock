@@ -614,11 +614,16 @@ private const val SinSixDegrees = 0.104528f
 
 /** Reused buffers, paths and paints: one per globe on screen. */
 private class GlobeRenderer {
-    private val landBuckets = Array(LandLevels) { FloatArray(0) }
-    private val landCounts = IntArray(LandLevels)
-    private var cityBuffer = FloatArray(0)
-    private var seaLitBuffer = FloatArray(0)
-    private var seaDimBuffer = FloatArray(0)
+    // Land and sea dots are batched by brightness and by depth band, so dots shrink and fade towards the horizon
+    // (foreshortening) while the whole cloud still draws in a few dozen drawPoints calls.
+    private val landBuckets = Array(LandLevels * DepthBands) { FloatArray(0) }
+    private val landCounts = IntArray(LandLevels * DepthBands)
+    private val cityBuckets = Array(DepthBands) { FloatArray(0) }
+    private val cityCounts = IntArray(DepthBands)
+    private val seaLitBuckets = Array(DepthBands) { FloatArray(0) }
+    private val seaLitCounts = IntArray(DepthBands)
+    private val seaDimBuckets = Array(DepthBands) { FloatArray(0) }
+    private val seaDimCounts = IntArray(DepthBands)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -728,28 +733,38 @@ private class GlobeRenderer {
 
         // Sea halftone.
         val sea = SeaGrid
-        if (seaLitBuffer.size < sea.size * 2) {
-            seaLitBuffer = FloatArray(sea.size * 2)
-            seaDimBuffer = FloatArray(sea.size * 2)
+        for (band in 0 until DepthBands) {
+            if (seaLitBuckets[band].size < sea.size * 2) {
+                seaLitBuckets[band] = FloatArray(sea.size * 2)
+                seaDimBuckets[band] = FloatArray(sea.size * 2)
+            }
+            seaLitCounts[band] = 0
+            seaDimCounts[band] = 0
         }
-        var lit = 0
-        var dim = 0
         for (i in 0 until sea.size) {
             val px = sea.x[i]
             val py = sea.y[i]
             val pz = sea.z[i]
-            if (rotation.depth(px, py, pz) < 0f) continue
+            val depth = rotation.depth(px, py, pz)
+            if (depth < 0f) continue
             val ox = cx + rotation.x(px, py) * radius
             val oy = cy - rotation.y(px, py, pz) * radius
+            val band = depthBand(depth)
             if (seaLit[i]) {
-                seaLitBuffer[lit++] = ox; seaLitBuffer[lit++] = oy
+                val b = seaLitBuckets[band]
+                b[seaLitCounts[band]++] = ox; b[seaLitCounts[band]++] = oy
             } else {
-                seaDimBuffer[dim++] = ox; seaDimBuffer[dim++] = oy
+                val b = seaDimBuckets[band]
+                b[seaDimCounts[band]++] = ox; b[seaDimCounts[band]++] = oy
             }
         }
         val seaDot = radius / 105f
-        points(seaLitBuffer, lit, colors.sea.copy(alpha = 0.32f), seaDot)
-        points(seaDimBuffer, dim, colors.sea.copy(alpha = 0.08f), seaDot)
+        for (band in 0 until DepthBands) {
+            val size = seaDot * DepthScale[band]
+            val fade = DepthAlpha[band]
+            points(seaLitBuckets[band], seaLitCounts[band], colors.sea.copy(alpha = 0.32f * fade), size)
+            points(seaDimBuckets[band], seaDimCounts[band], colors.sea.copy(alpha = 0.08f * fade), size)
+        }
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
         // Route round the back of the globe: see-through, under the land.
@@ -762,12 +777,14 @@ private class GlobeRenderer {
         // Land, bucketed by brightness so the cloud draws in a handful of calls.
         if (dots != null && landLight != null) {
             val v = dots.vectors
-            for (level in 0 until LandLevels) {
-                if (landBuckets[level].size < v.size * 2) landBuckets[level] = FloatArray(v.size * 2)
-                landCounts[level] = 0
+            for (bucket in landBuckets.indices) {
+                if (landBuckets[bucket].size < v.size * 2) landBuckets[bucket] = FloatArray(v.size * 2)
+                landCounts[bucket] = 0
             }
-            if (cityBuffer.size < v.size * 2) cityBuffer = FloatArray(v.size * 2)
-            var cities = 0
+            for (band in 0 until DepthBands) {
+                if (cityBuckets[band].size < v.size * 2) cityBuckets[band] = FloatArray(v.size * 2)
+                cityCounts[band] = 0
+            }
             for (i in 0 until v.size) {
                 val px = v.x[i]
                 val py = v.y[i]
@@ -778,18 +795,27 @@ private class GlobeRenderer {
                 val oy = cy - rotation.y(px, py, pz) * radius
                 val light = landLight[i]
                 val level = (light * 4f + depth.coerceIn(0f, 1f) * 1.2f).toInt().coerceIn(0, LandLevels - 1)
-                val buffer = landBuckets[level]
-                buffer[landCounts[level]++] = ox
-                buffer[landCounts[level]++] = oy
+                val band = depthBand(depth)
+                val bucket = level * DepthBands + band
+                val buffer = landBuckets[bucket]
+                buffer[landCounts[bucket]++] = ox
+                buffer[landCounts[bucket]++] = oy
                 if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) {
-                    cityBuffer[cities++] = ox; cityBuffer[cities++] = oy
+                    val c = cityBuckets[band]
+                    c[cityCounts[band]++] = ox; c[cityCounts[band]++] = oy
                 }
             }
             val landDot = radius / 60f
             for (level in 0 until LandLevels) {
-                points(landBuckets[level], landCounts[level], colors.land.copy(alpha = 0.14f + level * 0.17f), landDot)
+                val alpha = 0.14f + level * 0.17f
+                for (band in 0 until DepthBands) {
+                    val bucket = level * DepthBands + band
+                    points(landBuckets[bucket], landCounts[bucket], colors.land.copy(alpha = alpha * DepthAlpha[band]), landDot * DepthScale[band])
+                }
             }
-            points(cityBuffer, cities, colors.cityLight.copy(alpha = 0.9f), landDot * 0.75f)
+            for (band in 0 until DepthBands) {
+                points(cityBuckets[band], cityCounts[band], colors.cityLight.copy(alpha = 0.9f * DepthAlpha[band]), landDot * 0.75f * DepthScale[band])
+            }
         }
 
         // Route on the visible face: the active leg bright, the others dimmer; a picked leg on a light halo.
@@ -945,5 +971,21 @@ private class GlobeRenderer {
 
     private companion object {
         const val LandLevels = 6
+
+        /** Depth bands for foreshortening: a dot's depth (cosine of its angle to the viewer) picks its band. */
+        const val DepthBands = 5
+        val DepthEdges = floatArrayOf(0.08f, 0.2f, 0.38f, 0.6f)
+
+        /** Dot size per band, roughly the square root of the band's depth, as on a real sphere seen head-on. */
+        val DepthScale = floatArrayOf(0.32f, 0.5f, 0.67f, 0.84f, 1f)
+
+        /** Dots also fade towards the horizon, so the limb reads as curving away rather than as a hard edge. */
+        val DepthAlpha = floatArrayOf(0.4f, 0.62f, 0.8f, 0.93f, 1f)
+
+        fun depthBand(depth: Float): Int {
+            var band = 0
+            while (band < DepthEdges.size && depth >= DepthEdges[band]) band++
+            return band
+        }
     }
 }
