@@ -178,8 +178,8 @@ internal fun OnboardingStepBody(step: OnboardingStep, state: OnboardingUiState, 
 }
 
 /**
- * Shared step layout. Compact: one scrolling column (small art, headline, body, controls); every step has the same
- * header so the headline never jumps between steps. Wide: art and words in the left pane, controls in a scrolling
+ * Shared step layout. Compact: one scrolling column (small art beside the headline, body, controls); every step has
+ * the same header so the headline never jumps between steps. Wide: art and words in the left pane, controls in a scrolling
  * right pane. Either way, [controls] gets the height it can use without scrolling.
  */
 @Composable
@@ -223,9 +223,13 @@ private fun StepLayout(
             HeaderThenControls(
                 viewportHeight = viewport,
                 header = {
-                    art(Modifier.size(88.dp))
-                    Spacer(Modifier.size(8.dp))
-                    StepHeadline(headline)
+                    // The art sits beside the headline, not above it: the controls (the sleep dial most of all) need
+                    // the height.
+                    Row(verticalAlignment = Alignment.Top) {
+                        art(Modifier.size(CompactSideArtSize))
+                        Spacer(Modifier.size(12.dp))
+                        StepHeadline(headline)
+                    }
                     Spacer(Modifier.size(8.dp))
                     StepBody(body)
                     Spacer(Modifier.size(24.dp))
@@ -372,7 +376,7 @@ private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingAction
     val colors = MaterialTheme.colorScheme
     Surface(shape = MaterialTheme.shapes.extraLarge, color = colors.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().testTag(HomeZoneTags.Current)) {
         Column(Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Top) {
                 Icon(painterResource(R.drawable.onboarding_ic_place), contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.home_current_label), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
@@ -579,7 +583,7 @@ private fun PermissionRow(
     val colors = MaterialTheme.colorScheme
     Surface(shape = shape, color = colors.surfaceContainer, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
                     Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
@@ -604,6 +608,9 @@ private fun PermissionRow(
 private const val WelcomeArtDelayMillis = 450L
 private val ShortPaneHeight: Dp = 480.dp
 private val CompactVerticalPadding: Dp = 16.dp
+
+/** The art beside the headline on compact steps. */
+private val CompactSideArtSize: Dp = 64.dp
 
 /** On phones in portrait the dial may scroll rather than shrink below this (dial plus time pills). */
 private val CompactMinSleepControls: Dp = 320.dp
