@@ -70,6 +70,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -1272,23 +1273,32 @@ internal fun HomeZoneEditor(
     val zone = remember(profile.homeZoneId) { ZoneId.of(profile.homeZoneId) }
     val formatter = rememberTimeFormatter()
     val colors = MaterialTheme.colorScheme
+    var searchMode by remember { mutableStateOf(false) }
     Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
-        EditorTitle(stringResource(R.string.settings_home_dialog_title))
-        Spacer(Modifier.size(8.dp))
-        Text(stringResource(R.string.settings_home_dialog_body), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-        Spacer(Modifier.size(16.dp))
-        Surface(shape = MaterialTheme.shapes.large, color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(zone.cityName(), style = MaterialTheme.typography.titleLarge, color = colors.onSecondaryContainer)
-                Text(
-                    "${formatter.format(java.time.LocalTime.ofInstant(now, zone))} · ${gmtOffsetLabel(zone, now)}" +
-                        ZoneLabels.longName(zone, now, LocalConfiguration.current.locales[0])?.let { " · $it" }.orEmpty(),
-                    style = ClockblockTheme.textStyles.timeLabel,
-                    color = colors.onSecondaryContainer,
-                )
+        AnimatedVisibility(
+            visible = !searchMode,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                EditorTitle(stringResource(R.string.settings_home_dialog_title))
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.settings_home_dialog_body), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                Spacer(Modifier.size(16.dp))
+                Surface(shape = MaterialTheme.shapes.large, color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(zone.cityName(), style = MaterialTheme.typography.titleLarge, color = colors.onSecondaryContainer)
+                        Text(
+                            "${formatter.format(java.time.LocalTime.ofInstant(now, zone))} · ${gmtOffsetLabel(zone, now)}" +
+                                ZoneLabels.longName(zone, now, LocalConfiguration.current.locales[0])?.let { " · $it" }.orEmpty(),
+                            style = ClockblockTheme.textStyles.timeLabel,
+                            color = colors.onSecondaryContainer,
+                        )
+                    }
+                }
+                Spacer(Modifier.size(16.dp))
             }
         }
-        Spacer(Modifier.size(16.dp))
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -1296,7 +1306,7 @@ internal fun HomeZoneEditor(
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.fillMaxWidth().testTag(SettingsTags.HomeSearch),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { searchMode = it.isFocused }.testTag(SettingsTags.HomeSearch),
         )
         Spacer(Modifier.size(12.dp))
         if (query.isNotBlank() && results.isEmpty()) {
