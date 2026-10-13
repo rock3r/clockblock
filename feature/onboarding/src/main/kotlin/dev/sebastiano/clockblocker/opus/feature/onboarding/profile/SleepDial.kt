@@ -228,7 +228,9 @@ private fun SleepDialImpl(
     maxDialSize: Dp,
     maxHeight: Dp,
 ) {
-    var schedule by rememberSaveable { mutableStateOf(SleepSchedule.WorkDays) }
+    // An explicit key: rotating a phone swaps the step between its one- and two-pane layouts, which moves the dial in
+    // the tree; a position-based key would forget which schedule was being edited.
+    var schedule by rememberSaveable(key = "sleepDialSchedule") { mutableStateOf(SleepSchedule.WorkDays) }
     val editingDaysOff = twoSchedules && schedule == SleepSchedule.DaysOff
     val window = if (editingDaysOff) daysOff ?: work else work
     val onWindowChange = if (editingDaysOff) onDaysOffChange else onWorkChange
