@@ -243,9 +243,11 @@ fun RouteGlobe(
     val zoomOut = stringResource(R.string.globe_action_zoom_out)
     val recentre = stringResource(R.string.globe_action_recentre)
     val legCodes = stringResource(R.string.globe_leg_codes)
-    // TalkBack is only offered the zoom directions that can still change it, like the buttons' enabled state.
+    // TalkBack is only offered the zoom and tilt steps that can still change the view, like the buttons' enabled state.
     val canZoomIn by remember(state) { derivedStateOf { state.zoom < RouteGlobeState.MaxZoom } }
     val canZoomOut by remember(state) { derivedStateOf { state.zoom > 1f } }
+    val canTiltNorth by remember(state) { derivedStateOf { state.latitude.value < GlobeGeo.MaxDragLatitude } }
+    val canTiltSouth by remember(state) { derivedStateOf { state.latitude.value > -GlobeGeo.MaxDragLatitude } }
 
     Canvas(
         modifier
@@ -272,8 +274,8 @@ fun RouteGlobe(
                     buildList {
                         add(CustomAccessibilityAction(turnEast) { scope.launch { state.turnBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
                         add(CustomAccessibilityAction(turnWest) { scope.launch { state.turnBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
-                        add(CustomAccessibilityAction(turnNorth) { scope.launch { state.tiltBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
-                        add(CustomAccessibilityAction(turnSouth) { scope.launch { state.tiltBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        if (canTiltNorth) add(CustomAccessibilityAction(turnNorth) { scope.launch { state.tiltBy(RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
+                        if (canTiltSouth) add(CustomAccessibilityAction(turnSouth) { scope.launch { state.tiltBy(-RouteGlobeDefaults.TurnStepDegrees, spec()) }; true })
                         if (zoomable && canZoomIn) {
                             add(CustomAccessibilityAction(zoomIn) { scope.launch { state.zoomTo(state.zoom * RouteGlobeDefaults.ZoomStep, spec()) }; true })
                         }

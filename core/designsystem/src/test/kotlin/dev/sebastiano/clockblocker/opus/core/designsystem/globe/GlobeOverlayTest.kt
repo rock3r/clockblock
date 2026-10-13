@@ -110,6 +110,24 @@ class GlobeOverlayTest {
         actionLabels() shouldContain "Zoom out"
     }
 
+    @Test
+    fun `TalkBack is only offered the tilts that move the globe`() {
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { Overlay() } }
+        compose.waitForIdle()
+        actionLabels() shouldContain "Tilt the globe north"
+        actionLabels() shouldContain "Tilt the globe south"
+
+        compose.runOnIdle { runBlocking { state.tiltBy(180f, null) } }
+        compose.waitForIdle()
+        actionLabels() shouldNotContain "Tilt the globe north"
+        actionLabels() shouldContain "Tilt the globe south"
+
+        compose.runOnIdle { runBlocking { state.tiltBy(-360f, null) } }
+        compose.waitForIdle()
+        actionLabels() shouldContain "Tilt the globe north"
+        actionLabels() shouldNotContain "Tilt the globe south"
+    }
+
     private val lightStatusBars: Boolean
         get() {
             val window = compose.activity.window
