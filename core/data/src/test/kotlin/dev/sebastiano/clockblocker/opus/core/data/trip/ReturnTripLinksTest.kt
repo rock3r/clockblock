@@ -32,6 +32,16 @@ class ReturnTripLinksTest {
     }
 
     @Test
+    fun `a duplicate keeps its return date but never claims the original's return trip`() {
+        val original = factory.linkOutbound(outbound, back)
+        val copy = original.copy(id = "copy", returnTripId = null) // What Duplicate saves.
+        val all = listOf(original, copy, back)
+        ReturnTripLinks.linked(copy, all).shouldBeNull()
+        ReturnTripLinks.reusable(copy, all).shouldBeNull()
+        ReturnTripLinks.linked(original, all) shouldBe back
+    }
+
+    @Test
     fun `a deleted return trip is no link`() {
         ReturnTripLinks.linked(factory.linkOutbound(outbound, back), listOf(outbound)).shouldBeNull()
     }

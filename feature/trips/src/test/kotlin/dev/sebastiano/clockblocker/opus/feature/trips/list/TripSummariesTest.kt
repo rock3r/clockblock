@@ -4,6 +4,7 @@ import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.AdaptationStrategy
 import dev.sebastiano.clockblocker.opus.core.model.Trip
 import dev.sebastiano.clockblocker.opus.core.testing.FakeJetLagPlanner
+import dev.sebastiano.clockblocker.opus.core.circadian.adaptationProgressAt
 import dev.sebastiano.clockblocker.opus.core.circadian.daySpans
 import dev.sebastiano.clockblocker.opus.core.data.plan.DefaultPlanRepository
 import dev.sebastiano.clockblocker.opus.core.data.plan.NowTrip
@@ -254,9 +255,9 @@ class TripSummariesTest {
         partitioned.upcoming shouldContainExactly emptyList()
         partitioned.past.map { it.id } shouldContainExactly listOf("outbound")
         partitioned.past.single().phase shouldBe TripPhase.Past
-        // Day 2 of 4 when the return trip took over: still adapting, so not "Adapted".
-        val progress = outbound.adaptation.shouldNotBeNull().progress
-        partitioned.past.single().status shouldBe TripStatus.PartlyAdapted((progress * 100).roundToInt())
+        // Mid-adaptation when the return trip took over: still adapting, so not "Adapted".
+        val status = partitioned.past.single().status
+        (status is TripStatus.PartlyAdapted && status.percent in 1..99) shouldBe true
     }
 
     @Test
@@ -271,13 +272,16 @@ class TripSummariesTest {
     }
 
     @Test
-    fun `a superseded trip whose plan had finished is adapted`() {
-        val now = Instant.parse("2026-06-17T12:00:00Z")
-        val outbound = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "outbound"), now = now)
-        val done = outbound.copy(adaptation = outbound.adaptation!!.copy(progress = 1f))
-        val back = summarize(DemoData.sfoToLhr(LocalDate.of(2026, 6, 19), id = "return"), now = now)
+    fun `a superseded trip's progress is frozen when the next trip took over`() {
+        val outboundTrip = DemoData.sfoToLhr(LocalDate.of(2026, 6, 15), id = "outbound")
+        val backTrip = DemoData.sfoToLhr(LocalDate.of(2026, 6, 19), id = "return")
+        val takeover = NowTrip.window(backTrip, planner.plan(backTrip, DemoData.profile, DemoData.Now)).start
+        val expected = (planner.plan(outboundTrip, DemoData.profile, DemoData.Now).adaptationProgressAt(takeover) * 100).roundToInt()
 
-        TripSummaries.partition(listOf(done, back), now).past.single().status shouldBe TripStatus.Adapted
+        listOf(Instant.parse("2026-06-17T12:00:00Z"), Instant.parse("2026-06-18T20:00:00Z")).forEach { now ->
+            val partitioned = TripSummaries.partition(listOf(summarize(outboundTrip, now = now), summarize(backTrip, now = now)), now)
+            withClue("at $now") { partitioned.past.single().status shouldBe TripStatus.PartlyAdapted(expected) }
+        }
     }
 
     @Test

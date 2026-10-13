@@ -15,12 +15,15 @@ object ReturnTripLinks {
 
     /**
      * The return trip linked to [outbound] among [all]: the one its `returnTripId` names; else, for trips saved before
-     * that id existed, the reversed trip departing exactly at its `returnDeparture`. Null when there's none.
+     * that id existed, the reversed trip departing exactly at its `returnDeparture` that no other trip names by id.
+     * Null when there's none.
      */
     fun linked(outbound: Trip, all: List<Trip>): Trip? {
         outbound.returnTripId?.let { id -> all.firstOrNull { it.id == id && it.id != outbound.id }?.let { return it } }
         val back = outbound.returnDeparture ?: return null
-        return all.firstOrNull { it.id != outbound.id && it.departure == back && it.reverses(outbound) }
+        // A trip another one names by id is that trip's return (a duplicate shares its return date, not its return).
+        val claimedById = all.filter { it.id != outbound.id }.mapNotNull { it.returnTripId }.toSet()
+        return all.firstOrNull { it.id != outbound.id && it.id !in claimedById && it.departure == back && it.reverses(outbound) }
     }
 
     /**

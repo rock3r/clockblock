@@ -77,6 +77,7 @@ data class TripsSky(val time: LocalTime, val bodyClock: Boolean)
  * @property bodyTime body-clock time now, for trips under way with a plan.
  * @property window when the trip is under way ([NowTrip.window]): what decides which trip is "now".
  * @property homeTime the plan keeps the body on home time (the planner's choice or the user's).
+ * @property plan the trip's plan, if any (to say how far a trip got when a later one took over).
  */
 data class TripSummary(
     val trip: Trip,
@@ -91,6 +92,7 @@ data class TripSummary(
     val bodyTime: LocalTime? = null,
     val window: TripWindow = NowTrip.window(trip, plan = null),
     val homeTime: Boolean = false,
+    val plan: JetLagPlan? = null,
 ) {
     val id: String get() = trip.id
 }
@@ -163,6 +165,7 @@ object TripSummaries {
             bodyTime = plan?.takeIf { phase == TripPhase.InProgress }?.let { now.atOffset(it.bodyOffsetAt(now)).toLocalTime() },
             window = window,
             homeTime = homeTime,
+            plan = plan,
         )
     }
 
@@ -197,7 +200,7 @@ object TripSummaries {
                 s.phase == TripPhase.Past -> s
                 s.phase == TripPhase.InProgress && s.status !is TripStatus.Adjusting -> s.copy(
                     phase = TripPhase.Past,
-                    status = supersededStatus(s),
+                    status = supersededStatus(s, takeover = nowTrip!!.window.start),
                     adaptation = null,
                     bodyTime = null,
                 )
@@ -211,11 +214,15 @@ object TripSummaries {
         )
     }
 
-    /** Where a trip under way stood when the next trip took over from it. */
-    private fun supersededStatus(s: TripSummary): TripStatus {
+    /**
+     * Where a trip under way stood when the next trip took over from it at [takeover] (that trip's window start):
+     * frozen there, so the card doesn't keep following a plan that no longer applies.
+     */
+    private fun supersededStatus(s: TripSummary, takeover: Instant): TripStatus {
         if (s.homeTime) return TripStatus.StayedOnHomeTime
         // Without a plan there's nothing to say about the body clock.
-        val progress = s.adaptation?.progress ?: return TripStatus.Finished
+        val plan = s.plan ?: return TripStatus.Finished
+        val progress = plan.adaptationProgressAt(takeover)
         val percent = (progress * 100).roundToInt()
         return if (percent >= 100) TripStatus.Adapted else TripStatus.PartlyAdapted(percent.coerceAtLeast(0))
     }
