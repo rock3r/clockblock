@@ -2,6 +2,9 @@ package dev.sebastiano.clockblocker.opus.feature.plan
 
 import android.content.Context
 import android.provider.Settings
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -260,6 +263,27 @@ class WorldViewTest {
         // The plan underneath is out of TalkBack's reach while the globe covers it.
         compose.onNodeWithTag(PlanTags.Dial).assertDoesNotExist()
         compose.onNodeWithTag(GlobeTags.OverlayClose).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.WorldOverlay).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.World).assertExists()
+    }
+
+    @Test
+    fun `if the trip goes away while the full-screen world is open, the world closes and the plan is reachable again`() {
+        var shown by mutableStateOf(state)
+        compose.setContent { ClockblockTheme(dynamicColor = false, reduceMotion = true) { PlanContent(shown, PlanActions(onBack = {})) } }
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.WorldFullScreen).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Dial).assertDoesNotExist()
+        // E.g. deleted from the Trips pane: the cached plan stays, its trip doesn't.
+        shown = state.copy(trip = null)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.WorldOverlay).assertDoesNotExist()
+        compose.onNodeWithTag(PlanTags.Dial).assertExists()
+        // A trip coming back doesn't reopen the full-screen world by itself: it's back in the dial's place.
+        shown = state
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.WorldOverlay).assertDoesNotExist()
         compose.onNodeWithTag(PlanTags.World).assertExists()

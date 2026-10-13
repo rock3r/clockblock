@@ -566,6 +566,10 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
         val shownPlace = state.trip?.placeIn(shown.zone, shown.instant)
         val shownDate = shown.instant.atZone(shown.zone).toLocalDate()
         val daylight = remember(shownPlace, shown.zone, shownDate) { headerDaylight(shownPlace, shown.zone, shownDate) }
+        // The full-screen world needs a trip: if it goes away while the world is open (e.g. deleted from the Trips
+        // pane), the world closes with it, so the plan isn't left hidden and a later trip doesn't reopen it.
+        if (state.trip == null && screen.worldExpanded) SideEffect { screen.worldExpanded = false }
+        val worldShown = screen.worldExpanded && state.trip != null
         val route = state.trip?.let { trip ->
             val origin = trip.origin.code
             val destination = trip.destination.code
@@ -577,7 +581,7 @@ private fun ReadyPlan(state: PlanUiState.Ready, actions: PlanActions, screen: Pl
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .testTag(PlanTags.Screen)
                 // The full-screen world covers the plan: TalkBack stays in it.
-                .then(if (screen.worldExpanded) Modifier.clearAndSetSemantics { } else Modifier),
+                .then(if (worldShown) Modifier.clearAndSetSemantics { } else Modifier),
             topBar = {
                 PlanHeader(
                     title = title,
