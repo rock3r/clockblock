@@ -205,13 +205,14 @@ fun RouteGlobe(
         state.framing = target
         state.recentre(if (reduce) null else motion.dataSpatial())
     }
-    // A pick on legs that have since changed (another trip, an edited route) means nothing any more.
+    // A pick on legs that have since changed (another trip, an edited route) means nothing any more, even when its
+    // index still exists: the same index would name another flight or airport. The first legs a state sees keep any
+    // pick made before the globe appeared.
+    val seenLegs = remember(state) { arrayOfNulls<List<GlobeLeg>>(1) }
     LaunchedEffect(state, legs) {
-        when (val picked = state.selection) {
-            is GlobeSelection.Leg -> if (picked.index !in legs.indices) state.selection = null
-            is GlobeSelection.Stop -> if (picked.index !in stops.indices) state.selection = null
-            null -> Unit
-        }
+        val previous = seenLegs[0]
+        seenLegs[0] = legs
+        if (previous != null && previous != legs) state.selection = null
     }
 
     // The terminator moves a degree every 4 minutes: refresh the shading every 5.
