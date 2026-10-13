@@ -87,6 +87,7 @@ fun Modifier.pinchTransition(
                 var start = -1f
                 var active = false
                 var ended = false
+                var lastRatio = 1f
                 val tracker = VelocityTracker1D(isDataDifferential = false)
                 try {
                     while (true) {
@@ -98,6 +99,8 @@ fun Modifier.pinchTransition(
                                 // can't start a scrub or a drag underneath.
                                 active = false
                                 ended = true
+                                // The lift is a sample too: fingers that paused before lifting have no speed left.
+                                event.changes.firstOrNull()?.let { tracker.addDataPoint(it.uptimeMillis, ln(lastRatio)) }
                                 currentEnd(tracker.calculateVelocity().takeIf { it.isFinite() } ?: 0f, false)
                             }
                             if (ended) event.changes.forEach { it.consume() }
@@ -114,6 +117,7 @@ fun Modifier.pinchTransition(
                             currentStart()
                         }
                         val ratio = distance / start
+                        lastRatio = ratio
                         tracker.addDataPoint(pressed[0].uptimeMillis, ln(ratio))
                         currentPinch(ratio)
                     }

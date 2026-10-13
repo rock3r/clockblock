@@ -348,7 +348,11 @@ fun RouteGlobe(
                                     break
                                 }
                                 val pressed = event.changes.filter { it.pressed }
-                                if (pressed.isEmpty()) break
+                                if (pressed.isEmpty()) {
+                                    // The release itself is a sample: a finger that stopped before lifting doesn't fling.
+                                    event.changes.firstOrNull()?.let { velocity.addPosition(it.uptimeMillis, it.position) }
+                                    break
+                                }
                                 val zoomChange = if (zoomable) event.calculateZoom() else 1f
                                 val panChange = event.calculatePan()
                                 if (!dragging) {

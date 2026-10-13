@@ -203,6 +203,27 @@ class WorldViewTest {
     }
 
     @Test
+    fun `fingers that pause before lifting settle on the nearer side, whatever way they last moved`() {
+        show(reduceMotion = false)
+        compose.onNodeWithTag(PlanTags.Dial).performTouchInput {
+            down(0, center - Offset(100f, 0f))
+            down(1, center + Offset(100f, 0f))
+            // Out fast to ×1.7, then quickly back to ×1.45 (still most of the way to the world)…
+            listOf(130f, 150f, 170f, 160f, 150f, 145f).forEach { d ->
+                advanceEventTime(16)
+                moveTo(0, center - Offset(d, 0f))
+                moveTo(1, center + Offset(d, 0f))
+            }
+            // …then still for a moment before lifting: no speed left, so the nearer side (the world) wins.
+            advanceEventTime(300)
+            up(1)
+            up(0)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertExists()
+    }
+
+    @Test
     fun `the full-screen button opens the world over the plan, and its close button closes it`() {
         show()
         compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Show the world")
