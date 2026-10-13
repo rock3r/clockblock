@@ -55,8 +55,6 @@ internal class GlobeHalftoneShader {
         canvas: Canvas,
         colors: GlobeColors,
         landMask: Bitmap?,
-        width: Float,
-        height: Float,
         cx: Float,
         cy: Float,
         radius: Float,
@@ -85,15 +83,8 @@ internal class GlobeHalftoneShader {
         shader.setFloatUniform("viewNorth", -sinPhi0 * cosLambda0, -sinPhi0 * sinLambda0, cosPhi0)
         shader.setFloatUniform("viewOut", cosPhi0 * cosLambda0, cosPhi0 * sinLambda0, sinPhi0)
         shader.setFloatUniform("sun", sunX, sunY, sunZ)
-        // The globe's square, within the canvas (zoomed in, the globe is bigger than it): the shader leaves the
-        // corners outside the disc empty. A plain rectangle keeps the GPU pipeline the same at every zoom.
-        canvas.drawRect(
-            maxOf(cx - radius, 0f),
-            maxOf(cy - radius, 0f),
-            minOf(cx + radius, width),
-            minOf(cy + radius, height),
-            paint,
-        )
+        // The disc only: zoomed in, it is clipped to the canvas anyway.
+        canvas.drawCircle(cx, cy, radius, paint)
     }
 
     companion object {
@@ -130,12 +121,18 @@ private val SeaGrid = HalftoneGrid.Sea
 private val LandGrid = HalftoneGrid.Land
 
 /**
- * The view uniforms, the inverse projection and a dot's coverage.
+ * The halftone: every dot of the sea grid, brighter on the day side; over them land dots in six brightness levels
+ * (daylight, plus a little for facing the viewer); and on the night side a sparse pick of land dots lit as cities.
+ *
+ * Cost per pixel, cheapest first, as most pixels stop early: the inverse projection and a polynomial arcsine for the
+ * latitude; then, only near a row of either grid, a polynomial arctangent for the longitude; then, only near a dot,
+ * the dot's centre (four sines and cosines), its light and its coverage. One fetch of a row's dot count per grid, and
+ * one land-mask fetch.
  *
  * Dot sizes are radii on the unit sphere and match the drawPoints dots this replaced at the view centre: land dots
  * were radius / 60 px across, sea dots radius / 105, city lights three quarters of a land dot.
  */
-private val Common = """
+private val HalftoneSource = """
 uniform float2 center;   // the globe's centre, px
 uniform float radius;    // the globe's radius, px (zoom included)
 uniform float3 viewEast; // the view's axes on the unit sphere: screen right, screen up, towards the viewer
@@ -143,43 +140,39 @@ uniform float3 viewNorth;
 uniform float3 viewOut;
 uniform float3 sun;      // the subsolar point, as a unit vector
 
+uniform shader seaCounts; // alpha × 255 at (row + 0.5, 0.5): the dots in that sea row
+// alpha at (cell + 0.5, row + 0.5): 0 sea, 0.5 land, 1 land that lights up at night; at (${HalftoneGrid.LandColumns}.5, row + 0.5),
+// alpha × 255 is the row's dot count.
+uniform shader landMask;
+layout(color) uniform half4 seaColor;
+layout(color) uniform half4 landColor;
+layout(color) uniform half4 cityColor;
+
 const float SIN_SIX_DEGREES = 0.104528;
 const float LAND_DOT = ${1.0 / 120};
 const float SEA_DOT = ${1.0 / 210};
 const float CITY_DOT = ${0.75 / 120};
+const float DEGREES = 57.2957795;
+const float RADIANS = 0.0174532925;
 
-// The unit disc point (east right, north up) under a pixel.
-float2 discPoint(float2 frag) {
-    return float2(frag.x - center.x, center.y - frag.y) / radius;
+// Arcsine within 7e-5 rad (Abramowitz & Stegun 4.4.45): plenty to pick a row 1.8° or 3° wide, as the coverage itself
+// is measured from the dot's exact centre. The built-in asin and atan are the dearest calls in the shader.
+float fastAsin(float x) {
+    float a = abs(x);
+    float r = 1.5707963 - sqrt(1.0 - a) * (1.5707288 + a * (-0.2121144 + a * (0.0742610 - 0.0187293 * a)));
+    return x < 0.0 ? -r : r;
 }
 
-// The point on the sphere under disc point s (|s| < 1): the inverse orthographic projection.
-float3 spherePoint(float2 s) {
-    return s.x * viewEast + s.y * viewNorth + sqrt(1.0 - dot(s, s)) * viewOut;
-}
-
-float latitudeOf(float3 p) { return degrees(asin(clamp(p.z, -1.0, 1.0))); }
-float longitudeOf(float3 p) { return degrees(atan(p.y, p.x)); }
-
-// The unit vector at a longitude on the circle of latitude whose sine and cosine are given.
-float3 unitVector(float sinLatitude, float cosLatitude, float longitude) {
-    float lambda = radians(longitude);
-    return float3(cosLatitude * cos(lambda), cosLatitude * sin(lambda), sinLatitude);
-}
-
-// The furthest, in degrees on the sphere, a pixel at disc point s can be from the centre of a dot of radius size it
-// touches: the dot plus its antialiasing fringe (half a pixel, which spans more of the sphere towards the limb),
-// doubled to be safe. Most pixels are further than this from their nearest dot in latitude or in longitude alone,
-// and stop there, before the trigonometry and the coverage maths.
-float reachDegrees(float2 s, float size) {
-    float depth = sqrt(max(1.0 - dot(s, s), 0.0));
-    return degrees(size + 1.0 / (radius * max(depth, 0.02)));
-}
-
-// Degrees between two longitudes, the short way round.
-float longitudeGap(float a, float b) {
-    float d = abs(a - b);
-    return min(d, 360.0 - d);
+// atan2 within 1e-5 rad (a minimax polynomial on [0, 1], folded into the eight octants).
+float fastAtan2(float y, float x) {
+    float ax = abs(x);
+    float ay = abs(y);
+    float a = min(ax, ay) / max(max(ax, ay), 1e-20);
+    float s = a * a;
+    float r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;
+    if (ay > ax) r = 1.5707963 - r;
+    if (x < 0.0) r = 3.1415927 - r;
+    return y < 0.0 ? -r : r;
 }
 
 // HalftoneGrid.row and .cell: the nearest row, then the nearest of a row's count dots by longitude.
@@ -191,25 +184,32 @@ float nearestCell(float longitude, float count) {
 }
 float cellLongitude(float cell, float count) { return -180.0 + (cell + 0.5) * 360.0 / count; }
 
-// Daylight at q: 0 in full night to 1 once the sun is 6° up (sin(elevation) = q · sun, civil twilight between).
-float daylight(float3 q) { return clamp((dot(q, sun) + SIN_SIX_DEGREES) / (2.0 * SIN_SIX_DEGREES), 0.0, 1.0); }
+// Degrees between two longitudes, the short way round.
+float longitudeGap(float a, float b) {
+    float d = abs(a - b);
+    return min(d, 360.0 - d);
+}
+
+// The unit vector of a dot: on the circle of latitude with the given sine and cosine, at a longitude in degrees.
+float3 dotCentre(float sinLatitude, float cosLatitude, float longitude) {
+    float lambda = longitude * RADIANS;
+    return float3(cosLatitude * cos(lambda), cosLatitude * sin(lambda), sinLatitude);
+}
 
 // Dots fade towards the limb (depth 0) so it reads as curving away rather than as a hard edge.
-float depthFade(float depth) { return 0.4 + 0.6 * sqrt(clamp(depth, 0.0, 1.0)); }
+float depthFade(float depth) { return 0.4 + 0.6 * sqrt(depth); }
 
 // Dots also shrink a little towards the limb, on top of being squashed into ellipses there: without it the limb
 // reads as tightly packed dashes, brighter than the face.
-float depthShrink(float depth) { return 0.5 + 0.5 * sqrt(clamp(depth, 0.0, 1.0)); }
+float depthShrink(float depth) { return 0.5 + 0.5 * sqrt(depth); }
 
-// How much of the pixel at disc point s the dot of radius size (shrunk by depth) centred on q covers, antialiased over one pixel.
-// The dot is a disc on the tangent plane at q. Seen from the front, the tangent plane's radial axis (towards the
-// limb) is squashed by q's depth and the other axis isn't: so the dot is an ellipse, and t below is the tangent-plane
-// distance of s from q. Dividing t - r by t's screen-space gradient gives the distance to the ellipse's edge in
-// pixels (AGSL has no fwidth). Ellipses thinner than a pixel are dimmed to their area instead of widened.
-float dotCoverage(float2 s, float3 q, float size) {
-    float depth = dot(q, viewOut);
-    if (depth <= 0.0) return 0.0;
-    float r = size * depthShrink(depth);
+// How much of the pixel at disc point s the dot of radius size (shrunk by depth) centred on q, at the given depth,
+// covers, antialiased over one pixel. The dot is a disc on the tangent plane at q. Seen from the front, the tangent
+// plane's radial axis (towards the limb) is squashed by q's depth and the other axis isn't: so the dot is an ellipse,
+// and t below is the tangent-plane distance of s from q. Dividing t - r by t's screen-space gradient gives the distance
+// to the ellipse's edge in pixels (AGSL has no fwidth). Ellipses thinner than a pixel are dimmed to their area
+// instead of widened. The geometry is shared by a land dot and its city light, which differ only in size.
+float2 dotDistance(float2 s, float3 q, float depth) {
     float2 c = float2(dot(q, viewEast), dot(q, viewNorth));
     float2 v = s - c;
     float len = length(c);
@@ -218,84 +218,93 @@ float dotCoverage(float2 s, float3 q, float size) {
     float tangential = dot(v, float2(-n.y, n.x));
     float t = length(float2(radial / depth, tangential));
     float gradient = length(float2(radial / (depth * depth), tangential)) / max(t, 1e-6);
-    float edgePx = (t - r) / max(gradient, 1e-6) * radius;
-    float cover = clamp(0.5 - edgePx, 0.0, 1.0);
+    return float2(t, max(gradient, 1e-6));
+}
+float coverage(float2 distance, float depth, float size) {
+    float r = size * depthShrink(depth);
+    float cover = clamp(0.5 - (distance.x - r) / distance.y * radius, 0.0, 1.0);
     float halfMinorPx = r * depth * radius;
     return cover * min(1.0, 2.0 * halfMinorPx / (0.5 + halfMinorPx));
 }
-"""
-
-/**
- * The halftone: every dot of the sea grid, brighter on the day side; over them land dots in six brightness levels
- * (daylight, plus a little for facing the viewer); and on the night side a sparse pick of land dots lit as cities.
- */
-private val HalftoneSource = Common + """
-uniform shader seaCounts;               // alpha × 255 at (row + 0.5, 0.5): the dots in that sea row
-layout(color) uniform half4 seaColor;
-// alpha at (cell + 0.5, row + 0.5): 0 sea, 0.5 land, 1 land that lights up at night; at (${HalftoneGrid.LandColumns}.5, row + 0.5),
-// alpha × 255 is the row's dot count.
-uniform shader landMask;
-layout(color) uniform half4 landColor;
-layout(color) uniform half4 cityColor;
-
-// The sea dot at sphere point p (disc point s), premultiplied.
-half4 seaDot(float2 s, float3 p) {
-    float reach = reachDegrees(s, SEA_DOT);
-    float latitude = latitudeOf(p);
-    float row = nearestRow(latitude, ${SeaGrid.firstLatitude}, ${SeaGrid.rowStep}, ${SeaGrid.rows}.0);
-    float rowLatitude = ${SeaGrid.firstLatitude} + ${SeaGrid.rowStep} * row;
-    if (abs(latitude - rowLatitude) > reach) return half4(0.0);
-    float count = floor(seaCounts.eval(float2(row + 0.5, 0.5)).a * 255.0 + 0.5);
-    float longitude = longitudeOf(p);
-    float dotLongitude = cellLongitude(nearestCell(longitude, count), count);
-    float sinRow = sin(radians(rowLatitude));
-    float cosRow = cos(radians(rowLatitude));
-    if (longitudeGap(longitude, dotLongitude) * min(cosRow, length(p.xy)) > reach) return half4(0.0);
-    float3 q = unitVector(sinRow, cosRow, dotLongitude);
-    float cover = dotCoverage(s, q, SEA_DOT);
-    if (cover <= 0.0) return half4(0.0);
-    float lit = dot(q, sun) > -SIN_SIX_DEGREES ? 0.32 : 0.08;
-    float alpha = lit * depthFade(dot(q, viewOut)) * cover;
-    return half4(seaColor.rgb * alpha, alpha);
-}
-
-// The land dot (or city light) at sphere point p (disc point s), premultiplied.
-half4 landDot(float2 s, float3 p) {
-    float reach = reachDegrees(s, LAND_DOT);
-    float latitude = latitudeOf(p);
-    float row = nearestRow(latitude, ${LandGrid.firstLatitude}, ${LandGrid.rowStep}, ${LandGrid.rows}.0);
-    float rowLatitude = ${LandGrid.firstLatitude} + ${LandGrid.rowStep} * row;
-    if (abs(latitude - rowLatitude) > reach) return half4(0.0);
-    float count = floor(landMask.eval(float2(${HalftoneGrid.LandColumns}.5, row + 0.5)).a * 255.0 + 0.5);
-    if (count < 1.0) return half4(0.0); // no land loaded yet
-    float longitude = longitudeOf(p);
-    float cell = nearestCell(longitude, count);
-    float kind = landMask.eval(float2(cell + 0.5, row + 0.5)).a;
-    if (kind < 0.25) return half4(0.0);
-    float dotLongitude = cellLongitude(cell, count);
-    float sinRow = sin(radians(rowLatitude));
-    float cosRow = cos(radians(rowLatitude));
-    if (longitudeGap(longitude, dotLongitude) * min(cosRow, length(p.xy)) > reach) return half4(0.0);
-    float3 q = unitVector(sinRow, cosRow, dotLongitude);
-    float depth = dot(q, viewOut);
-    float light = daylight(q);
-    float fade = depthFade(depth);
-    float level = clamp(floor(light * 4.0 + clamp(depth, 0.0, 1.0) * 1.2), 0.0, 5.0);
-    float landAlpha = (0.14 + level * 0.17) * fade * dotCoverage(s, q, LAND_DOT);
-    half4 color = half4(landColor.rgb * landAlpha, landAlpha);
-    if (kind > 0.75 && light < 0.02) {
-        float cityAlpha = 0.9 * fade * dotCoverage(s, q, CITY_DOT);
-        color = half4(cityColor.rgb * cityAlpha, cityAlpha) + color * (1.0 - cityAlpha);
-    }
-    return color;
-}
 
 half4 main(float2 frag) {
-    float2 s = discPoint(frag);
-    if (dot(s, s) >= 1.0) return half4(0.0);
-    float3 p = spherePoint(s);
-    half4 land = landDot(s, p);
-    return land + seaDot(s, p) * (1.0 - land.a);
+    float2 s = float2(frag.x - center.x, center.y - frag.y) / radius;
+    float rr = dot(s, s);
+    if (rr >= 1.0) return half4(0.0);
+    // The inverse orthographic projection: the point on the sphere under the pixel.
+    float pixelDepth = sqrt(1.0 - rr);
+    float3 p = s.x * viewEast + s.y * viewNorth + pixelDepth * viewOut;
+
+    // The furthest (in degrees) the pixel can be from the centre of a dot it touches: the dot plus its antialiasing
+    // fringe (half a pixel, which spans more of the sphere towards the limb), doubled to be safe. Latitude and
+    // longitude gaps are each a lower bound on the distance, so a pixel further than this in either stops there.
+    float fringe = 1.0 / (radius * max(pixelDepth, 0.02));
+    float landReach = (LAND_DOT + fringe) * DEGREES;
+    float seaReach = (SEA_DOT + fringe) * DEGREES;
+
+    float latitude = fastAsin(clamp(p.z, -1.0, 1.0)) * DEGREES;
+    float landRow = nearestRow(latitude, ${LandGrid.firstLatitude}, ${LandGrid.rowStep}, ${LandGrid.rows}.0);
+    float landRowLatitude = ${LandGrid.firstLatitude} + ${LandGrid.rowStep} * landRow;
+    float seaRow = nearestRow(latitude, ${SeaGrid.firstLatitude}, ${SeaGrid.rowStep}, ${SeaGrid.rows}.0);
+    float seaRowLatitude = ${SeaGrid.firstLatitude} + ${SeaGrid.rowStep} * seaRow;
+    float landGap = abs(latitude - landRowLatitude);
+    float seaGap = abs(latitude - seaRowLatitude);
+    bool nearLand = landGap <= landReach;
+    bool nearSea = seaGap <= seaReach;
+    if (!nearLand && !nearSea) return half4(0.0);
+
+    float longitude = fastAtan2(p.y, p.x) * DEGREES;
+    float cosLatitude = length(p.xy);
+
+    half4 land = half4(0.0);
+    if (nearLand) {
+        float count = floor(landMask.eval(float2(${HalftoneGrid.LandColumns}.5, landRow + 0.5)).a * 255.0 + 0.5);
+        if (count >= 1.0) { // else no land has loaded yet
+            float cell = nearestCell(longitude, count);
+            float dotLongitude = cellLongitude(cell, count);
+            // cos(latitude) changes by at most the latitude gap (in radians) between the pixel and its row.
+            float cosBound = max(cosLatitude - landGap * RADIANS, 0.0);
+            if (longitudeGap(longitude, dotLongitude) * cosBound <= landReach) {
+                float kind = landMask.eval(float2(cell + 0.5, landRow + 0.5)).a;
+                if (kind > 0.25) {
+                    float phi = landRowLatitude * RADIANS;
+                    float3 q = dotCentre(sin(phi), cos(phi), dotLongitude);
+                    float depth = dot(q, viewOut);
+                    if (depth > 0.0) {
+                        // Daylight: 0 in full night to 1 once the sun is 6° up (sin(elevation) = q · sun).
+                        float light = clamp((dot(q, sun) + SIN_SIX_DEGREES) / (2.0 * SIN_SIX_DEGREES), 0.0, 1.0);
+                        float fade = depthFade(depth);
+                        float level = min(floor(light * 4.0 + min(depth, 1.0) * 1.2), 5.0);
+                        float2 distance = dotDistance(s, q, depth);
+                        float landAlpha = (0.14 + level * 0.17) * fade * coverage(distance, depth, LAND_DOT);
+                        land = half4(landColor.rgb * landAlpha, landAlpha);
+                        if (kind > 0.75 && light < 0.02) {
+                            float cityAlpha = 0.9 * fade * coverage(distance, depth, CITY_DOT);
+                            land = half4(cityColor.rgb * cityAlpha, cityAlpha) + land * (1.0 - cityAlpha);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    half4 sea = half4(0.0);
+    if (nearSea && land.a < 0.999) {
+        float count = floor(seaCounts.eval(float2(seaRow + 0.5, 0.5)).a * 255.0 + 0.5);
+        float dotLongitude = cellLongitude(nearestCell(longitude, count), count);
+        float cosBound = max(cosLatitude - seaGap * RADIANS, 0.0);
+        if (longitudeGap(longitude, dotLongitude) * cosBound <= seaReach) {
+            float phi = seaRowLatitude * RADIANS;
+            float3 q = dotCentre(sin(phi), cos(phi), dotLongitude);
+            float depth = dot(q, viewOut);
+            if (depth > 0.0) {
+                float lit = dot(q, sun) > -SIN_SIX_DEGREES ? 0.32 : 0.08;
+                float alpha = lit * depthFade(depth) * coverage(dotDistance(s, q, depth), depth, SEA_DOT);
+                sea = half4(seaColor.rgb * alpha, alpha);
+            }
+        }
+    }
+    return land + sea * (1.0 - land.a);
 }
 """
 

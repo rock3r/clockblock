@@ -420,6 +420,12 @@ fun RouteGlobe(
 }
 
 private const val TerminatorBucketSeconds = 300L
+
+/** Stops and the marker cross-fade over this depth either side of the horizon. */
+private const val HorizonFade = 0.04f
+
+/** A label fades in over this depth after its stop comes over the horizon. */
+private const val LabelFadeDepth = 0.1f
 private val TapTolerance = 24.dp
 
 internal fun globeRadius(width: Float, height: Float): Float = min(width, height) / 2f * RouteGlobeDefaults.RadiusFraction
@@ -604,7 +610,8 @@ private class GlobeRenderer {
     private var labelSides = IntArray(0)
     private val frontPaths = ArrayList<Path>()
     private val backPaths = ArrayList<Path>()
-    private val rotation = Rotation()
+    private val rotation = GlobeRotation()
+    private val routeSink = PathSink()
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val glowMatrix = android.graphics.Matrix()
     private var glowColor: Color? = null
@@ -691,11 +698,13 @@ private class GlobeRenderer {
             )
             glowColor = colors.oceanDay
         }
+        // It follows the sun, then rests on the limb and fades as the sun goes behind the globe (no pop at the horizon).
+        val reach = glowReach(sx, sy, sd) * radius * 0.85f
         glowMatrix.setScale(radius * 1.25f, radius * 1.25f)
-        glowMatrix.postTranslate(cx + sx * radius * 0.85f, cy - sy * radius * 0.85f)
+        glowMatrix.postTranslate(cx + sx * reach, cy - sy * reach)
         glowPaint.shader.setLocalMatrix(glowMatrix)
-        glowPaint.alpha = ((if (sd >= 0f) 0.95f else 0.35f) * 255).toInt()
-        drawContext.canvas.nativeCanvas.drawCircle(cx, cy, radius, glowPaint)
+        glowPaint.alpha = (glowAlpha(sd) * 255).toInt()
+        if (glowPaint.alpha > 0) drawContext.canvas.nativeCanvas.drawCircle(cx, cy, radius, glowPaint)
 
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
@@ -708,7 +717,7 @@ private class GlobeRenderer {
 
         // Sea, land and city lights.
         halftone.draw(
-            drawContext.canvas.nativeCanvas, colors, dots?.mask, size.width, size.height, cx, cy, radius,
+            drawContext.canvas.nativeCanvas, colors, dots?.mask, cx, cy, radius,
             rotation.sinPhi0, rotation.cosPhi0, rotation.sinLambda0, rotation.cosLambda0, px, py, pz,
         )
 
@@ -731,13 +740,14 @@ private class GlobeRenderer {
             val py = stops.y[i]
             val pz = stops.z[i]
             val o = Offset(cx + rotation.x(px, py) * radius, cy - rotation.y(px, py, pz) * radius)
-            if (rotation.depth(px, py, pz) >= 0f) {
-                drawCircle(colors.stop, dotRadius, o)
-                drawCircle(colors.route, dotRadius + 1.6f * density, o, style = s.ring)
-                if (i == pickedStop) drawCircle(colors.stop, dotRadius + 6f * density, o, style = s.picked)
-            } else {
-                drawCircle(colors.routeDim.copy(alpha = 0.45f), dotRadius, o, style = s.ring)
+            // Crossing the horizon, a stop cross-fades between its front and see-through looks instead of popping.
+            val front = smoothstep(-HorizonFade, HorizonFade, rotation.depth(px, py, pz))
+            if (front > 0f) {
+                drawCircle(colors.stop, dotRadius, o, alpha = front)
+                drawCircle(colors.route, dotRadius + 1.6f * density, o, style = s.ring, alpha = front)
+                if (i == pickedStop) drawCircle(colors.stop, dotRadius + 6f * density, o, style = s.picked, alpha = front)
             }
+            if (front < 1f) drawCircle(colors.routeDim, dotRadius, o, style = s.ring, alpha = 0.45f * (1f - front))
         }
         labels?.let { layouts ->
             val pad = 4f * density
@@ -748,7 +758,7 @@ private class GlobeRenderer {
                 val px = stops.x[i]
                 val py = stops.y[i]
                 val pz = stops.z[i]
-                if (rotation.depth(px, py, pz) < 0f) continue
+                if (rotation.depth(px, py, pz) <= 0f) continue
                 val layout = layouts.getOrNull(i) ?: continue
                 val ox = cx + rotation.x(px, py) * radius
                 val oy = cy - rotation.y(px, py, pz) * radius
@@ -774,17 +784,20 @@ private class GlobeRenderer {
             if (labelSides.size != stops.size) labelSides = IntArray(stops.size) { -1 }
             labelSides.fill(-1)
             for (k in visibleIndices.indices) {
-                val layout = layouts[visibleIndices[k]]
+                val index = visibleIndices[k]
+                val layout = layouts[index]
                 val p = placements[k]
-                labelSides[visibleIndices[k]] = p.side
+                labelSides[index] = p.side
+                // A label fades in as its stop comes over the horizon.
+                val alpha = labelAlpha * smoothstep(0f, LabelFadeDepth, rotation.depth(stops.x[index], stops.y[index], stops.z[index]))
                 drawRoundRect(
                     colors.scrim,
                     topLeft = Offset(p.scrimLeft, p.scrimTop),
                     size = Size(p.scrimRight - p.scrimLeft, p.scrimBottom - p.scrimTop),
                     cornerRadius = CornerRadius(pad, pad),
-                    alpha = labelAlpha,
+                    alpha = alpha,
                 )
-                drawText(layout, topLeft = Offset(p.left, p.top), alpha = labelAlpha)
+                drawText(layout, topLeft = Offset(p.left, p.top), alpha = alpha)
             }
         }
 
@@ -795,72 +808,41 @@ private class GlobeRenderer {
             val px = (cos(phi) * cos(lambda)).toFloat()
             val py = (cos(phi) * sin(lambda)).toFloat()
             val pz = sin(phi).toFloat()
-            if (rotation.depth(px, py, pz) >= 0f) {
+            // Fades out as it goes over the horizon.
+            val shown = smoothstep(-HorizonFade, HorizonFade, rotation.depth(px, py, pz))
+            if (shown > 0f) {
                 val o = Offset(cx + rotation.x(px, py) * radius * 1.03f, cy - rotation.y(px, py, pz) * radius * 1.03f)
-                drawCircle(colors.stop, 6f * density, o)
-                drawCircle(colors.route, 4f * density, o)
+                drawCircle(colors.stop, 6f * density, o, alpha = shown)
+                drawCircle(colors.route, 4f * density, o, alpha = shown)
             }
         }
     }
 
-    private fun buildRoutes(routes: List<RouteVectors>, rotation: Rotation, cx: Float, cy: Float, radius: Float) {
+    private fun buildRoutes(routes: List<RouteVectors>, rotation: GlobeRotation, cx: Float, cy: Float, radius: Float) {
         while (frontPaths.size < routes.size) {
             frontPaths += Path()
             backPaths += Path()
         }
         routes.forEachIndexed { index, route ->
-            val front = frontPaths[index]
-            val back = backPaths[index]
-            front.reset()
-            back.reset()
-            var frontPen = false
-            var backPen = false
-            val v = route.vectors
-            for (i in 0 until v.size) {
-                val px = v.x[i]
-                val py = v.y[i]
-                val pz = v.z[i]
-                val depth = rotation.depth(px, py, pz)
-                val x = rotation.x(px, py)
-                val y = rotation.y(px, py, pz)
-                if (depth >= 0f) {
-                    val lift = route.lift[i]
-                    val ox = cx + x * lift * radius
-                    val oy = cy - y * lift * radius
-                    if (frontPen) front.lineTo(ox, oy) else front.moveTo(ox, oy)
-                    frontPen = true
-                    backPen = false
-                } else {
-                    val ox = cx + x * radius
-                    val oy = cy - y * radius
-                    if (backPen) back.lineTo(ox, oy) else back.moveTo(ox, oy)
-                    backPen = true
-                    frontPen = false
-                }
-            }
+            frontPaths[index].reset()
+            backPaths[index].reset()
+            routeSink.front = frontPaths[index]
+            routeSink.back = backPaths[index]
+            traceRoute(route.vectors, route.lift, rotation, cx, cy, radius, routeSink)
         }
     }
 
-    /** The view's rotation, applied to unit vectors: three multiply-adds per point. */
-    private class Rotation {
-        var sinPhi0 = 0f
-            private set
-        var cosPhi0 = 1f
-            private set
-        var sinLambda0 = 0f
-            private set
-        var cosLambda0 = 1f
-            private set
+    /** Draws a traced leg into its two reused paths. */
+    private class PathSink : RouteSink {
+        var front: Path? = null
+        var back: Path? = null
 
-        fun update(latitude: Float, longitude: Float) {
-            sinPhi0 = sin(Math.toRadians(latitude.toDouble())).toFloat()
-            cosPhi0 = cos(Math.toRadians(latitude.toDouble())).toFloat()
-            sinLambda0 = sin(Math.toRadians(longitude.toDouble())).toFloat()
-            cosLambda0 = cos(Math.toRadians(longitude.toDouble())).toFloat()
+        override fun moveTo(front: Boolean, x: Float, y: Float) {
+            (if (front) this.front else back)?.moveTo(x, y)
         }
 
-        fun x(px: Float, py: Float): Float = -px * sinLambda0 + py * cosLambda0
-        fun y(px: Float, py: Float, pz: Float): Float = cosPhi0 * pz - sinPhi0 * (px * cosLambda0 + py * sinLambda0)
-        fun depth(px: Float, py: Float, pz: Float): Float = sinPhi0 * pz + cosPhi0 * (px * cosLambda0 + py * sinLambda0)
+        override fun lineTo(front: Boolean, x: Float, y: Float) {
+            (if (front) this.front else back)?.lineTo(x, y)
+        }
     }
 }
