@@ -181,7 +181,15 @@ fun ChronotypeReveal(
 }
 
 @Composable
-internal fun RevealWords(chronotype: Chronotype, picked: Boolean, wordsProgress: () -> Float = { 1f }, midSleep: LocalTime, daysOffLinked: Boolean, align: TextAlign, compact: Boolean) {
+internal fun RevealWords(
+    chronotype: Chronotype,
+    picked: Boolean,
+    wordsProgress: () -> Float = { 1f },
+    midSleep: LocalTime,
+    daysOffLinked: Boolean,
+    align: TextAlign,
+    compact: Boolean,
+) {
     val colors = MaterialTheme.colorScheme
     val formatter = rememberTimeFormatter()
     Text(
@@ -189,7 +197,7 @@ internal fun RevealWords(chronotype: Chronotype, picked: Boolean, wordsProgress:
         style = MaterialTheme.typography.labelLarge,
         color = colors.primary,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.00f, 0.45f),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 8.dp))
     Text(
@@ -197,10 +205,16 @@ internal fun RevealWords(chronotype: Chronotype, picked: Boolean, wordsProgress:
         style = if (compact) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
         color = colors.onSurface,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().semantics { heading() }.testTag(ChronotypeRevealTags.Name),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.16f, 0.62f).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 12.dp))
-    Text(chronotype.description(), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, textAlign = align, modifier = Modifier.fillMaxWidth())
+    Text(
+        chronotype.description(),
+        style = MaterialTheme.typography.titleMedium,
+        color = colors.onSurface,
+        textAlign = align,
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.32f, 0.78f),
+    )
     Spacer(Modifier.size(if (compact) 8.dp else 16.dp))
     val small: TextStyle = MaterialTheme.typography.bodyMedium
     Text(
@@ -213,10 +227,24 @@ internal fun RevealWords(chronotype: Chronotype, picked: Boolean, wordsProgress:
         style = small,
         color = colors.onSurfaceVariant,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.48f, 0.92f),
     )
-    Text(stringResource(R.string.chronotype_reveal_plan), style = small, color = colors.onSurfaceVariant, textAlign = align, modifier = Modifier.fillMaxWidth())
+    Text(
+        stringResource(R.string.chronotype_reveal_plan),
+        style = small,
+        color = colors.onSurfaceVariant,
+        textAlign = align,
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.58f, 1.00f),
+    )
 }
+
+internal fun Modifier.staggeredWord(progress: () -> Float, start: Float, end: Float): Modifier = graphicsLayer {
+    val p = ((progress() - start) / (end - start)).coerceIn(0f, 1f)
+    alpha = p
+    translationY = -(1f - p) * WordStaggerDrop.toPx()
+}
+
+private val WordStaggerDrop = 12.dp
 
 /**
  * [ChronotypeSky] grown into the reveal's illustration: the sky of the hour the day peaks, the dashed sun path over a

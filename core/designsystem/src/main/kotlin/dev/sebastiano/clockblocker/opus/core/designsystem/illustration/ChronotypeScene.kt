@@ -345,8 +345,15 @@ private fun DrawScope.drawStars(g: SceneGeometry, shapes: SceneShapes, light: Sc
 /** Soft daytime clouds: a morning wisp, and a second cumulus from late morning. */
 private fun DrawScope.drawClouds(g: SceneGeometry, light: SceneLight, position: Float, e: Float) {
     val cloudAlpha = (0.28f + 0.24f * light.midday) * light.day * e
-    drawPath(g.morningCloud, Color.White.copy(alpha = cloudAlpha))
-    if (light.midday > 0.05f || position > 0.28f) drawPath(g.middayCloud, Color.White.copy(alpha = cloudAlpha * 0.9f))
+    val drift = (1f - e) * g.w * 0.08f
+    withTransform({ translate(left = -drift) }) {
+        drawPath(g.morningCloud, Color.White.copy(alpha = cloudAlpha))
+    }
+    if (light.midday > 0.05f || position > 0.28f) {
+        withTransform({ translate(left = drift) }) {
+            drawPath(g.middayCloud, Color.White.copy(alpha = cloudAlpha * 0.9f))
+        }
+    }
 }
 
 /** The dashed full path and the brighter travelled part up to the sun or moon. */
@@ -433,11 +440,20 @@ private fun DrawScope.drawSunAndMoon(
 /** Three layers of hills, each blended from the horizon toward the hill tone, and a rim light on the far ridge. */
 private fun DrawScope.drawHills(g: SceneGeometry, horizonSky: Color, hills: HillColors, m: Float, e: Float) {
     val hillBase = lerp(hills.day, hills.night, m)
-    drawPath(g.backHill, lerp(horizonSky, hillBase, 0.42f))
     val rimColor = if (m > 0.5f) MoonColor else SunCoreColor
-    drawPath(g.ridgeCrest, rimColor.copy(alpha = 0.28f * e), style = Stroke(if (g.detailed) 1.3.dp.toPx() else 0.9.dp.toPx(), cap = StrokeCap.Round))
-    drawPath(g.midHill, lerp(horizonSky, hillBase, 0.66f))
-    drawPath(g.frontHill, lerp(horizonSky, hillBase, 0.86f))
+    val eBack = (e / 0.7f).coerceIn(0f, 1f)
+    val eMid = ((e - 0.15f) / 0.7f).coerceIn(0f, 1f)
+    val eFront = ((e - 0.30f) / 0.7f).coerceIn(0f, 1f)
+    withTransform({ translate(top = (1f - eBack) * g.h * 0.18f) }) {
+        drawPath(g.backHill, lerp(horizonSky, hillBase, 0.42f))
+        drawPath(g.ridgeCrest, rimColor.copy(alpha = 0.28f * e), style = Stroke(if (g.detailed) 1.3.dp.toPx() else 0.9.dp.toPx(), cap = StrokeCap.Round))
+    }
+    withTransform({ translate(top = (1f - eMid) * g.h * 0.14f) }) {
+        drawPath(g.midHill, lerp(horizonSky, hillBase, 0.66f))
+    }
+    withTransform({ translate(top = (1f - eFront) * g.h * 0.10f) }) {
+        drawPath(g.frontHill, lerp(horizonSky, hillBase, 0.86f))
+    }
 }
 
 /** The reveal's fine details: morning birds, or a lit window on the hill at night, and a shimmer near the foot. */
@@ -445,17 +461,23 @@ private fun DrawScope.drawDetails(g: SceneGeometry, light: SceneLight, hills: Hi
     val (w, h) = g.w to g.h
     if (light.day > 0.2f && position < 0.42f) {
         val birdAlpha = 0.55f * light.day * e
-        drawBird(w * 0.66f, h * 0.60f, w * 0.032f, hills.day.copy(alpha = birdAlpha))
-        drawBird(w * 0.73f, h * 0.56f, w * 0.024f, hills.day.copy(alpha = birdAlpha * 0.8f))
+        val swoopX = -(1f - e) * w * 0.06f
+        val swoopY = (1f - e) * h * 0.03f
+        drawBird(w * 0.66f + swoopX, h * 0.60f + swoopY, w * 0.032f, hills.day.copy(alpha = birdAlpha))
+        drawBird(w * 0.73f + swoopX * 1.3f, h * 0.56f + swoopY * 1.3f, w * 0.024f, hills.day.copy(alpha = birdAlpha * 0.8f))
     }
     if (light.m > 0.2f) {
         val window = Offset(w * 0.27f, h * 0.83f)
-        drawCircle(WindowGlowColor.copy(alpha = 0.32f * light.m * e), radius = w * 0.028f, center = window)
-        drawCircle(WindowGlowColor.copy(alpha = 0.92f * light.m * e), radius = w * 0.011f, center = window)
+        drawCircle(WindowGlowColor.copy(alpha = 0.32f * light.m * e), radius = w * 0.028f * (0.5f + 0.5f * e), center = window)
+        drawCircle(WindowGlowColor.copy(alpha = 0.92f * light.m * e), radius = w * 0.011f * e, center = window)
     }
     val shimmerColor = (if (light.m > 0.5f) MoonColor else Color.White).copy(alpha = 0.22f * e)
-    drawLine(shimmerColor, Offset(w * 0.34f, h * 0.935f), Offset(w * 0.66f, h * 0.935f), strokeWidth = 1.2.dp.toPx(), cap = StrokeCap.Round)
-    drawLine(shimmerColor, Offset(w * 0.42f, h * 0.962f), Offset(w * 0.58f, h * 0.962f), strokeWidth = 1.0.dp.toPx(), cap = StrokeCap.Round)
+    val span1 = 0.16f * e
+    val span2 = 0.08f * e
+    if (e > 0.01f) {
+        drawLine(shimmerColor, Offset(w * (0.50f - span1), h * 0.935f), Offset(w * (0.50f + span1), h * 0.935f), strokeWidth = 1.2.dp.toPx(), cap = StrokeCap.Round)
+        drawLine(shimmerColor, Offset(w * (0.50f - span2), h * 0.962f), Offset(w * (0.50f + span2), h * 0.962f), strokeWidth = 1.0.dp.toPx(), cap = StrokeCap.Round)
+    }
 }
 
 private fun cloudPuff(cx: Float, cy: Float, width: Float, height: Float) = Path().apply {

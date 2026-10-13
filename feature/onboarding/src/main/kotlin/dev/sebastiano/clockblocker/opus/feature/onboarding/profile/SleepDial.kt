@@ -91,6 +91,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import dev.sebastiano.clockblocker.opus.feature.onboarding.LocalOnboardingDialBounds
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -354,8 +357,9 @@ private fun SleepDialImpl(
     val durationFormat: (Float) -> String = remember(narrowFormat) { { narrowFormat.duration(it.roundToInt()) } }
     val durationTemplate = remember(narrowFormat) { narrowFormat.duration(DurationTemplateMinutes) }
 
+    val dialBounds = LocalOnboardingDialBounds.current
     val dialContent: @Composable () -> Unit = {
-        BoxWithConstraints(Modifier) {
+        BoxWithConstraints(Modifier.onGloballyPositioned { dialBounds?.value = it.boundsInRoot() }) {
             val sidePx = constraints.maxWidth.toFloat()
             Canvas(
                 Modifier

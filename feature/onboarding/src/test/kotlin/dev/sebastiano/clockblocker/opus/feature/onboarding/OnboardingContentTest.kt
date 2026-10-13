@@ -319,28 +319,34 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     fun `back and next stay on screen on a small phone at the largest font`() {
         setContent(fontScale = 2f) { OnboardingContent(onboardingState(OnboardingStep.Sleep), actions, Modifier.fillMaxSize()) }
         compose.onNodeWithTag(OnboardingTags.Back).assertIsDisplayed()
-        compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
-        actions.calls.shouldBeEmpty()
+        compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
+        actions.calls shouldContainExactly listOf("next")
     }
 
     @Test
     fun `spectacle plays once per session on Next from Sleep`() {
         var state by mutableStateOf(onboardingState(OnboardingStep.Sleep))
-        setContent { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
-        
+        setContent(reduceMotion = false) { OnboardingContent(state, actions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+
+        compose.mainClock.autoAdvance = false
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         actions.calls.shouldBeEmpty()
-        
+
+        compose.mainClock.autoAdvance = true
         compose.mainClock.advanceTimeBy(3000)
+        compose.waitForIdle()
         actions.calls shouldContainExactly listOf("next")
-        
+
         state = onboardingState(OnboardingStep.Chronotype)
         compose.waitForIdle()
         state = onboardingState(OnboardingStep.Sleep)
         compose.waitForIdle()
-        
+
         actions.calls.clear()
+        compose.mainClock.autoAdvance = false
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         actions.calls shouldContainExactly listOf("next")
     }

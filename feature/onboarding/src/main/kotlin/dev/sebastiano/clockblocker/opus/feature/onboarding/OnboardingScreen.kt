@@ -71,7 +71,7 @@ import kotlin.math.roundToInt
 
 /** Test tags for the e2e suite. */
 
-val LocalOnboardingDialBounds = compositionLocalOf<androidx.compose.runtime.MutableState<Rect?>> { error("none") }
+val LocalOnboardingDialBounds = compositionLocalOf<androidx.compose.runtime.MutableState<Rect?>?> { null }
 
 object OnboardingTags {
     const val Progress = "onboarding_progress"
@@ -209,10 +209,18 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         spectacleActive = false
     }
 
+    val reduce = ClockblockTheme.reduceMotion
+    val currentStep by rememberUpdatedState(step)
+    val currentReduce by rememberUpdatedState(reduce)
     val wrappedActions = object : OnboardingActions by actions {
         override fun next() {
-            if (state.step == OnboardingStep.Sleep && !spectaclePlayed) {
-                spectacleActive = true
+            if (currentStep == OnboardingStep.Sleep && !spectaclePlayed) {
+                if (currentReduce) {
+                    spectaclePlayed = true
+                    actions.next()
+                } else {
+                    spectacleActive = true
+                }
             } else {
                 actions.next()
             }
@@ -267,7 +275,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val searchMode = step == OnboardingStep.HomeZone && searchFocused && imeTarget > 0 &&
             searchModeFits(heightWithKeyboard, density.fontScale)
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        val frameAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade())
+        val frameAlpha = animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "spectacleFade")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         OnboardingFrame(
@@ -275,8 +283,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             topBar = {
                 OnboardingTopBar(
                     step = step,
-                    visible = step != OnboardingStep.Welcome && !searchMode,
-                    alpha = { chrome() * (1f - search.value) },
+                    visible = step != OnboardingStep.Welcome && !searchMode && !spectacleActive,
+                    alpha = { chrome() * (1f - search.value) * frameAlpha.value },
                     onSkip = wrappedActions::skip,
                 )
             },
@@ -284,8 +292,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 if (nearWelcome) {
                     WelcomeDisclaimer(
                         Modifier
-                            .graphicsLayer { alpha = 1f - chrome() }
-                            .then(if (step == OnboardingStep.Welcome) Modifier else Modifier.clearAndSetSemantics { }),
+                            .graphicsLayer { alpha = (1f - chrome()) * frameAlpha.value }
+                            .then(if (step == OnboardingStep.Welcome && !spectacleActive) Modifier else Modifier.clearAndSetSemantics { }),
                     )
                 }
             },
@@ -293,60 +301,65 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 OnboardingBottomBar(
                     state, wrappedActions, wide, short = short, welcome = welcome, chrome = chrome,
                     modifier = Modifier
-                        .graphicsLayer { alpha = 1f - search.value }
-                        .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier),
+                        .graphicsLayer { alpha = (1f - search.value) * frameAlpha.value }
+                        .then(if (searchMode || spectacleActive) Modifier.clearAndSetSemantics { } else Modifier),
                 )
             },
             steps = { barHeight, noteHeight ->
-                steps.transition.AnimatedContent(
-                    transitionSpec = { if (justFinishedSpectacle) fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap()) else steps.transitionFor(initialState, targetState) },
-                    contentKey = { it },
-                    modifier = Modifier.fillMaxSize(),
-                ) { target ->
-                    stepStates.SaveableStateProvider(target.name) {
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .stepRoom(
-                                    top = {
-                                        when (target) {
-                                            OnboardingStep.Welcome -> 0
-                                            OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
-                                            else -> barHeight
-                                        }
-                                    },
-                                    bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
+                Box(Modifier.fillMaxSize()) {
+                    steps.transition.AnimatedContent(
+                        transitionSpec = { if (justFinishedSpectacle) fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap()) else steps.transitionFor(initialState, targetState) },
+                        contentKey = { it },
+                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = frameAlpha.value },
+                    ) { target ->
+                        stepStates.SaveableStateProvider(target.name) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .stepRoom(
+                                        top = {
+                                            when (target) {
+                                                OnboardingStep.Welcome -> 0
+                                                OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
+                                                else -> barHeight
+                                            }
+                                        },
+                                        bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
+                                    )
+                                    .testTag(OnboardingTags.step(target)),
+                            ) {
+                                OnboardingStepBody(
+                                    target, state, wrappedActions, wide,
+                                    spectaclePlayed = spectaclePlayed,
+                                    searchMode = searchMode && target == OnboardingStep.HomeZone,
+                                    onSearchFocusChange = { searchFocused = it },
                                 )
-                                .testTag(OnboardingTags.step(target)),
-                        ) {
-                            OnboardingStepBody(
-                                target, state, wrappedActions, wide,
-                                spectaclePlayed = spectaclePlayed,
-                                searchMode = searchMode && target == OnboardingStep.HomeZone,
-                                onSearchFocusChange = { searchFocused = it },
+                            }
+                        }
+                    }
+                    if (spectacleActive) {
+                        Box(Modifier.fillMaxSize().stepRoom(top = { barHeight }, bottom = 0)) {
+                            ChronotypeSpectacleOverlay(
+                                chronotype = state.profile.chronotype,
+                                picked = state.showsPick,
+                                midSleep = state.inferred.midSleep,
+                                daysOffLinked = state.profile.daysOffSleep == null,
+                                wide = wide,
+                                dialBounds = dialBoundsState.value ?: Rect.Zero,
+                                onFinished = {
+                                    spectacleActive = false
+                                    spectaclePlayed = true
+                                    justFinishedSpectacle = true
+                                    actions.next()
+                                },
                             )
                         }
                     }
                 }
             },
-            modifier = Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter).graphicsLayer { alpha = frameAlpha },
+            modifier = Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter),
             disclaimerOverlap = bottomBarVerticalPadding(short),
         )
-        if (spectacleActive) {
-            ChronotypeSpectacleOverlay(
-                chronotype = state.profile.chronotype,
-                midSleep = state.inferred.midSleep,
-                daysOffLinked = state.profile.daysOffSleep == null,
-                dialBounds = dialBoundsState.value ?: androidx.compose.ui.geometry.Rect.Zero,
-                onFinished = {
-                    spectacleActive = false
-                    spectaclePlayed = true
-                    justFinishedSpectacle = true
-                    actions.next()
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
     }
     }
 }
