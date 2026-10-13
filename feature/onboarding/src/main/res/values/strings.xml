@@ -41,7 +41,7 @@
 
     <!-- 3. Sleep. -->
     <string name="sleep_headline">When do you usually sleep?</string>
-    <string name="sleep_body">Drag the moon and the sun to your usual nights. Days off are the ones you wake up without an alarm.</string>
+    <string name="sleep_body">Drag the moon and the sun. Days off are when you wake without an alarm.</string>
     <string name="sleep_work_days">Work days</string>
     <string name="sleep_days_off">Days off</string>
     <string name="sleep_bedtime">Bedtime</string>
@@ -72,6 +72,7 @@
     <string name="sleep_midnight">Midnight</string>
     <string name="sleep_hint_short">That\'s a short night. The plan works best with your real, usual sleep.</string>
     <string name="sleep_hint_long">That\'s a lot of sleep. Lucky you.</string>
+    <string name="sleep_hint_linked">Same as work days until you move a handle.</string>
     <string name="sleep_egg_time">24:12</string>
     <string name="sleep_egg_caption">your body\'s day</string>
     <string name="sleep_egg_line">Your body\'s day is about 24.2 hours (Czeisler 1999). That\'s why flying west feels easier.</string>
