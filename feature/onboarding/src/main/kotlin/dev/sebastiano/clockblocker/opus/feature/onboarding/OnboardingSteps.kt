@@ -513,7 +513,7 @@ private fun HomeZoneControls(
         LaunchedEffect(state.query.isNotBlank(), state.results.firstOrNull()) {
             if (state.query.isNotBlank()) feedback.bringIntoView()
         }
-        if (state.query.isNotBlank()) {
+        if (state.query.isNotBlank() && state.searchMatchingQuery == state.query) {
             // A polite live region: TalkBack reads how many places match as the query changes.
             Text(
                 if (state.results.isEmpty()) {
