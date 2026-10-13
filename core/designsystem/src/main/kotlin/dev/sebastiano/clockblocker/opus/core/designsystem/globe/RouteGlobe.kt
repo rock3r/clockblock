@@ -24,6 +24,7 @@
 package dev.sebastiano.clockblocker.opus.core.designsystem.globe
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -130,13 +131,12 @@ object RouteGlobeDefaults {
     const val ZoomStep: Float = 1.5f
 
     /**
-     * Loads the land dots and builds the sea grid now, on the calling thread. The globe otherwise loads the land off
+     * Loads the land dots now, on the calling thread. The globe otherwise loads the land off
      * the main thread on first use (drawing the sea meanwhile). Screens that may show a globe call this off the main
      * thread ahead of time (so its first frame does no setup); screenshot tests call it so the capture has the land.
      */
     fun preload(context: Context) {
         LandDots.load(context)
-        SeaGrid.size
     }
 }
 
@@ -218,8 +218,6 @@ fun RouteGlobe(
 
     // The terminator moves a degree every 4 minutes: refresh the shading every 5.
     val subsolar = remember(instant.epochSecond / TerminatorBucketSeconds) { Sun.subsolarPoint(instant) }
-    val landLight = remember(dots, subsolar) { dots?.let { lightOf(it.vectors, subsolar) } }
-    val seaLit = remember(subsolar) { litOf(SeaGrid, subsolar) }
     val renderer = remember { GlobeRenderer() }
 
     val measurer = rememberTextMeasurer()
@@ -408,8 +406,6 @@ fun RouteGlobe(
             longitude = state.longitude.value,
             zoom = state.zoomLevel.value,
             dots = dots,
-            landLight = landLight,
-            seaLit = seaLit,
             subsolar = subsolar,
             routes = routes,
             active = active,
@@ -572,8 +568,11 @@ private class RouteVectors(points: List<GeoPoint>) {
     }
 }
 
-/** Land as a cloud of dots, precomputed from Natural Earth 110 m land (public domain). */
-internal class LandDots(val vectors: UnitVectors) {
+/**
+ * Land as dots on [HalftoneGrid.Land], precomputed from Natural Earth 110 m land (public domain), baked into the
+ * [mask] the halftone shader samples.
+ */
+internal class LandDots(val mask: Bitmap) {
     companion object {
         @Volatile private var cached: LandDots? = null
 
@@ -583,61 +582,25 @@ internal class LandDots(val vectors: UnitVectors) {
             cached ?: context.assets.open("land_dots.bin").use { stream ->
                 val input = DataInputStream(stream.buffered())
                 val count = input.readInt()
-                val points = List(count) {
-                    val lat = input.readShort() / 100.0
-                    val lon = input.readShort() / 100.0
-                    GeoPoint(lat, lon)
+                val latitudes = ShortArray(count)
+                val longitudes = ShortArray(count)
+                for (i in 0 until count) {
+                    latitudes[i] = input.readShort()
+                    longitudes[i] = input.readShort()
                 }
-                LandDots(UnitVectors(points))
+                LandDots(GlobeHalftoneShader.landMask(latitudes, longitudes))
             }.also { cached = it }
         }
     }
 }
 
-/** A sparse lat/lon grid over the whole sphere, for the sea's halftone. */
-private val SeaGrid: UnitVectors by lazy {
-    val points = ArrayList<GeoPoint>()
-    var lat = -88.5
-    while (lat < 90) {
-        val n = maxOf(1, (360 * cos(Math.toRadians(lat)) / 3.0).toInt())
-        for (k in 0 until n) points += GeoPoint(lat, -180.0 + (k + 0.5) * 360.0 / n)
-        lat += 3.0
-    }
-    UnitVectors(points)
-}
-
-/** Daylight per dot, 0 in full night to 1 once the sun is 6° up (civil twilight in between). */
-private fun lightOf(vectors: UnitVectors, subsolar: SubsolarPoint): FloatArray {
-    val s = UnitVectors(listOf(GeoPoint(subsolar.latitude, subsolar.longitude)))
-    return FloatArray(vectors.size) { i ->
-        // sin(elevation) = dot(point, subsolar); light ramps over ±6°.
-        val sinElevation = vectors.x[i] * s.x[0] + vectors.y[i] * s.y[0] + vectors.z[i] * s.z[0]
-        ((sinElevation + SinSixDegrees) / (2 * SinSixDegrees)).coerceIn(0f, 1f)
-    }
-}
-
-private fun litOf(vectors: UnitVectors, subsolar: SubsolarPoint): BooleanArray {
-    val light = lightOf(vectors, subsolar)
-    return BooleanArray(light.size) { light[it] > 0f }
-}
-
-private const val SinSixDegrees = 0.104528f
-
 /** Reused buffers, paths and paints: one per globe on screen. */
 private class GlobeRenderer {
-    // Land and sea dots are batched by brightness and by depth band, so dots shrink and fade towards the horizon
-    // (foreshortening) while the whole cloud still draws in a bounded number of drawPoints calls. Each layer keeps
-    // one buffer sized to its own dot count; buckets are slices of it (see PointBuckets).
-    private val land = PointBuckets(LandLevels * DepthBands)
-    private val cities = PointBuckets(DepthBands)
-    private val seaDots = PointBuckets(DepthBands * 2)
+    // Sea, land and city lights: two shader draws (see GlobeHalftoneShader), nothing per dot on the CPU.
+    private val halftone = GlobeHalftoneShader()
 
     /** Each stop's label side from the last frame (-1 = not shown), for label hysteresis. */
     private var labelSides = IntArray(0)
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-    }
     private val frontPaths = ArrayList<Path>()
     private val backPaths = ArrayList<Path>()
     private val rotation = Rotation()
@@ -666,8 +629,6 @@ private class GlobeRenderer {
         longitude: Float,
         zoom: Float,
         dots: LandDots?,
-        landLight: FloatArray?,
-        seaLit: BooleanArray,
         subsolar: SubsolarPoint,
         routes: List<RouteVectors>,
         active: Int?,
@@ -679,9 +640,9 @@ private class GlobeRenderer {
     ) = with(scope) {
         // Zoomed in, the globe is bigger than its canvas: keep it inside, so it never draws over its neighbours.
         if (zoom > 1.001f) {
-            clipRect { drawGlobe(colors, latitude, longitude, zoom, dots, landLight, seaLit, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection) }
+            clipRect { drawGlobe(colors, latitude, longitude, zoom, dots, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection) }
         } else {
-            drawGlobe(colors, latitude, longitude, zoom, dots, landLight, seaLit, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection)
+            drawGlobe(colors, latitude, longitude, zoom, dots, subsolar, routes, active, stops, labels.takeIf { labelAlpha > 0f }, labelAlpha, marker, selection)
         }
     }
 
@@ -692,8 +653,6 @@ private class GlobeRenderer {
         longitude: Float,
         zoom: Float,
         dots: LandDots?,
-        landLight: FloatArray?,
-        seaLit: BooleanArray,
         subsolar: SubsolarPoint,
         routes: List<RouteVectors>,
         active: Int?,
@@ -711,19 +670,15 @@ private class GlobeRenderer {
 
         // Ocean, with the day side glowing from under the sun.
         drawCircle(colors.ocean, radius, Offset(cx, cy))
-        val sx: Float
-        val sy: Float
-        val sd: Float
-        run {
-            val phi = Math.toRadians(subsolar.latitude)
-            val lambda = Math.toRadians(subsolar.longitude)
-            val px = (cos(phi) * cos(lambda)).toFloat()
-            val py = (cos(phi) * sin(lambda)).toFloat()
-            val pz = sin(phi).toFloat()
-            sx = rotation.x(px, py)
-            sy = rotation.y(px, py, pz)
-            sd = rotation.depth(px, py, pz)
-        }
+        // The subsolar point as a unit vector, and where it is in the view.
+        val sunPhi = Math.toRadians(subsolar.latitude)
+        val sunLambda = Math.toRadians(subsolar.longitude)
+        val px = (cos(sunPhi) * cos(sunLambda)).toFloat()
+        val py = (cos(sunPhi) * sin(sunLambda)).toFloat()
+        val pz = sin(sunPhi).toFloat()
+        val sx = rotation.x(px, py)
+        val sy = rotation.y(px, py, pz)
+        val sd = rotation.depth(px, py, pz)
         // The day side's glow: one radial shader (built once per colour, moved with a matrix) filling the globe's own
         // circle, so no clip is needed (a path clip costs the GPU a mask every frame while the globe turns).
         if (glowColor != colors.oceanDay) {
@@ -742,26 +697,9 @@ private class GlobeRenderer {
         drawContext.canvas.nativeCanvas.drawCircle(cx, cy, radius, glowPaint)
 
         // Sea halftone.
-        val sea = SeaGrid
-        seaDots.reset(sea.size)
-        for (i in 0 until sea.size) {
-            val px = sea.x[i]
-            val py = sea.y[i]
-            val pz = sea.z[i]
-            val depth = rotation.depth(px, py, pz)
-            if (depth < 0f) continue
-            val ox = cx + rotation.x(px, py) * radius
-            val oy = cy - rotation.y(px, py, pz) * radius
-            seaDots.add(depthBand(depth) * 2 + if (seaLit[i]) 0 else 1, ox, oy)
-        }
-        seaDots.sort()
-        val seaDot = radius / 105f
-        for (band in 0 until DepthBands) {
-            val size = seaDot * DepthScale[band]
-            val fade = DepthAlpha[band]
-            points(seaDots, band * 2, colors.sea.copy(alpha = 0.32f * fade), size)
-            points(seaDots, band * 2 + 1, colors.sea.copy(alpha = 0.08f * fade), size)
-        }
+        val canvas = drawContext.canvas.nativeCanvas
+        halftone.update(colors, cx, cy, radius, rotation.sinPhi0, rotation.cosPhi0, rotation.sinLambda0, rotation.cosLambda0, px, py, pz)
+        halftone.drawSea(canvas, cx, cy, radius)
         drawCircle(colors.rim, radius, Offset(cx, cy), style = s.rim)
 
         // Route round the back of the globe: see-through, under the land.
@@ -771,38 +709,8 @@ private class GlobeRenderer {
             drawPath(backPaths[i], colors.routeDim.copy(alpha = alpha), style = s.back)
         }
 
-        // Land, bucketed by brightness so the cloud draws in a handful of calls.
-        if (dots != null && landLight != null) {
-            val v = dots.vectors
-            land.reset(v.size)
-            cities.reset(v.size)
-            for (i in 0 until v.size) {
-                val px = v.x[i]
-                val py = v.y[i]
-                val pz = v.z[i]
-                val depth = rotation.depth(px, py, pz)
-                if (depth < 0f) continue
-                val ox = cx + rotation.x(px, py) * radius
-                val oy = cy - rotation.y(px, py, pz) * radius
-                val light = landLight[i]
-                val level = (light * 4f + depth.coerceIn(0f, 1f) * 1.2f).toInt().coerceIn(0, LandLevels - 1)
-                val band = depthBand(depth)
-                land.add(level * DepthBands + band, ox, oy)
-                if (light < 0.02f && (i * 2654435761L ushr 7) % 6 == 0L) cities.add(band, ox, oy)
-            }
-            land.sort()
-            cities.sort()
-            val landDot = radius / 60f
-            for (level in 0 until LandLevels) {
-                val alpha = 0.14f + level * 0.17f
-                for (band in 0 until DepthBands) {
-                    points(land, level * DepthBands + band, colors.land.copy(alpha = alpha * DepthAlpha[band]), landDot * DepthScale[band])
-                }
-            }
-            for (band in 0 until DepthBands) {
-                points(cities, band, colors.cityLight.copy(alpha = 0.9f * DepthAlpha[band]), landDot * 0.75f * DepthScale[band])
-            }
-        }
+        // Land and city lights.
+        dots?.let { halftone.drawLand(canvas, cx, cy, radius, it.mask) }
 
         // Route on the visible face: the active leg bright, the others dimmer; a picked leg on a light halo.
         val pickedLeg = (selection as? GlobeSelection.Leg)?.index?.takeIf { it in routes.indices }
@@ -933,20 +841,16 @@ private class GlobeRenderer {
         }
     }
 
-    private fun DrawScope.points(buckets: PointBuckets, bucket: Int, color: Color, width: Float) {
-        val count = buckets.counts[bucket] * 2
-        if (count == 0) return
-        paint.color = color.toArgb()
-        paint.strokeWidth = width
-        drawContext.canvas.nativeCanvas.drawPoints(buckets.coords, buckets.offsets[bucket] * 2, count, paint)
-    }
-
     /** The view's rotation, applied to unit vectors: three multiply-adds per point. */
     private class Rotation {
-        private var sinPhi0 = 0f
-        private var cosPhi0 = 1f
-        private var sinLambda0 = 0f
-        private var cosLambda0 = 1f
+        var sinPhi0 = 0f
+            private set
+        var cosPhi0 = 1f
+            private set
+        var sinLambda0 = 0f
+            private set
+        var cosLambda0 = 1f
+            private set
 
         fun update(latitude: Float, longitude: Float) {
             sinPhi0 = sin(Math.toRadians(latitude.toDouble())).toFloat()
@@ -958,76 +862,5 @@ private class GlobeRenderer {
         fun x(px: Float, py: Float): Float = -px * sinLambda0 + py * cosLambda0
         fun y(px: Float, py: Float, pz: Float): Float = cosPhi0 * pz - sinPhi0 * (px * cosLambda0 + py * sinLambda0)
         fun depth(px: Float, py: Float, pz: Float): Float = sinPhi0 * pz + cosPhi0 * (px * cosLambda0 + py * sinLambda0)
-    }
-
-    private companion object {
-        const val LandLevels = 6
-
-        /**
-         * Depth bands for foreshortening. A dot's band comes from the square root of its depth (the cosine of its angle
-         * to the viewer), which is how a disc on a sphere shrinks towards the limb. Twelve bands keep each step to
-         * about 6% of a dot's size, so a dot crossing a band edge while the globe turns doesn't visibly pop, while
-         * the cloud still draws in a bounded number of drawPoints calls.
-         */
-        const val DepthBands = 12
-
-        /** Dot size per band: 30% at the horizon up to full size facing the viewer. */
-        val DepthScale = FloatArray(DepthBands) { 0.3f + 0.7f * (it + 0.5f) / DepthBands }
-
-        /** Dots also fade towards the horizon, so the limb reads as curving away rather than as a hard edge. */
-        val DepthAlpha = FloatArray(DepthBands) { 0.4f + 0.6f * (it + 0.5f) / DepthBands }
-
-        fun depthBand(depth: Float): Int =
-            (kotlin.math.sqrt(depth.coerceIn(0f, 1f)) * DepthBands).toInt().coerceAtMost(DepthBands - 1)
-    }
-}
-
-/**
- * Points grouped into buckets without a full-size array per bucket: [add] stages each point with its bucket, [sort]
- * counting-sorts them into one [coords] buffer, and bucket `b` is the slice starting at `offsets[b]` (in points) with
- * `counts[b]` points. Storage grows to the layer's own point count once and is reused every frame.
- */
-internal class PointBuckets(private val bucketCount: Int) {
-    var coords = FloatArray(0)
-        private set
-    val counts = IntArray(bucketCount)
-    val offsets = IntArray(bucketCount)
-    private val cursor = IntArray(bucketCount)
-    private var xs = FloatArray(0)
-    private var ys = FloatArray(0)
-    private var tags = ByteArray(0)
-    private var size = 0
-
-    fun reset(capacity: Int) {
-        if (xs.size < capacity) {
-            xs = FloatArray(capacity)
-            ys = FloatArray(capacity)
-            tags = ByteArray(capacity)
-            coords = FloatArray(capacity * 2)
-        }
-        size = 0
-        counts.fill(0)
-    }
-
-    fun add(bucket: Int, x: Float, y: Float) {
-        xs[size] = x
-        ys[size] = y
-        tags[size] = bucket.toByte()
-        counts[bucket]++
-        size++
-    }
-
-    fun sort() {
-        var offset = 0
-        for (b in 0 until bucketCount) {
-            offsets[b] = offset
-            cursor[b] = offset
-            offset += counts[b]
-        }
-        for (i in 0 until size) {
-            val k = cursor[tags[i].toInt()]++
-            coords[k * 2] = xs[i]
-            coords[k * 2 + 1] = ys[i]
-        }
     }
 }
