@@ -3,11 +3,12 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Transition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSpectacleOverlay
@@ -21,34 +22,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.BackHandler
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,14 +50,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -76,6 +67,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.zacsweers.metrox.viewmodel.metroViewModel
+import kotlin.math.roundToInt
 
 /** Test tags for the e2e suite. */
 
@@ -194,8 +186,11 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
  * Stateless onboarding UI: a wavy progress line that flattens as setup completes, one step at a time with a
  * shared-axis transition, and a bottom action bar. Back (including predictive back) goes to the previous step.
  * Two columns (art left, controls right) when the window is expanded or a landscape medium.
+ *
+ * The home step's search goes full height when the keyboard leaves too little room ([searchModeFits]): the field
+ * moves to the top, the bars fold away and the results fill the space down to the keyboard.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modifier: Modifier = Modifier) {
     var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
@@ -230,190 +225,167 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             }
         }
     }
-
     val steps = rememberOnboardingStepTransition(step, onBack = wrappedActions::back)
+    // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
+    // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
-    
+    val motion = ClockblockTheme.motion
+    var searchFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(step) { if (step != OnboardingStep.HomeZone) searchFocused = false }
+    // The step transition's own values, so predictive back seeks them with the steps: the Get started ↔ Next
+    // bounds (spatial), and the bars' sequenced fade (out with the outgoing step, in with the incoming one).
+    val welcome = steps.transition.settledOr(
+        steps.transition.animateFloat({ motion.navigationSpatial() }, label = "welcomeBounds") { welcomeBounds(it) },
+        ::welcomeBounds,
+    )
+    val chrome = steps.transition.settledOr(
+        steps.transition.animateFloat(
+            { if (targetState == OnboardingStep.Welcome) motion.navigationFadeOut() else motion.navigationFadeIn() },
+            label = "chromeFade",
+        ) { chromeAlpha(it) },
+        ::chromeAlpha,
+    )
+    val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
+    val density = LocalDensity.current
+    val imeNow = WindowInsets.ime.getBottom(density)
+    val imeTarget = WindowInsets.imeAnimationTarget.getBottom(density)
+    val barsBottom = WindowInsets.systemBars.union(WindowInsets.displayCutout).getBottom(density)
     CompositionLocalProvider(LocalOnboardingDialBounds provides dialBoundsState) {
-        BoxWithConstraints(
-            modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-        ) {
-            val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > maxHeight)
-            val short = maxHeight < 480.dp
-            
-            val motion = ClockblockTheme.motion
-            val barsAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "barsAlpha")
-            val contentAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade(), label = "contentAlpha")
-
-            Column(Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter)) {
-                Box(Modifier.graphicsLayer { alpha = barsAlpha }) {
-                    OnboardingTopBar(step, onSkip = wrappedActions::skip)
+    BoxWithConstraints(
+        modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+        // The window's height without the keyboard decides the layout, so it never flips while you type; the
+        // height the keyboard will leave (its animation target) decides the full-height search.
+        val keyboardHeight = with(density) { (maxOf(imeNow, barsBottom) - barsBottom).toDp() }
+        val fullHeight = maxHeight + keyboardHeight
+        val heightWithKeyboard = fullHeight - with(density) { (maxOf(imeTarget, barsBottom) - barsBottom).toDp() }
+        val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > fullHeight)
+        val short = fullHeight < 480.dp
+        val searchMode = step == OnboardingStep.HomeZone && searchFocused && imeTarget > 0 &&
+            searchModeFits(heightWithKeyboard, density.fontScale)
+        val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
+        val frameAlpha by animateFloatAsState(if (spectacleActive) 0f else 1f, motion.fade())
+        // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
+        // instead of spreading to the window edges.
+        OnboardingFrame(
+            searchProgress = { search.value },
+            topBar = {
+                OnboardingTopBar(
+                    step = step,
+                    visible = step != OnboardingStep.Welcome && !searchMode,
+                    alpha = { chrome() * (1f - search.value) },
+                    onSkip = wrappedActions::skip,
+                )
+            },
+            disclaimer = {
+                if (nearWelcome) {
+                    WelcomeDisclaimer(
+                        Modifier
+                            .graphicsLayer { alpha = 1f - chrome() }
+                            .then(if (step == OnboardingStep.Welcome) Modifier else Modifier.clearAndSetSemantics { }),
+                    )
                 }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    steps.transition.AnimatedContent(
-                        transitionSpec = {
-                            if (justFinishedSpectacle) {
-                                fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap())
-                            } else {
-                                steps.transitionFor(initialState, targetState)
-                            }
-                        },
-                        contentKey = { it },
-                        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = contentAlpha },
-                    ) { target ->
-                        stepStates.SaveableStateProvider(target.name) {
-                            Box(Modifier.fillMaxSize().testTag(OnboardingTags.step(target))) {
-                                OnboardingStepBody(target, state, wrappedActions, wide, spectaclePlayed = spectaclePlayed)
-                            }
+            },
+            bottomBar = {
+                OnboardingBottomBar(
+                    state, wrappedActions, wide, short = short, welcome = welcome, chrome = chrome,
+                    modifier = Modifier
+                        .graphicsLayer { alpha = 1f - search.value }
+                        .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier),
+                )
+            },
+            steps = { barHeight, noteHeight ->
+                steps.transition.AnimatedContent(
+                    transitionSpec = { if (justFinishedSpectacle) fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap()) else steps.transitionFor(initialState, targetState) },
+                    contentKey = { it },
+                    modifier = Modifier.fillMaxSize(),
+                ) { target ->
+                    stepStates.SaveableStateProvider(target.name) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .stepRoom(
+                                    top = {
+                                        when (target) {
+                                            OnboardingStep.Welcome -> 0
+                                            OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
+                                            else -> barHeight
+                                        }
+                                    },
+                                    bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
+                                )
+                                .testTag(OnboardingTags.step(target)),
+                        ) {
+                            OnboardingStepBody(
+                                target, state, wrappedActions, wide,
+                                spectaclePlayed = spectaclePlayed,
+                                searchMode = searchMode && target == OnboardingStep.HomeZone,
+                                onSearchFocusChange = { searchFocused = it },
+                            )
                         }
                     }
                 }
-                Box(Modifier.graphicsLayer { alpha = barsAlpha }) {
-                    OnboardingBottomBar(state, wrappedActions, wide, short = short)
-                }
-            }
-            
-            if (spectacleActive) {
-                ChronotypeSpectacleOverlay(
-                    chronotype = state.profile.chronotype,
-                    midSleep = state.inferred.midSleep,
-                    daysOffLinked = state.profile.daysOffSleep == null,
-                    dialBounds = dialBoundsState.value ?: androidx.compose.ui.geometry.Rect.Zero,
-                    onFinished = {
-                        spectacleActive = false
-                        spectaclePlayed = true
-                        justFinishedSpectacle = true
-                        actions.next()
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun OnboardingTopBar(step: OnboardingStep, onSkip: () -> Unit) {
-    val motion = ClockblockTheme.motion
-    val reduce = ClockblockTheme.reduceMotion
-    val visible = step != OnboardingStep.Welcome
-    AnimatedVisibility(visible = visible, enter = fadeIn(motion.fade()), exit = fadeOut(motion.fade())) {
-        val target = (step.index + 1f) / OnboardingStep.Count
-        val progress by animateFloatAsState(target, motion.dataSpatial(), label = "onboardingProgress")
-        val label = stringResource(R.string.onboarding_progress, step.index + 1, OnboardingStep.Count)
-        Row(
-            Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 8.dp).heightIn(min = 56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.size(6.dp))
-                // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
-                LinearWavyProgressIndicator(
-                    progress = { progress },
-                    amplitude = { p -> (1f - p).coerceIn(0f, 1f) },
-                    wavelength = 28.dp,
-                    waveSpeed = if (reduce) 0.dp else 14.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = label }
-                        .testTag(OnboardingTags.Progress),
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            val skippable = step != OnboardingStep.Reminders
-            TextButton(
-                onClick = onSkip,
-                enabled = skippable,
-                modifier = Modifier.heightIn(min = 48.dp).testTag(OnboardingTags.Skip).graphicsLayer { alpha = if (skippable) 1f else 0f },
-            ) { Text(stringResource(R.string.onboarding_skip)) }
-        }
-    }
-}
-
-@Composable
-private fun OnboardingBottomBar(state: OnboardingUiState, actions: OnboardingActions, wide: Boolean, short: Boolean) {
-    val step = state.step
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = if (short) 8.dp else 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = if (step == OnboardingStep.Welcome) Arrangement.Center else Arrangement.SpaceBetween,
-    ) {
-        when (step) {
-            OnboardingStep.Welcome -> Column(
-                Modifier.then(if (wide) Modifier else Modifier.fillMaxWidth()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                WelcomeDisclaimer()
-                Button(
-                    onClick = actions::next,
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-                    modifier = Modifier
-                        .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                        .then(if (wide) Modifier.widthIn(min = 280.dp) else Modifier.fillMaxWidth())
-                        .testTag(OnboardingTags.GetStarted),
-                ) { Text(stringResource(R.string.welcome_get_started), style = MaterialTheme.typography.titleMedium) }
-            }
-            OnboardingStep.Reminders -> {
-                // The permission is asked from the card (one Allow, not two). Until it has been asked, the step's
-                // secondary action finishes without it; once handled, a normal Finish.
-                OnboardingBackButton(actions::back, rtl)
-                if (state.remindersHandled) {
-                    Button(
-                        onClick = actions::finish,
-                        enabled = !state.isSaving,
-                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-                        modifier = Modifier
-                            .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                            .widthIn(min = 140.dp)
-                            .testTag(OnboardingTags.Finish),
-                    ) { Text(stringResource(R.string.onboarding_finish), style = MaterialTheme.typography.titleMedium) }
-                } else {
-                    TextButton(
-                        onClick = actions::finish,
-                        enabled = !state.isSaving,
-                        modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
-                    ) { Text(stringResource(R.string.reminders_maybe_later), style = MaterialTheme.typography.titleMedium) }
-                }
-            }
-            else -> {
-                OnboardingBackButton(actions::back, rtl)
-                Button(
-                    onClick = actions::next,
-                    contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-                    modifier = Modifier
-                        .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                        .widthIn(min = 140.dp)
-                        .testTag(OnboardingTags.Next),
-                ) { Text(stringResource(R.string.onboarding_next), style = MaterialTheme.typography.titleMedium) }
-            }
-        }
-    }
-}
-
-/** The outlined Back of the bottom bar (every step after Welcome). */
-@Composable
-private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean) {
-    OutlinedButton(
-        onClick = onBack,
-        modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.Back),
-    ) {
-        Icon(
-            painterResource(R.drawable.onboarding_ic_arrow_back),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp).graphicsLayer { scaleX = if (rtl) -1f else 1f },
+            },
+            modifier = Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter).graphicsLayer { alpha = frameAlpha },
+            disclaimerOverlap = bottomBarVerticalPadding(short),
         )
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.onboarding_back))
+        if (spectacleActive) {
+            ChronotypeSpectacleOverlay(
+                chronotype = state.profile.chronotype,
+                midSleep = state.inferred.midSleep,
+                daysOffLinked = state.profile.daysOffSleep == null,
+                dialBounds = dialBoundsState.value ?: androidx.compose.ui.geometry.Rect.Zero,
+                onFinished = {
+                    spectacleActive = false
+                    spectaclePlayed = true
+                    justFinishedSpectacle = true
+                    actions.next()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
     }
 }
+
+private fun welcomeBounds(step: OnboardingStep): Float = if (step == OnboardingStep.Welcome) 1f else 0f
+
+private fun chromeAlpha(step: OnboardingStep): Float = if (step == OnboardingStep.Welcome) 0f else 1f
+
+/**
+ * [animated] while the step transition runs or a back gesture seeks it, [settled] for the step it rests on. A child
+ * animation of a seekable transition can report its old start value again once the transition has ended (the
+ * steps' enter/exit animations leaving change its total duration and replay it from 0), so at rest the value comes
+ * from the step itself. Read it in layout or draw.
+ */
+private fun Transition<OnboardingStep>.settledOr(animated: State<Float>, settled: (OnboardingStep) -> Float): () -> Float = {
+    if (currentState == targetState) settled(currentState) else animated.value
+}
+
+/**
+ * Reserves a step's room for the chrome around it: [top] (read in layout, so the home search can fold it away frame
+ * by frame) and [bottom] pixels.
+ */
+private fun Modifier.stepRoom(top: () -> Int, bottom: Int): Modifier = layout { measurable, constraints ->
+    val topPx = top().coerceAtLeast(0)
+    val inner = (constraints.maxHeight - topPx - bottom).coerceAtLeast(0)
+    val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, inner))
+    layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, topPx) }
+}
+
+/**
+ * True when the height the keyboard leaves is too small to show a few results under the home step's header and
+ * current-zone card, so the search should go full height. Measured from the window, not the device type: a tall
+ * tablet keeps its layout, a phone or a landscape window switches. Larger fonts need more room for the same.
+ */
+internal fun searchModeFits(heightWithKeyboard: Dp, fontScale: Float): Boolean =
+    heightWithKeyboard < SearchModeMaxHeight * fontScale.coerceAtLeast(1f)
+
+/** Below this height (with the keyboard up, at font scale 1) the home search goes full height. */
+private val SearchModeMaxHeight = 640.dp
 
 /** Onboarding never grows wider than this: past it, the window only gains margins. */
 private val OnboardingMaxWidth = 1080.dp

@@ -83,6 +83,7 @@ data class OnboardingUiState(
     val homePlace: Place? = null,
     val query: String = "",
     val results: ImmutableList<Place> = persistentListOf(),
+    val searchMatchingQuery: String = "",
     val melatoninAcknowledged: Boolean = false,
     val permissions: NotificationPermissionState,
     val chronotypePicked: Boolean = false,
@@ -198,19 +199,19 @@ class OnboardingViewModel(
         _state.update { it.copy(query = query) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            _state.update { it.copy(results = persistentListOf()) }
+            _state.update { it.copy(results = persistentListOf(), searchMatchingQuery = "") }
             return
         }
         searchJob = viewModelScope.launch {
             val found = places.search(query.trim(), limit = 8).toImmutableList()
-            _state.update { if (it.query == query) it.copy(results = found) else it }
+            _state.update { if (it.query == query) it.copy(results = found, searchMatchingQuery = query) else it }
         }
     }
 
     fun selectPlace(place: Place) {
         searchJob?.cancel()
         edit { it.copy(homeZoneId = place.zoneId) }
-        _state.update { it.copy(homePlace = place, query = "", results = persistentListOf()) }
+        _state.update { it.copy(homePlace = place, query = "", results = persistentListOf(), searchMatchingQuery = "") }
     }
 
     fun useDeviceZone() {
