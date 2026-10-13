@@ -43,25 +43,11 @@ internal class RailColors(
     val text: Color,
     val quietText: Color,
     val nowTime: Color,
-    private val advice: AdviceColors,
     private val edges: Map<AdviceType, Color>,
-    private val pastEdges: Map<AdviceType, Color>,
+    private val capsules: Map<AdviceType, List<CapsuleColors>>,
 ) {
-    /** The colours of a [type] block's capsule in [state]. */
-    fun capsule(type: AdviceType, state: CapsuleState): CapsuleColors {
-        val role = advice[type]
-        val edge = edges.getValue(type)
-        return when (state) {
-            CapsuleState.Now -> CapsuleColors(fill = role.color, edge = edge, ink = role.onColor.copy(alpha = PatternInkAlpha), mark = role.onColor)
-            CapsuleState.Upcoming -> CapsuleColors(fill = role.container, edge = edge, ink = role.onContainer.copy(alpha = PatternInkAlpha), mark = role.onContainer)
-            CapsuleState.Past -> CapsuleColors(
-                fill = ColorMath.mix(role.container, page, PastWash),
-                edge = pastEdges.getValue(type),
-                ink = role.onContainer.copy(alpha = PatternInkAlpha * (1f - PastWash)),
-                mark = role.onContainer,
-            )
-        }
-    }
+    /** The colours of a [type] block's capsule in [state] (resolved once per theme: a lookup on every row). */
+    fun capsule(type: AdviceType, state: CapsuleState): CapsuleColors = capsules.getValue(type)[state.ordinal]
 
     /** The edge of a [type] chip that is on now or highlighted (the same deep tone as its capsule's). */
     fun edge(type: AdviceType): Color = edges.getValue(type)
@@ -74,6 +60,11 @@ internal class RailColors(
          * until they keep [EdgeContrast] against the page, the Now card and the strip over either (WCAG 1.4.11,
          * with a margin), so they hold under any wallpaper palette. Past edges wash [PastWash] into the page but keep
          * [PastEdgeContrast].
+         *
+         * Patterns are drawn in the capsule's content colour at [PatternInkAlpha], except Sleep's star dots: they are
+         * small and sparse, so they get the lowest alpha that still makes each dot [StarContrast] against its capsule
+         * ([PastStarContrast] on a past one), whatever the palette (owner, device QA: at a fixed 11 % they were barely
+         * visible in light theme).
          */
         fun of(scheme: ColorScheme, advice: AdviceColors, sky: SkyPalette): RailColors {
             val page = scheme.surface
@@ -90,6 +81,39 @@ internal class RailColors(
             val pastEdges = AdviceType.entries.associateWith { type ->
                 ColorMath.mix(edges.getValue(type), page, PastWash).withContrastAtLeast(PastEdgeContrast, backgrounds, lighten = darkPage)
             }
+            val capsules = AdviceType.entries.associateWith { type ->
+                val role = advice[type]
+                val stars = type == AdviceType.Sleep
+                CapsuleState.entries.map { state ->
+                    when (state) {
+                        CapsuleState.Now -> CapsuleColors(
+                            fill = role.color,
+                            edge = edges.getValue(type),
+                            ink = if (stars) role.onColor.inkWithContrast(role.color, StarContrast) else role.onColor.copy(alpha = PatternInkAlpha),
+                            mark = role.onColor,
+                        )
+                        CapsuleState.Upcoming -> CapsuleColors(
+                            fill = role.container,
+                            edge = edges.getValue(type),
+                            ink = if (stars) role.onContainer.inkWithContrast(role.container, StarContrast) else role.onContainer.copy(alpha = PatternInkAlpha),
+                            mark = role.onContainer,
+                        )
+                        CapsuleState.Past -> {
+                            val fill = ColorMath.mix(role.container, page, PastWash)
+                            CapsuleColors(
+                                fill = fill,
+                                edge = pastEdges.getValue(type),
+                                ink = if (stars) {
+                                    role.onContainer.inkWithContrast(fill, PastStarContrast)
+                                } else {
+                                    role.onContainer.copy(alpha = PatternInkAlpha * (1f - PastWash))
+                                },
+                                mark = role.onContainer,
+                            )
+                        }
+                    }
+                }
+            }
             return RailColors(
                 page = page,
                 emphasisedRow = card,
@@ -100,9 +124,8 @@ internal class RailColors(
                 text = scheme.onSurface,
                 quietText = scheme.onSurfaceVariant,
                 nowTime = scheme.primary,
-                advice = advice,
                 edges = edges,
-                pastEdges = pastEdges,
+                capsules = capsules,
             )
         }
     }
@@ -145,6 +168,29 @@ private fun Color.withContrastAtLeast(min: Float, backgrounds: List<Color>, ligh
     }
     return this
 }
+
+/**
+ * This (opaque) colour at the lowest alpha, from [PatternInkAlpha] up, that keeps [min] contrast against [fill] once
+ * composited over it; fully opaque if even that falls short.
+ */
+private fun Color.inkWithContrast(fill: Color, min: Float): Color {
+    fun ok(alpha: Float) = ColorMath.contrast(ColorMath.over(copy(alpha = alpha), fill), fill) >= min
+    if (ok(PatternInkAlpha)) return copy(alpha = PatternInkAlpha)
+    if (!ok(1f)) return copy(alpha = 1f)
+    var low = PatternInkAlpha
+    var high = 1f
+    repeat(12) {
+        val mid = (low + high) / 2f
+        if (ok(mid)) high = mid else low = mid
+    }
+    return copy(alpha = high)
+}
+
+/** Sleep's star dots against their capsule: each dot is a non-text mark that must be seen (WCAG 1.4.11). */
+internal const val StarContrast = 3f
+
+/** Star dots on a past Sleep capsule: quieter, like its edge, but still there. */
+internal const val PastStarContrast = 2.2f
 
 /** Capsule edges keep this much contrast against everything they sit on (3:1 plus a margin for blending). */
 private const val EdgeContrast = 3.2f
