@@ -990,20 +990,21 @@ private class GlobeRenderer {
     private companion object {
         const val LandLevels = 6
 
-        /** Depth bands for foreshortening: a dot's depth (cosine of its angle to the viewer) picks its band. */
-        const val DepthBands = 5
-        val DepthEdges = floatArrayOf(0.08f, 0.2f, 0.38f, 0.6f)
+        /**
+         * Depth bands for foreshortening. A dot's band comes from the square root of its depth (the cosine of its angle
+         * to the viewer), which is how a disc on a sphere shrinks towards the limb. Twelve bands keep each step to
+         * about 6% of a dot's size, so a dot crossing a band edge while the globe turns doesn't visibly pop, while
+         * the cloud still draws in a bounded number of drawPoints calls.
+         */
+        const val DepthBands = 12
 
-        /** Dot size per band, roughly the square root of the band's depth, as on a real sphere seen head-on. */
-        val DepthScale = floatArrayOf(0.32f, 0.5f, 0.67f, 0.84f, 1f)
+        /** Dot size per band: 30% at the horizon up to full size facing the viewer. */
+        val DepthScale = FloatArray(DepthBands) { 0.3f + 0.7f * (it + 0.5f) / DepthBands }
 
         /** Dots also fade towards the horizon, so the limb reads as curving away rather than as a hard edge. */
-        val DepthAlpha = floatArrayOf(0.4f, 0.62f, 0.8f, 0.93f, 1f)
+        val DepthAlpha = FloatArray(DepthBands) { 0.4f + 0.6f * (it + 0.5f) / DepthBands }
 
-        fun depthBand(depth: Float): Int {
-            var band = 0
-            while (band < DepthEdges.size && depth >= DepthEdges[band]) band++
-            return band
-        }
+        fun depthBand(depth: Float): Int =
+            (kotlin.math.sqrt(depth.coerceIn(0f, 1f)) * DepthBands).toInt().coerceAtMost(DepthBands - 1)
     }
 }
