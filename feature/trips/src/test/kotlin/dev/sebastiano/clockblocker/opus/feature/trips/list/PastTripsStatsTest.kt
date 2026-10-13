@@ -10,6 +10,7 @@ import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import dev.sebastiano.clockblocker.opus.core.model.FlightLeg
+import dev.sebastiano.clockblocker.opus.core.model.Place
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -107,6 +108,19 @@ class PastTripsStatsTest {
             arrivalLocal = LocalDateTime.of(2026, 10, 25, 3, 0),
         )
         hoursOfTimeDifference(TripsSamples.lisbonTokyo.copy(legs = listOf(leg))) shouldBe 0f
+    }
+
+    @Test
+    fun `across the date line the clock-face change counts, not the 24 hours on paper`() {
+        val out = TripsSamples.lisbonTokyo.legs.single()
+        val kiritimati = out.origin.copy(code = "CXI", zoneId = "Pacific/Kiritimati", latitude = 1.99, longitude = -157.35)
+        val honolulu = out.destination.copy(code = "HNL", zoneId = "Pacific/Honolulu", latitude = 21.32, longitude = -157.93)
+        val auckland = out.origin.copy(code = "AKL", zoneId = "Pacific/Auckland", latitude = -37.01, longitude = 174.79)
+        fun trip(from: Place, to: Place) = TripsSamples.lisbonTokyo.copy(legs = listOf(out.copy(origin = from, destination = to)))
+        // +14 → −10: the same time of day.
+        hoursOfTimeDifference(trip(kiritimati, honolulu)) shouldBe 0f
+        // Auckland (+13 in April's early days, +12 after) → Honolulu (−10): 1 or 2 hours, never 22 or 23.
+        (hoursOfTimeDifference(trip(auckland, honolulu)) <= 2f) shouldBe true
     }
 
     @Test

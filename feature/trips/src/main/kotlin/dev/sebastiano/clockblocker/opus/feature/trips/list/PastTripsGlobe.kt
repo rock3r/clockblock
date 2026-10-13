@@ -104,14 +104,19 @@ internal data class PastTripsStats(
 /**
  * The time difference [trip]'s flights crossed, in hours: for each flight, how far the destination's clock was from
  * the origin's when it took off (both zones at the same instant, from the IANA zones, so half-hour zones count and a
- * clock change during the flight doesn't), added up regardless of direction.
+ * clock change during the flight doesn't; folded into ±12 h, so crossing the date line counts the clock-face change),
+ * added up regardless of direction.
  */
 internal fun hoursOfTimeDifference(trip: Trip): Float = trip.legs.sumOf { it.timeDifferenceHours() }.toFloat()
 
 private fun FlightLeg.timeDifferenceHours(): Double {
     val from = origin.zone.rules.getOffset(departure).totalSeconds
     val to = destination.zone.rules.getOffset(departure).totalSeconds
-    return abs(to - from) / 3600.0
+    // Folded into ±12 h: across the date line the clocks can be 24 h apart on paper (Kiritimati +14, Honolulu −10)
+    // while showing the same time of day, and that's what a body clock has to deal with.
+    val day = 24 * 3600
+    val folded = Math.floorMod(to - from + day / 2, day) - day / 2
+    return abs(folded) / 3600.0
 }
 
 /**

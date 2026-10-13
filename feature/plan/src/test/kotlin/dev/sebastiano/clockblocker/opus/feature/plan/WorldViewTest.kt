@@ -24,6 +24,7 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -165,6 +166,30 @@ class WorldViewTest {
         compose.waitForIdle()
         compose.onNodeWithTag(PlanTags.World).assertExists()
         caption() shouldContain "It's ${nowThere()}"
+    }
+
+    @Test
+    fun `a pinch that starts on the hub keeps a preview instead of treating the first finger as a tap`() {
+        show()
+        // A preview another time (TalkBack's Next block), then a pinch whose first finger lands on the hub.
+        compose.onNodeWithTag(PlanTags.Dial).performCustomAccessibilityActionWithLabel("Next block")
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.Dial).performTouchInput {
+            down(0, center - Offset(10f, 0f))
+            advanceEventTime(40)
+            down(1, center + Offset(60f, 0f))
+            repeat(8) { step ->
+                advanceEventTime(16)
+                moveTo(0, center - Offset(10f + 20f * (step + 1), 0f))
+                moveTo(1, center + Offset(60f + 20f * (step + 1), 0f))
+            }
+            up(0)
+            up(1)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PlanTags.World).assertExists()
+        // The world shows the previewed time, not now: the hub press wasn't a tap back to now.
+        caption() shouldNotContain "It's ${nowThere()}"
     }
 
     @Test

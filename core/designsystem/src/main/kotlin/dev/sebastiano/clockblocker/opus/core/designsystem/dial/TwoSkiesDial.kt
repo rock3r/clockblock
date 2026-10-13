@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
@@ -228,6 +229,14 @@ fun TwoSkiesDial(
                         val allowEgg = easterEggsEnabled && currentOnRewind != null && !reduce
                         val longPress = if (allowEgg) awaitLongPressOrCancellation(down.id) else null
                         if (longPress == null) {
+                            // Only a finger lifted on its own is a tap. A second finger (a pinch to the world, which
+                            // takes the gesture over) or a cancelled touch leaves the hand and the cards as they are.
+                            val tapped = if (allowEgg) {
+                                currentEvent.changes.none { it.pressed || it.isConsumed }
+                            } else {
+                                waitForUpOrCancellation() != null && currentEvent.changes.none { it.pressed }
+                            }
+                            if (!tapped) return@awaitEachGesture
                             // A tap on the centre returns the hand to now; the cards travel with it. A landing at
                             // offset 0 (now on the face, but the other run of a repeated hour) is a preview too.
                             if (scrub.value != 0f || landing != null) {
