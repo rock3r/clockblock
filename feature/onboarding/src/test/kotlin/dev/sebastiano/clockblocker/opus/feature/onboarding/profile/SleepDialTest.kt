@@ -4,38 +4,47 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
-import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.click
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
+import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
+import io.kotest.matchers.floats.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -251,9 +260,9 @@ class SleepDialTest : ClockblockScreenshotTest() {
         setContent { SleepDial(editedWork, editedDaysOff, { editedWork = it }, { editedDaysOff = it }) }
         compose.onNodeWithTag(SleepDialTags.WorkDays)
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
-            .assertIsSelected()
-        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsNotSelected().performClick()
-        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsSelected()
+            .assertIsOn()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsOff().performClick()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsOn()
         compose.onNodeWithTag(SleepDialTags.BedtimePill).assert(hasTime("00:30"))
         compose.onNodeWithTag(SleepDialTags.WakePill).assert(hasTime("09:15"))
         compose.onNodeWithTag(SleepDialTags.Wake).performSemanticsAction(SemanticsActions.SetProgress) { it(9 * 60f + 30f) }
@@ -283,7 +292,7 @@ class SleepDialTest : ClockblockScreenshotTest() {
             val a = Math.toRadians(DialGeometry.angleForMinute(15 * 60f).toDouble())
             click(Offset(center.x + r * cos(a).toFloat(), center.y + r * sin(a).toFloat()))
         }
-        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsSelected()
+        compose.onNodeWithTag(SleepDialTags.DaysOff).assertIsOn()
     }
 
     @Test
@@ -302,14 +311,14 @@ class SleepDialTest : ClockblockScreenshotTest() {
     @Test
     fun toggle_labels_are_whole_on_a_short_dial_at_a_large_font() = assertToggleReadable(fontScale = 1.5f, maxHeight = 300.dp)
 
-    private fun assertToggleReadable(fontScale: Float, maxHeight: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Infinity) {
+    private fun assertToggleReadable(fontScale: Float, maxHeight: Dp = Dp.Infinity) {
         setContent(fontScale = fontScale) { SleepDial(work, daysOff, {}, {}, maxHeight = maxHeight) }
         listOf(SleepDialTags.WorkDays to "Work days", SleepDialTags.DaysOff to "Days off").forEach { (tag, label) ->
             val tab = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
             ((tab.right - tab.left) >= 48.dp) shouldBe true
             ((tab.bottom - tab.top) >= 48.dp) shouldBe true
             val text = compose.onNodeWithText(label, useUnmergedTree = true)
-            val layouts = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+            val layouts = mutableListOf<TextLayoutResult>()
             text.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             val layout = layouts.single()
             // Every line fits the width its tab gives it, nothing is cut off at the end, and no line is cut off below.
@@ -318,6 +327,8 @@ class SleepDialTest : ClockblockScreenshotTest() {
                 (layout.getLineRight(line) - layout.getLineLeft(line) <= layout.layoutInput.constraints.maxWidth + 0.5f) shouldBe true
             }
             layout.getLineEnd(layout.lineCount - 1, visibleEnd = true) shouldBe label.length
+            // Lines break only between words ("Wor" / "k" is a fail).
+            (0 until layout.lineCount - 1).forEach { line -> label[layout.getLineEnd(line) - 1] shouldBe ' ' }
             layout.didOverflowHeight shouldBe false
             layout.layoutInput.text.text shouldBe label
             // Never shrunk past legibility: at least 85 % of the label style.
@@ -326,7 +337,7 @@ class SleepDialTest : ClockblockScreenshotTest() {
             val bounds = text.getUnclippedBoundsInRoot()
             (bounds.left >= tab.left - 0.5.dp && bounds.right <= tab.right + 0.5.dp) shouldBe true
         }
-        if (maxHeight != androidx.compose.ui.unit.Dp.Infinity) {
+        if (maxHeight != Dp.Infinity) {
             val top = minOf(
                 compose.onNodeWithTag(SleepDialTags.Dial).getUnclippedBoundsInRoot().top,
                 compose.onNodeWithTag(SleepDialTags.WorkDays).getUnclippedBoundsInRoot().top,
@@ -372,8 +383,16 @@ class SleepDialTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(SleepDialTags.Duration).assert(hasText("12h 25m"))
     }
 
+    /** TalkBack hears the spaced form used everywhere else ("12 h 25 m"), not the narrow one drawn on the face. */
+    @Test
+    fun talkback_hears_the_spaced_duration() {
+        setContent { SleepDial(SleepWindow(LocalTime.of(22, 0), LocalTime.of(10, 25)), {}) }
+        compose.onNodeWithTag(SleepDialTags.Duration).assert(hasContentDescription("12 h 25 m"))
+    }
+
     private val longest = SleepWindow(LocalTime.of(0, 0), LocalTime.of(23, 55))
     private val tenOhFive = SleepWindow(LocalTime.of(22, 0), LocalTime.of(8, 5))
+    private val twelveTwentyFive = SleepWindow(LocalTime.of(22, 0), LocalTime.of(10, 25))
 
     @Test fun readout_clear_longest_night() = assertReadoutClear(longest, 1f)
 
@@ -383,10 +402,16 @@ class SleepDialTest : ClockblockScreenshotTest() {
 
     @Test fun readout_clear_longest_night_12_hour_large_font() = assertReadoutClear(longest, 1.5f, is24Hour = false)
 
-    /** The smallest ring the layout allows (a short space: 140 dp) with the choice beside it. */
-    @Test fun readout_clear_on_the_smallest_dial() = assertReadoutClear(longest, 1f, maxHeight = 200.dp)
+    /** The owner's case: "12 h 25 m" ran into the 18 numeral. */
+    @Test fun readout_clear_twelve_twenty_five_large_font() = assertReadoutClear(twelveTwentyFive, 1.5f)
 
-    @Test fun readout_clear_on_the_smallest_dial_large_font() = assertReadoutClear(longest, 1.5f, maxHeight = 200.dp)
+    @Test fun readout_clear_twelve_twenty_five_on_a_narrow_window_large_font() = assertReadoutClear(twelveTwentyFive, 1.5f, width = 320.dp)
+
+    /** The smallest ring the layout allows: a short, narrow space (too narrow for side by side) gets 140 dp. */
+    @Test fun readout_clear_on_the_smallest_dial() = assertReadoutClear(longest, 1f, maxHeight = 200.dp, width = 320.dp, ring = MinRing)
+
+    @Test fun readout_clear_on_the_smallest_dial_large_font() =
+        assertReadoutClear(longest, 1.5f, maxHeight = 200.dp, width = 320.dp, ring = MinRing)
 
     /** A narrow window: the choice beside the dial leaves the ring about 200 dp. */
     @Test fun readout_clear_beside_on_a_narrow_window() = assertReadoutClear(longest, 1f, width = 320.dp)
@@ -409,28 +434,33 @@ class SleepDialTest : ClockblockScreenshotTest() {
     }
 
     /**
-     * The duration and its caption, as laid out, keep clear of the four hour numerals (as the face draws them) and stay
-     * inside the hour ticks.
+     * The duration and its caption, as laid out, keep clear of the four hour numerals and stay inside the hour ticks.
+     * The numerals' boxes come from the face's spec, not from the code that sizes the readout: "00", "06", "12" and
+     * "18" (or "12a", "6a", "12p", "6p"), 10 u tall, centred 81 u from the centre (1 u = side / 320), midnight at the
+     * bottom, 06 on the left, noon at the top and 18 on the right; the ticks' inner end is 92 u out. [ring], when given,
+     * is the ring's expected diameter.
      */
     private fun assertReadoutClear(
         window: SleepWindow,
         fontScale: Float,
         is24Hour: Boolean = true,
-        maxHeight: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Infinity,
-        width: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Unspecified,
+        maxHeight: Dp = Dp.Infinity,
+        width: Dp = Dp.Unspecified,
+        ring: Dp? = null,
     ) {
-        var measurer: androidx.compose.ui.text.TextMeasurer? = null
-        var style: androidx.compose.ui.text.TextStyle? = null
-        var density: androidx.compose.ui.unit.Density? = null
+        var measurer: TextMeasurer? = null
+        var style: TextStyle? = null
+        var density: Density? = null
         setContent(fontScale = fontScale, is24Hour = is24Hour) {
-            measurer = androidx.compose.ui.text.rememberTextMeasurer()
-            style = dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme.textStyles.timeLabel
-            density = androidx.compose.ui.platform.LocalDensity.current
-            val m = if (width != androidx.compose.ui.unit.Dp.Unspecified) Modifier.width(width) else Modifier
+            measurer = rememberTextMeasurer()
+            style = ClockblockTheme.textStyles.timeLabel
+            density = LocalDensity.current
+            val m = if (width != Dp.Unspecified) Modifier.width(width) else Modifier
             SleepDial(window, daysOff, {}, {}, m, maxHeight = maxHeight)
         }
         val d = density!!
         val dial = compose.onNodeWithTag(SleepDialTags.Dial).getUnclippedBoundsInRoot()
+        if (ring != null) ((dial.right - dial.left) - ring).value.absoluteValue shouldBeLessThan 1f
         val duration = compose.onNodeWithTag(SleepDialTags.Duration, useUnmergedTree = true).getUnclippedBoundsInRoot()
         val caption = compose.onNodeWithTag(SleepDialTags.Caption, useUnmergedTree = true).getUnclippedBoundsInRoot()
         with(d) {
@@ -438,14 +468,24 @@ class SleepDialTest : ClockblockScreenshotTest() {
             val cx = ((dial.left + dial.right) / 2).toPx()
             val cy = ((dial.top + dial.bottom) / 2).toPx()
             val u = side / 320f
-            val numerals = numeralRects(side, measurer!!, style!!, is24Hour, d)
+            val numeralStyle = style!!.copy(fontSize = (10f * u).toSp())
+            val labels = if (is24Hour) listOf("00", "06", "12", "18") else listOf("12a", "6a", "12p", "6p")
+            val centres = listOf(Offset(0f, 81f * u), Offset(-81f * u, 0f), Offset(0f, -81f * u), Offset(81f * u, 0f))
+            val numerals = labels.zip(centres) { text, c ->
+                val size = measurer!!.measure(text, numeralStyle).size
+                Rect(c.x - size.width / 2f, c.y - size.height / 2f, c.x + size.width / 2f, c.y + size.height / 2f)
+            }
             listOf(duration, caption).forEach { b ->
-                val r = androidx.compose.ui.geometry.Rect(b.left.toPx() - cx, b.top.toPx() - cy, b.right.toPx() - cx, b.bottom.toPx() - cy)
+                val r = Rect(b.left.toPx() - cx, b.top.toPx() - cy, b.right.toPx() - cx, b.bottom.toPx() - cy)
                 // Clear of every numeral, with a little room to spare.
                 numerals.forEach { n -> n.overlaps(r.inflate(2f * u)) shouldBe false }
-                // Inside the ticks (their inner end is 92 u from the centre).
                 listOf(r.topLeft, r.topRight, r.bottomLeft, r.bottomRight).forEach { (it.getDistance() <= 92f * u) shouldBe true }
             }
         }
+    }
+
+    private companion object {
+        /** MinFitDialSize: the smallest ring a short space gets. */
+        val MinRing = 140.dp
     }
 }

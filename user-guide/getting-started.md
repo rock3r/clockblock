@@ -47,7 +47,7 @@ Drag the moon to your usual bedtime and the sun to your usual wake-up time. The 
 Switch between them with the **Work days** and **Days off** buttons beside the dial, or tap the thin outer ring: it
 shows the other schedule. With a very large font or a narrow screen the buttons move above the dial, and on a phone
 on its side they sit beside it with the Bedtime and Wake buttons, so their words always fit. Days off start as a copy
-of work days ("Same as work days until you move a handle"); move a Days off handle to set them on their own. If your
+of work days ("Same as work days for now"); move a Days off handle to set them on their own. If your
 nights are the same every day, leave Days off alone.
 
 The middle of the dial shows how long you sleep, for example 8h 30m. A very short or very long night gets a note

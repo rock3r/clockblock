@@ -70,9 +70,9 @@
     <string name="sleep_action_earlier">15 minutes earlier</string>
     <string name="sleep_noon">Noon</string>
     <string name="sleep_midnight">Midnight</string>
-    <string name="sleep_hint_short">That\'s a short night. The plan works best with your real, usual sleep.</string>
+    <string name="sleep_hint_short">Is this your usual night?</string>
     <string name="sleep_hint_long">That\'s a lot of sleep. Lucky you.</string>
-    <string name="sleep_hint_linked">Same as work days until you move a handle.</string>
+    <string name="sleep_hint_linked">Same as work days for now.</string>
     <string name="sleep_egg_time">24:12</string>
     <string name="sleep_egg_caption">your body\'s day</string>
     <string name="sleep_egg_line">Your body\'s day is about 24.2 hours (Czeisler 1999). That\'s why flying west feels easier.</string>

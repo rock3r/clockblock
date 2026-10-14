@@ -114,7 +114,7 @@ import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.core.model.ZoneLabels
 import dev.sebastiano.clockblocker.opus.core.notifications.NotificationPermissionState
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeEstimate
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ConnectedChoice as SharedConnectedChoice
+import dev.sebastiano.clockblocker.opus.core.designsystem.component.ConnectedChoice as SharedConnectedChoice
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeSky
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
@@ -1232,6 +1232,9 @@ internal fun YouEditor(
                         modifier = Modifier.fillMaxWidth(),
                         easterEggEnabled = easterEggs,
                         maxHeight = dialHeight,
+                        // The sheet scrolls and has no fold to keep: the biggest ring, and a hint only while it shows.
+                        reserveHintSpace = false,
+                        preferChoiceBeside = false,
                     )
                 }
                 YouEditorTab.Chronotype -> {

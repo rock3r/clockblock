@@ -568,7 +568,7 @@ private fun CurrentZoneCard(state: OnboardingUiState, actions: OnboardingActions
     val colors = MaterialTheme.colorScheme
     Surface(shape = MaterialTheme.shapes.extraLarge, color = colors.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().testTag(HomeZoneTags.Current)) {
         Column(Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.onboarding_ic_place), contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.home_current_label), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
@@ -729,7 +729,7 @@ private fun PermissionRow(
     val colors = MaterialTheme.colorScheme
     Surface(shape = shape, color = colors.surfaceContainer, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
                     Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
