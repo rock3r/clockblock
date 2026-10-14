@@ -60,12 +60,15 @@ of sleep.
 
 #### Your chronotype
 
-<img src="images/chronotype.png" alt="Still step 3 of 5: a small sky with the sun high on its path, Your chronotype, Somewhere in between, Neither a lark nor an owl. Most people are here. Below: Allowing for catch-up sleep, your nights off are centred on 04:38, and a Doesn't sound like me link." width="280" />
+<img src="images/chronotype.png" alt="Still step 3 of 5: a sky over layered hills with the sun high on its path between two clouds, Your chronotype, Somewhere in between, Neither a lark nor an owl. Most people are here. Below: Your usual nights are centred on 03:00. Set your days off on the previous step for a closer estimate, and a Doesn't sound like me link." width="280" />
 
 When you tap **Next**, the app works out your chronotype from those two schedules: Early bird, Morning person,
 Somewhere in between, Evening person or Night owl. It uses the middle of your nights off, allowing for catch-up sleep
 after the working week (the Munich ChronoType Questionnaire's method). If you left Days off as a copy of work days,
 the screen says it used your usual nights and suggests setting your days off for a closer estimate.
+
+The first time, the card grows out of the dial in a short animation and its picture builds up in layers; tap anywhere
+to skip to the end. There's no animation if you've turned on Reduce motion, removed animations, or use TalkBack.
 
 If it doesn't fit, tap **Doesn't sound like me** and pick another. The one your sleep suggests is marked. The screen
 then says **Your pick**, and changing your nights later doesn't override it.

@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SeekableTransitionState
@@ -44,7 +45,8 @@ import kotlinx.coroutines.launch
  * - **Next / Back buttons**: shared axis X, a 30 dp slide mirrored in RTL, on `navigationSpatial()` (Standard,
  *   no bounce, snaps under reduced motion) with the sequenced `navigationFadeOut()` → `navigationFadeIn()`.
  *   A step leaves toward the edge the next one comes from, and Back plays exactly the reverse.
- * - **Sleep → chronotype reveal**: a fade-through with the reveal growing in on the container spring (see [reveal]).
+ * - **Sleep → chronotype reveal**: a fade-through with the reveal growing in on the container spring (see [reveal]);
+ *   the first time, the sleep step only fades away under the reveal's own spectacle (see [spectacle]).
  * - **Predictive back**: the gesture *seeks* the transition to the previous step: the current step shrinks to
  *   90 % and drifts back toward the forward edge it entered from (whichever edge the swipe started on) while
  *   fading on `colour()`, revealing the previous step underneath. Committing continues from where the finger
@@ -63,12 +65,12 @@ internal class OnboardingStepTransition(
 
     private val forwardSign: Int get() = if (layoutDirection == LayoutDirection.Ltr) 1 else -1
 
-    /** The [ContentTransform] for a step change from [from] to [to]. */
-    fun transitionFor(from: OnboardingStep, to: OnboardingStep): ContentTransform {
+    /** The [ContentTransform] for a step change from [from] to [to]; [spectacle] while the chronotype spectacle plays. */
+    fun transitionFor(from: OnboardingStep, to: OnboardingStep, spectacle: Boolean = false): ContentTransform {
         val forward = to.ordinal > from.ordinal
         return when {
             !forward && gestureBack -> predictiveBack()
-            from == OnboardingStep.Sleep && to == OnboardingStep.Chronotype -> reveal()
+            from == OnboardingStep.Sleep && to == OnboardingStep.Chronotype -> if (spectacle) spectacle() else reveal()
             else -> sharedAxis(if (forward) forwardSign else -forwardSign)
         }
     }
@@ -84,6 +86,13 @@ internal class OnboardingStepTransition(
         val exit = fadeOut(motion.navigationFadeOut())
         return ContentTransform(enter, exit, sizeTransform = SizeTransform(clip = false))
     }
+
+    /**
+     * Sleep → the chronotype reveal's first-time spectacle: the reveal draws its own entrance from the sleep dial, so it
+     * comes in as it is, over the sleep step fading away on `colour()` (the shape grows out of the dial meanwhile).
+     */
+    private fun spectacle(): ContentTransform =
+        ContentTransform(EnterTransition.None, fadeOut(motion.colour()), sizeTransform = SizeTransform(clip = false))
 
     private fun sharedAxis(sign: Int): ContentTransform {
         val enter = slideInHorizontally(motion.navigationSpatial()) { sign * axisOffsetPx } +
@@ -102,12 +111,8 @@ internal class OnboardingStepTransition(
         return ContentTransform(enter, exit, targetContentZIndex = -1f, sizeTransform = SizeTransform(clip = false))
     }
 
-    internal suspend fun settleOn(step: OnboardingStep, snap: Boolean = false) {
-        if (snap) {
-            state.snapTo(step)
-        } else {
-            state.animateTo(step)
-        }
+    internal suspend fun settleOn(step: OnboardingStep) {
+        state.animateTo(step)
         gestureBack = false
     }
 
@@ -140,12 +145,7 @@ internal class OnboardingStepTransition(
  * handler: enabled after the first step, it calls [onBack] on commit.
  */
 @Composable
-internal fun rememberOnboardingStepTransition(
-    step: OnboardingStep,
-    snap: Boolean = false,
-    onSettled: (OnboardingStep) -> Unit = {},
-    onBack: () -> Unit,
-): OnboardingStepTransition {
+internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -> Unit): OnboardingStepTransition {
     val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val axisOffsetPx = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
@@ -154,13 +154,8 @@ internal fun rememberOnboardingStepTransition(
     val steps = remember(seekable, transition, motion, axisOffsetPx, layoutDirection) {
         OnboardingStepTransition(seekable, transition, motion, axisOffsetPx, layoutDirection)
     }
-    val currentSnap by rememberUpdatedState(snap)
-    val currentOnSettled by rememberUpdatedState(onSettled)
-    // Every step change animates (a committed gesture continues from its current fraction), unless snapped at spectacle hand-off.
-    LaunchedEffect(steps, step) {
-        steps.settleOn(step, snap = currentSnap)
-        currentOnSettled(step)
-    }
+    // Every step change animates (a committed gesture continues from its current fraction).
+    LaunchedEffect(steps, step) { steps.settleOn(step) }
 
     val previous = OnboardingStep.entries.getOrNull(step.ordinal - 1)
     val backState = rememberNavigationEventState(currentInfo = NavigationEventInfo.None)
