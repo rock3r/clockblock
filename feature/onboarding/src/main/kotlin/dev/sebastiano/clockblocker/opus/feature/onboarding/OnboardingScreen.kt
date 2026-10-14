@@ -319,7 +319,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                     },
                                     bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
                                 )
-                                .testTag(OnboardingTags.step(target)),
+                                .testTag(OnboardingTags.step(target))
+                                .then(with(steps) { Modifier.contentLaidOut(target) }),
                         ) {
                             CompositionLocalProvider(LocalSpectacleOrigin provides spectacleOrigin) {
                                 OnboardingStepBody(

@@ -14,15 +14,19 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -36,6 +40,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -51,6 +56,9 @@ import kotlinx.coroutines.launch
  *   90 % and drifts back toward the forward edge it entered from (whichever edge the swipe started on) while
  *   fading on `colour()`, revealing the previous step underneath. Committing continues from where the finger
  *   let go; cancelling returns along the same path on `navigationSpatial()`.
+ * - **Start**: a step change first composes and lays out the incoming step at the transition's start (invisible
+ *   there), then animates. A slow first composition (the home step on first run) delays the start by its frames
+ *   instead of eating the transition's opening.
  */
 @Stable
 internal class OnboardingStepTransition(
@@ -62,6 +70,21 @@ internal class OnboardingStepTransition(
 ) {
     /** True while a back gesture drives (or has just committed) the transition. */
     internal var gestureBack: Boolean by mutableStateOf(false)
+
+    /** The steps whose content is composed and laid out (see [contentLaidOut]). */
+    private val laidOut = mutableStateSetOf<OnboardingStep>()
+
+    /**
+     * Reports [step]'s content as laid out, on the step's root, and forgets it when the content leaves. [settleOn]
+     * waits for it before it animates.
+     */
+    @Composable
+    internal fun Modifier.contentLaidOut(step: OnboardingStep): Modifier {
+        // Keyed on this transition too: a rebuilt one (new motion, density or direction) must forget the step from its
+        // own set, the one its onPlaced fills.
+        DisposableEffect(this@OnboardingStepTransition, step) { onDispose { laidOut -= step } }
+        return onPlaced { if (step !in laidOut) laidOut += step }
+    }
 
     private val forwardSign: Int get() = if (layoutDirection == LayoutDirection.Ltr) 1 else -1
 
@@ -112,6 +135,13 @@ internal class OnboardingStepTransition(
     }
 
     internal suspend fun settleOn(step: OnboardingStep) {
+        if (state.targetState != step) {
+            // Compose and lay out the incoming step at the transition's start (it is still invisible there) before
+            // anything moves. Its first composition can take several frames on a phone (the home step on first run),
+            // and an animation already running would jump over its opening during them.
+            state.seekTo(0f, targetState = step)
+            snapshotFlow { step in laidOut }.first { it }
+        }
         state.animateTo(step)
         gestureBack = false
     }
