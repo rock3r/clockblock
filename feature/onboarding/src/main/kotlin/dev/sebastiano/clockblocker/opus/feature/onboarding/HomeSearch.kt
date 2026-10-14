@@ -52,6 +52,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -69,7 +70,6 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
-import dev.sebastiano.clockblocker.opus.core.designsystem.component.placeResultRowHeight
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
@@ -135,8 +135,10 @@ fun HomeSearch(
     val keyboardTarget = keyboardAboveBars(WindowInsets.imeAnimationTarget)
     val keyboardNow = rememberKeyboardAboveBars()
     val measured = remember { MeasuredRoom() }
+    // A long, typical result measured at the results' width in the normal layout: real rows wrap at large fonts and
+    // in narrow columns, so the room is planned with one (before the first layout the field can't be focused yet).
     val needed = measured.aboveResults + measured.below +
-        with(density) { (placeResultRowHeight() * MinVisibleResults + SegmentedGap * (MinVisibleResults - 1)).roundToPx() }
+        measured.sampleRow * MinVisibleResults + with(density) { SegmentedGap.roundToPx() } * (MinVisibleResults - 1)
     val roomPx = with(density) { room.roundToPx() }
     // Once full height, it stays so until the search ends: the room it measures changes as the host folds away.
     val fullHeight = focused && keyboardTarget > 0 && (state.fullHeight || roomPx - keyboardTarget < needed)
@@ -209,7 +211,7 @@ fun HomeSearch(
                     .onFocusChanged { focused = it.isFocused }
                     .testTag(HomeZoneTags.Search),
             )
-            ResultCount(query, results, resultsQuery, rowHeight = placeResultRowHeight(), modifier = Modifier.layoutId(SearchSlot.Count))
+            ResultCount(query, results, resultsQuery, rowHeight = { measured.sampleRow }, modifier = Modifier.layoutId(SearchSlot.Count))
             Box(Modifier.layoutId(SearchSlot.Results).then(if (fullHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
                 val pick = { place: Place ->
                     onPick(place)
@@ -223,6 +225,8 @@ fun HomeSearch(
                 exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
                 modifier = Modifier.layoutId(SearchSlot.Below),
             ) { below() }
+            // Measured, never placed (so never drawn or touched) and silent for TalkBack.
+            Box(Modifier.layoutId(SearchSlot.SampleRow).clearAndSetSemantics { }) { PlaceResultRow(PlanningSample, now, onClick = {}) }
         },
         modifier = modifier
             .fillMaxWidth()
@@ -254,6 +258,7 @@ fun HomeSearch(
             val height = constraints.maxHeight
             val results = slot(SearchSlot.Results, Constraints.fixed(resultsWidth, height))
             slot(SearchSlot.Below, Constraints.fixed(0, 0))
+            slot(SearchSlot.SampleRow, Constraints.fixed(0, 0))
             layout(width, height) {
                 val fieldTop = above.heightOrZero
                 above?.placeRelative(0, 0)
@@ -266,6 +271,7 @@ fun HomeSearch(
             val field = slot(SearchSlot.Field, column)
             val count = slot(SearchSlot.Count, column)
             val below = slot(SearchSlot.Below, column)
+            val sample = slot(SearchSlot.SampleRow, column)
             val resultsTop = above.heightOrZero + field.heightOrZero + gap + count.heightOrZero
             val bounded = fullHeight && constraints.hasBoundedHeight
             val results = slot(
@@ -275,6 +281,7 @@ fun HomeSearch(
             if (!fullHeight) {
                 measured.aboveResults = resultsTop
                 measured.below = below.heightOrZero
+                measured.sampleRow = sample.heightOrZero
             }
             val height = if (bounded) constraints.maxHeight else resultsTop + results.heightOrZero + below.heightOrZero
             layout(width, height) {
@@ -291,7 +298,10 @@ fun HomeSearch(
 /** A slot's height, 0 when it isn't composed. */
 private val Placeable?.heightOrZero: Int get() = this?.height ?: 0
 
-private enum class SearchSlot { Above, Field, Count, Results, Below }
+private enum class SearchSlot { Above, Field, Count, Results, Below, SampleRow }
+
+/** A long, typical result (a two-line name and country, a long city): what the full-height gate plans a row with. */
+private val PlanningSample = Place("LAX", "Los Angeles International Airport", "Los Angeles", "US", "America/Los_Angeles", 33.943, -118.408)
 
 /** The results in one segmented list. */
 @Composable
@@ -353,7 +363,7 @@ private val GridMinColumnWidth = 292.dp
  * normal layout the results can start below the fold, under the keyboard and the host's bars).
  */
 @Composable
-private fun ResultCount(query: String, results: List<Place>, resultsQuery: String, rowHeight: Dp, modifier: Modifier = Modifier) {
+private fun ResultCount(query: String, results: List<Place>, resultsQuery: String, rowHeight: () -> Int, modifier: Modifier = Modifier) {
     val settled = query.isBlank() || resultsQuery == query
     val text = when {
         query.isBlank() -> ""
@@ -365,10 +375,9 @@ private fun ResultCount(query: String, results: List<Place>, resultsQuery: Strin
     if (text != null) SideEffect { lastText = text }
     val requester = remember { BringIntoViewRequester() }
     var size by remember { mutableStateOf(IntSize.Zero) }
-    val rowPx = with(LocalDensity.current) { rowHeight.toPx() }
     val answer = if (settled && query.isNotBlank()) results.firstOrNull() ?: NoResults else null
     LaunchedEffect(answer) {
-        if (answer != null) requester.bringIntoView(Rect(0f, 0f, size.width.toFloat(), size.height + if (answer == NoResults) 0f else rowPx))
+        if (answer != null) requester.bringIntoView(Rect(0f, 0f, size.width.toFloat(), size.height + if (answer == NoResults) 0f else rowHeight().toFloat()))
     }
     Text(
         text ?: lastText,
@@ -390,6 +399,7 @@ private object NoResults
 private class MeasuredRoom {
     var aboveResults = 0
     var below = 0
+    var sampleRow = 0
 }
 
 /** Below this many visible result rows, the search goes full height. */

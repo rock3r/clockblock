@@ -197,6 +197,15 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
         fullyAboveKeyboard(DeviceLandscapeKeyboardDp) shouldBeGreaterThanOrEqual 2
     }
 
+    @Test
+    @Config(qualifiers = "w800dp-h1280dp-xhdpi")
+    fun `on a tall tablet with large text, either layout shows three whole results`() {
+        show(fontScale = 1.5f)
+        compose.onNodeWithTag(HomeZoneTags.Search).performClick()
+        keyboard(TabletKeyboardDp)
+        fullyAboveKeyboard(TabletKeyboardDp) shouldBeGreaterThanOrEqual 3
+    }
+
     /** The activity window's bounds (a focused field may add a popup root for its handle). */
     private fun window() = compose.onAllNodes(isRoot()).onFirst().getUnclippedBoundsInRoot()
 

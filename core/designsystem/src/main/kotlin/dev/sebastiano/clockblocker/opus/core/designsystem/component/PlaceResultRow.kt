@@ -34,7 +34,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.R
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -60,7 +59,7 @@ fun PlaceResultRow(
     now: Instant,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = PlaceResultRowVerticalPadding),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
 ) {
     val localTime = now.atZone(place.zone).toLocalTime()
     val time = rememberTimeFormatter().formatFull(localTime)
@@ -72,7 +71,7 @@ fun PlaceResultRow(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .heightIn(min = PlaceResultRowMinHeight)
+            .heightIn(min = 64.dp)
             .clickable(onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = description
@@ -131,20 +130,6 @@ fun PlaceResultRow(
         }
     }
 }
-
-/**
- * The height of a [PlaceResultRow] with one title line and one subtitle line (the usual result) at the current font
- * scale, for lists that plan their room before any result exists.
- */
-@Composable
-fun placeResultRowHeight(): Dp {
-    val typography = MaterialTheme.typography
-    val lines = with(LocalDensity.current) { typography.titleMedium.lineHeight.toDp() + typography.bodySmall.lineHeight.toDp() }
-    return maxOf(PlaceResultRowMinHeight, lines + PlaceResultRowVerticalPadding * 2)
-}
-
-private val PlaceResultRowMinHeight = 64.dp
-private val PlaceResultRowVerticalPadding = 10.dp
 
 /** Below this width (scaled by the font size) the time column moves under the text. */
 private val StackBelowWidth = 260.dp
