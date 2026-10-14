@@ -12,7 +12,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -26,6 +30,7 @@ import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import io.kotest.matchers.shouldBe
@@ -110,6 +115,38 @@ class OnboardingSleepPhoneTest : ClockblockScreenshotTest() {
 
     @Test fun egg_line_fits_at_1_5() = assertFits(SampleSleepProfile, 1.5f, egg = true)
 
+    /**
+     * At 1.5× the egg's line takes the pills' place while it shows. The faded-out pills under it must be inert: out of
+     * TalkBack's tree, and a tap where the bedtime pill sits opens no picker. They only come back once they have faded
+     * fully back in (on every frame of the way back, a pill that can be reached is drawn whole), then work again.
+     */
+    @Test
+    fun pills_under_the_egg_line_are_inert_until_it_goes() {
+        show(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile).copy(easterEggs = true), fontScale = 1.5f)
+        val pill = compose.onNodeWithTag(SleepDialTags.BedtimePill).getUnclippedBoundsInRoot()
+        val shown = drawnPill()
+        pushPastADay()
+        compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(EggFadeMillis)
+        compose.onNode(hasText("24.2 hours", substring = true), useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assertDoesNotExist()
+        val centre = with(compose.density) { Offset(((pill.left + pill.right) / 2).toPx(), ((pill.top + pill.bottom) / 2).toPx()) }
+        compose.onRoot().performTouchInput { click(centre) }
+        compose.mainClock.advanceTimeBy(EggFadeMillis)
+        compose.onNodeWithTag(SleepDialTags.PickerConfirm).assertDoesNotExist()
+        // The egg holds its line for 4.5 s; then the pills fade back in.
+        compose.mainClock.advanceTimeBy(EggHoldMillis - 3 * EggFadeMillis)
+        repeat((EggGoneMillis - EggHoldMillis + 3 * EggFadeMillis).toInt() / FrameMillis.toInt()) {
+            compose.mainClock.advanceTimeBy(FrameMillis)
+            if (compose.onAllNodesWithTag(SleepDialTags.BedtimePill).fetchSemanticsNodes().isNotEmpty()) {
+                drawnPill().sameAs(shown) shouldBe true
+            }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assertHasClickAction().performClick()
+        compose.onNodeWithTag(SleepDialTags.PickerConfirm).assertExists()
+    }
+
     /** An unusual night's hint matters more than why a linked switch changed nothing. */
     @Test
     fun a_short_night_on_linked_days_off_shows_the_short_night_hint() {
@@ -183,6 +220,22 @@ class OnboardingSleepPhoneTest : ClockblockScreenshotTest() {
         (next.bottom <= viewportBottom + 0.5.dp) shouldBe true
     }
 
+    /** The bedtime pill's pixels as drawn now (views invalidated first: Robolectric doesn't always redraw). */
+    private fun drawnPill(): IntArray {
+        compose.invalidateAllViews()
+        val image = compose.onRoot().captureToImage().asAndroidBitmap()
+        val bounds = compose.onNodeWithTag(SleepDialTags.BedtimePill, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        return with(compose.density) {
+            val left = bounds.left.roundToPx()
+            val top = bounds.top.roundToPx()
+            val width = (bounds.right - bounds.left).roundToPx()
+            val height = (bounds.bottom - bounds.top).roundToPx()
+            IntArray(width * height).also { image.getPixels(it, 0, width, left, top, width, height) }
+        }
+    }
+
+    private fun IntArray.sameAs(other: IntArray) = contentEquals(other)
+
     private fun hintBounds(egg: Boolean): DpRect =
         if (egg) {
             compose.onNode(hasText("24.2 hours", substring = true), useUnmergedTree = true).getUnclippedBoundsInRoot()
@@ -220,5 +273,10 @@ class OnboardingSleepPhoneTest : ClockblockScreenshotTest() {
 
         /** Long enough for the hint's cross-fade, far short of the egg's 4.5 s hold. */
         const val EggFadeMillis = 600L
+
+        /** The egg's hold, and a time past it and the pills' fade back. */
+        const val EggHoldMillis = 4_500L
+        const val EggGoneMillis = 5_500L
+        const val FrameMillis = 16L
     }
 }
