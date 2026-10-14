@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -109,6 +111,30 @@ class OnboardingSleepPhoneTest : ClockblockScreenshotTest() {
     @Test fun egg_line_fits_at_1_3() = assertFits(SampleSleepProfile, 1.3f, egg = true)
 
     @Test fun egg_line_fits_at_1_5() = assertFits(SampleSleepProfile, 1.5f, egg = true)
+
+    /**
+     * At 1.5× the egg's line takes the pills' place while it shows. The faded-out pills under it must be inert: out of
+     * TalkBack's tree, and a tap where the bedtime pill sits opens no picker. Once the line goes, they're back.
+     */
+    @Test
+    fun pills_under_the_egg_line_are_inert_until_it_goes() {
+        show(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile).copy(easterEggs = true), fontScale = 1.5f)
+        val pill = compose.onNodeWithTag(SleepDialTags.BedtimePill).getUnclippedBoundsInRoot()
+        pushPastADay()
+        compose.onNodeWithTag(SleepDialTags.Dial).performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(EggFadeMillis)
+        compose.onNode(hasText("24.2 hours", substring = true), useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assertDoesNotExist()
+        val centre = with(compose.density) { Offset(((pill.left + pill.right) / 2).toPx(), ((pill.top + pill.bottom) / 2).toPx()) }
+        compose.onRoot().performTouchInput { click(centre) }
+        compose.mainClock.advanceTimeBy(EggFadeMillis)
+        compose.onNodeWithTag(SleepDialTags.PickerConfirm).assertDoesNotExist()
+        // The egg holds its line for 4.5 s.
+        compose.mainClock.advanceTimeBy(EggGoneMillis)
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithTag(SleepDialTags.BedtimePill).assertHasClickAction().performClick()
+        compose.onNodeWithTag(SleepDialTags.PickerConfirm).assertExists()
+    }
 
     /** An unusual night's hint matters more than why a linked switch changed nothing. */
     @Test
@@ -220,5 +246,8 @@ class OnboardingSleepPhoneTest : ClockblockScreenshotTest() {
 
         /** Long enough for the hint's cross-fade, far short of the egg's 4.5 s hold. */
         const val EggFadeMillis = 600L
+
+        /** Past the egg's 4.5 s hold and the fade back. */
+        const val EggGoneMillis = 5_000L
     }
 }

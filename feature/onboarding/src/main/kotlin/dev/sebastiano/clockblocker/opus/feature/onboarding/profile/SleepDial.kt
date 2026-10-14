@@ -613,9 +613,16 @@ private fun SleepDialImpl(
         }
     }
 
+    // Where the egg's line is taller than the hint slot can be (a large font on a phone), it takes the pills' place
+    // for as long as it shows: the pills fade out under it and back (read in their layer), and nothing moves. While
+    // hidden they are inert: no touches, no focus, and out of TalkBack's tree.
+    var eggCoversPills by remember { mutableStateOf(false) }
+    val pillsAlpha = remember { Animatable(1f) }
+    LaunchedEffect(eggCoversPills) { pillsAlpha.animateTo(if (eggCoversPills) 0f else 1f, motion.fade()) }
+
     /** The two pills, side by side, or one above the other ([stacked]) in the column beside a short dial. */
     val pillsContent: @Composable (stacked: Boolean) -> Unit = { stacked ->
-        BoxWithConstraints(Modifier) {
+        BoxWithConstraints(if (eggCoversPills) Modifier.clearAndSetSemantics {} else Modifier) {
             // Both pills share one fitted style, sized for the widest time this format can show ("10:55 PM"), so
             // the times never resize while the dial is dragged, at any font scale.
             val pillWidth = if (stacked) maxWidth else (maxWidth - PillGap) / 2
@@ -630,6 +637,7 @@ private fun SleepDialImpl(
                     time = window.bedtime,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
+                    enabled = !eggCoversPills,
                     onClickLabel = stringResource(
                         when {
                             !twoSchedules -> R.string.sleep_pick_bedtime
@@ -646,6 +654,7 @@ private fun SleepDialImpl(
                     time = window.wake,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
+                    enabled = !eggCoversPills,
                     onClickLabel = stringResource(
                         when {
                             !twoSchedules -> R.string.sleep_pick_wake
@@ -741,12 +750,6 @@ private fun SleepDialImpl(
             toggleLabels, toggleLabelStyle, pillLabelStyle, textStyles.timeTitle, pillTimeTemplate, hintStyle, hints,
         )
     }
-
-    // Where the egg's line is taller than the hint slot can be (a large font on a phone), it takes the pills' place
-    // for as long as it shows: the pills fade out under it and back (read in their layer), and nothing moves.
-    var eggCoversPills by remember { mutableStateOf(false) }
-    val pillsAlpha = remember { Animatable(1f) }
-    LaunchedEffect(eggCoversPills) { pillsAlpha.animateTo(if (eggCoversPills) 0f else 1f, motion.fade()) }
 
     // Two arrangements, both planned from measured text so they hold at any font scale (see SleepDialPlanner).
     SubcomposeLayout(modifier) { constraints ->
@@ -1124,7 +1127,8 @@ private const val ReadoutStepSp = 0.5f
 
 /**
  * A bedtime or wake readout under the dial: glyph and label over the time, as one button that opens the time
- * picker. TalkBack reads it as "Bedtime, 23:00, button, double-tap to set bedtime".
+ * picker. TalkBack reads it as "Bedtime, 23:00, button, double-tap to set bedtime". Not [enabled] (hidden under the
+ * egg's line), it takes no touch and no focus.
  */
 @Composable
 private fun SleepTimePill(
@@ -1132,6 +1136,7 @@ private fun SleepTimePill(
     time: LocalTime,
     timeStyle: TextStyle,
     animateChanges: Boolean,
+    enabled: Boolean,
     onClickLabel: String,
     onClick: () -> Unit,
     tag: String,
@@ -1143,7 +1148,7 @@ private fun SleepTimePill(
         Column(
             Modifier
                 .clip(CircleShape)
-                .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+                .clickable(enabled = enabled, onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
                 .heightIn(min = PillMinHeight)
                 .padding(horizontal = PillPadding, vertical = PillVerticalPadding)
                 .testTag(tag),

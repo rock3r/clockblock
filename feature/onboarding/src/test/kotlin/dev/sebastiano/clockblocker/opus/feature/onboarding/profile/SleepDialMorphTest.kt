@@ -20,8 +20,10 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
 import io.kotest.matchers.shouldBe
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -54,7 +56,27 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
         compose.mainClock.autoAdvance = false
     }
 
-    private fun pill(): ImageBitmap = compose.onNodeWithTag(SleepDialTags.BedtimePill).captureToImage()
+    private fun pill(): ImageBitmap = drawn(SleepDialTags.BedtimePill)
+
+    /**
+     * The node tagged [tag] as drawn now. Robolectric at SDK 37 doesn't always redraw the ComposeView before a capture
+     * (see `captureRoboImageInvalidated`), so a capture can come back blank or a frame behind. The only checks here
+     * that flaked (in busy full-module runs) were the "nothing changed" ones, which such a capture breaks. So every
+     * view is invalidated first (no clock advance), and a capture that is the bare background fails loudly.
+     */
+    private fun drawn(tag: String): ImageBitmap {
+        compose.invalidateAllViews()
+        return compose.onNodeWithTag(tag).captureToImage().also { image ->
+            check(!image.isUniform()) { "Capture of $tag is blank: the view didn't draw" }
+        }
+    }
+
+    private fun ImageBitmap.isUniform(): Boolean {
+        val map = toPixelMap()
+        val first = map[0, 0]
+        for (x in 0 until width) for (y in 0 until height) if (map[x, y] != first) return false
+        return true
+    }
 
     private fun ImageBitmap.sameAs(other: ImageBitmap): Boolean {
         if (width != other.width || height != other.height) return false
@@ -78,7 +100,7 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
         val pillTop = compose.onNodeWithTag(pill).getBoundsInRoot().top
         val timeTop = compose.onNodeWithContentDescription(time, useUnmergedTree = true).getBoundsInRoot().top
         val rows = with(compose.density) { (timeTop - pillTop).roundToPx() }
-        return { compose.onNodeWithTag(pill).captureToImage().crop(0, rows) }
+        return { drawn(pill).crop(0, rows) }
     }
 
     /** The pill's time row: the band of its morphing text. */
@@ -86,7 +108,7 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
         val pillBounds = compose.onNodeWithTag(pill).getBoundsInRoot()
         val timeBounds = compose.onNodeWithContentDescription(time, useUnmergedTree = true).getBoundsInRoot()
         val (top, bottom) = with(compose.density) { (timeBounds.top - pillBounds.top).roundToPx() to (timeBounds.bottom - pillBounds.top).roundToPx() }
-        return compose.onNodeWithTag(pill).captureToImage().crop(top, bottom)
+        return drawn(pill).crop(top, bottom)
     }
 
     private fun ImageBitmap.crop(top: Int, bottom: Int): ImageBitmap {
@@ -110,6 +132,10 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
     private fun setProcessAnimatorScale(scale: Float) {
         ValueAnimator::class.java.getMethod("setDurationScale", Float::class.javaPrimitiveType).invoke(null, scale)
     }
+
+    /** The animator scale is process-wide (Robolectric keeps it across tests): put it back after every test. */
+    @After
+    fun restoreProcessAnimatorScale() = setProcessAnimatorScale(1f)
 
     private fun assertMorphs(frames: Pair<ImageBitmap, ImageBitmap>) {
         frames.first.sameAs(frames.second) shouldBe false
@@ -196,11 +222,11 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
     fun a_linked_switch_keeps_the_times_and_swaps_the_rings() {
         show(reduceMotion = false, daysOff = null)
         val pillBefore = pill()
-        val dialBefore = compose.onNodeWithTag(SleepDialTags.Dial).captureToImage()
+        val dialBefore = drawn(SleepDialTags.Dial)
         compose.onNodeWithTag(SleepDialTags.DaysOff).performClick()
         compose.mainClock.advanceTimeBy(MidMillis)
         pill().sameAs(pillBefore) shouldBe true
-        compose.onNodeWithTag(SleepDialTags.Dial).captureToImage().sameAs(dialBefore) shouldBe false
+        drawn(SleepDialTags.Dial).sameAs(dialBefore) shouldBe false
     }
 
     /** A TalkBack nudge (setProgress, what a swipe up or down on the handle sends) is a discrete change: it morphs. */
@@ -227,12 +253,8 @@ class SleepDialMorphTest : ClockblockScreenshotTest() {
     @Test
     fun the_pills_morph_when_only_the_process_animator_scale_is_off() {
         setProcessAnimatorScale(0f)
-        try {
-            show(reduceMotion = false)
-            assertMorphs(toggle(SleepDialTags.DaysOff))
-        } finally {
-            setProcessAnimatorScale(1f)
-        }
+        show(reduceMotion = false)
+        assertMorphs(toggle(SleepDialTags.DaysOff))
     }
 
     @Test
