@@ -51,6 +51,7 @@ import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -614,15 +615,18 @@ private fun SleepDialImpl(
     }
 
     // Where the egg's line is taller than the hint slot can be (a large font on a phone), it takes the pills' place
-    // for as long as it shows: the pills fade out under it and back (read in their layer), and nothing moves. While
-    // hidden they are inert: no touches, no focus, and out of TalkBack's tree.
+    // for as long as it shows: the pills fade out under it and back (read in their layer), and nothing moves. Until
+    // they're fully back they are inert: no touches, no focus, and out of TalkBack's tree.
     var eggCoversPills by remember { mutableStateOf(false) }
     val pillsAlpha = remember { Animatable(1f) }
     LaunchedEffect(eggCoversPills) { pillsAlpha.animateTo(if (eggCoversPills) 0f else 1f, motion.fade()) }
+    // Inert from the moment the line covers them until they have faded fully back in (derived, so the fade's frames
+    // don't recompose anything: only the flip does).
+    val pillsInert by remember { derivedStateOf { eggCoversPills || pillsAlpha.value < 1f } }
 
     /** The two pills, side by side, or one above the other ([stacked]) in the column beside a short dial. */
     val pillsContent: @Composable (stacked: Boolean) -> Unit = { stacked ->
-        BoxWithConstraints(if (eggCoversPills) Modifier.clearAndSetSemantics {} else Modifier) {
+        BoxWithConstraints(if (pillsInert) Modifier.clearAndSetSemantics {} else Modifier) {
             // Both pills share one fitted style, sized for the widest time this format can show ("10:55 PM"), so
             // the times never resize while the dial is dragged, at any font scale.
             val pillWidth = if (stacked) maxWidth else (maxWidth - PillGap) / 2
@@ -637,7 +641,7 @@ private fun SleepDialImpl(
                     time = window.bedtime,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
-                    enabled = !eggCoversPills,
+                    enabled = !pillsInert,
                     onClickLabel = stringResource(
                         when {
                             !twoSchedules -> R.string.sleep_pick_bedtime
@@ -654,7 +658,7 @@ private fun SleepDialImpl(
                     time = window.wake,
                     timeStyle = timeStyle,
                     animateChanges = rollReadouts,
-                    enabled = !eggCoversPills,
+                    enabled = !pillsInert,
                     onClickLabel = stringResource(
                         when {
                             !twoSchedules -> R.string.sleep_pick_wake
