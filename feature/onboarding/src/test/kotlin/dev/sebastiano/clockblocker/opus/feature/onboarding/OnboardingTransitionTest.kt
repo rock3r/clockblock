@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Dp
@@ -27,6 +28,7 @@ import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -43,6 +45,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [37], qualifiers = "w411dp-h891dp-xxhdpi")
 class OnboardingTransitionTest : ClockblockScreenshotTest() {
     private var step by mutableStateOf(OnboardingStep.Welcome)
+    private var direction by mutableStateOf(LayoutDirection.Ltr)
     private val calls = mutableListOf<String>()
     private lateinit var backDispatcher: OnBackPressedDispatcher
 
@@ -64,9 +67,10 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
         layoutDirection: LayoutDirection = LayoutDirection.Ltr,
     ) {
         step = start
+        direction = layoutDirection
         setContent(reduceMotion = reduceMotion, fontScale = fontScale) {
             backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
-            CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+            CompositionLocalProvider(LocalLayoutDirection provides direction) {
                 OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize())
             }
         }
@@ -201,6 +205,29 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
         boundsOf(OnboardingTags.Next).width() shouldBeLessThan started.width()
         frame(Settled)
         (boundsOf(OnboardingTags.Next).width() < started.width() * 0.6f) shouldBe true
+    }
+
+    @Test
+    fun `after the transition is rebuilt (here by a layout direction change), returning to a step still waits for it`() {
+        show(OnboardingStep.HomeZone)
+        // Each flip rebuilds the step transition while the home step stays on screen.
+        direction = LayoutDirection.Rtl
+        frame(Settled)
+        direction = LayoutDirection.Ltr
+        frame(Settled)
+        step = OnboardingStep.Sleep
+        Snapshot.sendApplyNotifications()
+        frame(Settled)
+        compose.onNodeWithText(homeHeadline).assertDoesNotExist()
+        step = OnboardingStep.HomeZone
+        Snapshot.sendApplyNotifications()
+        while (compose.onAllNodesWithText(homeHeadline).fetchSemanticsNodes().isEmpty()) frame(FirstFrame)
+        val composed = bounds(homeHeadline)
+        frame(FirstFrame)
+        // Still where it was composed: the slide in hasn't started on the frame after.
+        bounds(homeHeadline).left shouldBe composed.left
+        frame(FirstFrame)
+        bounds(homeHeadline).left shouldNotBe composed.left
     }
 
     @Test

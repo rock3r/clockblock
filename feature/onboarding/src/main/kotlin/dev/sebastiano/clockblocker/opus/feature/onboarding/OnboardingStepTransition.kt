@@ -80,7 +80,9 @@ internal class OnboardingStepTransition(
      */
     @Composable
     internal fun Modifier.contentLaidOut(step: OnboardingStep): Modifier {
-        DisposableEffect(step) { onDispose { laidOut -= step } }
+        // Keyed on this transition too: a rebuilt one (new motion, density or direction) must forget the step from its
+        // own set, the one its onPlaced fills.
+        DisposableEffect(this@OnboardingStepTransition, step) { onDispose { laidOut -= step } }
         return onPlaced { if (step !in laidOut) laidOut += step }
     }
 
