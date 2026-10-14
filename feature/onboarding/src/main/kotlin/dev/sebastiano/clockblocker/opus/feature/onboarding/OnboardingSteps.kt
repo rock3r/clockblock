@@ -199,8 +199,8 @@ internal fun OnboardingStepBody(
  *
  * [collapsed] folds the header away, so the controls get the whole step: the home step's full-height search. Compact,
  * the header shrinks vertically; wide, the art and words pane shrinks horizontally, so the controls take the whole
- * width in a single column. Both on `navigationSpatial()` (Standard, no bounce; it snaps under reduced motion) with a
- * `fade()`.
+ * width (where the home search lays its field beside the results). Both on `navigationSpatial()` (Standard, no
+ * bounce; it snaps under reduced motion) with a `fade()`.
  */
 @Composable
 private fun StepLayout(
