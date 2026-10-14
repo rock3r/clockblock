@@ -27,8 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.core.model.Intensity
@@ -233,24 +234,15 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // The step transition's own values, so predictive back seeks them with the steps: the Get started ↔ Next
     // bounds (spatial), and a fade-through between Welcome's chrome (the disclaimer, the Get started label: out
     // first) and the other steps' (the top bar, Back, the Next label: in once Welcome's is gone).
-    val welcome = steps.transition.settledOr(
-        steps.transition.animateFloat({ aroundWelcome { motion.navigationSpatial() } }, label = "welcomeBounds") { welcomeOnly(it) },
+    val welcome = steps.transition.animateAroundWelcome("welcomeBounds", { motion.stepSpatial() }, ::welcomeOnly)
+    val welcomeChrome = steps.transition.animateAroundWelcome(
+        "welcomeChromeFade",
+        { if (targetState == OnboardingStep.Welcome) motion.stepFadeIn() else motion.stepFadeOut() },
         ::welcomeOnly,
     )
-    val welcomeChrome = steps.transition.settledOr(
-        steps.transition.animateFloat(
-            { aroundWelcome { if (targetState == OnboardingStep.Welcome) motion.navigationFadeIn() else motion.navigationFadeOut() } },
-            label = "welcomeChromeFade",
-        ) { welcomeOnly(it) },
-        ::welcomeOnly,
-    )
-    val chrome = steps.transition.settledOr(
-        steps.transition.animateFloat(
-            { aroundWelcome { if (targetState == OnboardingStep.Welcome) motion.navigationFadeOut() else motion.navigationFadeIn() } },
-            label = "chromeFade",
-        ) { 1f - welcomeOnly(it) },
-        { 1f - welcomeOnly(it) },
-    )
+    val chrome = steps.transition.animateChrome(motion, index = 0)
+    val progressChrome = steps.transition.animateChrome(motion, index = 1)
+    val skipChrome = steps.transition.animateChrome(motion, index = 2)
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -268,14 +260,19 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val bars = animateFloatAsState(if (spectacleRunning) 0f else 1f, motion.fade(), label = "spectacleBars")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
+        val returningToWelcome = steps.transition.targetState == OnboardingStep.Welcome
         OnboardingFrame(
             searchProgress = { search.value },
             keyboard = keyboard,
             topBar = {
                 OnboardingTopBar(
-                    step = step,
+                    step = topBarStep(step, steps.transition.currentState),
                     visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
-                    alpha = { chrome() * (1f - search.value) * bars.value },
+                    slide = !ClockblockTheme.reduceMotion && !returningToWelcome,
+                    barAlpha = { (1f - search.value) * bars.value },
+                    labelAlpha = chrome,
+                    progressAlpha = progressChrome,
+                    skipAlpha = skipChrome,
                     onSkip = actions::skip,
                 )
             },
@@ -372,22 +369,39 @@ internal fun rememberTouchExplorationEnabled(): Boolean {
 private fun welcomeOnly(step: OnboardingStep): Float = if (step == OnboardingStep.Welcome) 1f else 0f
 
 /**
- * [spec] when the segment enters or leaves Welcome; otherwise a snap, as the Welcome-only values don't change there
- * and must not add a duration of their own to (so stretch, and shift the predictive back seek of) the other steps'
- * transitions.
+ * Animates a Welcome-only float value on [this] step transition: [spec] when entering or leaving Welcome and a [snap]
+ * elsewhere, so other steps' transitions (and their predictive back seek) never inherit a Welcome duration.
+ *
+ * Keyed on [Transition.currentState] so that when a transition settles (`currentState` moves to `targetState`) the
+ * animation state is re-seeded at its resting value; otherwise `SeekableTransitionState.onTotalDurationChanged`
+ * (fired when `AnimatedContent` disposes the outgoing step) replays the finished animation at `fraction = 0`, resetting
+ * its value to the old start state and making the reverse transition a no-op.
  */
-private fun <T> Transition.Segment<OnboardingStep>.aroundWelcome(spec: () -> FiniteAnimationSpec<T>): FiniteAnimationSpec<T> =
-    if (initialState == OnboardingStep.Welcome || targetState == OnboardingStep.Welcome) spec() else snap()
+@Composable
+private fun Transition<OnboardingStep>.animateAroundWelcome(
+    label: String,
+    spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
+    targetValueByState: (OnboardingStep) -> Float,
+): () -> Float {
+    val animated = key(currentState) {
+        animateFloat(
+            transitionSpec = { if (initialState == OnboardingStep.Welcome || targetState == OnboardingStep.Welcome) spec() else snap() },
+            label = label,
+        ) { targetValueByState(it) }
+    }
+    return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
+}
 
 /**
- * [animated] while the step transition runs or a back gesture seeks it, [settled] for the step it rests on. A child
- * animation of a seekable transition can report its old start value again once the transition has ended (the
- * steps' enter/exit animations leaving change its total duration and replay it from 0), so at rest the value comes
- * from the step itself. Read it in layout or draw.
+ * Non-Welcome chrome opacity (0 on Welcome, 1 elsewhere): fades in at stagger slot [index] when leaving Welcome, and
+ * fades out together (un-staggered) when returning to Welcome.
  */
-private fun Transition<OnboardingStep>.settledOr(animated: State<Float>, settled: (OnboardingStep) -> Float): () -> Float = {
-    if (currentState == targetState) settled(currentState) else animated.value
-}
+@Composable
+private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, index: Int): () -> Float =
+    animateAroundWelcome(
+        label = "chromeFade$index",
+        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else motion.stepFadeIn(index) },
+    ) { 1f - welcomeOnly(it) }
 
 /**
  * Reserves a step's room for the chrome around it: [top] (read in layout, so the home search can fold it away frame
