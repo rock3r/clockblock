@@ -9,6 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -50,11 +55,18 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
         }
     }
 
-    private fun show(start: OnboardingStep, reduceMotion: Boolean = false) {
+    private fun show(
+        start: OnboardingStep,
+        reduceMotion: Boolean = false,
+        fontScale: Float? = null,
+        layoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    ) {
         step = start
-        setContent(reduceMotion = reduceMotion) {
+        setContent(reduceMotion = reduceMotion, fontScale = fontScale) {
             backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
-            OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize())
+            CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+                OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize())
+            }
         }
         compose.mainClock.advanceTimeBy(3_000)
         compose.waitForIdle()
@@ -172,14 +184,41 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun morphFrames() {
-        show(OnboardingStep.Welcome)
-        compose.captureRoboImageInvalidated("src/test/screenshots/onboarding_morph_1_start.png")
+    fun morphFrames() = morphFrames("onboarding_morph")
+
+    @Test
+    fun morphFramesRtl() = morphFrames("onboarding_morph_rtl", LayoutDirection.Rtl)
+
+    private fun morphFrames(prefix: String, layoutDirection: LayoutDirection = LayoutDirection.Ltr) {
+        show(OnboardingStep.Welcome, layoutDirection = layoutDirection)
+        compose.captureRoboImageInvalidated("src/test/screenshots/${prefix}_1_start.png")
         go(OnboardingStep.HomeZone)
-        frame(MidTransition)
-        compose.captureRoboImageInvalidated("src/test/screenshots/onboarding_morph_2_mid.png")
+        // Get started fading out as the button shrinks; Next comes in only once it has gone (fade-through).
+        frame(EarlyTransition)
+        compose.captureRoboImageInvalidated("src/test/screenshots/${prefix}_2_early.png")
+        frame(MidTransition - EarlyTransition)
+        compose.captureRoboImageInvalidated("src/test/screenshots/${prefix}_2_mid.png")
         frame(Settled)
-        compose.captureRoboImageInvalidated("src/test/screenshots/onboarding_morph_3_end.png")
+        compose.captureRoboImageInvalidated("src/test/screenshots/${prefix}_3_end.png")
+    }
+
+    @Test
+    fun `the back hidden behind get started is off, and comes on with the first question`() {
+        show(OnboardingStep.Welcome)
+        compose.onNodeWithTag(OnboardingTags.Back, useUnmergedTree = true).assertIsNotEnabled()
+        go(OnboardingStep.HomeZone)
+        frame(Settled)
+        compose.onNodeWithTag(OnboardingTags.Back).assertIsEnabled()
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp-xxhdpi")
+    fun `on a narrow window at twice the font back and next never overlap`() {
+        show(OnboardingStep.HomeZone, fontScale = 2f)
+        val back = boundsOf(OnboardingTags.Back)
+        val next = boundsOf(OnboardingTags.Next)
+        (back.right <= next.left) shouldBe true
+        compose.captureRoboImageInvalidated("src/test/screenshots/onboarding_2_home_narrow_fontscale_2.png")
     }
 
     private fun backGesture(progress: Float) = compose.runOnUiThread {
@@ -192,6 +231,7 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
 
     private companion object {
         const val FirstFrame = 16L
+        const val EarlyTransition = 56L
         const val MidTransition = 120L
         const val Settled = 3_000L
     }

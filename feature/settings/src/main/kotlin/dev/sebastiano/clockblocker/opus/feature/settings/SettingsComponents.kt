@@ -161,11 +161,19 @@ internal fun PermissionRow(
     )
 }
 
-/** A full-width dialog surface for the profile editors (not a sheet: the dial's drag must not fight a sheet). */
+/**
+ * A full-width dialog surface for the profile editors (not a sheet: the dial's drag must not fight a sheet).
+ *
+ * [fullWindow] gives [content] the whole window, insets and keyboard included, to place its own card (the home
+ * editor, whose search can take the screen).
+ */
 @Composable
-internal fun EditorDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        EditorSurface(content = content)
+internal fun EditorDialog(onDismiss: () -> Unit, fullWindow: Boolean = false, content: @Composable () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = !fullWindow),
+    ) {
+        if (fullWindow) content() else EditorSurface(content = content)
     }
 }
 

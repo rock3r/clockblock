@@ -155,13 +155,16 @@ class SettingsViewModelTest {
         val vm = viewModel()
         vm.state.test {
             vm.searchHome("tokyo")
-            val results = expectMostRecentItem().homeResults
+            val found = expectMostRecentItem()
+            found.homeResultsQuery shouldBe "tokyo"
+            val results = found.homeResults
             results.map { it.code } shouldContainElement "HND"
             vm.setHomePlace(results.first { it.code == "HND" })
             profiles.current!!.homeZoneId shouldBe "Asia/Tokyo"
             val cleared = expectMostRecentItem()
             cleared.homeQuery shouldBe ""
             cleared.homeResults.shouldBeEmpty()
+            cleared.homeResultsQuery shouldBe ""
         }
     }
 
