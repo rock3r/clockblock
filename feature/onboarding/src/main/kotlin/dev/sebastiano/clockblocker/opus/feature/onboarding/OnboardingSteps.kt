@@ -52,6 +52,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
@@ -115,9 +116,8 @@ internal fun OnboardingStepBody(
     actions: OnboardingActions,
     wide: Boolean,
     homeSearch: HomeSearchState = rememberHomeSearchState(),
-    spectaclePlayed: Boolean = false,
-    openChronotypePicker: Boolean = false,
-    onChronotypePickerOpened: () -> Unit = {},
+    spectacleFrom: Rect? = null,
+    onSpectacleFinished: () -> Unit = {},
 ) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
@@ -155,9 +155,8 @@ internal fun OnboardingStepBody(
             onPick = actions::chronotypeChange,
             wide = wide,
             daysOffLinked = state.profile.daysOffSleep == null,
-            alreadyPlayed = spectaclePlayed,
-            openPicker = openChronotypePicker,
-            onPickerOpened = onChronotypePickerOpened,
+            spectacleFrom = spectacleFrom,
+            onSpectacleFinished = onSpectacleFinished,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,

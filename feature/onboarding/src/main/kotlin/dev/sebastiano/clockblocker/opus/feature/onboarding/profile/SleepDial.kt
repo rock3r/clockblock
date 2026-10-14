@@ -83,9 +83,10 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.SubcomposeLayout
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -135,7 +136,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
-import dev.sebastiano.clockblocker.opus.feature.onboarding.LocalOnboardingDialBounds
+import dev.sebastiano.clockblocker.opus.feature.onboarding.LocalSpectacleOrigin
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -368,9 +369,11 @@ private fun SleepDialImpl(
     val durationFormat: (Float) -> String = remember(narrowFormat) { { narrowFormat.duration(it.roundToInt()) } }
     val durationTemplate = remember(narrowFormat) { narrowFormat.duration(DurationTemplateMinutes) }
 
-    val dialBounds = LocalOnboardingDialBounds.current
+    val spectacleOrigin = LocalSpectacleOrigin.current
     val dialContent: @Composable () -> Unit = {
-        BoxWithConstraints(Modifier.onGloballyPositioned { dialBounds?.value = it.boundsInRoot() }) {
+        BoxWithConstraints(
+            if (spectacleOrigin == null) Modifier else Modifier.onGloballyPositioned { spectacleOrigin.dialFace = it.innerFace() },
+        ) {
             val sidePx = constraints.maxWidth.toFloat()
             Canvas(
                 Modifier
@@ -1448,6 +1451,16 @@ private class SwapPicture(val swap: Float, val work: SleepWindow, val daysOff: S
 private val TwelveHourNumerals = mapOf(0 to "12a", 6 to "6a", 12 to "12p", 18 to "6p")
 
 private const val FaceRadius = 157f
+
+/**
+ * The face inside the edited ring (where the duration reads), in root coordinates and unclipped (a dial partly
+ * scrolled away still reports where it really is): the chronotype spectacle grows out of it.
+ */
+private fun LayoutCoordinates.innerFace(): Rect {
+    val side = min(size.width, size.height).toFloat()
+    val centre = positionInRoot() + Offset(size.width / 2f, size.height / 2f)
+    return Rect(centre, (TrackRadius - TrackWidth / 2f) * side / 320f)
+}
 
 /** The hour numerals' centres, and the inner end of the hour ticks (the centre readout stays inside both). */
 private const val NumeralRadius = 81f

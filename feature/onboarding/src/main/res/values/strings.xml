@@ -84,6 +84,8 @@
     <string name="chronotype_reveal_midpoint_linked">Your usual nights are centred on %1$s. Set your days off on the previous step for a closer estimate.</string>
     <string name="chronotype_reveal_plan">Your plans start from your work-day sleep and this rhythm. You can change both in Settings.</string>
     <string name="chronotype_reveal_other">Doesn\'t sound like me</string>
+    <!-- TalkBack: the click action on the first-time reveal animation, which jumps to its end. -->
+    <string name="chronotype_spectacle_skip">Skip animation</string>
     <string name="chronotype_sheet_title">Which sounds more like you?</string>
     <string name="chronotype_suggested">What your sleep suggests</string>
     <string name="chronotype_definite_morning">Early bird</string>

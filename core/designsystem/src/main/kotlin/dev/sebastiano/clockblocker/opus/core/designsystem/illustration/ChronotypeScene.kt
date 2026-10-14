@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.graphics.shapes.toPath
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyGradient
@@ -69,9 +70,12 @@ fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier, cornerR
 /**
  * The chronotype landscape with every moving part as a lambda read in the draw phase only (so an animation never
  * recomposes): [hour] picks the sky, [position] places the sun or moon along its path, [moonFraction] cross-fades sun
- * (0) and moon (1), [entrance] (0 → 1) rises it from the horizon and fades in the details, [sunRotation] turns the
- * sun's rays (0 → 1 = 45°) and [twinkle] (0 → 1) breathes the stars. The geometry that only depends on the size is
- * built once per size.
+ * (0) and moon (1), [entrance] (0 → 1) assembles the landscape layer by layer, [sunRotation] turns the sun's rays
+ * (0 → 1 = 45°) and [twinkle] (0 → 1) breathes the stars. The geometry that only depends on the size is built once
+ * per size.
+ *
+ * With a [chronotype], the entrance is that chronotype's own (see [SceneEntrance]); without one, everything simply
+ * fades and rises in together. Either way the scene at `entrance = 1` is exactly the scene at rest.
  *
  * Colours: the sky and its lights (sun core, moon, stars, dawn and dusk glows, a lit window) are the fixed sky family
  * of design.md §2.4 (gradients only for skies; [SkyPalette] already blends them toward primary under dynamic colour
@@ -189,76 +193,152 @@ private fun DrawScope.drawChronotypeScene(
     twinkle: Float,
 ) {
     val m = moonFraction.coerceIn(0f, 1f)
-    val e = entrance.coerceIn(0f, 1f)
+    val act = SceneEntrance.of(chronotype, entrance.coerceIn(0f, 1f))
+    val light = SceneLight(position, m)
+    val horizonSky = drawSky(gradient, light)
+    val celestial = celestialPoint(geometry, position * act.travel)
+    drawHorizonGlow(geometry, light, celestial, act)
+    if (m > 0f) drawStars(geometry, shapes, light, twinkle, act)
+    if (light.day > 0.01f) drawClouds(geometry, light, position, act)
+    drawSunPath(geometry, position * act.path, act.path)
+    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, act)
+    drawHills(geometry, horizonSky, hills, m, act.hills)
+    if (geometry.detailed) drawDetails(geometry, light, hills, position, act)
+}
 
-    var eSky = e
-    var eHills = e
-    var eSunMoon = e
-    var eStars = e
-    var eClouds = e
-    var eDetails = e
-    var eSunPath = e
-
-    if (chronotype != null) {
-        when (chronotype) {
-            Chronotype.DefiniteMorning -> {
-                eSky = (e / 0.7f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.6f) / 0.4f).coerceIn(0f, 1f)
-                eStars = e
-            }
-            Chronotype.ModerateMorning -> {
-                eSky = (e / 0.7f).coerceIn(0f, 1f)
-                eHills = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                eStars = e
-            }
-            Chronotype.Intermediate -> {
-                eSky = (e / 0.7f).coerceIn(0f, 1f)
-                eHills = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
-                eStars = e
-            }
-            Chronotype.ModerateEvening -> {
-                eSky = (e / 0.7f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
-                eStars = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.6f) / 0.4f).coerceIn(0f, 1f)
-            }
-            Chronotype.DefiniteEvening -> {
-                eSky = (e / 0.7f).coerceIn(0f, 1f)
-                eSunMoon = ((e - 0.1f) / 0.9f).coerceIn(0f, 1f)
-                eHills = ((e - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                eSunPath = ((e - 0.3f) / 0.7f).coerceIn(0f, 1f)
-                eStars = ((e - 0.4f) / 0.6f).coerceIn(0f, 1f)
-                eClouds = ((e - 0.5f) / 0.5f).coerceIn(0f, 1f)
-                eDetails = ((e - 0.7f) / 0.3f).coerceIn(0f, 1f)
+/**
+ * Each layer's entrance progress for an overall entrance [e]; every value is 1 (offsets 0) at rest, which draws the
+ * scene exactly as it rests. The hills rise in parallax and the dashed path draws for everyone; then each chronotype
+ * has its own signature:
+ * - **Early bird**: the sun clears the ridge, its dawn rays fan out, and two birds burst across the sky, wings beating.
+ * - **Morning person**: the sun climbs a long way along its path while the clouds part to either side.
+ * - **Somewhere in between**: the sun is already high, hidden behind two clouds that drift apart to reveal it; a
+ *   shimmer runs across the water.
+ * - **Evening person**: the dusk glow sinks to the horizon, the moon fades up, the first stars come out and a cottage
+ *   window flickers alight.
+ * - **Night owl**: the stars ignite one by one, the constellation draws itself in, and the moon blooms with light.
+ */
+internal class SceneEntrance(
+    val hills: Float = 1f,
+    val path: Float = 1f,
+    /** The sun or moon's share of its way along the path. */
+    val travel: Float = 1f,
+    /** The sun or moon's corona, and the body's own opacity and size. */
+    val corona: Float = 1f,
+    val bodyAlpha: Float = 1f,
+    val bodyScale: Float = 1f,
+    /** The horizon glow, and how far above the horizon it still hangs (a share of the height). */
+    val glow: Float = 1f,
+    val glowLift: Float = 0f,
+    /** The dawn rays' opacity and fan (0 = folded into one, 1 = spread). */
+    val rays: Float = 1f,
+    val raysFan: Float = 1f,
+    val clouds: Float = 1f,
+    /** Where each cloud still is, away from its resting place (shares of the width and height). */
+    val morningCloud: Offset = Offset.Zero,
+    val middayCloud: Offset = Offset.Zero,
+    /** The birds' opacity, their way along the flight still to go (shares of the width and height), and a wingbeat. */
+    val birds: Float = 1f,
+    val birdsFlight: Offset = Offset.Zero,
+    val wingbeat: Float = 0f,
+    /** Every star's opacity, or one per star (lighting in sequence) when [starIgnite] is set. */
+    val stars: Float = 1f,
+    val starIgnite: ((Int) -> Float)? = null,
+    /** How much of each constellation line is drawn, in order. */
+    val constellation: (Int) -> Float = { 1f },
+    /** The moon's bloom: an extra glow that swells and settles (0 at rest). */
+    val moonBloom: Float = 0f,
+    val window: Float = 1f,
+    val shimmer: Float = 1f,
+    /** A sparkle running across the shimmer (0 at rest). */
+    val sparkle: Float = 0f,
+) {
+    companion object {
+        fun of(chronotype: Chronotype?, e: Float): SceneEntrance {
+            val hills = stage(e, 0f, 0.7f)
+            val path = stage(e, 0.1f, 1f)
+            return when (chronotype) {
+                null -> SceneEntrance(
+                    hills = hills, path = path, travel = e, corona = e, glow = e, rays = e, clouds = e,
+                    morningCloud = Offset(-(1f - e) * CloudDrift, 0f), middayCloud = Offset((1f - e) * CloudDrift, 0f),
+                    birds = e, birdsFlight = Offset(-(1f - e) * 0.06f, (1f - e) * 0.03f), stars = e, window = e, shimmer = e,
+                )
+                Chronotype.DefiniteMorning -> {
+                    val sun = stage(e, 0.1f, 0.7f)
+                    val fan = stage(e, 0.4f, 0.95f)
+                    val flight = stage(e, 0.45f, 1f)
+                    SceneEntrance(
+                        hills = hills, path = path, travel = sun, corona = sun, glow = stage(e, 0f, 0.6f),
+                        rays = fan, raysFan = fan, clouds = stage(e, 0.3f, 1f),
+                        morningCloud = Offset(-(1f - e) * CloudDrift, 0f),
+                        birds = stage(e, 0.45f, 0.6f), birdsFlight = Offset(-(1f - flight) * 0.8f, (1f - flight) * 0.14f),
+                        wingbeat = (1f - flight) * sin(flight * PI.toFloat() * Wingbeats),
+                        window = e, shimmer = stage(e, 0.5f, 1f),
+                    )
+                }
+                Chronotype.ModerateMorning -> {
+                    val parted = 1f - stage(e, 0.25f, 1f)
+                    val sun = stage(e, 0.05f, 0.9f)
+                    SceneEntrance(
+                        hills = hills, path = path, travel = sun, corona = sun, glow = stage(e, 0f, 0.6f), rays = sun,
+                        clouds = stage(e, 0.05f, 0.35f),
+                        morningCloud = Offset(parted * 0.16f, 0f), middayCloud = Offset(-parted * 0.16f, 0f),
+                        birds = stage(e, 0.6f, 1f), birdsFlight = Offset(-(1f - stage(e, 0.6f, 1f)) * 0.06f, 0f),
+                        window = e, shimmer = stage(e, 0.5f, 1f),
+                    )
+                }
+                Chronotype.Intermediate -> {
+                    val apart = 1f - stage(e, 0.2f, 0.85f)
+                    val revealed = stage(e, 0.25f, 0.85f)
+                    val shimmer = stage(e, 0.55f, 1f)
+                    SceneEntrance(
+                        hills = hills, path = path, travel = 1f, corona = revealed,
+                        bodyAlpha = revealed, bodyScale = lerp(0.8f, 1f, revealed),
+                        // Gathered over the sun, the clouds are thicker; they thin to their usual veil as they part.
+                        glow = stage(e, 0f, 0.6f), rays = revealed, clouds = stage(e, 0f, 0.15f) * (1f + apart * CloudGathered),
+                        morningCloud = Offset(apart * 0.2f, -apart * 0.07f), middayCloud = Offset(-apart * 0.2f, -apart * 0.02f),
+                        birds = e, window = e, shimmer = shimmer, sparkle = 4f * shimmer * (1f - shimmer),
+                    )
+                }
+                Chronotype.ModerateEvening -> {
+                    val sunk = stage(e, 0f, 0.7f)
+                    val moon = stage(e, 0.2f, 0.8f)
+                    SceneEntrance(
+                        hills = hills, path = path, travel = lerp(0.8f, 1f, moon), corona = moon, bodyAlpha = moon,
+                        glow = 1f, glowLift = (1f - sunk) * 0.3f, rays = e, clouds = e,
+                        stars = stage(e, 0.45f, 0.85f), window = flicker(stage(e, 0.55f, 1f)), shimmer = stage(e, 0.6f, 1f),
+                    )
+                }
+                Chronotype.DefiniteEvening -> {
+                    val moon = stage(e, 0.1f, 0.7f)
+                    SceneEntrance(
+                        hills = hills, path = path, travel = 1f, corona = moon, bodyAlpha = moon, glow = stage(e, 0f, 0.6f),
+                        rays = e, clouds = e,
+                        starIgnite = { i -> stage(e, 0.15f + i * 0.055f, 0.35f + i * 0.055f) },
+                        constellation = { k -> stage(e, 0.6f + k * 0.1f, 0.78f + k * 0.1f) },
+                        moonBloom = 4f * moon * (1f - moon), window = stage(e, 0.75f, 1f), shimmer = stage(e, 0.6f, 1f),
+                    )
+                }
             }
         }
+
+        /**
+         * A layer's own 0 → 1 over its share [from]..[to] of the entrance. Exactly 1 at the end (a share ending at 1
+         * divides a number by itself), so every layer lands on its resting place.
+         */
+        private fun stage(e: Float, from: Float, to: Float): Float = ((e - from) / (to - from)).coerceIn(0f, 1f)
+
+        /** A window lighting with a catch: up to 70 %, a dip, then fully lit. */
+        private fun flicker(p: Float): Float = when {
+            p < 0.35f -> p / 0.35f * 0.7f
+            p < 0.5f -> lerp(0.7f, 0.25f, (p - 0.35f) / 0.15f)
+            else -> lerp(0.25f, 1f, (p - 0.5f) / 0.5f)
+        }
+
+        private const val CloudDrift = 0.08f
+        private const val CloudGathered = 1.2f
+        private const val Wingbeats = 6f
     }
-        val light = SceneLight(position, m)
-    val horizonSky = drawSky(gradient, light)
-    // We use eSky for sky gradient logic if any, but drawSky doesnt take e. We can just let it fade via alpha later if we want.
-    val celestial = celestialPoint(geometry, position * eSunMoon)
-    drawHorizonGlow(geometry, light, celestial, eSky)
-    if (m > 0f) drawStars(geometry, shapes, light, twinkle, eStars)
-    if (light.day > 0.01f) drawClouds(geometry, light, position, eClouds)
-    drawSunPath(geometry, position * eSunPath, eSunPath)
-    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, eSunMoon)
-    drawHills(geometry, horizonSky, hills, m, eHills)
-    if (geometry.detailed) drawDetails(geometry, light, hills, position, eDetails)
 }
 
 /** How much of each time of day the scene shows: sun (day) or moon ([m]), and the dawn, midday, dusk and deep-night weights. */
@@ -293,64 +373,71 @@ private fun celestialPoint(g: SceneGeometry, pos: Float): Celestial {
     return Celestial(p, g.w * if (g.detailed) 0.115f else 0.135f)
 }
 
-private fun DrawScope.drawHorizonGlow(g: SceneGeometry, light: SceneLight, c: Celestial, e: Float) {
+private fun DrawScope.drawHorizonGlow(g: SceneGeometry, light: SceneLight, c: Celestial, act: SceneEntrance) {
     if (light.dawn + light.dusk <= 0.01f) return
     val glowColor = if (light.dusk > light.dawn) DuskHorizonGlow else DawnHorizonGlow
-    val glowAlpha = maxOf(light.dawn, light.dusk) * 0.42f * e
-    val centre = Offset(c.p.x, g.horizon)
+    val glowAlpha = maxOf(light.dawn, light.dusk) * 0.42f * act.glow
+    val centre = Offset(c.p.x, g.horizon - act.glowLift * g.h)
+    val radius = g.w * 0.68f * (1f + act.glowLift)
     drawCircle(
-        Brush.radialGradient(listOf(glowColor.copy(alpha = glowAlpha), glowColor.copy(alpha = 0f)), center = centre, radius = g.w * 0.68f),
-        radius = g.w * 0.68f,
+        Brush.radialGradient(listOf(glowColor.copy(alpha = glowAlpha), glowColor.copy(alpha = 0f)), center = centre, radius = radius),
+        radius = radius,
         center = centre,
     )
 }
 
 /** Stars, the Evening Star and (on the big reveal) a faint constellation, for evening and night types. */
-private fun DrawScope.drawStars(g: SceneGeometry, shapes: SceneShapes, light: SceneLight, twinkle: Float, e: Float) {
+private fun DrawScope.drawStars(g: SceneGeometry, shapes: SceneShapes, light: SceneLight, twinkle: Float, act: SceneEntrance) {
     val (w, h) = g.w to g.h
     val m = light.m
     if (g.detailed && light.deepNight > 0.1f) {
-        val cAlpha = 0.26f * light.deepNight * e
-        for ((a, b) in ConstellationEdges) {
-            val (x0, y0) = Stars[a]
-            val (x1, y1) = Stars[b]
-            drawLine(StarColor.copy(alpha = cAlpha), Offset(x0 * w, y0 * h), Offset(x1 * w, y1 * h), strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
+        val cAlpha = 0.26f * light.deepNight * act.stars
+        ConstellationEdges.forEachIndexed { k, (a, b) ->
+            val drawn = act.constellation(k)
+            if (drawn > 0f) {
+                val (x0, y0) = Stars[a]
+                val (x1, y1) = Stars[b]
+                val end = if (drawn >= 1f) Offset(x1 * w, y1 * h) else Offset(lerp(x0, x1, drawn) * w, lerp(y0, y1, drawn) * h)
+                drawLine(StarColor.copy(alpha = cAlpha), Offset(x0 * w, y0 * h), end, strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round)
+            }
         }
     }
     Stars.forEachIndexed { i, (sx, sy, sr) ->
         // Dusk shows the brightest early stars; deep night brings out the full starfield.
         val visibility = if (i < 4) 1f else light.deepNight
-        if (visibility > 0.01f) {
+        val lit = act.starIgnite?.invoke(i) ?: act.stars
+        if (visibility > 0.01f && lit > 0f) {
             // A continuous breath (the twinkle loop runs 0 → 1 → 0): no jump where a phase would wrap.
-            val alpha = (0.75f + 0.25f * sin((twinkle + i * 0.27f) * 2f * PI.toFloat())) * m * visibility * e
-            drawCircle(StarColor.copy(alpha = alpha), sr * w * if (g.detailed) 1f else 1.25f, Offset(sx * w, sy * h))
+            val alpha = (0.75f + 0.25f * sin((twinkle + i * 0.27f) * 2f * PI.toFloat())) * m * visibility * lit
+            val flare = 1f + StarFlare * 4f * lit * (1f - lit)
+            drawCircle(StarColor.copy(alpha = alpha), sr * w * (if (g.detailed) 1f else 1.25f) * flare, Offset(sx * w, sy * h))
         }
     }
     val bounds = shapes.starBounds
     DiamondStars.forEachIndexed { i, (dx, dy, ds) ->
         val visibility = if (i == 0) 1f else light.deepNight
-        if (visibility > 0.01f) {
+        val lit = act.starIgnite?.invoke(Stars.size + i) ?: act.stars
+        if (visibility > 0.01f && lit > 0f) {
             val pulse = 0.82f + 0.18f * sin((twinkle + i * 0.4f) * 2f * PI.toFloat())
-            val starSize = ds * w * pulse * (if (g.detailed) 1f else 1.25f) * e
+            val starSize = ds * w * pulse * (if (g.detailed) 1f else 1.25f) * lit
             val s = starSize / maxOf(bounds.width, bounds.height)
-            drawCircle(StarColor.copy(alpha = 0.22f * m * visibility * e), radius = starSize * 0.95f, center = Offset(dx * w, dy * h))
+            drawCircle(StarColor.copy(alpha = 0.22f * m * visibility * lit), radius = starSize * 0.95f, center = Offset(dx * w, dy * h))
             withTransform({
                 translate(dx * w - bounds.center.x * s, dy * h - bounds.center.y * s)
                 scale(s, s, pivot = Offset.Zero)
-            }) { drawPath(shapes.star, StarColor.copy(alpha = 0.92f * m * visibility * e)) }
+            }) { drawPath(shapes.star, StarColor.copy(alpha = 0.92f * m * visibility * lit)) }
         }
     }
 }
 
 /** Soft daytime clouds: a morning wisp, and a second cumulus from late morning. */
-private fun DrawScope.drawClouds(g: SceneGeometry, light: SceneLight, position: Float, e: Float) {
-    val cloudAlpha = (0.28f + 0.24f * light.midday) * light.day * e
-    val drift = (1f - e) * g.w * 0.08f
-    withTransform({ translate(left = -drift) }) {
+private fun DrawScope.drawClouds(g: SceneGeometry, light: SceneLight, position: Float, act: SceneEntrance) {
+    val cloudAlpha = (0.28f + 0.24f * light.midday) * light.day * act.clouds
+    withTransform({ translate(act.morningCloud.x * g.w, act.morningCloud.y * g.h) }) {
         drawPath(g.morningCloud, Color.White.copy(alpha = cloudAlpha))
     }
     if (light.midday > 0.05f || position > 0.28f) {
-        withTransform({ translate(left = drift) }) {
+        withTransform({ translate(act.middayCloud.x * g.w, act.middayCloud.y * g.h) }) {
             drawPath(g.middayCloud, Color.White.copy(alpha = cloudAlpha * 0.9f))
         }
     }
@@ -380,26 +467,27 @@ private fun DrawScope.drawSunAndMoon(
     gradient: SkyGradient,
     tertiary: Color,
     sunRotation: Float,
-    e: Float,
+    act: SceneEntrance,
 ) {
-    val (p, r) = c.p to c.r
+    val p = c.p
+    val r = c.r * act.bodyScale
     val m = light.m
     withTransform({ clipRect(bottom = g.horizon + g.h * 0.04f) }) {
         if (m < 1f) {
-            val sunAlpha = 1f - m
+            val sunAlpha = (1f - m) * act.bodyAlpha
             drawCircle(
-                Brush.radialGradient(listOf(SunCoreColor.copy(alpha = 0.42f * sunAlpha * e), tertiary.copy(alpha = 0f)), center = p, radius = r * 2.5f),
+                Brush.radialGradient(listOf(SunCoreColor.copy(alpha = 0.42f * sunAlpha * act.corona), tertiary.copy(alpha = 0f)), center = p, radius = r * 2.5f),
                 radius = r * 2.5f,
                 center = p,
             )
             // Dawn rays for the Early bird.
-            if (light.dawn > 0.05f && g.detailed) {
+            if (light.dawn > 0.05f && g.detailed && act.rays > 0f) {
                 for (ray in -2..2) {
-                    val rayAngle = (-55f + ray * 22f) * PI.toFloat() / 180f
+                    val rayAngle = (-55f + ray * 22f * act.raysFan) * PI.toFloat() / 180f
                     val r0 = r * 1.35f
-                    val r1 = r * (2.2f + (2 - abs(ray)) * 0.25f)
+                    val r1 = r * (2.2f + (2 - abs(ray)) * 0.25f) * lerp(FoldedRayLength, 1f, act.raysFan)
                     drawLine(
-                        SunCoreColor.copy(alpha = 0.34f * light.dawn * sunAlpha * e),
+                        SunCoreColor.copy(alpha = 0.34f * light.dawn * sunAlpha * act.rays),
                         Offset(p.x + r0 * cos(rayAngle), p.y + r0 * sin(rayAngle)),
                         Offset(p.x + r1 * cos(rayAngle), p.y + r1 * sin(rayAngle)),
                         strokeWidth = 2.2.dp.toPx(),
@@ -418,20 +506,26 @@ private fun DrawScope.drawSunAndMoon(
             drawCircle(Color.White.copy(alpha = 0.45f * sunAlpha), radius = r * 0.26f, center = Offset(p.x - r * 0.22f, p.y - r * 0.22f))
         }
         if (m > 0f) {
+            val moon = m * act.bodyAlpha
+            val glowRadius = r * 2.3f * (1f + MoonBloomGrowth * act.moonBloom)
             drawCircle(
-                Brush.radialGradient(listOf(MoonColor.copy(alpha = 0.32f * m * e), MoonColor.copy(alpha = 0f)), center = p, radius = r * 2.3f),
-                radius = r * 2.3f,
+                Brush.radialGradient(
+                    listOf(MoonColor.copy(alpha = 0.32f * m * act.corona * (1f + act.moonBloom)), MoonColor.copy(alpha = 0f)),
+                    center = p,
+                    radius = glowRadius,
+                ),
+                radius = glowRadius,
                 center = p,
             )
             // Earthshine on the dark limb (it also hides the path behind the moon).
-            drawCircle(lerp(gradient.top, gradient.bottom, 0.55f).copy(alpha = m), radius = r * 0.96f, center = p)
-            drawCircle(MoonColor.copy(alpha = 0.12f * m), radius = r * 0.96f, center = p)
+            drawCircle(lerp(gradient.top, gradient.bottom, 0.55f).copy(alpha = moon), radius = r * 0.96f, center = p)
+            drawCircle(MoonColor.copy(alpha = 0.12f * moon), radius = r * 0.96f, center = p)
             val disc = Path().apply { addOval(Rect(p, r)) }
             val bite = Path().apply { addOval(Rect(Offset(p.x + r * 0.52f, p.y - r * 0.42f), r * 0.84f)) }
-            drawPath(Path.combine(PathOperation.Difference, disc, bite), MoonColor.copy(alpha = m))
+            drawPath(Path.combine(PathOperation.Difference, disc, bite), MoonColor.copy(alpha = moon))
             if (g.detailed) {
-                drawCircle(tertiary.copy(alpha = 0.16f * m), radius = r * 0.18f, center = Offset(p.x - r * 0.36f, p.y + r * 0.14f))
-                drawCircle(tertiary.copy(alpha = 0.13f * m), radius = r * 0.11f, center = Offset(p.x - r * 0.18f, p.y + r * 0.42f))
+                drawCircle(tertiary.copy(alpha = 0.16f * moon), radius = r * 0.18f, center = Offset(p.x - r * 0.36f, p.y + r * 0.14f))
+                drawCircle(tertiary.copy(alpha = 0.13f * moon), radius = r * 0.11f, center = Offset(p.x - r * 0.18f, p.y + r * 0.42f))
             }
         }
     }
@@ -457,24 +551,24 @@ private fun DrawScope.drawHills(g: SceneGeometry, horizonSky: Color, hills: Hill
 }
 
 /** The reveal's fine details: morning birds, or a lit window on the hill at night, and a shimmer near the foot. */
-private fun DrawScope.drawDetails(g: SceneGeometry, light: SceneLight, hills: HillColors, position: Float, e: Float) {
+private fun DrawScope.drawDetails(g: SceneGeometry, light: SceneLight, hills: HillColors, position: Float, act: SceneEntrance) {
     val (w, h) = g.w to g.h
-    if (light.day > 0.2f && position < 0.42f) {
-        val birdAlpha = 0.55f * light.day * e
-        val swoopX = -(1f - e) * w * 0.06f
-        val swoopY = (1f - e) * h * 0.03f
-        drawBird(w * 0.66f + swoopX, h * 0.60f + swoopY, w * 0.032f, hills.day.copy(alpha = birdAlpha))
-        drawBird(w * 0.73f + swoopX * 1.3f, h * 0.56f + swoopY * 1.3f, w * 0.024f, hills.day.copy(alpha = birdAlpha * 0.8f))
+    if (light.day > 0.2f && position < 0.42f && act.birds > 0f) {
+        val birdAlpha = 0.55f * light.day * act.birds
+        val flightX = act.birdsFlight.x * w
+        val flightY = act.birdsFlight.y * h
+        drawBird(w * 0.66f + flightX, h * 0.60f + flightY, w * 0.032f, act.wingbeat, hills.day.copy(alpha = birdAlpha))
+        drawBird(w * 0.73f + flightX * 1.3f, h * 0.56f + flightY * 1.3f, w * 0.024f, -act.wingbeat, hills.day.copy(alpha = birdAlpha * 0.8f))
     }
     if (light.m > 0.2f) {
         val window = Offset(w * 0.27f, h * 0.83f)
-        drawCircle(WindowGlowColor.copy(alpha = 0.32f * light.m * e), radius = w * 0.028f * (0.5f + 0.5f * e), center = window)
-        drawCircle(WindowGlowColor.copy(alpha = 0.92f * light.m * e), radius = w * 0.011f * e, center = window)
+        drawCircle(WindowGlowColor.copy(alpha = 0.32f * light.m * act.window), radius = w * 0.028f * (0.5f + 0.5f * act.window), center = window)
+        drawCircle(WindowGlowColor.copy(alpha = 0.92f * light.m * act.window), radius = w * 0.011f * act.window, center = window)
     }
-    val shimmerColor = (if (light.m > 0.5f) MoonColor else Color.White).copy(alpha = 0.22f * e)
-    val span1 = 0.16f * e
-    val span2 = 0.08f * e
-    if (e > 0.01f) {
+    val shimmerColor = (if (light.m > 0.5f) MoonColor else Color.White).copy(alpha = 0.22f * act.shimmer * (1f + SparkleBoost * act.sparkle))
+    val span1 = 0.16f * act.shimmer
+    val span2 = 0.08f * act.shimmer
+    if (act.shimmer > 0.01f) {
         drawLine(shimmerColor, Offset(w * (0.50f - span1), h * 0.935f), Offset(w * (0.50f + span1), h * 0.935f), strokeWidth = 1.2.dp.toPx(), cap = StrokeCap.Round)
         drawLine(shimmerColor, Offset(w * (0.50f - span2), h * 0.962f), Offset(w * (0.50f + span2), h * 0.962f), strokeWidth = 1.0.dp.toPx(), cap = StrokeCap.Round)
     }
@@ -493,11 +587,13 @@ private fun cloudPuff(cx: Float, cy: Float, width: Float, height: Float) = Path(
     close()
 }
 
-private fun DrawScope.drawBird(cx: Float, cy: Float, span: Float, color: Color) {
+/** A bird in flight; [wingbeat] (−1 → 1, 0 at rest) lowers or raises its wings. */
+private fun DrawScope.drawBird(cx: Float, cy: Float, span: Float, wingbeat: Float, color: Color) {
+    val lift = span * 0.45f * (1f + wingbeat)
     val bird = Path().apply {
         moveTo(cx - span, cy + span * 0.15f)
-        quadraticTo(cx - span * 0.45f, cy - span * 0.45f, cx, cy + span * 0.08f)
-        quadraticTo(cx + span * 0.45f, cy - span * 0.45f, cx + span, cy + span * 0.15f)
+        quadraticTo(cx - span * 0.45f, cy - lift, cx, cy + span * 0.08f)
+        quadraticTo(cx + span * 0.45f, cy - lift, cx + span, cy + span * 0.15f)
     }
     drawPath(bird, color, style = Stroke(1.4.dp.toPx(), cap = StrokeCap.Round))
 }
@@ -523,6 +619,14 @@ private val DiamondStars = listOf(
     Triple(0.68f, 0.16f, 0.042f),
     Triple(0.42f, 0.30f, 0.036f),
 )
+
+/** How much a star swells as it ignites, the moon's glow grows as it blooms, and the shimmer brightens as it sparkles. */
+private const val StarFlare = 0.8f
+private const val MoonBloomGrowth = 0.5f
+private const val SparkleBoost = 1.2f
+
+/** The dawn rays' length while still folded together, as a share of their spread length. */
+private const val FoldedRayLength = 0.55f
 
 // The sky's lights: fixed like the sky gradients they sit on (design.md §2.4: gradients only for skies).
 private val StarColor = Color(0xFFFFF4D6)

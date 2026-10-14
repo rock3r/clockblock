@@ -6,6 +6,7 @@ import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.InfiniteRepeatableSpec
@@ -128,6 +129,43 @@ class ClockblockMotion internal constructor(
     fun <T> artEntrance(): FiniteAnimationSpec<T> = scheme.slowSpatialSpec()
 
     /**
+     * One spin of the chronotype spectacle's shape (a rare, once-per-onboarding moment): a morph between two
+     * `MaterialShapes` while it turns, on a duration, not a spring, so each spin reads (a spring covers most of
+     * its travel in its first ~150 ms). Standard easing; ×1.5 under Calm; snaps when reduced (callers skip the
+     * spectacle then anyway).
+     */
+    fun spectacleSpin(): FiniteAnimationSpec<Float> = if (reduceMotion) snap() else
+        tween((SpectacleSpinMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /** The spectacle's shape rising from the sleep dial to the card, eased once across both spins (standard easing). */
+    fun spectacleRise(): FiniteAnimationSpec<Float> = if (reduceMotion) snap() else
+        tween((SpectacleSpins * SpectacleSpinMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
+     * The spectacle's shape popping into the card: a deliberate Expressive overshoot by day (damping
+     * [SpectaclePopDamping]: about 16 % of its travel past the card, then back); no bounce under Calm.
+     */
+    fun spectaclePop(): FiniteAnimationSpec<Float> = when {
+        reduceMotion -> snap()
+        isCalm -> CalmMotionScheme.defaultSpatialSpec()
+        else -> spring(SpectaclePopDamping, SpectaclePopStiffness)
+    }
+
+    /**
+     * The chronotype reveal's landscape entering layer by layer (after the spectacle, or on its own): on a duration so
+     * the late layers get their time too. ×1.5 under Calm; snaps when reduced.
+     */
+    fun revealLayers(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((RevealLayersMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
+     * The reveal's words staggering in: one linear clock, each line easing in over its own share of it on
+     * [StaggerEasing]. ×1.5 under Calm; snaps when reduced.
+     */
+    fun revealWords(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((RevealWordsMillis * navigationTimeScale).toInt(), easing = LinearEasing)
+
+    /**
      * Screen-level navigation movement: push/pop slides, the fade-through scale, list-detail pane bounds.
      * Navigation is a 100+/day surface, so it binds to the Standard scheme (never bounces) and snaps when motion
      * is reduced; opacity still cross-fades via [navigationFadeIn] / [navigationFadeOut].
@@ -201,8 +239,23 @@ class ClockblockMotion internal constructor(
         const val NavigationFadeOutMillis = 90
         const val NavigationFadeInMillis = 210
 
+        /** One of the chronotype spectacle's [SpectacleSpins] spins (the rise spans them all). */
+        const val SpectacleSpinMillis = 560
+        const val SpectacleSpins = 2
+
+        /** The spectacle's pop: damping 0.5 overshoots by e^(−πζ/√(1−ζ²)) ≈ 16 % of the travel. */
+        const val SpectaclePopDamping = 0.5f
+        const val SpectaclePopStiffness = 420f
+
+        /** The chronotype reveal's layered landscape entrance, and its staggered words. */
+        const val RevealLayersMillis = 1_100
+        const val RevealWordsMillis = 800
+
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+        /** Each staggered line's own ease in (emphasized decelerate). */
+        val StaggerEasing: Easing = EmphasizedDecelerate
     }
 }
 

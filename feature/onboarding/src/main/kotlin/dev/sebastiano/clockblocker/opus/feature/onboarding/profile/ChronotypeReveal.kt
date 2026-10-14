@@ -3,6 +3,9 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,36 +28,49 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
+import androidx.compose.ui.unit.toSize
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeScene
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.skyPose
+import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
-import kotlinx.coroutines.flow.first
+import dev.sebastiano.clockblocker.opus.feature.onboarding.rememberTouchExplorationEnabled
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -63,6 +79,12 @@ object ChronotypeRevealTags {
     const val Name = "chronotype_reveal_name"
     const val Other = "chronotype_reveal_other"
     const val Sheet = "chronotype_sheet"
+
+    /** The illustration card. */
+    const val Art = "chronotype_reveal_art"
+
+    /** The reveal while its first-time spectacle plays (gone once it rests). */
+    const val Spectacle = "chronotype_reveal_spectacle"
 }
 
 /**
@@ -70,10 +92,18 @@ object ChronotypeRevealTags {
  * for evening types, the moon) rising along its path, then our name and description for the chronotype, what the
  * night is centred on, and a "Doesn't sound like me" link to a sheet with all five.
  *
- * Motion (a rare moment, so Expressive is allowed; MOTION.md): the sky warms and the sun rises on `artEntrance()`, then
- * the words fade in on `colour()` while rising 24 dp on `containerSpatial()`, once per visit (saveable, so coming back
- * from Tools shows it at rest). The sun's rays turn and the stars twinkle on `ambientLoop`. Picking another chronotype
- * moves the sun along the path to its new place. Reduce motion: everything sits at rest; the words carry the meaning.
+ * Motion (a rare moment, so Expressive is allowed; MOTION.md), once per visit (saveable, so coming back from Tools
+ * shows it at rest), in [RevealEntrance]'s beats:
+ * - The first time from the sleep dial ([spectacleFrom]: the dial's inner face, in root coordinates), the spectacle:
+ *   a `MaterialShapes` shape grows out of the dial's face, rises to the card spinning through two morphs, and pops
+ *   into the card's rounded rectangle, where the illustration fades in. A tap (or TalkBack's labelled click) skips to
+ *   the end; a tap on the link once it shows also opens the sheet. [onSpectacleFinished] follows either.
+ * - The chronotype's landscape enters layer by layer, each chronotype its own way (`ChronotypeScene`), the sky warming
+ *   from three hours earlier; then the words stagger down into place.
+ *
+ * The sun's rays turn and the stars twinkle on `ambientLoop`. Picking another chronotype moves the sun along the path
+ * to its new place. Reduce motion, or TalkBack exploring by touch: everything sits at rest; the words carry the
+ * meaning.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,62 +116,84 @@ fun ChronotypeReveal(
     wide: Boolean,
     modifier: Modifier = Modifier,
     daysOffLinked: Boolean = false,
-    alreadyPlayed: Boolean = false,
-    openPicker: Boolean = false,
-    onPickerOpened: () -> Unit = {},
+    spectacleFrom: Rect? = null,
+    onSpectacleFinished: () -> Unit = {},
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
-    var played by rememberSaveable(alreadyPlayed) { mutableStateOf(alreadyPlayed) }
-    val start = !reduce && !played
-    val art = remember { Animatable(if (start) 0f else 1f) }
-    val wordsAlpha = remember { Animatable(if (start) 0f else 1f) }
-    val wordsRise = remember { Animatable(if (start) 1f else 0f) }
-    LaunchedEffect(reduce) {
-        val play = !reduce && !played
-        // Counted as played as soon as it starts: leaving mid-entrance (Next during the rise) and coming back
-        // shows the reveal at rest instead of replaying it.
-        played = true
-        if (!play) {
-            art.snapTo(1f)
-            wordsAlpha.snapTo(1f)
-            wordsRise.snapTo(0f)
-        } else {
-            launch { art.animateTo(1f, motion.artEntrance()) }
-            // One mover at a time: the words follow once the sun is mostly up.
-            snapshotFlow { art.value }.first { it >= WordsStartAt }
-            launch { wordsAlpha.animateTo(1f, motion.colour()) }
-            wordsRise.animateTo(0f, motion.containerSpatial())
+    val touchExploring = rememberTouchExplorationEnabled()
+    var played by rememberSaveable { mutableStateOf(false) }
+    val entrance = remember {
+        RevealEntrance(
+            when {
+                reduce || touchExploring -> RevealStart.Rest
+                spectacleFrom != null -> RevealStart.Spectacle
+                played -> RevealStart.Rest
+                else -> RevealStart.Entrance
+            },
+        )
+    }
+    val currentOnSpectacleFinished by rememberUpdatedState(onSpectacleFinished)
+    val scope = rememberCoroutineScope()
+    var choreography by remember { mutableStateOf<Job?>(null) }
+    // Counted as played as soon as it's shown: leaving mid-entrance (Next during the rise) and coming back, or a
+    // rotation, shows the reveal at rest instead of replaying it. Marked as the composition applies, not in the effect
+    // below, so even a recreation before the effect's first run can't save it unplayed.
+    SideEffect { played = true }
+    LaunchedEffect(entrance) {
+        choreography = coroutineContext[Job]
+        entrance.play(motion)
+        if (entrance.start == RevealStart.Spectacle) currentOnSpectacleFinished()
+    }
+    val toRest: () -> Unit = {
+        val wasSpectacle = entrance.spectacleRunning
+        choreography?.cancel()
+        scope.launch {
+            entrance.skip()
+            if (wasSpectacle) currentOnSpectacleFinished()
         }
     }
+    val skip: () -> Unit = { if (entrance.spectacleRunning) toRest() }
+    // Turning on reduce motion or TalkBack mid-entrance lands it at rest too.
+    LaunchedEffect(reduce || touchExploring) { if (reduce || touchExploring) toRest() }
 
-    var showSheet by rememberSaveable { mutableStateOf(openPicker) }
-    LaunchedEffect(openPicker) {
-        if (openPicker) {
-            showSheet = true
-            onPickerOpened()
-        }
-    }
+    var showSheet by rememberSaveable { mutableStateOf(false) }
+    val origin = remember { mutableStateOf(Offset.Zero) }
+    val card = remember { mutableStateOf(Rect.Zero) }
     val artBlock: @Composable (Dp) -> Unit = { size ->
-        ChronotypeRevealArt(chronotype, entrance = { art.value }, modifier = Modifier.size(size))
+        Box(
+            Modifier
+                .size(size)
+                .onGloballyPositioned { card.value = Rect(it.positionInRoot(), it.size.toSize()) }
+                .testTag(ChronotypeRevealTags.Art),
+        ) {
+            ChronotypeRevealArt(
+                chronotype,
+                entrance = { entrance.art.value },
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    alpha = entrance.artAlpha
+                    scaleX = entrance.popScale
+                    scaleY = entrance.popScale
+                },
+            )
+        }
     }
     val words: @Composable ColumnScope.(TextAlign, Alignment.Horizontal, Boolean) -> Unit = { align, horizontal, compact ->
-        Column(
-            Modifier.fillMaxWidth().graphicsLayer {
-                alpha = wordsAlpha.value
-                translationY = wordsRise.value * WordsRise.toPx()
-            },
-            horizontalAlignment = horizontal,
-        ) {
-            RevealWords(chronotype, picked, { 1f }, midSleep, daysOffLinked, align, compact)
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = horizontal) {
+            RevealWords(chronotype, picked, { entrance.words.value }, midSleep, daysOffLinked, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
-                onClick = { showSheet = true },
-                modifier = Modifier.heightIn(min = 48.dp).testTag(ChronotypeRevealTags.Other),
+                // Until it shows, the link is only part of the spectacle (a keyboard or Switch Access click skips it).
+                onClick = { if (entrance.spectacleRunning && !entrance.linkShown) skip() else showSheet = true },
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .staggeredWord({ entrance.words.value }, LinkStagger)
+                    .testTag(ChronotypeRevealTags.Other),
             ) { Text(stringResource(R.string.chronotype_reveal_other)) }
         }
     }
-    if (wide) BoxWithConstraints(modifier.fillMaxSize()) {
+    val spectacle = Modifier.spectacle(entrance, spectacleFrom, origin, card, chronotype, skip)
+    if (wide) BoxWithConstraints(modifier.fillMaxSize().then(spectacle)) {
         val artSize = minOf(260.dp, maxHeight * 0.6f)
         // Phones in landscape: a smaller name, so the link stays in view without scrolling.
         val short = maxHeight < ShortPaneHeight
@@ -154,7 +206,7 @@ fun ChronotypeReveal(
         }
     } else {
         Column(
-            modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
+            modifier.fillMaxSize().then(spectacle).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             artBlock(RevealArtSize)
@@ -165,7 +217,6 @@ fun ChronotypeReveal(
 
     if (showSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val scope = rememberCoroutineScope()
         ModalBottomSheet(onDismissRequest = { showSheet = false }, sheetState = sheetState, modifier = Modifier.testTag(ChronotypeRevealTags.Sheet)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
                 Text(
@@ -188,6 +239,57 @@ fun ChronotypeReveal(
     }
 }
 
+/**
+ * The spectacle on the reveal's root, outside its scrolling (so the shape is never clipped): tracks the root's place,
+ * draws the shape behind the content, and, while it plays, takes a tap anywhere as a skip (letting it through to the
+ * link once the link shows) and offers TalkBack a labelled skip.
+ */
+@Composable
+private fun Modifier.spectacle(
+    entrance: RevealEntrance,
+    from: Rect?,
+    origin: MutableState<Offset>,
+    card: MutableState<Rect>,
+    chronotype: Chronotype,
+    skip: () -> Unit,
+): Modifier {
+    if (entrance.start != RevealStart.Spectacle) return this
+    val fill = ClockblockTheme.sky.gradientAt(((chronotype.skyPose().hour - EntranceHours) % 24f + 24f) % 24f)
+    val rim = ClockblockTheme.artColors.tertiary
+    val skipLabel = stringResource(R.string.chronotype_spectacle_skip)
+    val path = remember { Path() }
+    val running = entrance.spectacleRunning
+    return this
+        .onGloballyPositioned { origin.value = it.positionInRoot() }
+        .drawWithCache {
+            val local = card.value.translate(-origin.value)
+            val morphs = spectacleMorphs(if (local.isEmpty) 0f else RevealCorner.toPx() / local.width)
+            val face = from?.translate(-origin.value) ?: Rect.Zero
+            onDrawBehind {
+                if (entrance.spectacleRunning && !local.isEmpty) drawSpectacleShape(entrance, morphs, face, local, fill, rim, path)
+            }
+        }
+        .then(
+            if (!running) {
+                Modifier
+            } else {
+                Modifier
+                    .testTag(ChronotypeRevealTags.Spectacle)
+                    .semantics { onClick(label = skipLabel) { skip(); true } }
+                    .pointerInput(entrance) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            val toLink = entrance.linkShown
+                            if (!toLink) down.consume()
+                            val up = waitForUpOrCancellation(PointerEventPass.Initial) ?: return@awaitEachGesture
+                            if (!toLink) up.consume()
+                            skip()
+                        }
+                    }
+            },
+        )
+}
+
 @Composable
 internal fun RevealWords(
     chronotype: Chronotype,
@@ -205,7 +307,7 @@ internal fun RevealWords(
         style = MaterialTheme.typography.labelLarge,
         color = colors.primary,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.00f, 0.45f),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.00f..0.45f),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 8.dp))
     Text(
@@ -213,7 +315,7 @@ internal fun RevealWords(
         style = if (compact) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
         color = colors.onSurface,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.16f, 0.62f).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.16f..0.62f).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 12.dp))
     Text(
@@ -221,7 +323,7 @@ internal fun RevealWords(
         style = MaterialTheme.typography.titleMedium,
         color = colors.onSurface,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.32f, 0.78f),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.32f..0.78f),
     )
     Spacer(Modifier.size(if (compact) 8.dp else 16.dp))
     val small: TextStyle = MaterialTheme.typography.bodyMedium
@@ -235,22 +337,27 @@ internal fun RevealWords(
         style = small,
         color = colors.onSurfaceVariant,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.48f, 0.92f),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.48f..0.92f),
     )
     Text(
         stringResource(R.string.chronotype_reveal_plan),
         style = small,
         color = colors.onSurfaceVariant,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.58f, 1.00f),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.58f..1.00f),
     )
 }
 
-internal fun Modifier.staggeredWord(progress: () -> Float, start: Float, end: Float): Modifier = graphicsLayer {
-    val p = ((progress() - start) / (end - start)).coerceIn(0f, 1f)
+/** One line of the staggered words: fades in while dropping into place over its own [share] of [progress]. */
+internal fun Modifier.staggeredWord(progress: () -> Float, share: ClosedFloatingPointRange<Float>): Modifier = graphicsLayer {
+    val p = staggerProgress(progress(), share)
     alpha = p
     translationY = -(1f - p) * WordStaggerDrop.toPx()
 }
+
+/** A staggered line's own eased 0 → 1 over its [share] of the words' [progress]. */
+internal fun staggerProgress(progress: Float, share: ClosedFloatingPointRange<Float>): Float =
+    ClockblockMotion.StaggerEasing.transform(((progress - share.start) / (share.endInclusive - share.start)).coerceIn(0f, 1f))
 
 private val WordStaggerDrop = 12.dp
 
@@ -300,8 +407,9 @@ private fun rememberAmbient(enabled: Boolean, periodMillis: Int, reverse: Boolea
 private val RevealArtSize = 200.dp
 private val ShortPaneHeight = 480.dp
 private val RevealCorner = 32.dp
-private val WordsRise = 24.dp
-private const val WordsStartAt = 0.7f
+
+/** The link's share of the staggered words: the last line in. */
+internal val LinkStagger = 0.68f..1.00f
 
 /** The sky warms through the last few hours before the peak during the entrance. */
 private const val EntranceHours = 3f

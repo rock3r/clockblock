@@ -1,28 +1,15 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import android.content.ActivityNotFoundException
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Transition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeSpectacleOverlay
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.activity.compose.BackHandler
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,18 +24,25 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -67,9 +61,6 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlin.math.roundToInt
 
 /** Test tags for the e2e suite. */
-
-val LocalOnboardingDialBounds = compositionLocalOf<androidx.compose.runtime.MutableState<Rect?>?> { null }
-
 object OnboardingTags {
     const val Progress = "onboarding_progress"
     const val Next = "onboarding_next"
@@ -83,6 +74,18 @@ object OnboardingTags {
     /** `onboarding_step_Welcome` … `onboarding_step_Reminders`, on each step's root. */
     fun step(step: OnboardingStep): String = "onboarding_step_${step.name}"
 }
+
+/**
+ * Where the first-time chronotype spectacle starts: the sleep dial records its inner face here (in root coordinates,
+ * unclipped) whenever it's placed, and Next on the sleep step hands it to the reveal. A plain field, never observed:
+ * nothing recomposes when the dial moves.
+ */
+internal class SpectacleOrigin {
+    var dialFace: Rect? = null
+}
+
+/** The onboarding flow's [SpectacleOrigin], for the sleep dial; null elsewhere (Settings' sleep editor). */
+internal val LocalSpectacleOrigin = staticCompositionLocalOf<SpectacleOrigin?> { null }
 
 /** Everything the onboarding UI can ask for. The route binds it to [OnboardingViewModel]; tests use no-ops. */
 interface OnboardingActions {
@@ -188,69 +191,40 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
  * the field moves to the top, the bars fold away and the results fill the space down to the keyboard. The keyboard is
  * only ever read in layout (it moves the bottom bar and shrinks the steps' scrolling viewport), and its target at the
  * start and end of a move in the search, so the layout never flips while you type.
+ *
+ * The first Next from the sleep step plays the chronotype spectacle (see `ChronotypeReveal`): the step moves on at
+ * once, the sleep step fades away and the bars fade out and take no input until the reveal rests. Back during it is an
+ * ordinary back to the sleep step. Skipped when motion is reduced or TalkBack explores by touch.
  */
 @Composable
 fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modifier: Modifier = Modifier) {
-    var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
-    var spectacleActive by rememberSaveable { mutableStateOf(false) }
-    var justFinishedSpectacle by remember { mutableStateOf(false) }
-    var openChronotypePicker by rememberSaveable { mutableStateOf(false) }
-    val dialBoundsState = remember { mutableStateOf<Rect?>(null) }
-
     val step = state.step
-    BackHandler(enabled = spectacleActive) {
-        spectacleActive = false
-        justFinishedSpectacle = false
-    }
-
-    val reduce = ClockblockTheme.reduceMotion
+    // At most once per onboarding session, on the first Next from Sleep. Where it starts from is plain state, so a
+    // spectacle interrupted by a rotation or process death never resumes: the reveal just sits at rest.
+    var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
+    var spectacleFrom by remember { mutableStateOf<Rect?>(null) }
+    val spectacleOrigin = remember { SpectacleOrigin() }
+    val allowed = !ClockblockTheme.reduceMotion && !rememberTouchExplorationEnabled()
+    // Reduce motion or TalkBack turning on ends it too: the reveal then sits at rest.
+    val spectacleRunning = spectacleFrom != null && step == OnboardingStep.Chronotype && allowed
+    // Back during the spectacle ends it, as does a host that didn't move on, and for good once motion is disallowed.
+    LaunchedEffect(step) { if (step != OnboardingStep.Chronotype) spectacleFrom = null }
+    LaunchedEffect(allowed) { if (!allowed) spectacleFrom = null }
     val currentStep by rememberUpdatedState(step)
-    val currentReduce by rememberUpdatedState(reduce)
-    val wrappedActions = object : OnboardingActions by actions {
-        override fun next() {
-            if (currentStep == OnboardingStep.Sleep && !spectaclePlayed) {
-                if (currentReduce) {
+    val spectacleAllowed by rememberUpdatedState(allowed)
+    val stepActions = remember(actions) {
+        object : OnboardingActions by actions {
+            override fun next() {
+                // The first visit counts even when it can't play (reduce motion, TalkBack): it never plays later.
+                if (currentStep == OnboardingStep.Sleep && !spectaclePlayed) {
                     spectaclePlayed = true
-                    actions.next()
-                } else {
-                    spectacleActive = true
+                    if (spectacleAllowed) spectacleFrom = spectacleOrigin.dialFace ?: Rect.Zero
                 }
-            } else {
                 actions.next()
             }
         }
-        override fun back() {
-            if (spectacleActive) {
-                spectacleActive = false
-                justFinishedSpectacle = false
-            } else {
-                actions.back()
-            }
-        }
     }
-    val steps = rememberOnboardingStepTransition(
-        step = step,
-        snap = justFinishedSpectacle,
-        onSettled = { settled ->
-            if (justFinishedSpectacle && settled != OnboardingStep.Sleep) {
-                spectacleActive = false
-                justFinishedSpectacle = false
-            }
-        },
-        onBack = wrappedActions::back,
-    )
-    LaunchedEffect(justFinishedSpectacle) {
-        if (justFinishedSpectacle) {
-            // Give a StateFlow-backed host a frame to deliver the new step; if actions.next() was a non-navigating
-            // mock (e.g. OnboardingActions.None), release the overlay cleanly.
-            androidx.compose.runtime.withFrameNanos { }
-            androidx.compose.runtime.withFrameNanos { }
-            if (justFinishedSpectacle && currentStep == OnboardingStep.Sleep) {
-                spectacleActive = false
-                justFinishedSpectacle = false
-            }
-        }
-    }
+    val steps = rememberOnboardingStepTransition(step, onBack = actions::back)
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
@@ -279,7 +253,6 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     )
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
-    CompositionLocalProvider(LocalOnboardingDialBounds provides dialBoundsState) {
     BoxWithConstraints(
         modifier
             .fillMaxSize()
@@ -292,8 +265,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val short = maxHeight < 480.dp
         val searchMode = step == OnboardingStep.HomeZone && homeSearch.fullHeight
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        val hideChrome = spectacleActive && !justFinishedSpectacle
-        val frameAlpha = animateFloatAsState(if (hideChrome) 0f else 1f, motion.fade(), label = "spectacleFade")
+        val bars = animateFloatAsState(if (spectacleRunning) 0f else 1f, motion.fade(), label = "spectacleBars")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         OnboardingFrame(
@@ -302,96 +274,61 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             topBar = {
                 OnboardingTopBar(
                     step = step,
-                    visible = step != OnboardingStep.Welcome && !searchMode && !hideChrome,
-                    alpha = { chrome() * (1f - search.value) * frameAlpha.value },
-                    onSkip = wrappedActions::skip,
+                    visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
+                    alpha = { chrome() * (1f - search.value) * bars.value },
+                    onSkip = actions::skip,
                 )
             },
             disclaimer = {
                 if (nearWelcome) {
                     WelcomeDisclaimer(
                         Modifier
-                            .graphicsLayer { alpha = welcomeChrome() * frameAlpha.value }
-                            .then(if (step == OnboardingStep.Welcome && !hideChrome) Modifier else Modifier.clearAndSetSemantics { }),
+                            .graphicsLayer { alpha = welcomeChrome() }
+                            .then(if (step == OnboardingStep.Welcome) Modifier else Modifier.clearAndSetSemantics { }),
                     )
                 }
             },
             bottomBar = {
                 OnboardingBottomBar(
-                    state, wrappedActions, wide, short = short, welcome = welcome, welcomeChrome = welcomeChrome, chrome = chrome,
+                    state, stepActions, wide, short = short, welcome = welcome, welcomeChrome = welcomeChrome, chrome = chrome,
                     modifier = Modifier
-                        .graphicsLayer { alpha = (1f - search.value) * frameAlpha.value }
+                        .graphicsLayer { alpha = (1f - search.value) * bars.value }
                         // Folded away under the full-height search: out of keyboard and D-pad focus too.
                         .focusProperties { canFocus = !searchMode }
-                        .then(if (searchMode || hideChrome) Modifier.clearAndSetSemantics { } else Modifier),
+                        .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier)
+                        .then(if (spectacleRunning) Modifier.inert() else Modifier),
                 )
             },
             steps = { barHeight, noteHeight ->
-                Box(Modifier.fillMaxSize()) {
-                    steps.transition.AnimatedContent(
-                        transitionSpec = {
-                            if (justFinishedSpectacle) {
-                                fadeIn(androidx.compose.animation.core.snap()) togetherWith fadeOut(androidx.compose.animation.core.snap())
-                            } else {
-                                steps.transitionFor(initialState, targetState)
-                            }
-                        },
-                        contentKey = { it },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(if (spectacleActive) Modifier.clearAndSetSemantics { } else Modifier),
-                    ) { target ->
-                        stepStates.SaveableStateProvider(target.name) {
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        alpha = if (target == OnboardingStep.Sleep) {
-                                            if (justFinishedSpectacle) 0f else frameAlpha.value
-                                        } else {
-                                            1f
+                steps.transition.AnimatedContent(
+                    transitionSpec = { steps.transitionFor(initialState, targetState, spectacle = spectacleFrom != null) },
+                    contentKey = { it },
+                    modifier = Modifier.fillMaxSize(),
+                ) { target ->
+                    stepStates.SaveableStateProvider(target.name) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .stepRoom(
+                                    top = {
+                                        when (target) {
+                                            OnboardingStep.Welcome -> 0
+                                            OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
+                                            else -> barHeight
                                         }
-                                    }
-                                    .stepRoom(
-                                        top = {
-                                            when (target) {
-                                                OnboardingStep.Welcome -> 0
-                                                OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
-                                                else -> barHeight
-                                            }
-                                        },
-                                        bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
-                                    )
-                                    .testTag(OnboardingTags.step(target)),
-                            ) {
+                                    },
+                                    bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
+                                )
+                                .testTag(OnboardingTags.step(target)),
+                        ) {
+                            CompositionLocalProvider(LocalSpectacleOrigin provides spectacleOrigin) {
                                 OnboardingStepBody(
-                                    target, state, wrappedActions, wide,
-                                    spectaclePlayed = spectaclePlayed,
-                                    openChronotypePicker = openChronotypePicker,
-                                    onChronotypePickerOpened = { openChronotypePicker = false },
+                                    target, state, stepActions, wide,
                                     homeSearch = homeSearch,
+                                    spectacleFrom = spectacleFrom.takeIf { target == OnboardingStep.Chronotype },
+                                    onSpectacleFinished = { spectacleFrom = null },
                                 )
                             }
-                        }
-                    }
-                    if (spectacleActive) {
-                        Box(Modifier.fillMaxSize().stepRoom(top = { barHeight }, bottom = 0)) {
-                            ChronotypeSpectacleOverlay(
-                                chronotype = state.profile.chronotype,
-                                picked = state.showsPick,
-                                midSleep = state.inferred.midSleep,
-                                daysOffLinked = state.profile.daysOffSleep == null,
-                                wide = wide,
-                                dialBounds = dialBoundsState.value ?: Rect.Zero,
-                                onFinished = { openPicker ->
-                                    if (!justFinishedSpectacle) {
-                                        spectaclePlayed = true
-                                        justFinishedSpectacle = true
-                                        if (openPicker) openChronotypePicker = true
-                                        actions.next()
-                                    }
-                                },
-                            )
                         }
                     }
                 }
@@ -400,8 +337,35 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             disclaimerOverlap = bottomBarVerticalPadding(short),
         )
     }
-    }
 }
+
+/** Hidden chrome: takes no taps and no focus, and TalkBack doesn't see it. */
+private fun Modifier.inert(): Modifier = this
+    .clearAndSetSemantics { }
+    .focusProperties { canFocus = false }
+    .pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+        }
+    }
+
+/**
+ * Whether a touch-exploration service (TalkBack) is on, following the setting while shown. The chronotype reveal then
+ * skips its spectacle and entrance, so everything TalkBack reads is already on screen.
+ */
+@Composable
+internal fun rememberTouchExplorationEnabled(): Boolean {
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(AccessibilityManager::class.java) }
+    var enabled by remember(manager) { mutableStateOf(manager?.isTouchExplorationEnabled == true) }
+    DisposableEffect(manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { enabled = it }
+        manager?.addTouchExplorationStateChangeListener(listener)
+        onDispose { manager?.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return enabled
+}
+
 
 /** 1 on Welcome, 0 on every other step. */
 private fun welcomeOnly(step: OnboardingStep): Float = if (step == OnboardingStep.Welcome) 1f else 0f

@@ -8,10 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import io.kotest.matchers.collections.shouldBeEmpty
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -104,9 +100,10 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         actions.calls shouldHaveSize 0
     }
 
+    /** On the sleep step too: with reduce motion there's no spectacle, and Next moves on at once. */
     @Test
     fun `next, back and skip are wired on a middle step`() {
-        show(onboardingState(OnboardingStep.HomeZone))
+        show(onboardingState(OnboardingStep.Sleep))
         compose.onNodeWithTag(OnboardingTags.Next).performClick()
         compose.onNodeWithTag(OnboardingTags.Back).performClick()
         compose.onNodeWithTag(OnboardingTags.Skip).performClick()
@@ -322,42 +319,6 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed().performClick()
         compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
-        actions.calls shouldContainExactly listOf("next")
-    }
-
-    @Test
-    fun `spectacle plays once per session on Next from Sleep and hides faded sleep step from accessibility`() {
-        var state by mutableStateOf(onboardingState(OnboardingStep.Sleep))
-        val navigating = object : OnboardingActions by actions {
-            override fun next() {
-                actions.next()
-                state = state.copy(step = OnboardingStep.Chronotype)
-            }
-        }
-        setContent(reduceMotion = false) { OnboardingContent(state, navigating, Modifier.fillMaxSize()) }
-        compose.waitForIdle()
-
-        compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag(OnboardingTags.Next).performClick()
-        compose.mainClock.advanceTimeBy(80)
-        actions.calls.shouldBeEmpty()
-        // While the spectacle is active, the faded Sleep step and chrome have their semantics cleared.
-        compose.onNodeWithTag(SleepDialTags.Wake).assertDoesNotExist()
-        compose.onNodeWithTag(SleepDialTags.DaysOff).assertDoesNotExist()
-        compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
-
-        compose.mainClock.autoAdvance = true
-        compose.mainClock.advanceTimeBy(3000)
-        compose.waitForIdle()
-        actions.calls shouldContainExactly listOf("next")
-        compose.onNodeWithTag(ChronotypeRevealTags.Name).assertIsDisplayed()
-
-        state = onboardingState(OnboardingStep.Sleep)
-        compose.waitForIdle()
-
-        actions.calls.clear()
-        compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag(OnboardingTags.Next).performClick()
         actions.calls shouldContainExactly listOf("next")
     }
 }
