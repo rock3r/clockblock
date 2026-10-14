@@ -26,6 +26,9 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
@@ -34,6 +37,13 @@ import androidx.compose.ui.test.performClick
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.unit.dp
+import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.ints.shouldBeGreaterThanOrEqual
 import dev.sebastiano.clockblocker.opus.core.data.demo.DemoData
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import io.kotest.matchers.collections.shouldContainExactly
@@ -73,10 +83,15 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
         }
     }
 
-    private fun show(darkTheme: Boolean = false, fontScale: Float? = null, reduceMotion: Boolean = true) =
-        setContent(darkTheme = darkTheme, fontScale = fontScale, reduceMotion = reduceMotion) {
-            view = LocalView.current
-            backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+    private fun show(
+        darkTheme: Boolean = false,
+        fontScale: Float? = null,
+        reduceMotion: Boolean = true,
+        layoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    ) = setContent(darkTheme = darkTheme, fontScale = fontScale, reduceMotion = reduceMotion) {
+        view = LocalView.current
+        backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+        CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
             Box(Modifier.fillMaxSize()) {
                 OnboardingContent(state, actions, Modifier.fillMaxSize())
                 // Stands in for the keyboard in goldens: the IME area the layout leaves free.
@@ -89,6 +104,7 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
                 )
             }
         }
+    }
 
     /** Raises (or with 0, hides) a keyboard [heightDp] tall, as the window would report it. */
     private fun keyboard(heightDp: Int) {
@@ -160,14 +176,97 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
 
     @Test
     @Config(qualifiers = "w891dp-h411dp-xxhdpi")
-    fun `a landscape phone goes full height too`() {
+    fun `a landscape phone goes full height too, with the results beside the field`() {
         show()
         compose.onNodeWithTag(HomeZoneTags.Search).performClick()
         keyboard(LandscapeKeyboardDp)
         compose.onNodeWithTag(HomeZoneTags.Current).assertDoesNotExist()
         compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
-        compose.onNodeWithTag(HomeZoneTags.result(ManyResults[0])).assertIsDisplayed()
-        compose.onNodeWithTag(HomeZoneTags.result(ManyResults[1])).assertIsDisplayed()
+        compose.onNodeWithText("Where's home?").assertDoesNotExist()
+        fullyAboveKeyboard(LandscapeKeyboardDp) shouldBeGreaterThanOrEqual 3
+        val field = compose.onNodeWithTag(HomeZoneTags.Search).getUnclippedBoundsInRoot()
+        compose.onNodeWithTag(HomeZoneTags.result(ManyResults[0])).getUnclippedBoundsInRoot().left shouldBeGreaterThan field.right
+    }
+
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun `with a pixel 7 pro's landscape keyboard two whole results still show`() {
+        show()
+        compose.onNodeWithTag(HomeZoneTags.Search).performClick()
+        keyboard(DeviceLandscapeKeyboardDp)
+        fullyAboveKeyboard(DeviceLandscapeKeyboardDp) shouldBeGreaterThanOrEqual 2
+    }
+
+    /** The activity window's bounds (a focused field may add a popup root for its handle). */
+    private fun window() = compose.onAllNodes(isRoot()).onFirst().getUnclippedBoundsInRoot()
+
+    /** How many result rows sit wholly on screen above a keyboard [keyboardDp] tall. */
+    private fun fullyAboveKeyboard(keyboardDp: Int): Int {
+        val root = window()
+        val keyboardTop = root.bottom - keyboardDp.dp
+        return ManyResults.count { place ->
+            val node = compose.onAllNodesWithTag(HomeZoneTags.result(place))
+            node.fetchSemanticsNodes().isNotEmpty() && node.onFirst().getUnclippedBoundsInRoot().let { it.top >= root.top && it.bottom <= keyboardTop }
+        }
+    }
+
+    @Test
+    fun `typing never moves the results while the search is in flight`() {
+        show()
+        enterSearch()
+        val rowTop = compose.onNodeWithTag(HomeZoneTags.result(ManyResults[0])).getUnclippedBoundsInRoot().top
+        // "lond" is typed; the old answer (for "lon") is still on screen until the new one arrives.
+        state = state.copy(query = "lond")
+        compose.waitForIdle()
+        compose.onNodeWithTag(HomeZoneTags.result(ManyResults[0])).getUnclippedBoundsInRoot().top shouldBe rowTop
+        // TalkBack's live region stays put and keeps the last settled count until the new answer settles.
+        compose.onNodeWithTag(HomeZoneTags.ResultCount).assert(hasText("8 places match"))
+        state = searchState("lond", persistentListOf(DemoData.LHR, DemoData.LGW))
+        compose.waitForIdle()
+        compose.onNodeWithTag(HomeZoneTags.ResultCount).assert(hasText("2 places match"))
+        compose.onNodeWithTag(HomeZoneTags.result(ManyResults[0])).getUnclippedBoundsInRoot().top shouldBe rowTop
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h560dp-xxhdpi")
+    fun `a search with no match scrolls its message into view`() {
+        state = searchState("", persistentListOf())
+        show()
+        // A hardware keyboard: no IME, so the step keeps its layout and the field sits near the bottom of the view.
+        compose.onNodeWithTag(HomeZoneTags.Search).performSemanticsAction(SemanticsActions.RequestFocus)
+        settle()
+        state = state.copy(query = "zzz")
+        settle()
+        state = searchState("zzz", persistentListOf())
+        settle()
+        val message = compose.onNodeWithTag(HomeZoneTags.ResultCount).assert(hasText("Nothing matches", substring = true)).getUnclippedBoundsInRoot()
+        val bar = compose.onNodeWithTag(OnboardingTags.Next).getUnclippedBoundsInRoot()
+        // Wholly visible: above the bottom bar.
+        (message.bottom <= bar.top) shouldBe true
+    }
+
+    @Test
+    fun `the keyboard's search key only puts the keyboard away`() {
+        show()
+        enterSearch()
+        compose.onNodeWithTag(HomeZoneTags.Search).performImeAction()
+        settle()
+        calls.filter { it.startsWith("place:") } shouldBe emptyList()
+        compose.onNodeWithTag(HomeZoneTags.Search).assertIsNotFocused()
+    }
+
+    @Test
+    fun `on a phone the keyboard takes back first, then back leaves the step`() {
+        show()
+        enterSearch()
+        // A real device: the first Back only hides the keyboard, which ends the search.
+        keyboard(0)
+        compose.onNodeWithTag(HomeZoneTags.Search).assertIsNotFocused()
+        assertNormalLayout()
+        calls shouldNotContain "back"
+        compose.runOnUiThread { backDispatcher.onBackPressed() }
+        settle()
+        calls shouldContainExactly listOf("back")
     }
 
     @Test
@@ -261,8 +360,20 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
     @Config(qualifiers = "w891dp-h411dp-xxhdpi")
     fun searchModeGoldenLandscape() = golden("onboarding_2_home_search_mode_landscape", keyboardDp = LandscapeKeyboardDp)
 
-    private fun golden(name: String, darkTheme: Boolean = false, fontScale: Float? = null, keyboardDp: Int = PhoneKeyboardDp) {
-        show(darkTheme = darkTheme, fontScale = fontScale)
+    @Test
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    fun searchModeGoldenLandscapeDevice() = golden("onboarding_2_home_search_mode_landscape_device", keyboardDp = DeviceLandscapeKeyboardDp)
+
+    @Test fun searchModeGoldenRtl() = golden("onboarding_2_home_search_mode_rtl", layoutDirection = LayoutDirection.Rtl)
+
+    private fun golden(
+        name: String,
+        darkTheme: Boolean = false,
+        fontScale: Float? = null,
+        keyboardDp: Int = PhoneKeyboardDp,
+        layoutDirection: LayoutDirection = LayoutDirection.Ltr,
+    ) {
+        show(darkTheme = darkTheme, fontScale = fontScale, layoutDirection = layoutDirection)
         // Focus without a tap, so no text-selection handle sits in the golden.
         compose.onNodeWithTag(HomeZoneTags.Search).performSemanticsAction(SemanticsActions.RequestFocus)
         keyboard(keyboardDp)
@@ -275,6 +386,12 @@ class OnboardingSearchModeTest : ClockblockScreenshotTest() {
         const val PhoneKeyboardDp = 330
         const val TabletKeyboardDp = 380
         const val LandscapeKeyboardDp = 210
+
+        /**
+         * What a Pixel 7 Pro's landscape Gboard leaves of a 411 dp window, here without system bars: its 242 dp over
+         * the navigation bar, plus the status and navigation bars (about 24 dp each), so ~121 dp stay.
+         */
+        const val DeviceLandscapeKeyboardDp = 290
 
         val ManyResults: ImmutableList<Place> = persistentListOf(
             DemoData.LHR, DemoData.LGW, DemoData.LIS, DemoData.LAX, DemoData.SFO, DemoData.SIN, DemoData.SYD, DemoData.JFK,

@@ -41,6 +41,7 @@ internal fun onboardingState(
     deviceZoneId = "Europe/London",
     query = query,
     results = if (query.isBlank()) persistentListOf() else persistentListOf(DemoData.HND, DemoData.NRT),
+    searchMatchingQuery = query,
     melatoninAcknowledged = melatoninAcknowledged,
     permissions = NotificationPermissionState(
         notificationsGranted = notificationsGranted,

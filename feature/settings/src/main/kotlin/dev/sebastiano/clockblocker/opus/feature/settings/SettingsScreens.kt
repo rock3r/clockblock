@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -70,7 +68,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -85,7 +82,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -94,7 +90,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sebastiano.clockblocker.opus.core.circadian.usualLowestPoint
-import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.data.PinnableWidget
 import dev.sebastiano.clockblocker.opus.core.data.backup.ImportMode
 import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceGlyph
@@ -118,7 +113,6 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.component.ConnectedCho
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePicker
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeSky
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.EffortSelector
-import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SegmentedGap
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDial
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialMath
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ToolSwitchRow
@@ -130,6 +124,23 @@ import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.segmentedShap
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.util.lerp
+import dev.sebastiano.clockblocker.opus.feature.onboarding.HomeSearch
+import dev.sebastiano.clockblocker.opus.feature.onboarding.HomeZoneTags
+import dev.sebastiano.clockblocker.opus.feature.onboarding.rememberHomeSearchState
+import dev.sebastiano.clockblocker.opus.feature.onboarding.rememberKeyboardAboveBars
+import java.time.LocalTime
+import kotlin.math.roundToInt
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
@@ -141,7 +152,11 @@ object SettingsTags {
     const val List = "settings_list"
     const val You = "settings_you"
     const val Home = "settings_home"
-    const val HomeSearch = "settings_home_search"
+    /** The home editor's card. */
+    const val HomeEditor = "settings_home_editor"
+
+    /** The home editor's search field: the shared [HomeSearch]'s, as in onboarding. */
+    const val HomeSearch = HomeZoneTags.Search
     const val Sleep = "settings_sleep"
     const val Chronotype = "settings_chronotype"
     const val EditorSave = "settings_editor_save"
@@ -170,8 +185,8 @@ object SettingsTags {
     /** `settings_lead_0` … `settings_lead_30`. */
     fun lead(minutes: Int): String = "settings_lead_$minutes"
 
-    /** `settings_home_result_LHR` etc. */
-    fun homeResult(place: Place): String = "settings_home_result_${place.code.ifBlank { place.city }}"
+    /** The home editor's results: the shared [HomeSearch]'s, as in onboarding (`home_zone_result_LHR` etc.). */
+    fun homeResult(place: Place): String = HomeZoneTags.result(place)
 
     /** `settings_pin_TwoClocks`, `settings_pin_NextUp`: the widget card's Add buttons. */
     fun pinWidget(widget: PinnableWidget): String = "settings_pin_${widget.name}"
@@ -478,11 +493,12 @@ fun SettingsContent(
             }
             ProfileEditor.Home -> {
                 val close = { actions.clearHomeSearch(); editor = ProfileEditor.None }
-                EditorDialog(onDismiss = close) {
+                EditorDialog(onDismiss = close, fullWindow = true) {
                     HomeZoneEditor(
                         profile = profile,
                         query = state.homeQuery,
                         results = state.homeResults,
+                        resultsQuery = state.homeResultsQuery,
                         onQueryChange = actions::searchHome,
                         onSelect = { actions.selectHome(it); editor = ProfileEditor.None },
                         onClose = close,
@@ -1262,12 +1278,20 @@ private val ShortEditorHeight = 480.dp
 /** A 48 dp-or-taller control's height around its label line (button or connected toggle paddings). */
 private val ControlVerticalChrome = 20.dp
 
-/** Home time zone editor: offline place search; picking a result saves straight away. */
+/**
+ * Home time zone editor: the shared [HomeSearch] (picking a result saves straight away) in a dialog-like card that
+ * places itself in its window ([EditorDialog] with `fullWindow`), so the search can take the screen: when focusing it
+ * with the keyboard up leaves too little room, the card grows from the centre to the whole window down to the
+ * keyboard (`navigationSpatial()`; it snaps under reduced motion), its title, current zone and Close fold away, and
+ * the field sits at the top with the results under it. A tap outside the card closes the editor; the card keeps its
+ * title for TalkBack as a pane title throughout.
+ */
 @Composable
 internal fun HomeZoneEditor(
     profile: UserProfile,
     query: String,
     results: List<Place>,
+    resultsQuery: String,
     onQueryChange: (String) -> Unit,
     onSelect: (Place) -> Unit,
     onClose: () -> Unit,
@@ -1276,61 +1300,92 @@ internal fun HomeZoneEditor(
     val zone = remember(profile.homeZoneId) { ZoneId.of(profile.homeZoneId) }
     val formatter = rememberTimeFormatter()
     val colors = MaterialTheme.colorScheme
-    var searchMode by remember { mutableStateOf(false) }
+    val search = rememberHomeSearchState()
     val motion = ClockblockTheme.motion
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
-        AnimatedVisibility(
-            visible = !searchMode,
-            enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
-            exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade())
+    val fullScreen = animateFloatAsState(if (search.fullHeight) 1f else 0f, motion.navigationSpatial(), label = "homeEditorFullScreen")
+    val keyboard = rememberKeyboardAboveBars()
+    val title = stringResource(R.string.settings_home_dialog_title)
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))) {
+        // The scrim: a tap outside the card closes the editor (the card, on top, takes its own taps).
+        Box(Modifier.fillMaxSize().pointerInput(onClose) { detectTapGestures { onClose() } })
+        val room = maxHeight - EditorPadding * 2 - if (search.fullHeight) 0.dp else EditorMargin * 2
+        val wide = maxWidth >= WideEditorWidth && maxWidth > maxHeight
+        Surface(
+            shape = RoundedCornerShape(EditorCorner),
+            color = colors.surfaceContainerLow,
+            modifier = Modifier
+                .editorCard(progress = { fullScreen.value }, keyboard = keyboard)
+                .semantics { paneTitle = title }
+                .testTag(SettingsTags.HomeEditor),
         ) {
-            Column {
-                EditorTitle(stringResource(R.string.settings_home_dialog_title))
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.settings_home_dialog_body), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-                Spacer(Modifier.size(16.dp))
-                Surface(shape = MaterialTheme.shapes.large, color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(zone.cityName(), style = MaterialTheme.typography.titleLarge, color = colors.onSecondaryContainer)
-                        Text(
-                            "${formatter.format(java.time.LocalTime.ofInstant(now, zone))} · ${gmtOffsetLabel(zone, now)}" +
-                                ZoneLabels.longName(zone, now, LocalConfiguration.current.locales[0])?.let { " · $it" }.orEmpty(),
-                            style = ClockblockTheme.textStyles.timeLabel,
-                            color = colors.onSecondaryContainer,
-                        )
-                    }
-                }
-                Spacer(Modifier.size(16.dp))
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(EditorPadding)) {
+                HomeSearch(
+                    state = search,
+                    query = query,
+                    results = results,
+                    resultsQuery = resultsQuery,
+                    now = now,
+                    room = room,
+                    onQueryChange = onQueryChange,
+                    onPick = onSelect,
+                    // A landscape phone: the full-screen search lays out side by side.
+                    wide = wide,
+                    above = {
+                        Column {
+                            EditorTitle(title)
+                            Spacer(Modifier.size(8.dp))
+                            Text(stringResource(R.string.settings_home_dialog_body), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                            Spacer(Modifier.size(16.dp))
+                            Surface(shape = MaterialTheme.shapes.large, color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(zone.cityName(), style = MaterialTheme.typography.titleLarge, color = colors.onSecondaryContainer)
+                                    Text(
+                                        "${formatter.format(LocalTime.ofInstant(now, zone))} · ${gmtOffsetLabel(zone, now)}" +
+                                            ZoneLabels.longName(zone, now, LocalConfiguration.current.locales[0])?.let { " · $it" }.orEmpty(),
+                                        style = ClockblockTheme.textStyles.timeLabel,
+                                        color = colors.onSecondaryContainer,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.size(16.dp))
+                        }
+                    },
+                    below = {
+                        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.settings_close)) }
+                        }
+                    },
+                )
             }
-        }
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            label = { Text(stringResource(R.string.settings_home_search)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            shape = MaterialTheme.shapes.extraLarge,
-            modifier = Modifier.fillMaxWidth().onFocusChanged { searchMode = it.isFocused }.testTag(SettingsTags.HomeSearch),
-        )
-        Spacer(Modifier.size(12.dp))
-        if (query.isNotBlank() && results.isEmpty()) {
-            Text(stringResource(R.string.settings_home_no_results, query.trim()), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
-            results.forEachIndexed { index, place ->
-                val shape = segmentedShape(index, results.size)
-                // The shared airport row (same as the trip editor and onboarding).
-                Surface(shape = shape, color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-                    PlaceResultRow(place, now, onClick = { onSelect(place) }, modifier = Modifier.clip(shape).testTag(SettingsTags.homeResult(place)))
-                }
-            }
-        }
-        Spacer(Modifier.size(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onClose, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.settings_close)) }
         }
     }
 }
+
+/**
+ * Places the home editor's card: centred, at most [EditorMaxWidth] wide and [EditorMargin] from the window's edges, as
+ * tall as its content; at [progress] 1, the whole window down to the keyboard. Both read in layout.
+ */
+private fun Modifier.editorCard(progress: () -> Float, keyboard: Density.() -> Int): Modifier = layout { measurable, constraints ->
+    val p = progress().coerceIn(0f, 1f)
+    val margin = EditorMargin.roundToPx()
+    val height = (constraints.maxHeight - keyboard()).coerceAtLeast(0)
+    val cardWidth = minOf(constraints.maxWidth - margin * 2, EditorMaxWidth.roundToPx()).coerceAtLeast(0)
+    val width = lerp(cardWidth.toFloat(), constraints.maxWidth.toFloat(), p).roundToInt()
+    val maxHeight = lerp((height - margin * 2).coerceAtLeast(0).toFloat(), height.toFloat(), p).roundToInt()
+    val placeable = measurable.measure(Constraints(minWidth = width, maxWidth = width, minHeight = 0, maxHeight = maxHeight))
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        val x = lerp(((constraints.maxWidth - width) / 2).toFloat(), 0f, p).roundToInt()
+        val y = lerp(((height - placeable.height) / 2).toFloat(), 0f, p).roundToInt()
+        placeable.place(x, y)
+    }
+}
+
+private val EditorMargin = 16.dp
+private val EditorMaxWidth = 520.dp
+private val EditorCorner = 28.dp
+
+/** From this width, in a landscape window, the home editor's full-screen search lays out side by side. */
+private val WideEditorWidth = 600.dp
 
 /** Replace/Merge confirmation for a decoded backup. */
 @Composable

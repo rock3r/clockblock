@@ -55,7 +55,8 @@ val ReminderLeadOptions: List<Int> = listOf(0, 5, 10, 15, 30)
  * @property pendingImport a decoded backup waiting for the Replace/Merge confirmation.
  * @property isWorking an export or import is in progress.
  * @property homeQuery the text in the home time zone search.
- * @property homeResults places matching [homeQuery].
+ * @property homeResults places matching [homeResultsQuery].
+ * @property homeResultsQuery the query [homeResults] answer (behind [homeQuery] while a search is in flight).
  * @property widgetPinningSupported the launcher accepts "add widget" requests (the Widgets card is hidden otherwise).
  * @property easterEggs the sleep editor's 24.2 egg may run ([EasterEggGate]: Reduce motion off, plan not saying sleep).
  */
@@ -68,6 +69,7 @@ data class SettingsUiState(
     val isWorking: Boolean = false,
     val homeQuery: String = "",
     val homeResults: ImmutableList<Place> = persistentListOf(),
+    val homeResultsQuery: String = "",
     val widgetPinningSupported: Boolean = false,
     val easterEggs: Boolean = false,
 )
@@ -149,6 +151,7 @@ class SettingsViewModel(
             isWorking = transient.isWorking,
             homeQuery = transient.homeQuery,
             homeResults = transient.homeResults,
+            homeResultsQuery = transient.homeResultsQuery,
             widgetPinningSupported = transient.widgetPinningSupported,
             easterEggs = easterEggs,
         )
@@ -202,12 +205,12 @@ class SettingsViewModel(
         transient.update { it.copy(homeQuery = query) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            transient.update { it.copy(homeResults = persistentListOf()) }
+            transient.update { it.copy(homeResults = persistentListOf(), homeResultsQuery = "") }
             return
         }
         searchJob = viewModelScope.launch {
             val results = places.search(query.trim(), HomeSearchLimit).toImmutableList()
-            transient.update { it.copy(homeResults = results) }
+            transient.update { if (it.homeQuery == query) it.copy(homeResults = results, homeResultsQuery = query) else it }
         }
     }
 
@@ -219,7 +222,7 @@ class SettingsViewModel(
 
     fun clearHomeSearch() {
         searchJob?.cancel()
-        transient.update { it.copy(homeQuery = "", homeResults = persistentListOf()) }
+        transient.update { it.copy(homeQuery = "", homeResults = persistentListOf(), homeResultsQuery = "") }
     }
 
     fun acknowledgeMelatoninNote(acknowledged: Boolean) {
@@ -330,6 +333,7 @@ class SettingsViewModel(
         val isWorking: Boolean = false,
         val homeQuery: String = "",
         val homeResults: ImmutableList<Place> = persistentListOf(),
+        val homeResultsQuery: String = "",
         val widgetPinningSupported: Boolean = false,
     )
 

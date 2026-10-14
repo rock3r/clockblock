@@ -158,24 +158,31 @@ class SettingsPhoneScreenshotTest : ClockblockScreenshotTest() {
         capture("settings_editor_you_chronotype_fontscale_1_5")
     }
 
+    // The home editor places its own card in the dialog's window, so it renders here without EditorSurface.
     @Test fun homeEditor() = snap("settings_editor_home") {
-        EditorSurface {
-            HomeZoneEditor(
-                profile = DemoData.profile,
-                query = "tok",
-                results = persistentListOf(DemoData.HND, DemoData.NRT),
-                onQueryChange = {},
-                onSelect = {},
-                onClose = {},
-                now = DemoData.Now,
-            )
-        }
+        HomeZoneEditor(
+            profile = DemoData.profile,
+            query = "tok",
+            results = persistentListOf(DemoData.HND, DemoData.NRT),
+            resultsQuery = "tok",
+            onQueryChange = {},
+            onSelect = {},
+            onClose = {},
+            now = DemoData.Now,
+        )
     }
 
     @Test fun homeEditorEmpty() = snap("settings_editor_home_empty", darkTheme = true) {
-        EditorSurface {
-            HomeZoneEditor(DemoData.profile, query = "", results = persistentListOf(), onQueryChange = {}, onSelect = {}, onClose = {}, now = DemoData.Now)
-        }
+        HomeZoneEditor(
+            DemoData.profile,
+            query = "",
+            results = persistentListOf(),
+            resultsQuery = "",
+            onQueryChange = {},
+            onSelect = {},
+            onClose = {},
+            now = DemoData.Now,
+        )
     }
 
     @Test fun importConfirm() = snap("settings_import_confirm") {

@@ -31,16 +31,17 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -59,12 +60,15 @@ import kotlin.math.roundToInt
  *   (with the step transition, alpha only) can't shove anything.
  * - The disclaimer sits [disclaimerOverlap] into the bottom bar's top padding, right above Get started.
  * - [searchProgress] (0 → 1, read in layout) folds the bottom bar away for the home step's full-height search.
+ * - [keyboard] (its height over the navigation bar, read in layout) lifts the bottom bar over the keyboard. The
+ *   steps keep their height (the keyboard only shrinks their scrolling viewport), so it never recomposes them.
  *
  * The bars are drawn under the steps: a hidden bar sits behind the step that covers it and never takes a touch.
  */
 @Composable
 internal fun OnboardingFrame(
     searchProgress: () -> Float,
+    keyboard: Density.() -> Int,
     topBar: @Composable () -> Unit,
     disclaimer: @Composable () -> Unit,
     bottomBar: @Composable () -> Unit,
@@ -92,7 +96,7 @@ internal fun OnboardingFrame(
             bar.forEach { it.place(0, 0) }
             note.forEach { it.place((width - it.width) / 2, stepsHeight - it.height + noteOverlap) }
             content.forEach { it.place(0, 0) }
-            bottom.forEach { it.place(0, stepsHeight) }
+            bottom.forEach { it.place(0, stepsHeight - keyboard()) }
         }
     }
 }
@@ -150,10 +154,13 @@ internal fun OnboardingTopBar(step: OnboardingStep, visible: Boolean, alpha: () 
  * Back and the primary action, in one row whose height never changes between steps.
  *
  * Welcome ↔ the first question is a container transform of the same button: the full-width Get started shrinks into
- * Next (bounds on [welcome], the step transition's spatial value: 1 on Welcome, 0 elsewhere, seeked by predictive
- * back) while the labels cross-fade, and Back slides out from behind its leading edge and fades in a beat later
- * ([chrome], the step transition's sequenced fade: 0 on Welcome, 1 elsewhere). Both are read in layout and draw.
- * Reduce motion: the bounds snap with the step and only the cross-fades remain.
+ * the Next pill (bounds on [welcome], the step transition's spatial value: 1 on Welcome, 0 elsewhere, seeked by
+ * predictive back) while the labels fade through (Get started out first on [welcomeChrome], then Next in on [chrome],
+ * so they never double-expose), and Back slides out from behind its leading edge and fades in with Next's label.
+ * All are read in layout and draw. Reduce motion: the bounds snap with the step and only the fades remain.
+ *
+ * Back and the primary never overlap: on a narrow window or at a large font Next gives up its minimum width first,
+ * then Back gets what is left (and wraps).
  */
 @Composable
 internal fun OnboardingBottomBar(
@@ -162,12 +169,12 @@ internal fun OnboardingBottomBar(
     wide: Boolean,
     short: Boolean,
     welcome: () -> Float,
+    welcomeChrome: () -> Float,
     chrome: () -> Float,
     modifier: Modifier = Modifier,
 ) {
     val step = state.step
     val onWelcome = step == OnboardingStep.Welcome
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.titleMedium
     val getStarted = stringResource(R.string.welcome_get_started)
@@ -176,12 +183,13 @@ internal fun OnboardingBottomBar(
     Layout(
         content = {
             OnboardingBackButton(
-                onBack = { if (!onWelcome) actions.back() },
-                rtl = rtl,
+                onBack = actions::back,
+                // Hidden behind Get started on Welcome: off for touch, keyboard focus and TalkBack.
+                enabled = !onWelcome,
                 modifier = Modifier
                     .layoutId(BarSlot.Back)
                     .graphicsLayer { alpha = chrome() }
-                    .then(if (onWelcome) Modifier.clearAndSetSemantics { } else Modifier),
+                    .then(if (onWelcome) Modifier.semantics { hideFromAccessibility() } else Modifier),
             )
             if (step == OnboardingStep.Reminders) {
                 Box(Modifier.layoutId(BarSlot.Primary)) { RemindersPrimary(state, actions) }
@@ -195,8 +203,8 @@ internal fun OnboardingBottomBar(
                         .testTag(if (onWelcome) OnboardingTags.GetStarted else OnboardingTags.Next),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        MorphLabel(getStarted, visible = onWelcome) { 1f - chrome() }
-                        MorphLabel(next, visible = !onWelcome) { chrome() }
+                        MorphLabel(getStarted, visible = onWelcome, alpha = welcomeChrome)
+                        MorphLabel(next, visible = !onWelcome, alpha = chrome)
                     }
                 }
             }
@@ -207,16 +215,25 @@ internal fun OnboardingBottomBar(
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val back = measurables.first { it.layoutId == BarSlot.Back }.measure(loose)
+        val gap = BarGap.roundToPx()
+        val backMeasurable = measurables.first { it.layoutId == BarSlot.Back }
+        val backWidth = backMeasurable.maxIntrinsicWidth(constraints.maxHeight)
         val primaryMeasurable = measurables.first { it.layoutId == BarSlot.Primary }
         val primary: Placeable
         val primaryX: Int
+        // The width the primary ends up with at rest: Back gets the rest of the row.
+        val primarySlot: Int
         if (step == OnboardingStep.Reminders) {
-            primary = primaryMeasurable.measure(loose)
+            primary = primaryMeasurable.measure(loose.copy(maxWidth = (width - backWidth - gap).coerceAtLeast(width / 2)))
             primaryX = width - primary.width
+            primarySlot = primary.width
         } else {
             val chromeWidth = (padding.horizontal(layoutDirection)).roundToPx()
-            val nextWidth = maxOf(NextMinWidth.roundToPx(), measurer.measure(next, labelStyle).size.width + chromeWidth).coerceAtMost(width)
+            val nextLabelWidth = measurer.measure(next, labelStyle).size.width + chromeWidth
+            // Next's minimum width is the first thing to give when Back needs the room.
+            val nextWidth = maxOf(NextMinWidth.roundToPx(), nextLabelWidth)
+                .coerceAtMost(maxOf(nextLabelWidth, width - backWidth - gap))
+                .coerceAtMost(width)
             val startedWidth = if (wide) {
                 maxOf(GetStartedMinWideWidth.roundToPx(), measurer.measure(getStarted, labelStyle).size.width + chromeWidth).coerceAtMost(width)
             } else {
@@ -228,8 +245,11 @@ internal fun OnboardingBottomBar(
                 Constraints(minWidth = primaryWidth, maxWidth = primaryWidth, minHeight = 0, maxHeight = constraints.maxHeight),
             )
             primaryX = lerp((width - nextWidth).toFloat(), ((width - startedWidth) / 2).toFloat(), f).roundToInt()
+            primarySlot = nextWidth
         }
-        // The same height on every step: Back is always measured, even while it hides behind Get started.
+        // Back gets what Next leaves. The same height on every step: Back is always measured, even while it hides
+        // behind Get started.
+        val back = backMeasurable.measure(loose.copy(maxWidth = (width - primarySlot - gap).coerceAtLeast(0)))
         val height = maxOf(back.height, primary.height)
         val backX = if (step == OnboardingStep.Reminders) 0 else lerp(0f, primaryX.toFloat(), welcome().coerceIn(0f, 1f)).roundToInt()
         layout(width, height) {
@@ -283,18 +303,22 @@ private fun RemindersPrimary(state: OnboardingUiState, actions: OnboardingAction
     }
 }
 
-/** The outlined Back of the bottom bar (every step after Welcome). */
+/**
+ * The outlined Back of the bottom bar (every step after Welcome). Disabled, it keeps its enabled look: it only ever is
+ * while hidden behind Get started, and fading out of Welcome's step must not grey it first.
+ */
 @Composable
-private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean, modifier: Modifier = Modifier) {
+private fun OnboardingBackButton(onBack: () -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
+    val colors = ButtonDefaults.outlinedButtonColors()
     OutlinedButton(
         onClick = onBack,
+        enabled = enabled,
+        colors = colors.copy(disabledContainerColor = colors.containerColor, disabledContentColor = colors.contentColor),
+        border = ButtonDefaults.outlinedButtonBorder(enabled = true),
         modifier = modifier.heightIn(min = 56.dp).testTag(OnboardingTags.Back),
     ) {
-        Icon(
-            painterResource(R.drawable.onboarding_ic_arrow_back),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp).graphicsLayer { scaleX = if (rtl) -1f else 1f },
-        )
+        // Auto-mirrored: it points to the start edge in RTL by itself.
+        Icon(painterResource(R.drawable.onboarding_ic_arrow_back), contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.onboarding_back))
     }
@@ -303,7 +327,10 @@ private fun OnboardingBackButton(onBack: () -> Unit, rtl: Boolean, modifier: Mod
 /** The bottom bar's padding above and below its buttons. */
 internal fun bottomBarVerticalPadding(short: Boolean): Dp = if (short) 8.dp else 16.dp
 
-/** Next (and Finish) is at least this wide. */
+/** The least room between Back and the primary action. */
+private val BarGap = 8.dp
+
+/** Next (and Finish) is at least this wide, room permitting. */
 private val NextMinWidth = 140.dp
 
 /** On wide windows Get started is centred and at least this wide instead of spanning the window. */
