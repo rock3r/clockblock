@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Dp
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.shouldBe
 import org.junit.Test
@@ -184,6 +186,24 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `the morph starts only once the incoming step is composed and laid out`() {
+        show(OnboardingStep.Welcome)
+        val started = boundsOf(OnboardingTags.GetStarted)
+        step = OnboardingStep.HomeZone
+        Snapshot.sendApplyNotifications()
+        // The frame that composes the home step for the first time can take hundreds of ms on a phone. An animation
+        // whose clock already runs in that frame jumps over its opening (the first-run cut), so the clock starts on
+        // the frame after: one frame later, nothing has moved yet.
+        while (compose.onAllNodesWithTag(OnboardingTags.step(OnboardingStep.HomeZone)).fetchSemanticsNodes().isEmpty()) frame(FirstFrame)
+        frame(FirstFrame)
+        boundsOf(OnboardingTags.Next).width() shouldBe started.width()
+        frame(FirstFrame)
+        boundsOf(OnboardingTags.Next).width() shouldBeLessThan started.width()
+        frame(Settled)
+        (boundsOf(OnboardingTags.Next).width() < started.width() * 0.6f) shouldBe true
+    }
+
+    @Test
     fun morphFrames() = morphFrames("onboarding_morph")
 
     @Test
@@ -231,7 +251,7 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
 
     private companion object {
         const val FirstFrame = 16L
-        const val EarlyTransition = 56L
+        const val EarlyTransition = 88L
         const val MidTransition = 120L
         const val Settled = 3_000L
     }
