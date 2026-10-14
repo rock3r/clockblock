@@ -229,6 +229,16 @@ class SettingsHomeSearchTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `a tap on the card itself never closes the editor`() {
+        show()
+        compose.onNodeWithText("Where's home?").performClick()
+        compose.onNodeWithText("Your plans start from this clock.", substring = true).performClick()
+        // The card's padding, under its top edge.
+        compose.onNodeWithTag(SettingsTags.HomeEditor).performTouchInput { click(Offset(centerX, 8f)) }
+        calls shouldContainExactly emptyList()
+    }
+
+    @Test
     fun `talkback hears how many places match`() {
         show()
         compose.onNodeWithTag(HomeZoneTags.ResultCount).assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
