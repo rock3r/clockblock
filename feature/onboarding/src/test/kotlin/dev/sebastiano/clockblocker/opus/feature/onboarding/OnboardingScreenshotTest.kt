@@ -189,9 +189,19 @@ class OnboardingScreenshotTest : ClockblockScreenshotTest() {
 
     @Test fun toolsLargeFont() = step("onboarding_5_tools_fontscale_1_5", onboardingState(OnboardingStep.Tools), fontScale = 1.5f)
 
-    @Test fun toolsAllOn() = step("onboarding_5_tools_all_on", allToolsOn())
+    @Test fun toolsAllOn() = toolsAllOn("onboarding_5_tools_all_on")
 
-    @Test fun toolsAllOnDark() = step("onboarding_5_tools_all_on_dark", allToolsOn(), dark = true)
+    @Test fun toolsAllOnDark() = toolsAllOn("onboarding_5_tools_all_on_dark", dark = true)
+
+    /**
+     * Every tool on, scrolled to melatonin: the only tool off by default (caffeine, planes, naps and a 3-day head start
+     * are on for a new profile), so the top of the step looks the same either way.
+     */
+    private fun toolsAllOn(name: String, dark: Boolean = false) {
+        setContent(darkTheme = dark) { OnboardingContent(allToolsOn(), OnboardingActions.None, Modifier.fillMaxSize()) }
+        compose.onNodeWithTag(ToolsTags.Melatonin).performScrollTo()
+        capture(name)
+    }
 
     @Test
     fun spectacleFramesIntermediate() {

@@ -90,6 +90,13 @@ class ClockblockMotion internal constructor(
     fun <T> dataSpatial(): FiniteAnimationSpec<T> = dataScheme.defaultSpatialSpec()
 
     /**
+     * A time readout's digits rolling to a new value (the sleep dial's bedtime and wake pills). Data, so no bounce, but
+     * on the slow spatial spring: on [dataSpatial] a one-digit roll was over in about 125 ms on a 120 Hz phone, too
+     * quick to read as a change. Snaps when motion is reduced.
+     */
+    fun <T> timeMorph(): FiniteAnimationSpec<T> = dataScheme.slowSpatialSpec()
+
+    /**
      * A camera move: the plan's dial ↔ world zoom settling after a pinch or a back gesture, a globe zooming or
      * re-centring. Standard (no bounce: a wobbling camera reads as the world wobbling); snaps when motion is reduced.
      */

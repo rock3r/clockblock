@@ -5,7 +5,6 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyDescendant
@@ -128,7 +127,7 @@ fun ClockblockE2eTest.walkOnboardingToReminders(): OnboardingChoices {
     val wakeAfter = awaitTag(SleepDialTags.Wake).stateDescription
     // Days off: the tab switches the handles to the other ring; a lie-in unlinks them from work days.
     awaitTag(SleepDialTags.DaysOff).scrollToIfScrollable().performClick()
-    awaitTag(SleepDialTags.DaysOff).assertIsSelected()
+    awaitTag(SleepDialTags.DaysOff).assertIsOn()
     val daysOffWake = awaitTag(SleepDialTags.Wake)
     val daysOffMinute = daysOffWake.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].current
     daysOffWake.performSemanticsAction(SemanticsActions.SetProgress) { setProgress -> setProgress(daysOffMinute + 90f) }
