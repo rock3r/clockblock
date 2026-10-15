@@ -244,7 +244,6 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
-    val frameMetrics = remember { OnboardingFrameMetrics() }
     val motion = ClockblockTheme.motion
     val homeSearch = rememberHomeSearchState()
     // The step transition's own values, so predictive back seeks them with the steps: the Get started ↔ Next
@@ -281,7 +280,6 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             ChronotypePrewarm()
         }
         OnboardingFrame(
-            metrics = frameMetrics,
             searchProgress = { search.value },
             keyboard = keyboard,
             topBar = {
@@ -316,7 +314,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                         .then(if (spectacleRunning) Modifier.inert() else Modifier),
                 )
             },
-            steps = {
+            steps = { barHeight, noteHeight ->
                 steps.transition.AnimatedContent(
                     transitionSpec = { steps.transitionFor(initialState, targetState, spectacle = spectacleFrom != null) },
                     contentKey = { it },
@@ -328,14 +326,13 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                 .fillMaxSize()
                                 .stepRoom(
                                     top = {
-                                        val barHeight = frameMetrics.topBarHeight
                                         when (target) {
                                             OnboardingStep.Welcome -> 0
                                             OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
                                             else -> barHeight
                                         }
                                     },
-                                    bottom = { if (target == OnboardingStep.Welcome) frameMetrics.disclaimerHeight else 0 },
+                                    bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
                                 )
                                 .testTag(OnboardingTags.step(target))
                                 .then(with(steps) { Modifier.contentLaidOut(target) }),
@@ -428,10 +425,9 @@ private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, i
  * Reserves a step's room for the chrome around it: [top] (read in layout, so the home search can fold it away frame
  * by frame) and [bottom] pixels.
  */
-private fun Modifier.stepRoom(top: () -> Int, bottom: () -> Int): Modifier = layout { measurable, constraints ->
+private fun Modifier.stepRoom(top: () -> Int, bottom: Int): Modifier = layout { measurable, constraints ->
     val topPx = top().coerceAtLeast(0)
-    val bottomPx = bottom().coerceAtLeast(0)
-    val inner = (constraints.maxHeight - topPx - bottomPx).coerceAtLeast(0)
+    val inner = (constraints.maxHeight - topPx - bottom).coerceAtLeast(0)
     val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, inner))
     layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, topPx) }
 }

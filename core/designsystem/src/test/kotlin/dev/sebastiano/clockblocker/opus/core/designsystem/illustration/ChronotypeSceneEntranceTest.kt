@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
@@ -57,6 +58,7 @@ class ChronotypeSceneEntranceTest {
     private fun pixels(withOwnEntrance: Boolean): IntArray {
         own = withOwnEntrance
         compose.waitForIdle()
+        compose.invalidateAllViews()
         return compose.onNodeWithTag(Scene).captureToImage().toPixelMap().let { map ->
             IntArray(map.width * map.height) { map.buffer[map.bufferOffset + it % map.width + it / map.width * map.stride] }
         }
@@ -86,6 +88,7 @@ class ChronotypeSceneEntranceTest {
         drawn = false
         show()
         compose.waitForIdle()
+        compose.invalidateAllViews()
         val hidden = compose.onNodeWithTag(Scene).captureToImage().toPixelMap().let { map ->
             IntArray(map.width * map.height) { map.buffer[map.bufferOffset + it % map.width + it / map.width * map.stride] }
         }

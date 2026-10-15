@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -64,54 +65,38 @@ import kotlin.math.roundToInt
  *
  * The bars are drawn under the steps: a hidden bar sits behind the step that covers it and never takes a touch.
  */
-internal class OnboardingFrameMetrics {
-    var topBarHeight: Int = 0
-    var disclaimerHeight: Int = 0
-}
-
 @Composable
 internal fun OnboardingFrame(
-    metrics: OnboardingFrameMetrics,
     searchProgress: () -> Float,
     keyboard: Density.() -> Int,
     topBar: @Composable () -> Unit,
     disclaimer: @Composable () -> Unit,
     bottomBar: @Composable () -> Unit,
-    steps: @Composable () -> Unit,
+    steps: @Composable (topBarHeight: Int, disclaimerHeight: Int) -> Unit,
     modifier: Modifier = Modifier,
     disclaimerOverlap: Dp = 0.dp,
 ) {
-    Layout(
-        content = {
-            Box(Modifier.layoutId(FrameSlot.TopBar)) { topBar() }
-            Box(Modifier.layoutId(FrameSlot.Disclaimer)) { disclaimer() }
-            Box(Modifier.layoutId(FrameSlot.BottomBar)) { bottomBar() }
-            Box(Modifier.layoutId(FrameSlot.Steps)) { steps() }
-        },
-        modifier = modifier.clipToBounds(),
-    ) { measurables, constraints ->
+    SubcomposeLayout(modifier.clipToBounds()) { constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val loose = Constraints(minWidth = 0, maxWidth = width, minHeight = 0, maxHeight = height)
         val full = loose.copy(minWidth = width)
-        val bar = measurables.first { it.layoutId == FrameSlot.TopBar }.measure(full)
-        val barHeight = bar.height
-        val note = measurables.first { it.layoutId == FrameSlot.Disclaimer }.measure(loose)
+        val bar = subcompose(FrameSlot.TopBar, topBar).map { it.measure(full) }
+        val barHeight = bar.maxOfOrNull { it.height } ?: 0
+        val note = subcompose(FrameSlot.Disclaimer, disclaimer).map { it.measure(loose) }
         val noteOverlap = disclaimerOverlap.roundToPx()
-        val noteHeight = (note.height - noteOverlap).coerceAtLeast(0)
-        val bottom = measurables.first { it.layoutId == FrameSlot.BottomBar }.measure(full)
-        val bottomHeight = bottom.height
+        val noteHeight = ((note.maxOfOrNull { it.height } ?: 0) - noteOverlap).coerceAtLeast(0)
+        val bottom = subcompose(FrameSlot.BottomBar, bottomBar).map { it.measure(full) }
+        val bottomHeight = bottom.maxOfOrNull { it.height } ?: 0
         val shownBottom = (bottomHeight * (1f - searchProgress().coerceIn(0f, 1f))).roundToInt()
         val stepsHeight = (height - shownBottom).coerceAtLeast(0)
-        metrics.topBarHeight = barHeight
-        metrics.disclaimerHeight = noteHeight
-        val content = measurables.first { it.layoutId == FrameSlot.Steps }
-            .measure(Constraints.fixed(width, stepsHeight))
+        val content = subcompose(FrameSlot.Steps) { steps(barHeight, noteHeight) }
+            .map { it.measure(Constraints.fixed(width, stepsHeight)) }
         layout(width, height) {
-            bar.place(0, 0)
-            note.place((width - note.width) / 2, stepsHeight - note.height + noteOverlap)
-            content.place(0, 0)
-            bottom.place(0, stepsHeight - keyboard())
+            bar.forEach { it.place(0, 0) }
+            note.forEach { it.place((width - it.width) / 2, stepsHeight - it.height + noteOverlap) }
+            content.forEach { it.place(0, 0) }
+            bottom.forEach { it.place(0, stepsHeight - keyboard()) }
         }
     }
 }

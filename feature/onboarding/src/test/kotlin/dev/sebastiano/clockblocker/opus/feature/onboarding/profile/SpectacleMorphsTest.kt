@@ -64,6 +64,17 @@ class SpectacleMorphsTest {
     }
 
     @Test
+    fun `spectacleMorphs bounds its card morph cache across distinct corner fractions`() {
+        val earliest = spectacleMorphs(cornerFraction = 0.10f)
+        for (step in 1..6) {
+            spectacleMorphs(cornerFraction = 0.10f + step * 0.02f)
+        }
+        val latest = spectacleMorphs(cornerFraction = 0.22f)
+        (spectacleMorphs(cornerFraction = 0.22f) === latest) shouldBe true
+        (spectacleMorphs(cornerFraction = 0.10f) === earliest) shouldBe false
+    }
+
+    @Test
     fun `once the pop reaches the card on its first approach, its undershoot never dims artAlpha again`() = runTest {
         val entrance = RevealEntrance(RevealStart.Spectacle)
         entrance.pop.snapTo(0.8f)

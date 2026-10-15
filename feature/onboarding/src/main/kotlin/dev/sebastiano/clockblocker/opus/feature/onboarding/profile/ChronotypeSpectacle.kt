@@ -147,7 +147,12 @@ private val SpinMorphs: List<ShapeMorph> by lazy(LazyThreadSafetyMode.PUBLICATIO
     )
 }
 
-private val spectacleMorphCache = HashMap<Int, List<ShapeMorph>>()
+private const val MaxSpectacleMorphCacheEntries = 4
+
+private val spectacleMorphCache = object : LinkedHashMap<Int, List<ShapeMorph>>(MaxSpectacleMorphCacheEntries, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, List<ShapeMorph>>?): Boolean =
+        size > MaxSpectacleMorphCacheEntries
+}
 
 /**
  * Draws the spectacle's shape in the reveal's coordinates: from [face] (the sleep dial's inner face) to [card] (the

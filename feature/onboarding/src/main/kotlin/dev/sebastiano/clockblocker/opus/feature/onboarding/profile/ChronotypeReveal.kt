@@ -101,6 +101,9 @@ object ChronotypeRevealTags {
 
     /** The reveal while its first-time spectacle plays (gone once it rests). */
     const val Spectacle = "chronotype_reveal_spectacle"
+
+    /** The single-frame Sleep-step prewarm surface (gone once disarmed). */
+    const val Prewarm = "chronotype_reveal_prewarm"
 }
 
 /**
@@ -290,6 +293,7 @@ private fun Modifier.spectacle(
     return this
         .onGloballyPositioned { origin.value = it.positionInRoot() }
         .drawWithCache {
+            if (!entrance.spectacleRunning) return@drawWithCache onDrawBehind {}
             val local = card.value.translate(-origin.value)
             val morphs = spectacleMorphs(if (local.isEmpty) 0f else RevealCorner.toPx() / local.width)
             val face = startFrom?.translate(-origin.value) ?: Rect.Zero
@@ -432,12 +436,25 @@ private fun ChronotypeRevealArt(
 }
 
 /**
- * Prewarms the chronotype reveal's and picker sheet's shapes, morphs, text measurements and GPU pipelines on a single
- * frame while the Sleep step sits on screen, using the [MaterialTheme.colorScheme] surface colour so no visible pixel
- * changes.
+ * Prewarms the chronotype reveal's and picker sheet's shapes, morphs, text measurements and Vulkan graphics pipelines
+ * on a single frame while the Sleep step sits on screen, then disarms itself (`armed = false`) via `view.post` so it
+ * leaves the composition tree after that frame.
+ *
+ * Why this exists: on a cold first run on a Pixel 7 Pro, Skia/Vulkan compiled the reveal and sheet graphics pipelines
+ * lazily on the RenderThread (`138.4 ms` across 9 `CreateGraphicsPipeline-CompileAfterCacheMiss` slices during the
+ * reveal entrance, with a worst `DrawFrames` of `78.8 ms`; and `123.4 ms` across 9 slices when opening the picker
+ * sheet, with a worst `DrawFrames` of `100.9 ms`), plus first-time `ShapeMorph` construction and Minikin text shaping
+ * on the main thread.
+ *
+ * Maintenance contract: the draw list here must mirror the primitives drawn by [ChronotypeScene]
+ * ([drawChronotypeSceneWarmup]), [drawSpectacleShape] (2-stop vertical gradient path fill + rim stroke, both clipped
+ * and unclipped), and [ChronotypePicker] (card rounded rect + radio-button circle stroke), in both an offscreen
+ * `graphicsLayer` (`flush layers`, at [PrewarmTranslucentAlpha] and [PrewarmNonIdentityScale]) and the direct window
+ * buffer (`flush commands`, unscaled and at [PrewarmNonIdentityScale]). Its output is covered by an opaque
+ * `drawRect(surface)` of the same `200.dp` bounds so no visible pixel on the Sleep step ever changes.
  */
 @Composable
-internal fun ChronotypePrewarm(modifier: Modifier = Modifier) {
+internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: Boolean = true) {
     val surface = MaterialTheme.colorScheme.surface
     val outline = MaterialTheme.colorScheme.outline
     val sky = ClockblockTheme.sky
@@ -456,7 +473,7 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier) {
         val morphs = spectacleMorphs(RevealCorner.value / RevealArtSize.value)
         val warmPath = Path()
         val warmSize = Size(100f, 100f)
-        morphs.forEach { it.toPath(0.5f, warmSize, out = warmPath) }
+        morphs.forEach { it.toPath(PrewarmTranslucentAlpha, warmSize, out = warmPath) }
         val display = textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp)
         measurer.measure(kicker, typography.labelLarge)
         measurer.measure(other, typography.labelLarge)
@@ -474,20 +491,21 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier) {
     }
     val view = LocalView.current
     var armed by rememberSaveable { mutableStateOf(true) }
-    DisposableEffect(view) {
+    DisposableEffect(view, disarmAfterFrame) {
+        if (!disarmAfterFrame) return@DisposableEffect onDispose {}
         val clear = Runnable { armed = false }
         view.post(clear)
         onDispose { view.removeCallbacks(clear) }
     }
     if (!armed) return
     val fill = sky.gradientAt(10f)
-    Box(modifier.size(RevealArtSize).clearAndSetSemantics { }) {
+    Box(modifier.size(RevealArtSize).testTag(ChronotypeRevealTags.Prewarm).clearAndSetSemantics { }) {
         Box(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    alpha = 0.5f
-                    scaleY = 0.99f
+                    alpha = PrewarmTranslucentAlpha
+                    scaleY = PrewarmNonIdentityScale
                 }
                 .clip(RoundedCornerShape(RevealCorner))
                 .drawWithCache {
@@ -506,20 +524,24 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier) {
                     val morphs = spectacleMorphs(RevealCorner.toPx() / size.width.coerceAtLeast(1f))
                     val shapePath = Path()
                     onDrawBehind {
-                        val shape = morphs[0].toPath(0.5f, size, out = shapePath)
+                        val shape = morphs[0].toPath(PrewarmTranslucentAlpha, size, out = shapePath)
                         drawPath(
                             shape,
-                            Brush.verticalGradient(0f to fill.top.copy(alpha = 0.5f), 1f to fill.bottom.copy(alpha = 0.5f), endY = size.height),
+                            Brush.verticalGradient(
+                                0f to fill.top.copy(alpha = PrewarmTranslucentAlpha),
+                                1f to fill.bottom.copy(alpha = PrewarmTranslucentAlpha),
+                                endY = size.height,
+                            ),
                         )
                         drawPath(
                             shape,
                             Brush.verticalGradient(0f to fill.top, 1f to fill.bottom, endY = size.height),
                         )
-                        drawPath(shape, tertiary.copy(alpha = 0.5f), style = Stroke(2.dp.toPx()))
+                        drawPath(shape, tertiary.copy(alpha = PrewarmTranslucentAlpha), style = Stroke(2.dp.toPx()))
                         drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()))
                         drawCircle(outline, radius = 11.dp.toPx(), style = Stroke(2.dp.toPx()))
                         drawChronotypeSceneWarmup(sky, tertiary)
-                        withTransform({ scale(0.99f, 0.99f) }) {
+                        withTransform({ scale(PrewarmNonIdentityScale, PrewarmNonIdentityScale) }) {
                             drawChronotypeSceneWarmup(sky, tertiary)
                         }
                         drawRect(surface)
@@ -533,22 +555,32 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier) {
                     val morphs = spectacleMorphs(RevealCorner.toPx() / size.width.coerceAtLeast(1f))
                     val shapePath = Path()
                     onDrawBehind {
-                        val shape = morphs[0].toPath(0.5f, size, out = shapePath)
+                        val shape = morphs[0].toPath(PrewarmTranslucentAlpha, size, out = shapePath)
                         drawPath(
                             shape,
-                            Brush.verticalGradient(0f to fill.top.copy(alpha = 0.5f), 1f to fill.bottom.copy(alpha = 0.5f), endY = size.height),
+                            Brush.verticalGradient(
+                                0f to fill.top.copy(alpha = PrewarmTranslucentAlpha),
+                                1f to fill.bottom.copy(alpha = PrewarmTranslucentAlpha),
+                                endY = size.height,
+                            ),
                         )
                         drawPath(
                             shape,
                             Brush.verticalGradient(0f to fill.top, 1f to fill.bottom, endY = size.height),
                         )
-                        drawPath(shape, tertiary.copy(alpha = 0.5f), style = Stroke(2.dp.toPx()))
+                        drawPath(shape, tertiary.copy(alpha = PrewarmTranslucentAlpha), style = Stroke(2.dp.toPx()))
                         drawRect(surface)
                     }
                 },
         )
     }
 }
+
+/** Non-opaque alpha so Skia compiles the translucent (`SrcOver`) pipeline variants and HWUI flushes an offscreen layer. */
+private const val PrewarmTranslucentAlpha = 0.5f
+
+/** Non-identity scale so Skia compiles the `kScale_Mask` scene and `TextureOp` pipeline variants. */
+private const val PrewarmNonIdentityScale = 0.99f
 
 /** A 0 → 1 ambient phase on [ClockblockMotion.ambientLoop] when [enabled]; a still 0 otherwise. Read it in draw. */
 @Composable
