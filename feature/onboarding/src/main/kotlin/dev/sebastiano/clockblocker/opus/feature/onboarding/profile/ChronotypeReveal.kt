@@ -20,18 +20,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,28 +46,40 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeScene
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.drawChronotypeSceneWarmup
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.skyPose
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.warmChronotypeSceneShapes
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
@@ -85,6 +101,9 @@ object ChronotypeRevealTags {
 
     /** The reveal while its first-time spectacle plays (gone once it rests). */
     const val Spectacle = "chronotype_reveal_spectacle"
+
+    /** The single-frame Sleep-step prewarm surface (gone once disarmed). */
+    const val Prewarm = "chronotype_reveal_prewarm"
 }
 
 /**
@@ -170,10 +189,13 @@ fun ChronotypeReveal(
             ChronotypeRevealArt(
                 chronotype,
                 entrance = { entrance.art.value },
+                drawn = { entrance.artAlpha > 0f },
                 modifier = Modifier.fillMaxSize().graphicsLayer {
+                    val scale = entrance.popScale
                     alpha = entrance.artAlpha
-                    scaleX = entrance.popScale
-                    scaleY = entrance.popScale
+                    scaleX = scale
+                    scaleY = scale
+                    compositingStrategy = if (scale != 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
                 },
             )
         }
@@ -217,6 +239,9 @@ fun ChronotypeReveal(
 
     if (showSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scenesReady = remember(sheetState) {
+            derivedStateOf { sheetState.targetValue != SheetValue.Hidden || sheetState.currentValue != SheetValue.Hidden }
+        }
         ModalBottomSheet(onDismissRequest = { showSheet = false }, sheetState = sheetState, modifier = Modifier.testTag(ChronotypeRevealTags.Sheet)) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
                 Text(
@@ -229,6 +254,11 @@ fun ChronotypeReveal(
                 ChronotypePicker(
                     selected = chronotype,
                     suggested = suggested,
+                    drawScenes = { scenesReady.value },
+                    modifier = Modifier.graphicsLayer {
+                        val moving = sheetState.isAnimationRunning || sheetState.currentValue != SheetValue.Expanded
+                        compositingStrategy = if (moving) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+                    },
                     onSelect = { pick ->
                         onPick(pick)
                         scope.launch { sheetState.hide() }.invokeOnCompletion { if (!sheetState.isVisible) showSheet = false }
@@ -254,6 +284,7 @@ private fun Modifier.spectacle(
     skip: () -> Unit,
 ): Modifier {
     if (entrance.start != RevealStart.Spectacle) return this
+    val startFrom = remember { from }
     val fill = ClockblockTheme.sky.gradientAt(((chronotype.skyPose().hour - EntranceHours) % 24f + 24f) % 24f)
     val rim = ClockblockTheme.artColors.tertiary
     val skipLabel = stringResource(R.string.chronotype_spectacle_skip)
@@ -262,9 +293,10 @@ private fun Modifier.spectacle(
     return this
         .onGloballyPositioned { origin.value = it.positionInRoot() }
         .drawWithCache {
+            if (!entrance.spectacleRunning) return@drawWithCache onDrawBehind {}
             val local = card.value.translate(-origin.value)
             val morphs = spectacleMorphs(if (local.isEmpty) 0f else RevealCorner.toPx() / local.width)
-            val face = from?.translate(-origin.value) ?: Rect.Zero
+            val face = startFrom?.translate(-origin.value) ?: Rect.Zero
             onDrawBehind {
                 if (entrance.spectacleRunning && !local.isEmpty) drawSpectacleShape(entrance, morphs, face, local, fill, rim, path)
             }
@@ -368,7 +400,12 @@ private val WordStaggerDrop = 12.dp
  * it to its new place.
  */
 @Composable
-private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, modifier: Modifier = Modifier) {
+private fun ChronotypeRevealArt(
+    chronotype: Chronotype,
+    entrance: () -> Float,
+    modifier: Modifier = Modifier,
+    drawn: () -> Boolean = { true },
+) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val target = chronotype.skyPose()
@@ -376,9 +413,10 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
     val position = remember { Animatable(target.position) }
     val moon = remember { Animatable(if (target.evening) 1f else 0f) }
     LaunchedEffect(target) {
-        launch { hour.animateTo(target.hour, motion.artEntrance()) }
-        launch { position.animateTo(target.position, motion.artEntrance()) }
-        moon.animateTo(if (target.evening) 1f else 0f, motion.colour())
+        if (hour.value != target.hour) launch { hour.animateTo(target.hour, motion.artEntrance()) }
+        if (position.value != target.position) launch { position.animateTo(target.position, motion.artEntrance()) }
+        val targetMoon = if (target.evening) 1f else 0f
+        if (moon.value != targetMoon) moon.animateTo(targetMoon, motion.colour())
     }
     // The rays only turn while a sun shows (an evening type's sky has the moon): no loop runs for nothing.
     val sunRotation = rememberAmbient(!reduce && !target.evening, ClockblockMotion.SunRotationMillis, reverse = false)
@@ -391,10 +429,158 @@ private fun ChronotypeRevealArt(chronotype: Chronotype, entrance: () -> Float, m
         entrance = entrance,
         sunRotation = { sunRotation.value },
         twinkle = { twinkle.value },
+        drawn = drawn,
         modifier = modifier,
         cornerRadius = RevealCorner,
     )
 }
+
+/**
+ * Prewarms the chronotype reveal's and picker sheet's shapes, morphs, text measurements and Vulkan graphics pipelines
+ * on a single frame while the Sleep step sits on screen, then disarms itself (`armed = false`) via `view.post` so it
+ * leaves the composition tree after that frame.
+ *
+ * Why this exists: on a cold first run on a Pixel 7 Pro, Skia/Vulkan compiled the reveal and sheet graphics pipelines
+ * lazily on the RenderThread (`138.4 ms` across 9 `CreateGraphicsPipeline-CompileAfterCacheMiss` slices during the
+ * reveal entrance, with a worst `DrawFrames` of `78.8 ms`; and `123.4 ms` across 9 slices when opening the picker
+ * sheet, with a worst `DrawFrames` of `100.9 ms`), plus first-time `ShapeMorph` construction and Minikin text shaping
+ * on the main thread.
+ *
+ * Maintenance contract: the draw list here must mirror the primitives drawn by [ChronotypeScene]
+ * ([drawChronotypeSceneWarmup]), [drawSpectacleShape] (2-stop vertical gradient path fill + rim stroke, both clipped
+ * and unclipped), and [ChronotypePicker] (card rounded rect + radio-button circle stroke), in both an offscreen
+ * `graphicsLayer` (`flush layers`, at [PrewarmTranslucentAlpha] and [PrewarmNonIdentityScale]) and the direct window
+ * buffer (`flush commands`, unscaled and at [PrewarmNonIdentityScale]). Its output is covered by an opaque
+ * `drawRect(surface)` of the same `200.dp` bounds so no visible pixel on the Sleep step ever changes.
+ */
+@Composable
+internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: Boolean = true) {
+    val surface = MaterialTheme.colorScheme.surface
+    val outline = MaterialTheme.colorScheme.outline
+    val sky = ClockblockTheme.sky
+    val tertiary = ClockblockTheme.artColors.tertiary
+    val typography = MaterialTheme.typography
+    val textStyles = ClockblockTheme.textStyles
+    val measurer = rememberTextMeasurer(cacheSize = 0)
+    val kicker = stringResource(R.string.chronotype_reveal_kicker)
+    val other = stringResource(R.string.chronotype_reveal_other)
+    val sheetTitle = stringResource(R.string.chronotype_sheet_title)
+    val suggested = stringResource(R.string.chronotype_suggested)
+    val plan = stringResource(R.string.chronotype_reveal_plan)
+    val labels = Chronotype.entries.map { it.label() to it.description() }
+    remember(measurer, typography, textStyles) {
+        warmChronotypeSceneShapes()
+        val morphs = spectacleMorphs(RevealCorner.value / RevealArtSize.value)
+        val warmPath = Path()
+        val warmSize = Size(100f, 100f)
+        morphs.forEach { it.toPath(PrewarmTranslucentAlpha, warmSize, out = warmPath) }
+        val display = textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp)
+        measurer.measure(kicker, typography.labelLarge)
+        measurer.measure(other, typography.labelLarge)
+        measurer.measure(sheetTitle, textStyles.editorialTitle)
+        measurer.measure(suggested, typography.labelMedium)
+        measurer.measure(plan, typography.bodyMedium)
+        labels.forEach { (title, desc) ->
+            measurer.measure(title, display)
+            measurer.measure(title, textStyles.editorialTitle)
+            measurer.measure(title, typography.titleMedium)
+            measurer.measure(desc, typography.titleMedium)
+            measurer.measure(desc, typography.bodyMedium)
+        }
+        true
+    }
+    val view = LocalView.current
+    var armed by remember { mutableStateOf(true) }
+    DisposableEffect(view, disarmAfterFrame) {
+        if (!disarmAfterFrame) return@DisposableEffect onDispose {}
+        val clear = Runnable { armed = false }
+        view.post(clear)
+        onDispose { view.removeCallbacks(clear) }
+    }
+    if (!armed) return
+    val fill = sky.gradientAt(10f)
+    Box(modifier.size(RevealArtSize).testTag(ChronotypeRevealTags.Prewarm).clearAndSetSemantics { }) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = PrewarmTranslucentAlpha
+                    scaleY = PrewarmNonIdentityScale
+                }
+                .clip(RoundedCornerShape(RevealCorner))
+                .drawWithCache {
+                    onDrawBehind {
+                        drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()))
+                        drawCircle(outline, radius = 11.dp.toPx(), style = Stroke(2.dp.toPx()))
+                        drawChronotypeSceneWarmup(sky, tertiary)
+                    }
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(RevealCorner))
+                .drawWithCache {
+                    val morphs = spectacleMorphs(RevealCorner.toPx() / size.width.coerceAtLeast(1f))
+                    val shapePath = Path()
+                    onDrawBehind {
+                        val shape = morphs[0].toPath(PrewarmTranslucentAlpha, size, out = shapePath)
+                        drawPath(
+                            shape,
+                            Brush.verticalGradient(
+                                0f to fill.top.copy(alpha = PrewarmTranslucentAlpha),
+                                1f to fill.bottom.copy(alpha = PrewarmTranslucentAlpha),
+                                endY = size.height,
+                            ),
+                        )
+                        drawPath(
+                            shape,
+                            Brush.verticalGradient(0f to fill.top, 1f to fill.bottom, endY = size.height),
+                        )
+                        drawPath(shape, tertiary.copy(alpha = PrewarmTranslucentAlpha), style = Stroke(2.dp.toPx()))
+                        drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()))
+                        drawCircle(outline, radius = 11.dp.toPx(), style = Stroke(2.dp.toPx()))
+                        drawChronotypeSceneWarmup(sky, tertiary)
+                        withTransform({ scale(PrewarmNonIdentityScale, PrewarmNonIdentityScale) }) {
+                            drawChronotypeSceneWarmup(sky, tertiary)
+                        }
+                        drawRect(surface)
+                    }
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawWithCache {
+                    val morphs = spectacleMorphs(RevealCorner.toPx() / size.width.coerceAtLeast(1f))
+                    val shapePath = Path()
+                    onDrawBehind {
+                        val shape = morphs[0].toPath(PrewarmTranslucentAlpha, size, out = shapePath)
+                        drawPath(
+                            shape,
+                            Brush.verticalGradient(
+                                0f to fill.top.copy(alpha = PrewarmTranslucentAlpha),
+                                1f to fill.bottom.copy(alpha = PrewarmTranslucentAlpha),
+                                endY = size.height,
+                            ),
+                        )
+                        drawPath(
+                            shape,
+                            Brush.verticalGradient(0f to fill.top, 1f to fill.bottom, endY = size.height),
+                        )
+                        drawPath(shape, tertiary.copy(alpha = PrewarmTranslucentAlpha), style = Stroke(2.dp.toPx()))
+                        drawRect(surface)
+                    }
+                },
+        )
+    }
+}
+
+/** Non-opaque alpha so Skia compiles the translucent (`SrcOver`) pipeline variants and HWUI flushes an offscreen layer. */
+private const val PrewarmTranslucentAlpha = 0.5f
+
+/** Non-identity scale so Skia compiles the `kScale_Mask` scene and `TextureOp` pipeline variants. */
+private const val PrewarmNonIdentityScale = 0.99f
 
 /** A 0 → 1 ambient phase on [ClockblockMotion.ambientLoop] when [enabled]; a still 0 otherwise. Read it in draw. */
 @Composable

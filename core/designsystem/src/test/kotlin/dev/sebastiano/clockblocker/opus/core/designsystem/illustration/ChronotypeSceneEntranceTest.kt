@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import io.kotest.matchers.shouldBe
 import org.junit.Rule
 import org.junit.Test
@@ -33,6 +34,7 @@ class ChronotypeSceneEntranceTest {
     private var chronotype by mutableStateOf(Chronotype.DefiniteMorning)
     private var own by mutableStateOf(true)
     private var entrance by mutableFloatStateOf(1f)
+    private var drawn by mutableStateOf(true)
 
     private fun show() = compose.setContent {
         ClockblockTheme(dynamicColor = false, reduceMotion = true) {
@@ -45,6 +47,7 @@ class ChronotypeSceneEntranceTest {
                 entrance = { entrance },
                 sunRotation = { 0.3f },
                 twinkle = { 0.6f },
+                drawn = { drawn },
                 cornerRadius = 32.dp,
                 modifier = Modifier.size(180.dp).testTag(Scene),
             )
@@ -55,6 +58,7 @@ class ChronotypeSceneEntranceTest {
     private fun pixels(withOwnEntrance: Boolean): IntArray {
         own = withOwnEntrance
         compose.waitForIdle()
+        compose.invalidateAllViews()
         return compose.onNodeWithTag(Scene).captureToImage().toPixelMap().let { map ->
             IntArray(map.width * map.height) { map.buffer[map.bufferOffset + it % map.width + it / map.width * map.stride] }
         }
@@ -76,6 +80,26 @@ class ChronotypeSceneEntranceTest {
         for (type in Chronotype.entries) {
             chronotype = type
             (pixels(withOwnEntrance = true) contentEquals pixels(withOwnEntrance = false)) shouldBe false
+        }
+    }
+
+    @Test
+    fun `when drawn is false the scene skips drawing and paints identically once drawn becomes true`() {
+        drawn = false
+        show()
+        compose.waitForIdle()
+        compose.invalidateAllViews()
+        val hidden = compose.onNodeWithTag(Scene).captureToImage().toPixelMap().let { map ->
+            IntArray(map.width * map.height) { map.buffer[map.bufferOffset + it % map.width + it / map.width * map.stride] }
+        }
+        hidden.toSet().size shouldBe 1
+
+        drawn = true
+        for (type in Chronotype.entries) {
+            chronotype = type
+            val revealed = pixels(withOwnEntrance = true)
+            revealed.toSet().size shouldBe (revealed.toSet().size.coerceAtLeast(2))
+            (revealed contentEquals pixels(withOwnEntrance = false)) shouldBe true
         }
     }
 

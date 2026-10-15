@@ -32,6 +32,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
 import androidx.test.core.app.ApplicationProvider
+import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePrewarm
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeRevealTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import io.kotest.matchers.collections.shouldContainExactly
@@ -416,6 +418,34 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
         settle()
         compose.onNodeWithTag(ChronotypeRevealTags.Spectacle).assertDoesNotExist()
         revealBounds() shouldBe last
+    }
+
+    @Test
+    fun `the sleep prewarm disarms after its frame and draws nothing visible`() {
+        var keepArmed by mutableStateOf(false)
+        setContent(reduceMotion = true) {
+            if (keepArmed) ChronotypePrewarm(disarmAfterFrame = false)
+            OnboardingContent(onboardingState(OnboardingStep.Sleep, profile = SampleSleepProfile), host, Modifier.fillMaxSize())
+        }
+        compose.waitForIdle()
+        // OnboardingContent's own ChronotypePrewarm has disarmed and left the tree.
+        compose.onNodeWithTag(ChronotypeRevealTags.Prewarm).assertDoesNotExist()
+        val withoutPrewarm = rootPixels()
+
+        // Force an armed ChronotypePrewarm to stay in the tree and draw its warmup boxes over the Sleep step.
+        keepArmed = true
+        compose.waitForIdle()
+        compose.onNodeWithTag(ChronotypeRevealTags.Prewarm).assertExists()
+        val withPrewarm = rootPixels()
+
+        (withPrewarm contentEquals withoutPrewarm) shouldBe true
+    }
+
+    private fun rootPixels(): IntArray {
+        compose.invalidateAllViews()
+        return compose.onRoot().captureToImage().toPixelMap().let { map ->
+            IntArray(map.width * map.height) { map.buffer[map.bufferOffset + it % map.width + it / map.width * map.stride] }
+        }
     }
 
     private fun assertRevealAtRest() {

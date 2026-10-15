@@ -24,6 +24,7 @@ import androidx.graphics.shapes.RoundedPolygon
 import dev.sebastiano.clockblocker.opus.core.designsystem.shape.ShapeMorph
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.SkyGradient
+import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -55,9 +56,16 @@ internal class RevealEntrance(val start: RevealStart) {
     var spectacleRunning: Boolean by mutableStateOf(spectacle)
         private set
 
+    private var popLanded: Boolean = !spectacle
+
     /** The illustration's opacity: hidden behind the shape until the pop lands. */
     val artAlpha: Float
-        get() = if (!spectacleRunning) 1f else ((pop.value - ArtFadeFromPop) / (1f - ArtFadeFromPop)).coerceIn(0f, 1f)
+        get() {
+            if (!spectacleRunning) return 1f
+            val p = pop.value
+            if (p >= 1f) popLanded = true
+            return if (popLanded) 1f else ((p - ArtFadeFromPop) / (1f - ArtFadeFromPop)).coerceIn(0f, 1f)
+        }
 
     /** The shape's size as a share of the card's, once it's popping (the illustration grows with it). */
     val popScale: Float get() = if (!spectacleRunning) 1f else lerp(PopFrom, 1f, pop.value)
@@ -97,6 +105,7 @@ internal class RevealEntrance(val start: RevealStart) {
         pop.snapTo(1f)
         art.snapTo(1f)
         words.snapTo(1f)
+        popLanded = true
         spectacleRunning = false
     }
 
@@ -116,15 +125,33 @@ internal class RevealEntrance(val start: RevealStart) {
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun spectacleMorphs(cornerFraction: Float): List<ShapeMorph> {
-    val card = RoundedPolygon(
-        vertices = floatArrayOf(0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f),
-        rounding = CornerRounding(radius = cornerFraction.coerceIn(0f, 0.5f)),
-    )
-    return listOf(
+    val clamped = cornerFraction.coerceIn(0f, 0.5f)
+    val key = (clamped * 10_000f).roundToInt()
+    synchronized(spectacleMorphCache) {
+        spectacleMorphCache[key]?.let { return it }
+        val card = RoundedPolygon(
+            vertices = floatArrayOf(0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f),
+            rounding = CornerRounding(radius = clamped),
+        )
+        return listOf(SpinMorphs[0], SpinMorphs[1], ShapeMorph(MaterialShapes.Cookie9Sided, card)).also {
+            spectacleMorphCache[key] = it
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val SpinMorphs: List<ShapeMorph> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    listOf(
         ShapeMorph(MaterialShapes.SoftBurst, MaterialShapes.Sunny),
         ShapeMorph(MaterialShapes.Sunny, MaterialShapes.Cookie9Sided),
-        ShapeMorph(MaterialShapes.Cookie9Sided, card),
     )
+}
+
+private const val MaxSpectacleMorphCacheEntries = 4
+
+private val spectacleMorphCache = object : LinkedHashMap<Int, List<ShapeMorph>>(MaxSpectacleMorphCacheEntries, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, List<ShapeMorph>>?): Boolean =
+        size > MaxSpectacleMorphCacheEntries
 }
 
 /**
