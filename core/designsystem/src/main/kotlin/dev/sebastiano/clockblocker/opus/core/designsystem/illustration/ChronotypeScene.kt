@@ -56,12 +56,18 @@ fun Chronotype.skyPose(): SkyPose = when (this) {
  * person's day peaks, glow, clouds or stars, a dashed path with the sun or crescent moon on it, and layered hills.
  */
 @Composable
-fun ChronotypeSky(chronotype: Chronotype, modifier: Modifier = Modifier, cornerRadius: Dp = 14.dp) {
+fun ChronotypeSky(
+    chronotype: Chronotype,
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 14.dp,
+    drawn: () -> Boolean = { true },
+) {
     val pose = chronotype.skyPose()
     ChronotypeScene(
         hour = { pose.hour },
         position = { pose.position },
         moonFraction = { if (pose.evening) 1f else 0f },
+        drawn = drawn,
         modifier = modifier,
         cornerRadius = cornerRadius,
     )
@@ -93,28 +99,33 @@ fun ChronotypeScene(
     entrance: () -> Float = { 1f },
     sunRotation: () -> Float = { 0f },
     twinkle: () -> Float = { 0.5f },
+    drawn: () -> Boolean = { true },
     cornerRadius: Dp = 14.dp,
 ) {
     val sky = ClockblockTheme.sky
     val tertiary = ClockblockTheme.artColors.tertiary
-    val shapes = remember {
-        val sun = MaterialShapes.VerySunny.toPath().asComposePath()
-        val star = MaterialShapes.PuffyDiamond.toPath().asComposePath()
-        SceneShapes(sun, sun.getBounds(), star, star.getBounds())
-    }
+    val shapes = remember { DefaultSceneShapes }
     Box(
         modifier
             .clip(RoundedCornerShape(cornerRadius))
             .drawWithCache {
-                val geometry = SceneGeometry(size, detailed = size.width >= 88.dp.toPx())
+                var geometry: SceneGeometry? = null
+                val detailed = size.width >= 88.dp.toPx()
+                val dashUnit = if (detailed) 4.dp.toPx() else 2.6.dp.toPx()
+                val strokeW = if (detailed) 1.5.dp.toPx() else 1.1.dp.toPx()
+                val ridgeW = if (detailed) 1.3.dp.toPx() else 0.9.dp.toPx()
+                val birdW = 1.4.dp.toPx()
                 val hills = HillColors.from(sky)
                 onDrawBehind {
-                    val h = hour()
+                    if (!drawn()) return@onDrawBehind
+                    val g = geometry ?: SceneGeometry(size, detailed, dashUnit, strokeW, ridgeW, birdW).also { geometry = it }
+                    val h = ((hour() % 24f) + 24f) % 24f
                     drawChronotypeScene(
                         chronotype = chronotype,
-                        geometry = geometry,
+                        geometry = g,
                         shapes = shapes,
-                        gradient = sky.gradientAt(((h % 24f) + 24f) % 24f),
+                        sky = sky,
+                        hour = h,
                         hills = hills,
                         tertiary = tertiary,
                         position = position(),
@@ -128,8 +139,76 @@ fun ChronotypeScene(
     )
 }
 
+/** Pre-builds the shared sun and star outlines so the first [ChronotypeScene] composition pays nothing for them. */
+fun warmChronotypeSceneShapes() {
+    DefaultSceneShapes
+}
+
+/**
+ * Draws every [ChronotypeScene] primitive (day and night, paths, gradients, circles, round-capped lines) into the
+ * current [DrawScope] so the GPU compiles the scene's graphics pipelines ahead of the first reveal and picker sheet.
+ */
+fun DrawScope.drawChronotypeSceneWarmup(sky: SkyPalette, tertiary: Color) {
+    val detailed = size.width >= 88.dp.toPx()
+    val dashUnit = if (detailed) 4.dp.toPx() else 2.6.dp.toPx()
+    val strokeW = if (detailed) 1.5.dp.toPx() else 1.1.dp.toPx()
+    val ridgeW = if (detailed) 1.3.dp.toPx() else 0.9.dp.toPx()
+    val birdW = 1.4.dp.toPx()
+    val g = SceneGeometry(size, detailed, dashUnit, strokeW, ridgeW, birdW)
+    val hills = HillColors.from(sky)
+    drawChronotypeScene(
+        chronotype = Chronotype.DefiniteMorning,
+        geometry = g,
+        shapes = DefaultSceneShapes,
+        sky = sky,
+        hour = 6.3f,
+        hills = hills,
+        tertiary = tertiary,
+        position = 0.20f,
+        moonFraction = 0f,
+        entrance = 0.5f,
+        sunRotation = 0.2f,
+        twinkle = 0.5f,
+    )
+    drawChronotypeScene(
+        chronotype = Chronotype.Intermediate,
+        geometry = g,
+        shapes = DefaultSceneShapes,
+        sky = sky,
+        hour = 13f,
+        hills = hills,
+        tertiary = tertiary,
+        position = 0.50f,
+        moonFraction = 0f,
+        entrance = 0.7f,
+        sunRotation = 0.2f,
+        twinkle = 0.5f,
+    )
+    drawChronotypeScene(
+        chronotype = Chronotype.DefiniteEvening,
+        geometry = g,
+        shapes = DefaultSceneShapes,
+        sky = sky,
+        hour = 23.5f,
+        hills = hills,
+        tertiary = tertiary,
+        position = 0.82f,
+        moonFraction = 1f,
+        entrance = 0.7f,
+        sunRotation = 0f,
+        twinkle = 0.5f,
+    )
+}
+
 /** The sun and star outlines and their bounds (shared, never mutated). */
 private class SceneShapes(val sun: Path, val sunBounds: Rect, val star: Path, val starBounds: Rect)
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val DefaultSceneShapes: SceneShapes by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    val sun = MaterialShapes.VerySunny.toPath().asComposePath()
+    val star = MaterialShapes.PuffyDiamond.toPath().asComposePath()
+    SceneShapes(sun, sun.getBounds(), star, star.getBounds())
+}
 
 /** Hill tones from the sky palette: deepened dusk for day hills, deepened night for night hills. */
 private class HillColors(val day: Color, val night: Color) {
@@ -142,10 +221,21 @@ private class HillColors(val day: Color, val night: Color) {
 }
 
 /** Everything that depends only on the scene's size, built once per size. */
-private class SceneGeometry(size: Size, val detailed: Boolean) {
+private class SceneGeometry(
+    size: Size,
+    val detailed: Boolean,
+    dashUnit: Float,
+    strokeW: Float,
+    ridgeW: Float,
+    birdW: Float,
+) {
     val w = size.width
     val h = size.height
     val horizon = h * 0.76f
+    val dashStroke = Stroke(strokeW, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashUnit, dashUnit)))
+    val activeArcStroke = Stroke(strokeW * 1.15f, cap = StrokeCap.Round)
+    val ridgeStroke = Stroke(ridgeW, cap = StrokeCap.Round)
+    val birdStroke = Stroke(birdW, cap = StrokeCap.Round)
 
     /** The far ridge's crest; filled down to the bottom for the hill, stroked alone for its rim light. */
     val ridgeCrest = Path().apply {
@@ -177,13 +267,81 @@ private class SceneGeometry(size: Size, val detailed: Boolean) {
     val fullArc = Path().apply { arcTo(arcRect, 180f, 180f, true) }
     val morningCloud = cloudPuff(w * 0.23f, h * 0.29f, w * 0.18f, h * 0.055f)
     val middayCloud = cloudPuff(w * 0.77f, h * 0.23f, w * 0.20f, h * 0.060f)
+
+    private val activeArc = Path()
+    private var lastArcSweep = Float.NaN
+    val birdPath = Path()
+    private val moonDisc = Path()
+    private val moonBite = Path()
+    private val moonCrescent = Path()
+    private var lastMoonCenter = Offset.Unspecified
+    private var lastMoonRadius = Float.NaN
+
+    private var cachedHour = Float.NaN
+    private var cachedGradient: SkyGradient? = null
+    private var cachedBrushDawn = Float.NaN
+    private var cachedBrushDusk = Float.NaN
+    private var cachedBrushGradient: SkyGradient? = null
+    private var cachedSkyBrush: Brush? = null
+    private var cachedHorizonSky: Color = Color.Unspecified
+
+    fun gradientAt(sky: SkyPalette, hour: Float): SkyGradient {
+        if (hour == cachedHour) cachedGradient?.let { return it }
+        return sky.gradientAt(hour).also {
+            cachedHour = hour
+            cachedGradient = it
+        }
+    }
+
+    fun skyBrush(gradient: SkyGradient, light: SceneLight): Pair<Brush, Color> {
+        val cached = cachedSkyBrush
+        if (cached != null && gradient == cachedBrushGradient && light.dawn == cachedBrushDawn && light.dusk == cachedBrushDusk) {
+            return cached to cachedHorizonSky
+        }
+        val midSky = lerp(gradient.top, gradient.bottom, 0.55f)
+        val horizonSky = when {
+            light.dawn > 0f -> lerp(gradient.bottom, DawnHorizonGlow, light.dawn * 0.45f)
+            light.dusk > 0f -> lerp(gradient.bottom, DuskHorizonGlow, light.dusk * 0.50f)
+            else -> gradient.bottom
+        }
+        val brush = Brush.verticalGradient(0.0f to gradient.top, 0.52f to midSky, 0.82f to horizonSky, 1.0f to gradient.bottom)
+        cachedBrushGradient = gradient
+        cachedBrushDawn = light.dawn
+        cachedBrushDusk = light.dusk
+        cachedSkyBrush = brush
+        cachedHorizonSky = horizonSky
+        return brush to horizonSky
+    }
+
+    fun activeArc(sweep: Float): Path {
+        if (sweep != lastArcSweep) {
+            activeArc.rewind()
+            activeArc.arcTo(arcRect, 180f, sweep, true)
+            lastArcSweep = sweep
+        }
+        return activeArc
+    }
+
+    fun moonCrescent(p: Offset, r: Float): Path {
+        if (p != lastMoonCenter || r != lastMoonRadius) {
+            moonDisc.rewind()
+            moonDisc.addOval(Rect(p, r))
+            moonBite.rewind()
+            moonBite.addOval(Rect(Offset(p.x + r * 0.52f, p.y - r * 0.42f), r * 0.84f))
+            moonCrescent.op(moonDisc, moonBite, PathOperation.Difference)
+            lastMoonCenter = p
+            lastMoonRadius = r
+        }
+        return moonCrescent
+    }
 }
 
 private fun DrawScope.drawChronotypeScene(
     chronotype: Chronotype?,
     geometry: SceneGeometry,
     shapes: SceneShapes,
-    gradient: SkyGradient,
+    sky: SkyPalette,
+    hour: Float,
     hills: HillColors,
     tertiary: Color,
     position: Float,
@@ -195,7 +353,8 @@ private fun DrawScope.drawChronotypeScene(
     val m = moonFraction.coerceIn(0f, 1f)
     val act = SceneEntrance.of(chronotype, entrance.coerceIn(0f, 1f))
     val light = SceneLight(position, m)
-    val horizonSky = drawSky(gradient, light)
+    val gradient = geometry.gradientAt(sky, hour)
+    val horizonSky = drawSky(geometry, gradient, light)
     val celestial = celestialPoint(geometry, position * act.travel)
     drawHorizonGlow(geometry, light, celestial, act)
     if (m > 0f) drawStars(geometry, shapes, light, twinkle, act)
@@ -351,14 +510,9 @@ private class SceneLight(position: Float, val m: Float) {
 }
 
 /** The multi-stop sky with a warm dawn or dusk horizon; returns the horizon colour (the hills blend from it). */
-private fun DrawScope.drawSky(gradient: SkyGradient, light: SceneLight): Color {
-    val midSky = lerp(gradient.top, gradient.bottom, 0.55f)
-    val horizonSky = when {
-        light.dawn > 0f -> lerp(gradient.bottom, DawnHorizonGlow, light.dawn * 0.45f)
-        light.dusk > 0f -> lerp(gradient.bottom, DuskHorizonGlow, light.dusk * 0.50f)
-        else -> gradient.bottom
-    }
-    drawRect(Brush.verticalGradient(0.0f to gradient.top, 0.52f to midSky, 0.82f to horizonSky, 1.0f to gradient.bottom))
+private fun DrawScope.drawSky(g: SceneGeometry, gradient: SkyGradient, light: SceneLight): Color {
+    val (brush, horizonSky) = g.skyBrush(gradient, light)
+    drawRect(brush)
     return horizonSky
 }
 
@@ -445,16 +599,10 @@ private fun DrawScope.drawClouds(g: SceneGeometry, light: SceneLight, position: 
 
 /** The dashed full path and the brighter travelled part up to the sun or moon. */
 private fun DrawScope.drawSunPath(g: SceneGeometry, pos: Float, e: Float) {
-    val dashUnit = if (g.detailed) 4.dp.toPx() else 2.6.dp.toPx()
-    val strokeW = if (g.detailed) 1.5.dp.toPx() else 1.1.dp.toPx()
-    drawPath(
-        g.fullArc,
-        Color.White.copy(alpha = 0.42f),
-        style = Stroke(strokeW, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashUnit, dashUnit))),
-    )
+    drawPath(g.fullArc, Color.White.copy(alpha = 0.42f), style = g.dashStroke)
     if (pos > 0.02f) {
-        val activeArc = Path().apply { arcTo(g.arcRect, 180f, (180f * pos).coerceIn(1f, 180f), true) }
-        drawPath(activeArc, Color.White.copy(alpha = 0.75f * e), style = Stroke(strokeW * 1.15f, cap = StrokeCap.Round))
+        val activeArc = g.activeArc((180f * pos).coerceIn(1f, 180f))
+        drawPath(activeArc, Color.White.copy(alpha = 0.75f * e), style = g.activeArcStroke)
     }
 }
 
@@ -520,9 +668,7 @@ private fun DrawScope.drawSunAndMoon(
             // Earthshine on the dark limb (it also hides the path behind the moon).
             drawCircle(lerp(gradient.top, gradient.bottom, 0.55f).copy(alpha = moon), radius = r * 0.96f, center = p)
             drawCircle(MoonColor.copy(alpha = 0.12f * moon), radius = r * 0.96f, center = p)
-            val disc = Path().apply { addOval(Rect(p, r)) }
-            val bite = Path().apply { addOval(Rect(Offset(p.x + r * 0.52f, p.y - r * 0.42f), r * 0.84f)) }
-            drawPath(Path.combine(PathOperation.Difference, disc, bite), MoonColor.copy(alpha = moon))
+            drawPath(g.moonCrescent(p, r), MoonColor.copy(alpha = moon))
             if (g.detailed) {
                 drawCircle(tertiary.copy(alpha = 0.16f * moon), radius = r * 0.18f, center = Offset(p.x - r * 0.36f, p.y + r * 0.14f))
                 drawCircle(tertiary.copy(alpha = 0.13f * moon), radius = r * 0.11f, center = Offset(p.x - r * 0.18f, p.y + r * 0.42f))
@@ -540,7 +686,7 @@ private fun DrawScope.drawHills(g: SceneGeometry, horizonSky: Color, hills: Hill
     val eFront = ((e - 0.30f) / 0.7f).coerceIn(0f, 1f)
     withTransform({ translate(top = (1f - eBack) * g.h * 0.18f) }) {
         drawPath(g.backHill, lerp(horizonSky, hillBase, 0.42f))
-        drawPath(g.ridgeCrest, rimColor.copy(alpha = 0.28f * e), style = Stroke(if (g.detailed) 1.3.dp.toPx() else 0.9.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(g.ridgeCrest, rimColor.copy(alpha = 0.28f * e), style = g.ridgeStroke)
     }
     withTransform({ translate(top = (1f - eMid) * g.h * 0.14f) }) {
         drawPath(g.midHill, lerp(horizonSky, hillBase, 0.66f))
@@ -557,8 +703,8 @@ private fun DrawScope.drawDetails(g: SceneGeometry, light: SceneLight, hills: Hi
         val birdAlpha = 0.55f * light.day * act.birds
         val flightX = act.birdsFlight.x * w
         val flightY = act.birdsFlight.y * h
-        drawBird(w * 0.66f + flightX, h * 0.60f + flightY, w * 0.032f, act.wingbeat, hills.day.copy(alpha = birdAlpha))
-        drawBird(w * 0.73f + flightX * 1.3f, h * 0.56f + flightY * 1.3f, w * 0.024f, -act.wingbeat, hills.day.copy(alpha = birdAlpha * 0.8f))
+        drawBird(g, w * 0.66f + flightX, h * 0.60f + flightY, w * 0.032f, act.wingbeat, hills.day.copy(alpha = birdAlpha))
+        drawBird(g, w * 0.73f + flightX * 1.3f, h * 0.56f + flightY * 1.3f, w * 0.024f, -act.wingbeat, hills.day.copy(alpha = birdAlpha * 0.8f))
     }
     if (light.m > 0.2f) {
         val window = Offset(w * 0.27f, h * 0.83f)
@@ -588,14 +734,15 @@ private fun cloudPuff(cx: Float, cy: Float, width: Float, height: Float) = Path(
 }
 
 /** A bird in flight; [wingbeat] (−1 → 1, 0 at rest) lowers or raises its wings. */
-private fun DrawScope.drawBird(cx: Float, cy: Float, span: Float, wingbeat: Float, color: Color) {
+private fun DrawScope.drawBird(g: SceneGeometry, cx: Float, cy: Float, span: Float, wingbeat: Float, color: Color) {
     val lift = span * 0.45f * (1f + wingbeat)
-    val bird = Path().apply {
+    val bird = g.birdPath.apply {
+        rewind()
         moveTo(cx - span, cy + span * 0.15f)
         quadraticTo(cx - span * 0.45f, cy - lift, cx, cy + span * 0.08f)
         quadraticTo(cx + span * 0.45f, cy - lift, cx + span, cy + span * 0.15f)
     }
-    drawPath(bird, color, style = Stroke(1.4.dp.toPx(), cap = StrokeCap.Round))
+    drawPath(bird, color, style = g.birdStroke)
 }
 
 /** Star positions (fractions of the art) and radii; indices 0..3 form a delicate constellation in the upper-left sky. */

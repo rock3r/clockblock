@@ -54,6 +54,7 @@ fun ChronotypePicker(
     onSelect: (Chronotype) -> Unit,
     modifier: Modifier = Modifier,
     suggested: Chronotype? = null,
+    drawScenes: () -> Boolean = { true },
 ) {
     Column(modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(SegmentedGap)) {
         Chronotype.entries.forEachIndexed { index, chronotype ->
@@ -63,6 +64,7 @@ fun ChronotypePicker(
                 suggested = chronotype == suggested,
                 onClick = { onSelect(chronotype) },
                 shape = segmentedShape(index, Chronotype.entries.size),
+                drawScene = drawScenes,
             )
         }
     }
@@ -75,6 +77,7 @@ private fun ChronotypeCard(
     suggested: Boolean,
     onClick: () -> Unit,
     shape: androidx.compose.ui.graphics.Shape,
+    drawScene: () -> Boolean,
 ) {
     val colors = MaterialTheme.colorScheme
     val motion = ClockblockTheme.motion
@@ -93,7 +96,7 @@ private fun ChronotypeCard(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp).heightIn(min = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ChronotypeSky(chronotype, Modifier.size(52.dp))
+            ChronotypeSky(chronotype, Modifier.size(52.dp), drawn = drawScene)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(chronotype.label(), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)

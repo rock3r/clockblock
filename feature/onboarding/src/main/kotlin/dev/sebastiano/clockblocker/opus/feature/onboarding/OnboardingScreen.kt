@@ -58,6 +58,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Intensity
 import dev.sebastiano.clockblocker.opus.core.model.Place
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.model.UserProfile
+import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePrewarm
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlin.math.roundToInt
 
@@ -204,13 +205,24 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // spectacle interrupted by a rotation or process death never resumes: the reveal just sits at rest.
     var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
     var spectacleFrom by remember { mutableStateOf<Rect?>(null) }
+    var spectacleActive by remember { mutableStateOf(false) }
     val spectacleOrigin = remember { SpectacleOrigin() }
     val allowed = !ClockblockTheme.reduceMotion && !rememberTouchExplorationEnabled()
     // Reduce motion or TalkBack turning on ends it too: the reveal then sits at rest.
-    val spectacleRunning = spectacleFrom != null && step == OnboardingStep.Chronotype && allowed
+    val spectacleRunning = spectacleActive && step == OnboardingStep.Chronotype && allowed
     // Back during the spectacle ends it, as does a host that didn't move on, and for good once motion is disallowed.
-    LaunchedEffect(step) { if (step != OnboardingStep.Chronotype) spectacleFrom = null }
-    LaunchedEffect(allowed) { if (!allowed) spectacleFrom = null }
+    LaunchedEffect(step) {
+        if (step != OnboardingStep.Chronotype) {
+            spectacleFrom = null
+            spectacleActive = false
+        }
+    }
+    LaunchedEffect(allowed) {
+        if (!allowed) {
+            spectacleFrom = null
+            spectacleActive = false
+        }
+    }
     val currentStep by rememberUpdatedState(step)
     val spectacleAllowed by rememberUpdatedState(allowed)
     val stepActions = remember(actions) {
@@ -219,7 +231,10 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 // The first visit counts even when it can't play (reduce motion, TalkBack): it never plays later.
                 if (currentStep == OnboardingStep.Sleep && !spectaclePlayed) {
                     spectaclePlayed = true
-                    if (spectacleAllowed) spectacleFrom = spectacleOrigin.dialFace ?: Rect.Zero
+                    if (spectacleAllowed) {
+                        spectacleFrom = spectacleOrigin.dialFace ?: Rect.Zero
+                        spectacleActive = true
+                    }
                 }
                 actions.next()
             }
@@ -229,6 +244,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
+    val frameMetrics = remember { OnboardingFrameMetrics() }
     val motion = ClockblockTheme.motion
     val homeSearch = rememberHomeSearchState()
     // The step transition's own values, so predictive back seeks them with the steps: the Get started ↔ Next
@@ -261,7 +277,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         val returningToWelcome = steps.transition.targetState == OnboardingStep.Welcome
+        if (step == OnboardingStep.Sleep && !spectaclePlayed && allowed) {
+            ChronotypePrewarm()
+        }
         OnboardingFrame(
+            metrics = frameMetrics,
             searchProgress = { search.value },
             keyboard = keyboard,
             topBar = {
@@ -296,7 +316,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                         .then(if (spectacleRunning) Modifier.inert() else Modifier),
                 )
             },
-            steps = { barHeight, noteHeight ->
+            steps = {
                 steps.transition.AnimatedContent(
                     transitionSpec = { steps.transitionFor(initialState, targetState, spectacle = spectacleFrom != null) },
                     contentKey = { it },
@@ -308,13 +328,14 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                 .fillMaxSize()
                                 .stepRoom(
                                     top = {
+                                        val barHeight = frameMetrics.topBarHeight
                                         when (target) {
                                             OnboardingStep.Welcome -> 0
                                             OnboardingStep.HomeZone -> (barHeight * (1f - search.value)).roundToInt()
                                             else -> barHeight
                                         }
                                     },
-                                    bottom = if (target == OnboardingStep.Welcome) noteHeight else 0,
+                                    bottom = { if (target == OnboardingStep.Welcome) frameMetrics.disclaimerHeight else 0 },
                                 )
                                 .testTag(OnboardingTags.step(target))
                                 .then(with(steps) { Modifier.contentLaidOut(target) }),
@@ -324,7 +345,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                     target, state, stepActions, wide,
                                     homeSearch = homeSearch,
                                     spectacleFrom = spectacleFrom.takeIf { target == OnboardingStep.Chronotype },
-                                    onSpectacleFinished = { spectacleFrom = null },
+                                    onSpectacleFinished = { spectacleActive = false },
                                 )
                             }
                         }
@@ -407,9 +428,10 @@ private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, i
  * Reserves a step's room for the chrome around it: [top] (read in layout, so the home search can fold it away frame
  * by frame) and [bottom] pixels.
  */
-private fun Modifier.stepRoom(top: () -> Int, bottom: Int): Modifier = layout { measurable, constraints ->
+private fun Modifier.stepRoom(top: () -> Int, bottom: () -> Int): Modifier = layout { measurable, constraints ->
     val topPx = top().coerceAtLeast(0)
-    val inner = (constraints.maxHeight - topPx - bottom).coerceAtLeast(0)
+    val bottomPx = bottom().coerceAtLeast(0)
+    val inner = (constraints.maxHeight - topPx - bottomPx).coerceAtLeast(0)
     val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, inner))
     layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, topPx) }
 }
