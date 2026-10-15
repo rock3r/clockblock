@@ -2,7 +2,6 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.Transition
@@ -10,7 +9,6 @@ import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
@@ -18,12 +16,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onPlaced
@@ -37,9 +33,10 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -47,15 +44,14 @@ import kotlinx.coroutines.launch
  * The step-to-step motion of onboarding, on the same navigation tokens as the app shell's hierarchy
  * transitions (`AppTransitions` in `:app`), so moving through setup feels like moving through the app:
  *
- * - **Next / Back buttons**: shared axis X, a 30 dp slide mirrored in RTL, on `navigationSpatial()` (Standard,
- *   no bounce, snaps under reduced motion) with the sequenced `navigationFadeOut()` → `navigationFadeIn()`.
+ * - **Next / Back buttons**: shared axis X, a 30 dp slide mirrored in RTL, on `stepSpatial()` (300 ms,
+ *   no bounce, snaps under reduced motion) with the sequenced `stepFadeOut()` → `stepFadeIn()`.
  *   A step leaves toward the edge the next one comes from, and Back plays exactly the reverse.
  * - **Sleep → chronotype reveal**: a fade-through with the reveal growing in on the container spring (see [reveal]);
  *   the first time, the sleep step only fades away under the reveal's own spectacle (see [spectacle]).
- * - **Predictive back**: the gesture *seeks* the transition to the previous step: the current step shrinks to
- *   90 % and drifts back toward the forward edge it entered from (whichever edge the swipe started on) while
- *   fading on `colour()`, revealing the previous step underneath. Committing continues from where the finger
- *   let go; cancelling returns along the same path on `navigationSpatial()`.
+ * - **Predictive back**: the gesture *seeks* the same shared-axis (and fade-through) back transition that a Back tap
+ *   plays, so the outgoing step fades out before the previous step fades in and the two never double-expose.
+ *   Committing continues from where the finger let go; cancelling returns along the same path on `navigationSpatial()`.
  * - **Start**: a step change first composes and lays out the incoming step at the transition's start (invisible
  *   there), then animates. A slow first composition (the home step on first run) delays the start by its frames
  *   instead of eating the transition's opening.
@@ -68,11 +64,10 @@ internal class OnboardingStepTransition(
     private val axisOffsetPx: Int,
     private val layoutDirection: LayoutDirection,
 ) {
-    /** True while a back gesture drives (or has just committed) the transition. */
-    internal var gestureBack: Boolean by mutableStateOf(false)
-
     /** The steps whose content is composed and laid out (see [contentLaidOut]). */
     private val laidOut = mutableStateSetOf<OnboardingStep>()
+
+    private var seekJob: Job? = null
 
     /**
      * Reports [step]'s content as laid out, on the step's root, and forgets it when the content leaves. [settleOn]
@@ -92,7 +87,6 @@ internal class OnboardingStepTransition(
     fun transitionFor(from: OnboardingStep, to: OnboardingStep, spectacle: Boolean = false): ContentTransform {
         val forward = to.ordinal > from.ordinal
         return when {
-            !forward && gestureBack -> predictiveBack()
             from == OnboardingStep.Sleep && to == OnboardingStep.Chronotype -> if (spectacle) spectacle() else reveal()
             else -> sharedAxis(if (forward) forwardSign else -forwardSign)
         }
@@ -105,9 +99,9 @@ internal class OnboardingStepTransition(
      * only the fades remain.
      */
     private fun reveal(): ContentTransform {
-        val enter = fadeIn(motion.navigationFadeIn()) + scaleIn(motion.containerSpatial(), initialScale = RevealScale)
-        val exit = fadeOut(motion.navigationFadeOut())
-        return ContentTransform(enter, exit, sizeTransform = SizeTransform(clip = false))
+        val enter = fadeIn(motion.stepFadeIn()) + scaleIn(motion.containerSpatial(), initialScale = RevealScale)
+        val exit = fadeOut(motion.stepFadeOut())
+        return ContentTransform(enter, exit, sizeTransform = null)
     }
 
     /**
@@ -115,27 +109,19 @@ internal class OnboardingStepTransition(
      * comes in as it is, over the sleep step fading away on `colour()` (the shape grows out of the dial meanwhile).
      */
     private fun spectacle(): ContentTransform =
-        ContentTransform(EnterTransition.None, fadeOut(motion.colour()), sizeTransform = SizeTransform(clip = false))
+        ContentTransform(EnterTransition.None, fadeOut(motion.colour()), sizeTransform = null)
 
     private fun sharedAxis(sign: Int): ContentTransform {
-        val enter = slideInHorizontally(motion.navigationSpatial()) { sign * axisOffsetPx } +
-            fadeIn(motion.navigationFadeIn())
-        val exit = slideOutHorizontally(motion.navigationSpatial()) { -sign * axisOffsetPx } +
-            fadeOut(motion.navigationFadeOut())
-        return ContentTransform(enter, exit, sizeTransform = SizeTransform(clip = false))
-    }
-
-    private fun predictiveBack(): ContentTransform {
-        val enter = slideInHorizontally(motion.navigationSpatial()) { -forwardSign * axisOffsetPx / 2 }
-        val exit = scaleOut(motion.navigationSpatial(), targetScale = PredictiveBackScale) +
-            slideOutHorizontally(motion.navigationSpatial()) { forwardSign * axisOffsetPx } +
-            fadeOut(motion.colour())
-        // The outgoing step stays on top so the previous one is revealed underneath it.
-        return ContentTransform(enter, exit, targetContentZIndex = -1f, sizeTransform = SizeTransform(clip = false))
+        val enter = slideInHorizontally(motion.stepSpatial()) { sign * axisOffsetPx } +
+            fadeIn(motion.stepFadeIn())
+        val exit = slideOutHorizontally(motion.stepSpatial()) { -sign * axisOffsetPx } +
+            fadeOut(motion.stepFadeOut())
+        return ContentTransform(enter, exit, sizeTransform = null)
     }
 
     internal suspend fun settleOn(step: OnboardingStep) {
-        if (state.targetState != step) {
+        seekJob?.cancelAndJoin()
+        if (state.targetState != step || step !in laidOut) {
             // Compose and lay out the incoming step at the transition's start (it is still invisible there) before
             // anything moves. Its first composition can take several frames on a phone (the home step on first run),
             // and an animation already running would jump over its opening during them.
@@ -143,16 +129,23 @@ internal class OnboardingStepTransition(
             snapshotFlow { step in laidOut }.first { it }
         }
         state.animateTo(step)
-        gestureBack = false
     }
 
-    internal suspend fun seekBack(previous: OnboardingStep, fraction: Float) {
-        gestureBack = true
+    internal suspend fun seekBack(previous: OnboardingStep, fraction: Float) = coroutineScope {
+        seekJob = coroutineContext[Job]
+        if (state.targetState != previous || previous !in laidOut) {
+            // Establish the target and lay out the incoming step at playTime 0 before seeking to fraction: otherwise
+            // EnterExitTransition's deferred exit animations are created at playTime > 0 and Compose delays fadeOut by
+            // that playTime, overlapping fadeIn.
+            state.seekTo(0f, targetState = previous)
+            snapshotFlow { previous in laidOut }.first { it }
+        }
         state.seekTo(fraction.coerceIn(0f, 1f), targetState = previous)
     }
 
     /** Runs the seek back to 0 (where the gesture started) and settles on the current step again. */
     internal suspend fun cancelBack() {
+        seekJob?.cancelAndJoin()
         val current = state.currentState
         val fraction = Animatable(state.fraction)
         coroutineScope {
@@ -161,11 +154,9 @@ internal class OnboardingStepTransition(
             seeking.cancelAndJoin()
         }
         state.snapTo(current)
-        gestureBack = false
     }
 
     private companion object {
-        const val PredictiveBackScale = 0.9f
         const val RevealScale = 0.92f
     }
 }
@@ -192,8 +183,9 @@ internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -
     LaunchedEffect(steps, backState, previous) {
         if (previous == null) return@LaunchedEffect
         snapshotFlow { (backState.transitionState as? NavigationEventTransitionState.InProgress)?.latestEvent?.progress }
-            .filterNotNull()
-            .collect { steps.seekBack(previous, it) }
+            .collectLatest { progress ->
+                if (progress != null) steps.seekBack(previous, progress)
+            }
     }
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)

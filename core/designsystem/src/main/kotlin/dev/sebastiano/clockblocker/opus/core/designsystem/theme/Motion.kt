@@ -186,6 +186,28 @@ class ClockblockMotion internal constructor(
         easing = EmphasizedDecelerate,
     )
 
+    /**
+     * Shared-axis slide and button morph on a seekable onboarding step transition: spans the exact
+     * [StepFadeOutMillis] + [StepFadeInMillis] fade-through window (no spring settle tail stretching the
+     * predictive-back seek range), and snaps when motion is reduced.
+     */
+    fun <T> stepSpatial(): FiniteAnimationSpec<T> =
+        if (reduceMotion) snap() else tween(((StepFadeOutMillis + StepFadeInMillis) * navigationTimeScale).toInt(), easing = StepSpatialEasing)
+
+    /** Outgoing step (or chrome) in a seekable onboarding step transition: gone before [stepFadeIn] starts. */
+    fun <T> stepFadeOut(): FiniteAnimationSpec<T> =
+        tween((StepFadeOutMillis * navigationTimeScale).toInt(), easing = EmphasizedAccelerate)
+
+    /**
+     * Incoming step (or staggered chrome item [index]) in a seekable onboarding step transition: starts once
+     * [stepFadeOut] has finished, each subsequent item delayed by [NavigationStaggerMillis].
+     */
+    fun <T> stepFadeIn(index: Int = 0): FiniteAnimationSpec<T> = tween(
+        durationMillis = (StepFadeInMillis * navigationTimeScale).toInt(),
+        delayMillis = ((StepFadeOutMillis + index * NavigationStaggerMillis) * navigationTimeScale).toInt(),
+        easing = StepFadeInEasing,
+    )
+
     /** Night-safe / body-night surfaces are ~1.5× slower (see [CalmMotionScheme]). */
     private val navigationTimeScale: Float get() = if (isCalm) 1.5f else 1f
 
@@ -239,6 +261,11 @@ class ClockblockMotion internal constructor(
         const val NavigationFadeOutMillis = 90
         const val NavigationFadeInMillis = 210
 
+        /** Seekable onboarding step fade-through: 60 ms out + 240 ms in (300 ms total), with 30 ms top-bar stagger. */
+        const val StepFadeOutMillis = 60
+        const val StepFadeInMillis = 240
+        const val NavigationStaggerMillis = 30
+
         /** One of the chronotype spectacle's [SpectacleSpins] spins (the rise spans them all). */
         const val SpectacleSpinMillis = 560
         const val SpectacleSpins = 2
@@ -253,6 +280,8 @@ class ClockblockMotion internal constructor(
 
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+        private val StepFadeInEasing = CubicBezierEasing(0.3f, 0.2f, 0.7f, 0.95f)
+        private val StepSpatialEasing = CubicBezierEasing(0.4f, 0f, 0.6f, 1f)
 
         /** Each staggered line's own ease in (emphasized decelerate). */
         val StaggerEasing: Easing = EmphasizedDecelerate

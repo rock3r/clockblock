@@ -104,13 +104,34 @@ internal fun OnboardingFrame(
 private enum class FrameSlot { TopBar, Disclaimer, BottomBar, Steps }
 
 /**
+ * The step the top bar displays: never [OnboardingStep.Welcome] (which has no bar), so while fading out toward
+ * Welcome it keeps the outgoing step's label ("Step 2 of 5") and progress instead of jumping to Welcome's.
+ */
+internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): OnboardingStep = when {
+    step != OnboardingStep.Welcome -> step
+    current != OnboardingStep.Welcome -> current
+    else -> OnboardingStep.HomeZone
+}
+
+/**
  * Step N of 5, the wavy progress line and Skip. Always composed and measured (the steps reserve its height), shown
- * through [alpha] only, read in the draw phase. While hidden ([visible] false: Welcome, the home search) it is
- * silent for TalkBack and Skip is off.
+ * through [labelAlpha], [progressAlpha] and [skipAlpha] (scaled by [barAlpha]), read in the draw phase. Entering from
+ * Welcome ([slide] true), the three items drop in from above, staggered; returning to Welcome (or under reduced
+ * motion), [slide] is false and they fade out together in place. While hidden ([visible] false: Welcome, the home
+ * search, the spectacle) it is silent for TalkBack and Skip is off.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun OnboardingTopBar(step: OnboardingStep, visible: Boolean, alpha: () -> Float, onSkip: () -> Unit) {
+internal fun OnboardingTopBar(
+    step: OnboardingStep,
+    visible: Boolean,
+    slide: Boolean,
+    barAlpha: () -> Float,
+    labelAlpha: () -> Float,
+    progressAlpha: () -> Float,
+    skipAlpha: () -> Float,
+    onSkip: () -> Unit,
+) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val target = (step.index + 1f) / OnboardingStep.Count
@@ -119,14 +140,18 @@ internal fun OnboardingTopBar(step: OnboardingStep, visible: Boolean, alpha: () 
     Row(
         Modifier
             .fillMaxWidth()
-            .graphicsLayer { this.alpha = alpha() }
             .then(if (visible) Modifier else Modifier.clearAndSetSemantics { })
             .padding(start = 24.dp, end = 8.dp, top = 8.dp)
             .heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide),
+            )
             Spacer(Modifier.size(6.dp))
             // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
             LinearWavyProgressIndicator(
@@ -136,6 +161,7 @@ internal fun OnboardingTopBar(step: OnboardingStep, visible: Boolean, alpha: () 
                 waveSpeed = if (reduce || !visible) 0.dp else 14.dp,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .topBarItem(progressAlpha, barAlpha, slide)
                     .semantics { contentDescription = label }
                     .testTag(OnboardingTags.Progress),
             )
@@ -145,10 +171,26 @@ internal fun OnboardingTopBar(step: OnboardingStep, visible: Boolean, alpha: () 
         TextButton(
             onClick = onSkip,
             enabled = visible && skippable,
-            modifier = Modifier.heightIn(min = 48.dp).testTag(OnboardingTags.Skip).graphicsLayer { this.alpha = if (skippable) 1f else 0f },
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .testTag(OnboardingTags.Skip)
+                .topBarItem(skipAlpha, barAlpha, slide, enabled = skippable),
         ) { Text(stringResource(R.string.onboarding_skip)) }
     }
 }
+
+private fun Modifier.topBarItem(
+    itemAlpha: () -> Float,
+    barAlpha: () -> Float,
+    slide: Boolean,
+    enabled: Boolean = true,
+): Modifier = graphicsLayer {
+    val p = itemAlpha().coerceIn(0f, 1f)
+    alpha = if (enabled) p * barAlpha() else 0f
+    translationY = if (slide) -(1f - p) * TopBarDrop.toPx() else 0f
+}
+
+private val TopBarDrop = 12.dp
 
 /**
  * Back and the primary action, in one row whose height never changes between steps.
@@ -223,6 +265,7 @@ internal fun OnboardingBottomBar(
         val primaryX: Int
         // The width the primary ends up with at rest: Back gets the rest of the row.
         val primarySlot: Int
+        val f = welcome().coerceIn(0f, 1f)
         if (step == OnboardingStep.Reminders) {
             primary = primaryMeasurable.measure(loose.copy(maxWidth = (width - backWidth - gap).coerceAtLeast(width / 2)))
             primaryX = width - primary.width
@@ -239,7 +282,6 @@ internal fun OnboardingBottomBar(
             } else {
                 width
             }
-            val f = welcome().coerceIn(0f, 1f)
             val primaryWidth = lerp(nextWidth.toFloat(), startedWidth.toFloat(), f).roundToInt()
             primary = primaryMeasurable.measure(
                 Constraints(minWidth = primaryWidth, maxWidth = primaryWidth, minHeight = 0, maxHeight = constraints.maxHeight),
@@ -251,7 +293,7 @@ internal fun OnboardingBottomBar(
         // behind Get started.
         val back = backMeasurable.measure(loose.copy(maxWidth = (width - primarySlot - gap).coerceAtLeast(0)))
         val height = maxOf(back.height, primary.height)
-        val backX = if (step == OnboardingStep.Reminders) 0 else lerp(0f, primaryX.toFloat(), welcome().coerceIn(0f, 1f)).roundToInt()
+        val backX = if (step == OnboardingStep.Reminders) 0 else lerp(0f, (-gap - back.width).toFloat(), f).roundToInt()
         layout(width, height) {
             back.placeRelative(backX, (height - back.height) / 2)
             primary.placeRelative(primaryX, (height - primary.height) / 2)
