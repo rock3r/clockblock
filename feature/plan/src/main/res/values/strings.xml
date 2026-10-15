@@ -117,7 +117,7 @@
         <item quantity="one">Without a plan it would take about %d day.</item>
         <item quantity="other">Without a plan it would take about %d days.</item>
     </plurals>
-    <string name="plan_adapted_line">Your estimated body clock matches %1$s time.</string>
+    <string name="plan_adapted_line">Your estimated body clock is close to %1$s time.</string>
     <!-- Adaptation card hero: "3 d" / "with your plan" next to "9 d" / "without a plan". -->
     <string name="plan_days_short">%1$d d</string>
     <string name="plan_days_short_horizon">%1$d+ d</string>
@@ -159,7 +159,7 @@
     <string name="plan_upcoming_body">Nothing to do until then.</string>
     <string name="plan_complete_title">Trip complete</string>
     <string name="plan_complete_body">Done\u00A0%1$d · Skipped\u00A0%2$d · Couldn\'t\u00A0do\u00A0%3$d</string>
-    <string name="plan_complete_adapted">Your estimated body clock matches %1$s time.</string>
+    <string name="plan_complete_adapted">Your estimated body clock is close to %1$s time.</string>
 
     <!-- Rail -->
     <string name="plan_rail_title">Your plan</string>

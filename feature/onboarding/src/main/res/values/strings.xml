@@ -127,7 +127,7 @@
     <string name="melatonin_note_driving">Don\'t drive or operate machinery for several hours after taking it.</string>
     <string name="melatonin_note_legal">Rules differ by country: over the counter in the US, prescription-only in the UK and Australia, not approved in Japan.</string>
     <string name="melatonin_note_ack">I\'ve read this and I\'ll check what applies to me</string>
-    <string name="effort_title">How quickly do you want to adjust?</string>
+    <string name="effort_title">Choose a planning strategy</string>
     <string name="effort_gentle">Gentle</string>
     <string name="effort_balanced">Balanced</string>
     <string name="effort_max">Max</string>
