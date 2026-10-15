@@ -277,7 +277,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         val returningToWelcome = steps.transition.targetState == OnboardingStep.Welcome
-        if (step == OnboardingStep.Sleep && !spectaclePlayed && allowed) {
+        if (step == OnboardingStep.Sleep) {
             ChronotypePrewarm()
         }
         OnboardingFrame(
