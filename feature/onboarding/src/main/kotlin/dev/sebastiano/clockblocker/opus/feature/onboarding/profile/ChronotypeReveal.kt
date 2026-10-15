@@ -490,7 +490,7 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
         true
     }
     val view = LocalView.current
-    var armed by rememberSaveable { mutableStateOf(true) }
+    var armed by remember { mutableStateOf(true) }
     DisposableEffect(view, disarmAfterFrame) {
         if (!disarmAfterFrame) return@DisposableEffect onDispose {}
         val clear = Runnable { armed = false }
