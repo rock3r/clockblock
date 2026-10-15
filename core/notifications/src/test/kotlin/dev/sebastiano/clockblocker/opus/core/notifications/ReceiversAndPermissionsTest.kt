@@ -217,7 +217,7 @@ class ReceiversAndPermissionsTest {
         permissions.sendTestReminder() shouldBe true
         val n = shadowOf(notificationManager).getNotification(NotificationIds.TEST).shouldNotBeNull()
         n.extras.getString(Notification.EXTRA_TITLE) shouldBe "Test reminder"
-        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "If you can read this, reminders work."
+        n.extras.getCharSequence(Notification.EXTRA_TEXT).toString() shouldBe "This test notification arrived. Scheduled reminder timing depends on Android settings."
         n.channelId shouldBe ClockblockChannel.Light.id
 
         capabilities.notifications = false

@@ -53,7 +53,7 @@
     <string name="settings_perm_notifications">Notifications</string>
     <string name="settings_perm_notifications_description">Without this, reminders can\'t show at all.</string>
     <string name="settings_perm_exact">Exact timing</string>
-    <string name="settings_perm_exact_description">Without it, reminders may arrive up to 10\u00A0minutes late.</string>
+    <string name="settings_perm_exact_description">Without it, Clockblock requests a 10-minute delivery window. Android may delay reminders further.</string>
     <string name="settings_perm_live">Live Updates</string>
     <string name="settings_perm_live_description">Travel-day progress in the status bar. Otherwise a normal notification.</string>
     <string name="settings_perm_battery">Battery optimisation</string>
@@ -147,7 +147,7 @@
     <string name="about_how_title">How it works</string>
     <string name="about_how_clock_title">One clock to track</string>
     <string name="about_how_clock_body">The plan follows your body clock as a single time: the low point of your core temperature, a few hours before you usually wake. Your sleep times and chronotype set where it starts.</string>
-    <string name="about_how_light_title">Light does the heavy lifting</string>
+    <string name="about_how_light_title">Light shifts your body clock</string>
     <string name="about_how_light_body">Light in the hours after that low point moves your clock earlier; light in the hours before it moves it later. That\'s why the plan sometimes asks for sunglasses at noon.</string>
     <string name="about_how_pace_title">A realistic pace</string>
     <string name="about_how_pace_body">On Balanced and Max, the plan moves your clock up to 1 hour a day earlier before you fly and 1.5 hours a day after you land. Moving later is easier: up to 1.5 hours a day before and 2 after. Gentle goes slower. Going east, it may choose the long way round if that\'s kinder.</string>
@@ -176,7 +176,7 @@
 
     <string name="opus_title_kicker">Now performing</string>
     <string name="opus_title_card">Opus No. 1 in Jet-Lag Minor.</string>
-    <string name="opus_title_body">Concert mode is on. Switch it off any time in Settings › Appearance.</string>
+    <string name="opus_title_body">Opus mode is on. Switch it off any time in Settings › Appearance.</string>
     <string name="opus_title_dismiss">Bravo</string>
 
     <!-- Licences -->

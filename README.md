@@ -76,7 +76,7 @@ caffeine are fitted around it. A published mathematical model of the human body 
 simulates the plan to estimate how long adapting takes, with and without it. The tests also check plans against
 that model and a second one (Forger 1999).
 
-The research is cited, the rules are written down, and the known limitations are listed. Nothing is hidden.
+The docs cite the research and list the planning rules and known limitations.
 
 - [docs/science.md](docs/science.md): the research review, with references.
 - [docs/algorithm.md](docs/algorithm.md): the exact rules, every parameter and the known limitations.
@@ -162,9 +162,8 @@ Read more:
 
 ## Easter eggs
 
-There are a few. A dial that doesn't like being told what time it is. A version number that rewards persistence
-with a performance. We won't spoil the rest. The ones on the plan screen stay hidden while your plan says sleep or
-when Reduce motion is on, and none of them get in the way.
+The dial has hidden animations. Repeated taps on the version number unlock Opus mode.
+The plan screen disables its hidden animations during sleep windows and when Reduce motion is on.
 
 ## Contributing
 

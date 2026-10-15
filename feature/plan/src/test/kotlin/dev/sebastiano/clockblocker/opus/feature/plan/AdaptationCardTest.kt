@@ -74,7 +74,7 @@ class AdaptationCardTest {
         val inCallout = hasAnyAncestor(hasTestTag(PlanTags.LongWayRound))
         compose.onNode(inCallout and hasText("8 h behind", substring = true)).assertExists()
         compose.onNode(inCallout and hasText("16 h earlier", substring = true)).assertExists()
-        compose.onNode(inCallout and hasText("further round the clock face", substring = true)).assertExists()
+        compose.onNode(inCallout and hasText("larger total shift", substring = true)).assertExists()
         compose.onAllNodes(inCallout and hasText("fewer", substring = true)).assertCountEquals(0)
     }
 }
