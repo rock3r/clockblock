@@ -1,15 +1,30 @@
-# Circadian Science for Clockblock — Research Report & Algorithm Specification
+# Circadian research and planning rules
 
 *Prepared for the Clockblock Android app (open source, fully offline, Kotlin). Version 1.0, 2026-10-04.*
 
 > [!CAUTION]
-> **Not medical advice.** The app gives general information about circadian timing, not a diagnosis or treatment. Melatonin is a drug, and how it is regulated varies by country (US: dietary supplement sold over the counter; UK: prescription only; EU: varies, with low doses sometimes sold as food supplements and higher doses classed as medicines; Australia: prescription, except one pharmacist-only 2 mg prolonged-release product for people aged 55+; Canada: natural health product; Japan: not approved). People who are pregnant or breastfeeding, have epilepsy, take anticoagulants (warfarin), take fluvoxamine or other CYP1A2 inhibitors, take immunosuppressants, have an autoimmune disease, or are children should not take melatonin unless a clinician says so. Do not drive or operate machinery for several hours after taking melatonin or after short sleep. The app must say all this clearly and let users switch melatonin and caffeine advice off.
+> Clockblock gives general information about circadian timing. It cannot diagnose or treat a condition.
+> Melatonin is a drug. Its legal status depends on the country.
+> The US sells it over the counter as a dietary supplement; the UK requires a prescription.
+> EU rules vary: low doses can be food supplements, while higher doses can be medicines.
+> Australia requires a prescription except for one pharmacist-only 2 mg prolonged-release product for people aged 55+.
+> Canada classes it as a natural health product. Japan has not approved it.
+>
+> Pregnant or breastfeeding people and children must consult a clinician before taking melatonin.
+> The same applies to people with epilepsy or autoimmune disease, and those taking anticoagulants such as warfarin.
+> People taking fluvoxamine, other CYP1A2 inhibitors or immunosuppressants also need clinical advice.
+> Do not drive or operate machinery for several hours after melatonin or short sleep.
+> The app must show these warnings and let users disable melatonin and caffeine advice.
 
-Companion reference code (pure Python, used to produce every number in this report): [`research/reference/`](research/reference/) (`sim.py` = Forger99 and Hannay19 RK4 with CBTmin detection; `planner.py` = rule-based reference planner; `validate.py` = turns a plan into lux(t) and simulates it with both ODEs; `examples.py` = the 4 worked itineraries; `jl.py` and `sweep.py` = no-intervention and advance-vs-delay sweeps; `ex_*.txt` = planner outputs for each chronotype).
+The pure-Python code in [`research/reference/`](research/reference/) generates the model results and planner examples in this report.
+`sim.py` implements Forger99, Hannay19, RK4 integration and core body temperature minimum (CBTmin) detection.
+`planner.py` implements the reference rules. `validate.py` converts advice to lux(t) and simulates both ordinary differential equation (ODE) models.
+`examples.py` defines four itineraries; `jl.py` and `sweep.py` compare untreated adjustment and planning directions.
+The `ex_*.txt` files contain planner output for each chronotype.
 
 ---
 
-## 0. Executive summary (what the app should do)
+## 0. Executive summary
 
 1. **Track one quantity: the body-clock phase**, stored as the clock time of the core body temperature minimum (**CBTmin**, written *T*). The other markers follow from it: DLMO ≈ T − 7 h. For a habitual 23:00–07:00 sleeper with a neutral chronotype, T ≈ 04:00 and DLMO ≈ 21:00 (Roach & Sargent 2019; Eastman & Burgess 2009).
 2. **Light is the main tool. When light lands relative to T sets the direction of the shift:**
@@ -42,7 +57,9 @@ Companion reference code (pure Python, used to produce every number in this repo
 - Time-zone difference Δ = dest UTC offset − home UTC offset, normalised to (−12, +12]. Δ > 0 means eastward.
 - Target φ* = Δ for an advance plan and Δ − 24 (or Δ, if Δ < 0) for a delay plan.
 
-Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types, 05:02 for neither types and 06:01 for evening types. The Tmin-to-wake interval is longer in morning types, who wake at a later circadian phase (Duffy 1999).
+Baehr 2000 measured temperature rhythms in 172 people under conditions similar to a constant routine.
+Tmin occurred at 03:50 in morning types, 05:02 in intermediate types and 06:01 in evening types.
+Morning types have a longer Tmin-to-wake interval and wake at a later circadian phase (Duffy 1999).
 
 ---
 
@@ -58,10 +75,12 @@ Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types
 | **Revell et al. 2012**, J Physiol 590:4859 | Blue-enriched LED box (~185 lux), 3 days of 1 h × 2/day | Advance region extends broadly from morning into afternoon; delays in evening | 10.1113/jphysiol.2012.235416 |
 | **Rüger et al. 2013**, J Physiol 591:353 | 6.5 h of 480 nm, 11.2 lux | PRC −2.6 h / +1.3 h, ≈ 75% of the 10,000 lux white-light PRC → melanopsin sensitivity | 10.1113/jphysiol.2012.239046 |
 
-**Rule of thumb for the app (evidence B):**
+The app uses these approximate light-response windows (evidence B):
 - **Delay zone:** T − 6 h … T, strongest at T − 3 h ± 2 h.
 - **Advance zone:** T … T + 6 h, strongest at T + 3 h ± 2 h.
-- Light 6–12 h from T still has small effects of matching sign; the curve passes through a weak "neutral" region around T ± 12 h (midday for a normal sleeper). This is low gain, not a true dead zone, so midday light is harmless rather than useless. Roach & Sargent 2019: "largest shifts 3–6 h either side of CBTmin".
+- Light 6–12 h from T has smaller effects with the same sign.
+  The weak region around T ± 12 h corresponds roughly to midday for a normal sleeper.
+  Light there has a small phase effect. Roach & Sargent 2019 report the "largest shifts 3–6 h either side of CBTmin".
 
 ### 2.2 Intensity (dose–response)
 
@@ -70,7 +89,10 @@ Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types
 - Melatonin suppression is even more sensitive: **ED50 24.6 lux**, with individual ED50s ranging from ~6 to ~350 lux (Phillips et al. 2019, PNAS 116:12019, doi 10.1073/pnas.1901824116).
 - Room light (<200 lux) before bed delays melatonin onset and shortens melatonin duration by ~90 min (Gooley et al. 2011, JCEM 96:E463, doi 10.1210/jc.2010-2098).
 
-**Implication:** "avoid light" must mean **really dim (≤10 lux at the eye)**. Ordinary indoor evening light (100–300 lux) is already near-maximally effective in the delay zone. "Seek light" ideally means ≥1,000 lux (outdoors), and indoor light of ~250+ lux melanopic EDI still helps.
+Avoid-light advice requires **≤10 lux at the eye**.
+Ordinary evening room light at 100–300 lux can produce near-maximal delay-zone effects.
+Seek-light advice targets outdoor levels of ≥1,000 lux.
+Indoor light at ~250+ lux melanopic equivalent daylight illuminance (EDI) can also help.
 
 ### 2.3 Duration and pattern
 
@@ -79,10 +101,9 @@ Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types
 - **Crowley & Eastman 2015**, Sleep Med 16:288 (doi 10.1016/j.sleep.2014.12.004): morning light for advancing. 2 × 30 min gave 2.4 h over 4 days; a single 30 min dose gave ~1.8 h (75% of the effect).
 - **Burgess et al. 2003**, JBR 18:318 (doi 10.1177/0748730403253585): sleep advanced 1 h/day for 3 days plus 3.5 h of morning light (>3,000 lux). DLMO advance was 0.6 h in dim light, 1.5 h with intermittent bright light and 2.1 h with continuous bright light.
 
-**Implication:**
-- Seek windows can be presented as "**at least 30–60 min, more is better, intermittent is fine**".
-- The plan does not need 6 continuous hours. A short 30–60 min block near the peak (T ± 3 h) gets most of the effect.
-- The avoid window matters as much as the seek window.
+Seek windows can recommend at least 30–60 minutes of light, with longer or intermittent exposure allowed.
+A 30–60 minute block near T ± 3 h provides much of the effect without six continuous hours.
+Plans must also retain avoid-light windows, since unwanted light can oppose the intended shift.
 
 ### 2.4 Spectrum
 
@@ -113,10 +134,10 @@ Baehr 2000 (n = 172, constant-routine-like CBT): Tmin at 03:50 for morning types
 
 ### 2.6 The light response curve card (what the app draws)
 
-The Why sheet of every light block (See bright light, See some light, Avoid light) and About ("How the plan works")
-show a schematic light PRC that the user can explore by dragging a sun along it. It is a teaching aid. **The planner
-does not use it**: the planner's light windows come from §12. The card's model is
-`LightResponseCurve` in `:core:designsystem` (unit-tested in `LightResponseCurveTest`):
+Each light block's Why sheet and About's "How the plan works" section show an interactive phase-response curve (PRC).
+Dragging its sun shows how exposure timing affects direction.
+The schematic explains research; §12 defines the planner's light windows.
+`LightResponseCurve` in `:core:designsystem` supplies the drawing. `LightResponseCurveTest` checks these properties:
 
 - The x axis is hours from CBTmin (T), −12…+12 h. The curve repeats every 24 h.
 - Shape after **Khalsa 2003**. Crossover at T. Delays before T, peaking at **−3.4 h at T − 3.5 h**; advances after
@@ -194,7 +215,13 @@ does not use it**: the planner's light windows come from §12. The card's model 
 
 ## 4. Mathematical models of the human circadian pacemaker
 
-All models below take **light intensity I(t) in photopic lux at the eye** and use **time in hours**. They share Kronauer's "Process L": a photoreceptor activation variable n ∈ [0, 1] that is used up by light and recovers in darkness, so the drive saturates under sustained light. That is how the models reproduce the Chang 2012 duration non-linearity. The constants below come from the original papers and the reference implementation maintained by Forger's group (Arcascope `circadian` Python package, `circadian/models.py`, github.com/Arcascope/circadian). They were double-checked against St Hilaire 2007 (PMC3123888) for Process L.
+All models take **light intensity I(t) in photopic lux at the eye**, with **time in hours**.
+Kronauer's shared "Process L" uses photoreceptor activation variable n ∈ [0, 1].
+Light depletes available receptors; darkness allows recovery. Sustained drive therefore saturates, reproducing Chang 2012's nonlinear duration response.
+
+The constants come from the original papers and Forger's group's Arcascope `circadian` Python package.
+The reference implementation is `circadian/models.py` at github.com/Arcascope/circadian.
+The research also checked Process L against St Hilaire 2007 (PMC3123888).
 
 ### 4.1 Forger, Jewett & Kronauer 1999 ("Forger99", simpler Kronauer model) — *recommended Tier-1 validator*
 
@@ -260,7 +287,8 @@ dn/dt = 60 · ( α(I)·(1 − n) − δ·n )
 
 - IC (Arcascope): (R, ψ, n) = (0.82041911, 1.71383697, 0.52318122).
 - **CBTmin readout:** times where ψ crosses π (mod 2π); interpolate linearly between steps. DLMO = CBTmin − 7 h (equivalently ψ = 5π/12).
-- τ = 23.84 h is not a mistake. In the SP model the light-free period is shifted by the coupling term (K/2)·sin(β1)·(1 + R⁴) < 0 and by σ.
+- The SP model uses τ = 23.84 h.
+  Its coupling term (K/2)·sin(β1)·(1 + R⁴) < 0 and σ shift the light-free period.
 - Two-population model parameters (ventral/dorsal SCN, for reference only): τV 24.25, τD 24.0, Kvv 0.05, Kdd 0.04, Kvd 0.05, Kdv 0.01, A1 0.440068, A2 0.159136, βL1 0.06452, βL2 −1.38935, σ 0.0477375.
 
 ### 4.3 Other models (for context; not required for v1)
@@ -452,9 +480,14 @@ These agree reasonably with the ~1 day per time zone rule of thumb and with E&B'
 
 ### 5.4 Advance or delay?
 
-The PRC crossover sits at T. A large eastward shift of 8–12 h puts destination morning light **before** T on the first days, which delays the clock when it should advance it. This is the root of **antidromic re-entrainment** (E&B 2009). In their data, after 11 zones east 7 of 8 subjects re-entrained by delaying, and after 8 zones east 4 of 6 advanced, 1 delayed and 1 did not shift.
+The PRC changes sign at T.
+After an 8–12 h eastward shift, destination morning light can fall before T and delay the clock during the first days.
+This can cause **antidromic re-entrainment**, or adjustment in the opposite direction (E&B 2009).
+After 11 zones east, 7 of 8 subjects adjusted by delaying.
+After 8 zones east, 4 of 6 advanced, 1 delayed and 1 did not shift.
 
-**Literature guideline:** advance for ≤7 zones east, delay for ≥8 (E&B 2009, "not universal"). Larks (early types) advance more easily and owls delay more easily.
+E&B 2009 recommends advancing for ≤7 zones east and delaying for ≥8, with the qualification "not universal".
+Early chronotypes advance more easily; late chronotypes delay more easily.
 
 **ODE sweep with a structured plan** (`sweep.py`):
 - Setup: home UTC+0, departure 21:00 local, 12 h flight, 3 pre-flight days, planner windows simulated with the lux table in §4.4, no light box. The direction is forced.
@@ -574,7 +607,9 @@ MSF_sc is not valid if the person uses an alarm on free days.
 
 ### 8.2 Rule used by the planner (evidence B/C)
 
-Inputs: habitual sleep onset and wake, preferably on **free days with no alarm**, plus chronotype (early / neutral / late, from a 1-question self-assessment or the MEQ/MCTQ category).
+The phase estimate uses habitual sleep onset, wake time and early, neutral or late chronotype.
+Prefer sleep times from **free days without an alarm**.
+Chronotype can come from one-question self-assessment or an MEQ/MCTQ category.
 
 ```
 mid   = onset + duration/2
@@ -593,8 +628,9 @@ DLMO  = T0 − 7 h
 
 ### 8.3 What the app asks
 
-Onboarding asks for the usual sleep on **work days** and on **days off** (the nights you wake up without an alarm), on
-one dial; days off start as a copy of work days. It then works the chronotype out instead of asking for it:
+Onboarding collects usual **work-day** and **days-off** sleep on one dial.
+Days off means nights followed by waking without an alarm. The days-off schedule initially copies work days.
+The app calculates a suggested chronotype from these schedules:
 
 - **MSF_sc** from the two nights (§8.1): days-off onset and duration, corrected against work-day duration. With the
   two nights the same there is nothing to correct, and MSF_sc = MSF.
@@ -800,7 +836,8 @@ function PLAN(homeZone, legs, habOnset, habWake, chrono, opts):
 
 ## 13. ODE validation module
 
-**Purpose:** catch planner regressions and wrong-direction bugs, not predict an individual's exact phase.
+The ODE module detects planner regressions and shifts in the wrong direction.
+Its population models cannot predict an individual's exact phase.
 
 1. **Plan → lux(t):** map each instant to a state with the precedence sleep > avoid > seek > neutral, then look up the §4.4 lux table. Before the plan starts, use the "typical day" at the home clock; after it ends, the typical day at the destination clock.
 2. **Simulate:** warm up 40 days on lux(t) evaluated before the plan (24 h periodic), then run from dep − 5 days to arr + 14 days with RK4 at dt = 0.1 h.
@@ -881,7 +918,8 @@ Model validation:
 
 Net plan shift ≈ +12.7 to +13.0 h (later).
 
-**Design note:** sweep §5.4 suggests that an 11 h advance plan would adapt faster in both models (~6.4 / 4.4 days). This is the key configurable decision.
+The §5.4 sweep predicts faster adjustment with an 11 h advance in both models (~6.4 / 4.4 days).
+The direction threshold remains configurable.
 
 ### 14.3 JFK → LAX (westward 3 h, delay, early flight)
 
@@ -915,7 +953,8 @@ Model validation:
 | neutral (delay 14) | **11.7 / >14 (antidromic)** | **7.7 / 5.8** |
 | early (advance 10) | **5.8 / >14** | **3.8 / 5.8** |
 
-In the neutral delay branch, H19 *without* a plan advances 10 h in 5.8 days, which is faster than the delay plan. This again shows the models favour advancing. It is a known, documented tension.
+In the neutral delay case, H19 without a plan advances 10 h in 5.8 days, faster than the delay plan.
+This model result disagrees with the literature-based direction default.
 - **Fixture assertion for the neutral delay branch:** use direction and finite adaptation only. Do not assert that it beats no plan in H19.
 
 ### 14.5 Pure-logic fixtures (no ODE)

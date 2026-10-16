@@ -1,21 +1,22 @@
 # MOTION.md — Clockblock
 
-> Agent-drafted from the code in `:core:designsystem`, then reviewed: the owner approved every spec as `DECIDED`
-> (policy) on 2026-10-10. New specs added by agents are tagged `OBSERVED` until a human reviews them.
+> Agents drafted these specifications from `:core:designsystem` code.
+> The owner approved the reviewed entries as `DECIDED` policy on 2026-10-10.
+> New agent entries keep the `OBSERVED` tag until a human reviews them.
 
 ## Design system
-- Material 3 Expressive via `MaterialExpressiveTheme`; `ClockblockTheme` picks the `MotionScheme`:
-  `MotionScheme.expressive()` by default, `CalmMotionScheme` in Night-safe **or while the body clock is in its
-  night** (`calmMotion`, set by the shell from `JetLagPlan.isBodyNightAt`, home sleep habit as fallback),
-  `StillMotionScheme` when motion is reduced (spatial = `snap()`, effects keep Calm fades).
-- Intent tokens live in `ClockblockMotion` (`theme/Motion.kt`), read as `ClockblockTheme.motion`. No literal
-  `tween()`/`spring()` anywhere else (exception list below).
-- Values read as data (dial rings, timeline positions, numbers) bind to the Standard scheme via
-  `dataSpatial()` / `dialDayRotation()`; Expressive bounce never wobbles a value. The body sky never
-  overshoots (design.md agrees: the ring is data).
+- `MaterialExpressiveTheme` supplies Material 3 Expressive. `ClockblockTheme` selects `MotionScheme.expressive()` by default.
+  It selects `CalmMotionScheme` during Night-safe or body night.
+  The shell sets `calmMotion` from `JetLagPlan.isBodyNightAt`, falling back to home sleep habits.
+  Reduced motion selects `StillMotionScheme`: spatial changes use `snap()`, while effects keep Calm fades.
+- `ClockblockMotion` in `theme/Motion.kt` defines intent tokens, available through `ClockblockTheme.motion`.
+  Keep literal `tween()` and `spring()` calls inside token definitions, subject to the exceptions below.
+- Dial rings, timeline positions and numbers use Standard motion through `dataSpatial()` or `dialDayRotation()`.
+  These values, including the body ring, must not overshoot their targets.
 
 ## Fallback
-Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `colour()` for colour/alpha.
+For unlisted movement, use `ClockblockTheme.motion.containerSpatial()`.
+For unlisted colour or alpha changes, use `colour()`.
 
 ## Specs
 | Intent | Binding | Tag |
@@ -83,13 +84,13 @@ Unlisted motion → `ClockblockTheme.motion.containerSpatial()` for movement, `c
 | Plan dial ↔ world (pinch out / pinch in, Back, TalkBack Show the world / Back to the dial) | a camera pulling back from "your day" to "the world" (`WorldCamera`): the dial shrinks onto the traveller's spot on the globe (×¼) and fades between 15 % and 80 %, while the globe, zoomed in ×4 on that spot inside the dial's round footprint, pulls back to its full view at an even pace on a log scale; labels, caption and buttons fade in over the last 25 %. The fingers drive the progress (×1.8 spread = all the way, log scale); a release settles on `zoomSpatial()` with the fingers' speed towards where they were heading (or the nearer side), a cancelled touch goes back. Predictive back follows the finger back to the dial. All values read in layers (no recomposition per frame). Reduce motion: nothing scales or moves; a pinch past ×1.3 (or ×0.77) commits and the two cross-fade on `fade()`; Remove animations swaps them at once; the globe and its caption are the static carrier | OBSERVED |
 
 ## Exceptions
-- `CalmMotionScheme`, `StillMotionScheme`: `spring()`/`snap()` literals (they *are* token definitions).
-- `ClockblockMotion.celebrationClock`, `ambientLoop`, `ambientOnce`: linear `tween()` used as a clock, not an easing.
-- `ClockblockMotion.eggChain`, `navigationFadeIn/Out`, `stepSpatial`, `stepFadeIn/Out`: eased `tween()` token definitions.
+- `CalmMotionScheme` and `StillMotionScheme` define tokens with literal `spring()` and `snap()` calls.
+- `ClockblockMotion.celebrationClock`, `ambientLoop` and `ambientOnce` use linear `tween()` calls to measure elapsed animation time.
+- `ClockblockMotion.eggChain`, `navigationFadeIn/Out`, `stepSpatial` and `stepFadeIn/Out` define eased `tween()` tokens.
 
 ## Frequency map
-The plan screen is opened 5–15 times a day, but it then **stays on screen** for long stretches: continuous
-on-screen time, not opens, is what gates its motion.
+Users open the plan screen about 5–15 times daily and can leave it visible for long periods.
+Its motion limits therefore account for continuous display time.
 
 | Surface | Frequency | Motion allowed |
 |---|---|---|
@@ -109,46 +110,46 @@ on-screen time, not opens, is what gates its motion.
 | Rewind, moon, 24.2 and Konami easter eggs | very rare | Expressive (Calm at night) |
 
 ## Gestures and haptics
-- Dial drag scrubs time: `CLOCK_TICK` per local hour crossed, `SEGMENT_TICK` per advice boundary.
-- Dial centre tap → back to now (`dataSpatial`). Custom a11y actions: next / previous block / back to now.
-- Two-finger pinch out on the dial → the world, following the fingers (pinch in, or Back, returns the same way). The
-  pinch takes the gesture only once a second finger is down, so the Rewind long-press and the moon taps never see it;
-  a scrub on the ring only starts once the finger has moved past the slop (or rested 100 ms) with no second finger,
-  and a second finger landing mid-scrub undoes it, so a pinch never previews another time. No haptic. Custom a11y
-  actions: Show the world (dial); Back to the dial, Show the globe full screen, turn and re-centre (globe).
-- Large globes: drag to turn, flick to coast, double-tap to re-centre, tap a flight or airport to name it (the
-  editor's also makes a tapped flight the active ticket), two fingers to zoom (full screen). Buttons for zoom and
-  re-centre; custom a11y actions for each flight, turning, zooming and re-centring.
-- Long-press then a full counter-clockwise turn → Rewind (`LONG_PRESS` on arm, `CONFIRM` on fire).
-- Rings aligning on adaptation → `CONFIRM` once the turn has landed (and the celebration follows).
-- Moon egg taps 1–6 → `CLOCK_TICK`.
-- Light response curve drag → `CLOCK_TICK` per hour crossed, `SEGMENT_TICK` at the body's coldest point. Custom a11y
-  actions: Earlier hour / Later hour / Reset ("Reset to this block" in the Why sheet).
-- Trip editor Save succeeds → `CONFIRM` (once, on the `Saved` event; validation failures stay silent).
-- Rail row check-off circle ticked → `CONFIRM` (like the Now card's Done; unticking is silent). The circle just swaps
-  between outlined and filled with a check: the rail is a 100+/day surface, so the state layer is its only motion.
+- Dragging the dial previews time. It emits `CLOCK_TICK` at each local hour and `SEGMENT_TICK` at each advice boundary.
+- Tapping the centre returns to now on `dataSpatial()`. Accessibility actions offer next block, previous block and back to now.
+- A two-finger pinch opens the world view with progress tied to finger separation. Pinching in or Back returns to the dial.
+  The pinch claims the gesture after the second finger lands, excluding Rewind and moon-tap handlers.
+  A scrub starts after touch slop or a 100 ms hold with one finger.
+  Adding a second finger cancels that scrub, so the pinch leaves preview time unchanged. The pinch emits no haptic.
+  The dial offers Show the world to accessibility users.
+  The globe offers Back to the dial, Show the globe full screen, turn and re-centre actions.
+- Drag large globes to turn them, flick to coast, or double-tap to re-centre.
+  Tap a flight or airport for its name. In the editor, tapping a flight also selects its card.
+  Full-screen globes support two-finger zoom. Buttons and accessibility actions also support turning, zooming, re-centring and flight selection.
+- A long-press followed by a full counter-clockwise turn triggers Rewind.
+  It emits `LONG_PRESS` when armed and `CONFIRM` when triggered.
+- Ring alignment emits `CONFIRM` after the rotation completes, before the celebration.
+- Moon animation taps 1–6 emit `CLOCK_TICK`.
+- Dragging the light response curve emits `CLOCK_TICK` per hour and `SEGMENT_TICK` at the estimated temperature minimum.
+  Accessibility actions offer Earlier hour, Later hour and Reset. The Why sheet names Reset as "Reset to this block".
+- Successful trip saves emit `CONFIRM` once on the `Saved` event. Validation failures emit no haptic.
+- Checking a timeline circle emits `CONFIRM`; clearing it emits no haptic.
+  The circle switches between outlined and checked states. Frequent timeline interactions use only the platform state layer.
 
 ## Reduced motion
-- Trigger: system "Remove animations" (`ANIMATOR_DURATION_SCALE == 0`) or the in-app toggle → `LocalReduceMotion`.
-- Spatial snaps (`StillMotionScheme`); colour/alpha still cross-fade.
-- Every ambient loop stops at a complete still (`ArtCanvas` rest phase); entrances sit at their target.
-- The plan header's ambient session (stars breathing, the plane) never starts; the stars rest at their brightness.
-- Wavy line keeps its amplitude (the meaning) and never travels.
-- Loading indicator becomes a still Sunny with the same "Working out your plan" semantics.
-- Confetti is skipped; `onFinished` fires immediately. The celebration goes straight to its overlay.
-- Easter eggs are off (`easterEggs` is false under reduce motion and inside sleep windows).
-- Dot-matrix codes, rolling readouts, the dial's body sky and offset pill, the route arc (apex and plane) and the route
-  globe's turn snap to their end state; the still picture carries the whole meaning. The world behind the dial is not
-  an easter egg: it works under reduce motion and in sleep windows, where the dial and globe cross-fade in place
-  instead of zooming. A flung globe doesn't coast.
-- Screenshot goldens render with reduce motion on, proving each static carrier. `_mid` goldens
-  (`snapMidChange`) freeze one frame mid-transition with motion on.
+- The system's Remove animations setting (`ANIMATOR_DURATION_SCALE == 0`) or the app toggle enables `LocalReduceMotion`.
+- `StillMotionScheme` snaps spatial changes. Colour and alpha changes retain cross-fades.
+- Ambient loops stop at `ArtCanvas`'s rest phase. Entrances show their target state immediately.
+- Header star and plane sessions never start. Stars keep their resting brightness.
+- The wavy line keeps its amplitude to show adjustment, with no travelling wave.
+- The loader shows a still Sunny shape with the same "Working out your plan" accessibility description.
+- The celebration skips confetti, calls `onFinished` immediately and shows its overlay.
+- `easterEggs` stays false under reduced motion and during sleep windows.
+- Dot-matrix codes, rolling readouts, body sky, offset label, route arc and globe rotation snap to their final states.
+  Their still views retain all information. World view remains available during reduced motion and sleep.
+  The dial and globe cross-fade in place. Released globes stop immediately without coasting.
+- Screenshot goldens use reduced motion to check still states.
+  `_mid` goldens using `snapMidChange` freeze a transition frame with motion enabled.
 
 ## Not in this codebase
-- Rolling digits on every minute tick: `RollingTimeText` exists, but clocks that stay on screen (the dial centre)
-  don't roll each minute (frequency gate), and scrubbed readouts change every frame, so they never roll.
-- Variable-weight pulse on the scrubbed readout (`wght 400 → 650`): skipped. Each weight is its own Typeface
-  instance of the variable font, so animating it would create and re-measure typefaces mid-gesture on a daily
-  surface, for no extra meaning (the hand and the cards already show the preview).
-- Predictive-back shared element (plan → trip circle): owned by `:app` / `:feature:plan`.
-- `wdth`-axis typographic motion (the bundled Google Sans Flex subset drops `wdth`).
+- Persistent clocks, including the dial centre, do not use `RollingTimeText` on minute ticks because they remain visible continuously.
+  Scrubbed readouts update every frame without rolling.
+- Scrubbed readouts do not animate weight from `wght 400 → 650`.
+  Each weight needs a separate Typeface and text measurement during the gesture. The needle and cards already show preview state.
+- `:app` and `:feature:plan` own the proposed predictive-back shared element between plan and trip circle.
+- The bundled Google Sans Flex subset omits `wdth`, so width-axis animation is unavailable.

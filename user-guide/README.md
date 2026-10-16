@@ -1,19 +1,17 @@
 # Clockblock user guide
 
-Clockblock helps you get over jet lag faster. You tell it where home is, how you usually sleep and which
-flights you're taking. It then tells you, day by day and hour by hour, when to look for light, when to avoid it,
-when to sleep, and when coffee helps or hurts. Everything happens on your phone. There is no account, and the app
-never connects to the internet.
+Clockblock plans light, sleep and caffeine times to help you adjust after a flight.
+Enter your home time zone, usual sleep times and flights. The app builds a schedule on your phone.
+Clockblock works offline and requires no account.
 
-This guide is for travellers. You don't need to know anything about the science or about Android development to
-follow it.
+Travellers can use Clockblock without a background in sleep research or Android development.
 
 <p align="center">
   <img src="images/plan-now.png" alt="The plan screen for a Lisbon to Tokyo trip: a strip of day pills, a round dial showing 18:06 local time and 20:48 body time, and a card saying Avoid light until 20:00" width="280" />
 </p>
 
-The picture shows the plan screen for a trip from Lisbon to Tokyo. The dial at the top compares the time on the
-wall with the time your body thinks it is. The card below says what to do right now and until when.
+The plan dial compares local time with your estimated body clock time.
+The card below gives the current advice and its end time.
 
 ## Pages
 
@@ -28,6 +26,6 @@ wall with the time your body thinks it is. The card below says what to do right 
 
 ## Before you start
 
-Clockblock gives general information for healthy adults, based on published research. It isn't medical
-advice, and it isn't meant for flight crew on duty. If you have a health condition, are pregnant, or take
-medication, talk to a doctor before you change your sleep or take melatonin.
+Clockblock gives healthy adults general information based on published research. It cannot give medical advice.
+Flight crew must not use it for duty schedules.
+If you have a health condition, are pregnant, or take medication, consult a doctor before changing your sleep or taking melatonin.

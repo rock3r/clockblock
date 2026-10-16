@@ -1,15 +1,14 @@
 # Contributing to Clockblock
 
-Thanks for helping. Bug reports, science corrections, translations, accessibility fixes and design feedback are
-all welcome. For anything bigger than a small fix, please open an issue first so we can agree on the approach.
+Contributions can include bug reports, science corrections, translations, accessibility fixes and design feedback.
+Before starting a larger change, open an issue to agree on the approach with the maintainer.
 
 ## Setup
 
-1. **JDK 21.** The build uses Gradle toolchains; point `JAVA_HOME` at a JDK 21 (Android Studio's bundled JBR
-   works).
-2. **Android SDK** with platform **37.1** (`compileSdk = release(37) { minorApiLevel = 1 }`) and current build
-   tools. Install them from Android Studio's SDK Manager or with `sdkmanager`.
-3. **`local.properties`** at the repo root (it's gitignored):
+1. Set `JAVA_HOME` to JDK 21. Gradle uses toolchains; Android Studio's bundled JetBrains Runtime (JBR) also works.
+2. Install Android SDK platform **37.1** (`compileSdk = release(37) { minorApiLevel = 1 }`) and current build tools.
+   Use Android Studio's SDK Manager or `sdkmanager`.
+3. Create the gitignored **`local.properties`** file at the repository root:
 
    ```properties
    sdk.dir=/path/to/Android/sdk
@@ -25,33 +24,32 @@ all welcome. For anything bigger than a small fix, please open an issue first so
 5. For the end-to-end suite, start an emulator with an Android 17 (API 37) image and run
    `./gradlew :app:connectedPlayDebugAndroidTest`.
 
-The app has two flavours: `play` (the Google Play build, the default) and `oss` (for outside Google Play, with
-`USE_EXACT_ALARM`). Library modules have none. In `:app`, the flavourless task names (`testDebugUnitTest`,
-`recordRoborazziDebug`, `verifyRoborazziDebug`) are aliases of the play tasks. Aliases don't accept `--tests`, so use
-the play task name to filter.
+The app has two flavours: the default `play` build for Google Play and `oss` for other distribution with `USE_EXACT_ALARM`.
+Library modules have no flavours.
+In `:app`, `testDebugUnitTest`, `recordRoborazziDebug` and `verifyRoborazziDebug` alias the play tasks.
+Use the play task name when filtering with `--tests`; aliases reject that option.
 
-There's no backend, no API key and no signing config to set up: the debug build is all you need.
+The debug build needs no backend, API key or signing configuration.
 
 ## Project layout
 
-See [docs/architecture.md](docs/architecture.md) for the module graph and how data flows. Rules of thumb:
+The [architecture guide](docs/architecture.md) describes module dependencies and data flow. Follow these module rules:
 
 - `:core:model` and `:core:circadian` are pure JVM. Keep Android out of them.
-- Features depend on `:core:*` and talk to data through its interfaces. Avoid feature-to-feature dependencies
-  (the one exception: `:feature:settings` reuses the profile editors from `:feature:onboarding`); the `:app`
-  module wires everything together through the Metro graph.
+- Features depend on `:core:*` and use data interfaces.
+  Only `:feature:settings` can depend on another feature: it reuses `:feature:onboarding` profile editors.
+  The `:app` module connects implementations through Metro's dependency graph.
 - Versions live in `gradle/libs.versions.toml`; module setup lives in the `build-logic` convention plugins
   (`clockblock.jvm.library`, `clockblock.android.library`, `clockblock.android.compose`, `clockblock.android.feature`).
 - The build uses AGP 9's **built-in Kotlin**: never apply `org.jetbrains.kotlin.android`.
 - Never hardcode the application id; use `context.packageName` (or `BuildConfig.APPLICATION_ID` in `:app`).
 - Store IANA zone ids, never UTC offsets. Use `java.time` everywhere.
 
-[`AGENTS.md`](AGENTS.md) has the full list of conventions (it's written for coding agents, but it's the most
-complete reference for humans too).
+[`AGENTS.md`](AGENTS.md) lists the repository's coding conventions for contributors and coding agents.
 
 ## Tests first
 
-Every change comes with tests, written before the code.
+Write tests before implementing behaviour changes.
 
 | What you're changing | How to test it |
 |---|---|
@@ -70,32 +68,27 @@ Goldens are committed in each module's `src/test/screenshots/`. After an intende
 ./gradlew :feature:plan:verifyRoborazziDebug   # must pass before you open the PR
 ```
 
-Look at every re-recorded PNG before committing it; the diff in the pull request is the review.
+Inspect each new PNG before committing it. Reviewers use the pull request's image diff to check visual changes.
 
 ## Design and motion
 
-Read [`docs/design.md`](docs/design.md) (Part 2: the visual identity) and [`MOTION.md`](MOTION.md) before touching
-UI. The short version:
+Before changing UI, read Part 2 of [`docs/design.md`](docs/design.md) and [`MOTION.md`](MOTION.md).
+The following rules apply to UI changes:
 
-- **Motion tokens only.** No literal `tween()` or `spring()` outside the token definitions (`ClockblockMotion`,
-  `MaterialTheme.motionScheme`).
-- **Frequency gate.** Surfaces used 100+ times a day get only the platform state layer; delight is for rare
-  moments.
-- **Meaning survives "Remove animations".** Every animated state has a static carrier; self-timed loops read
-  `MotionDurationScale`.
-- **Frame-rate values are read in layout or draw** (lambda modifiers), never in composition.
-- **No bouncy springs on data.** Times and timeline positions use the standard (non-expressive) specs.
-- **Navigation transitions are always specified**: fade-through between top-level destinations,
-  forward/backward within a hierarchy.
-- **Labels, always.** Every advice card shows a text label, never an icon alone. Times show local time plus a
-  secondary zone.
-- **Strings** go in `res/values/strings.xml`, in the copy voice of design.md §2.6: short, precise, kind.
+- Use motion tokens. Keep literal `tween()` and `spring()` calls inside `ClockblockMotion` or `MaterialTheme.motionScheme` token definitions.
+- Limit surfaces used 100+ times daily to the platform state layer. Reserve decorative motion for rare events.
+- Preserve each animated state's meaning in a still view. Self-timed loops must read `MotionDurationScale`.
+- Read frame-rate values in layout or draw through lambda modifiers. Keep those reads out of composition.
+- Use standard, non-expressive specifications for times and timeline positions to prevent overshoot.
+- Specify navigation transitions: fade-through between top-level destinations and forward/backward transitions within a hierarchy.
+- Give every advice card a text label. Show local times with a secondary zone.
+- Put strings in `res/values/strings.xml`. Follow design.md §2.6 for plain, precise wording.
 
 ## Product rules
 
-- It's not medical advice. Keep the disclaimers, and keep melatonin off by default behind its safety note.
-- Stay offline: no network permission, no analytics, no accounts, no third-party SDKs that phone home.
-- Don't use Timeshifter's trademarks or product terms in the UI or code.
+- Keep the medical disclaimers. Melatonin must stay off by default and require the safety note before opt-in.
+- Keep the app offline. Do not add network permission, analytics, accounts or third-party SDKs that send data.
+- Exclude Timeshifter's trademarks and product terms from UI and code.
 
 ## Updating the airport dataset
 
@@ -107,23 +100,23 @@ python3 tools/places/build_places.py --refresh   # needs Python 3.10+ and a JDK 
 ./gradlew :core:data:testDebugUnitTest           # dataset tests
 ```
 
-Then commit the new `places.tsv`. The pipeline, the format and the size budget are documented in
-[`tools/places/README.md`](tools/places/README.md); attribution requirements are in
-[`licenses/DATA_ATTRIBUTION.md`](licenses/DATA_ATTRIBUTION.md). Don't add OpenFlights data (AGPL/ODbL).
+Commit the updated `places.tsv`.
+[`tools/places/README.md`](tools/places/README.md) defines the generation steps, format and size budget.
+Follow [`licenses/DATA_ATTRIBUTION.md`](licenses/DATA_ATTRIBUTION.md) for attribution.
+Do not add OpenFlights data, which uses AGPL/ODbL licences.
 
 ## App icon
 
-The icon family is generated from one geometry: the adaptive icon's background, foreground and monochrome
-(themed) layers, and the notification small icon that every notification uses.
+One script generates the adaptive icon's background, foreground and monochrome layers, plus the small icon used by every notification.
 
 ```sh
 python3 tools/icon/gen_icon.py
 ./gradlew :app:recordRoborazziPlayDebug --tests '*LauncherIconScreenshotTest*' --tests '*IconFamilyScreenshotTest*'
 ```
 
-Edit the script, not the XML. It fails if the art leaves the 66 dp safe zone or the small icon's live area. Check
-`app/src/test/screenshots/launcher_icon*.png` and the contact sheet `app/src/test/screenshots/icon_family.png`
-afterwards.
+Change icon geometry in the script. Keep generated XML unchanged by hand.
+The script rejects art outside the 66 dp safe zone or the small icon's live area.
+After generation, inspect `app/src/test/screenshots/launcher_icon*.png` and `app/src/test/screenshots/icon_family.png`.
 
 ## Pull requests
 

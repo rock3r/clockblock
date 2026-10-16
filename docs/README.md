@@ -1,7 +1,7 @@
 # Documentation
 
-This folder is for people who want to understand, change or check Clockblock. If you just want to use the
-app, read the [user guide](../user-guide/README.md) instead.
+These documents explain Clockblock's code, planning rules, research and design.
+The [user guide](../user-guide/README.md) covers setup and daily use.
 
 ## Start here
 
@@ -39,6 +39,6 @@ app, read the [user guide](../user-guide/README.md) instead.
 
 ## Screenshots
 
-[screenshots/](screenshots/) holds the images used by the README and these pages. Most are copies of the
-Roborazzi goldens in each module's `src/test/screenshots/` folder. The ones in `screenshots/device/` and
-`screenshots/widgets-on-device.png` are captures of the running app on an Android emulator.
+[screenshots/](screenshots/) contains images for the README and documentation.
+Most copy Roborazzi goldens from each module's `src/test/screenshots/` folder.
+Images in `screenshots/device/` and `screenshots/widgets-on-device.png` show the app running on an Android emulator.

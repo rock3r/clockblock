@@ -1,8 +1,7 @@
 # Settings and your data
 
-Open **Settings** from the navigation bar. Every answer from setup can be
-changed here, and any change updates your plans straight away. This page also explains where your data lives and
-how to back it up.
+Open **Settings** from the navigation bar to change your setup answers.
+Profile changes update your plans immediately. Settings also has backup, restore and appearance controls.
 
 ## You and your preferences
 
@@ -32,65 +31,64 @@ how to back it up.
 | What Android allows | A one-line summary of whether reminders can arrive on time. Tap it to see each permission: notifications, exact timing, Live Updates and battery optimisation, and tap **Allow** or **Open settings** to change one. It opens by itself when notifications or exact timing are missing. Live Updates and battery optimisation are optional extras. |
 | Widgets | A preview of each home-screen widget with an **Add** button that places it on your home screen. Only shown if your home screen app supports it. |
 
-On a tablet, a foldable or a large window, Settings shows two columns: your profile, tools, appearance and More
-on the left, reminders, widgets and your data on the right.
+In large windows, Settings uses two columns.
+The left column contains your profile, tools, appearance and More. The right column contains reminders, widgets and data controls.
 
 ## Your data
 
-All your data stays on your phone: your profile, settings, trips and the blocks you marked as done or skipped.
-The app has no internet access, so it can't send your data anywhere itself. Your data leaves the phone only when
-you export it, when you share a plan summary to another app, when Android's own backup copies it to your backup
-account (if you have that turned on in your phone's settings), or when you transfer it to a new phone (see
-[Moving to a new phone](#moving-to-a-new-phone)).
+Clockblock stores your profile, settings, trips and block check-ins on your phone.
+The app has no internet access and cannot upload this data.
+You can export files or share a plan summary with another app.
+Android can copy the data through enabled account backups or phone-to-phone transfers.
+See [Moving to a new phone](#moving-to-a-new-phone).
 
 ### Back up and restore
 
-**Export a backup** saves your profile, settings, trips and their check-ins as a JSON file. Check-ins of trips
-you have deleted are not included. You choose where
-to save it, for example your Downloads folder or a cloud drive app. The file is named like
-`clockblock-backup-2026-06-01.json`.
+**Export a backup** saves your profile, settings, trips and their check-ins in a JSON file.
+The export excludes check-ins for deleted trips.
+Choose a save location, such as Downloads or a cloud drive app.
+The filename follows this pattern: `clockblock-backup-2026-06-01.json`.
 
-**Import a backup** reads a file made by this app. Before anything changes, it tells you what's in the file and
-asks how to import it:
+**Import a backup** reads a Clockblock backup file.
+Before changing data, Clockblock lists the file's contents and asks you to choose an import mode.
 
 <img src="images/import-confirm.png" alt="Import this backup? 3 trips, exported Jun 1, 2026. Replace makes this phone match the backup exactly: trips that aren't in it are deleted. Merge adds the backup's trips and keeps everything else. Buttons: Cancel, Replace (outlined in red), Merge (filled)." width="400" />
 
-- **Replace** deletes the trips on this phone that aren't in the backup, then takes the backup's profile, settings,
-  trips and check-ins. Each trip ends up with exactly the backup's check-ins: ones you made on this phone that
-  aren't in the backup are removed. If the backup has no profile, this phone keeps its own.
-- **Merge** only adds. It adds the backup's trips that aren't on this phone, and the backup's check-ins for
-  blocks you haven't checked in here. It deletes and changes nothing: this phone keeps its settings, its
-  profile, its trips (a trip in both places keeps this phone's version) and its check-ins. The backup's profile
-  is used only if this phone doesn't have one yet. A check-in belongs to the plan it was made on, so Merge adds
-  a trip's check-ins only when the trip and the profile on this phone end up the same as in the backup.
+- **Replace** loads the backup's profile, settings, trips and check-ins.
+  It deletes local trips absent from the backup. Each restored trip gets exactly the backup's check-ins.
+  It removes local check-ins absent from that backup. If the backup has no profile, Clockblock keeps the local profile.
+- **Merge** adds missing trips and check-ins without deleting or replacing existing data.
+  It keeps this phone's settings, existing profile and existing versions of trips and check-ins.
+  It uses the backup's profile only if this phone has no profile.
+  Check-ins belong to a specific plan.
+  Merge adds a trip's check-ins only if the resulting trip and profile match the backup.
 
-If the file isn't a valid backup, or it comes from a newer version of the app, nothing is changed and the app
-tells you why.
+Clockblock rejects invalid backups and backups from newer app versions.
+It explains the problem and leaves your data unchanged.
 
 ### Moving to a new phone
 
-Android's own backup and the phone-to-phone transfer you get when setting up a new phone bring your profile,
-settings, trips and check-ins across, and the options of any widgets your home screen app puts back. Cloud backups
-are made whether or not your phone has a screen lock; with one, Android encrypts the backup end to end. A running
-snooze stays behind.
+Android backup and phone-to-phone transfers copy your profile, settings, trips and check-ins.
+They also copy options for widgets that your home screen app restores.
+Android allows cloud backups with or without a screen lock. With a screen lock, Android encrypts the backup end to end.
+Transfers exclude an active snooze.
 
-Open the app once on the new phone: that sets up its reminders again. Android doesn't carry over permissions, so
-check **What Android allows** in Settings and allow notifications and exact timing again.
+Open Clockblock once on the new phone to set up reminders again.
+Android does not transfer permissions. Open **What Android allows** in Settings and allow notifications and exact timing again.
 
-If you don't use Android backup, or want a copy you control, export a backup on the old phone, copy the file
-across, and import it on the new one.
+For a manual transfer, export a backup on the old phone. Copy the file to the new phone and import it.
 
 ### Export a plan to your calendar
 
-In a plan, open the three-dot menu and choose **Export to calendar**. The app saves a calendar file (`.ics`) with
-every block of the plan, in the right time zones. Open it with your calendar app to add the events. In most
-calendar apps, exporting again updates the events whose block kept its place in the plan. Blocks that were
-removed may stay in your calendar, so delete the old events after a big change.
+Open a plan's three-dot menu and choose **Export to calendar**.
+Clockblock saves every block with its time zone in a calendar file (`.ics`). Open the file in your calendar app.
+Most calendar apps update existing events when the corresponding block keeps its position in the plan.
+Your calendar may retain events for removed blocks. Delete old events after a large plan change.
 
 ## More
 
-- **Replay setup** walks you through the first-run questions again.
-- **About Clockblock** explains how the plan works, lists the research it's based on, and shows the version
-  and the open-source licences: every library, font and data source the app uses. Tap one to read its licence.
+- **Replay setup** opens the first-run questions again.
+- **About Clockblock** explains the planner and lists its research sources.
+  It also shows the app version and licences for its libraries, fonts and data. Tap an entry to read its licence.
 
 Next: [Questions and answers](faq.md).
