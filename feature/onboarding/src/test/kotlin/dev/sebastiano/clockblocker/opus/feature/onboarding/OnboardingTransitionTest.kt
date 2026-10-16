@@ -104,7 +104,7 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     private fun bounds(text: String): DpRect = compose.onNodeWithText(text).getUnclippedBoundsInRoot()
     private fun boundsOf(tag: String): DpRect = compose.onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
 
-    private val welcomeHeadline = "Jet lag is two clocks disagreeing."
+    private val welcomeHeadline = "Help your body clock adjust to local time."
     private val homeHeadline = "Where's home?"
 
     @Test

@@ -301,7 +301,7 @@ When the plan says **Avoid light** or **Sleep**, the app must not sabotage it:
 - Switch to a custom *calm* `MotionScheme` (damping 1.0, stiffness ≈ 200).
 - Show a banner: "Night-safe mode: you're in an avoid-light window".
 
-Timeshifter tells you to avoid screens; we make our own screen comply.
+During avoid-light and sleep windows, the app uses dim surfaces and amber or red accents.
 
 ### H. Light meter (beyond MVP)
 Reads `Sensor.TYPE_LIGHT` into a log-scale lux gauge built on a `CircularWavyProgressIndicator`; amplitude rises with lux ("more light, more energy"). Labels: <50 dim · 100–500 indoor · 1k+ bright · 10k+ daylight.
@@ -311,7 +311,7 @@ When the dial's rings align, a **confetti burst of MaterialShapes** (Sunny, Clov
 
 ## 2.4 Visual identity: "Dusk Instrument"
 
-**Personality:** a precise scientific instrument (think Braun/Dieter Rams dials, aviation instruments) at twilight: calm, competent, quietly witty. Not a wellness app (no pastel blobs, no stock photos), not a corporate travel tool (no navy-and-grey).
+**Visual style:** Use clear dial markings, readable numbers and simple controls. Use dark surfaces and indigo accents, with fixed colours for each advice type. Avoid decorative pastel shapes and stock photos. The colour table below defines the palette.
 
 ### Colour
 - **Dynamic colour on by default** (Android 12+): `dynamicLightColorScheme` / `dynamicDarkColorScheme` for chrome.

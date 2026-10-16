@@ -11,7 +11,7 @@
     <string name="notif_channel_sleep">Sleep &amp; energy</string>
     <string name="notif_channel_sleep_desc">Bedtime, naps, wake-ups and low-energy warnings. Never rings while you should be asleep, except to wake you.</string>
     <string name="notif_channel_supplements">Supplements &amp; caffeine</string>
-    <string name="notif_channel_supplements_desc">Melatonin (only if you turned it on) and when coffee helps or hurts.</string>
+    <string name="notif_channel_supplements_desc">Melatonin (only if you turned it on) and when to use or avoid caffeine.</string>
     <string name="notif_channel_travel_live">Travel day (live)</string>
     <string name="notif_channel_travel_live_desc">A live progress bar through your travel day while a step of the plan is active. Silent.</string>
     <string name="notif_channel_now">Now</string>
@@ -32,16 +32,16 @@
 
     <!-- Tips: short, precise, kind, occasionally dry -->
     <string name="advice_tip_see_bright_light">Outside is best. A window seat counts.</string>
-    <string name="advice_tip_see_light">Daylight or a bright room. Don\'t hide in the dark.</string>
-    <string name="advice_tip_avoid_light">Sunglasses on, even if it feels silly. Especially if it feels silly.</string>
+    <string name="advice_tip_see_light">Spend time in daylight or a bright room.</string>
+    <string name="advice_tip_avoid_light">Wear dark sunglasses and dim your screens.</string>
     <string name="advice_tip_sleep">Dark, cool, screens away.</string>
     <string name="advice_tip_nap">Keep it short. Set an alarm.</string>
-    <string name="advice_tip_optional_nap">Only if you need it. Short beats long.</string>
+    <string name="advice_tip_optional_nap">Nap if you are tired. Keep it short and set an alarm.</string>
     <string name="advice_tip_melatonin">As planned, then keep the lights low.</string>
-    <string name="advice_tip_caffeine">A small coffee helps now. Little and often.</string>
-    <string name="advice_tip_avoid_caffeine">Coffee now would cost you sleep later.</string>
+    <string name="advice_tip_caffeine">Choose small amounts of coffee or tea.</string>
+    <string name="advice_tip_avoid_caffeine">Caffeine now may affect your next sleep.</string>
     <string name="advice_tip_peak_fatigue">Your body clock is at its low. Take care, especially driving.</string>
-    <string name="advice_tip_flight">Settle in. The plan knows you\'re in the air.</string>
+    <string name="advice_tip_flight">Follow the light and sleep steps scheduled during your flight.</string>
 
     <!-- Now notification (wording shared with the plan screen's Now card) -->
     <string name="now_until">until %1$s</string>
@@ -83,7 +83,7 @@
     <string name="reminder_snoozed_title">Reminder: %1$s</string>
     <string name="reminder_also">Also: %1$s</string>
     <string name="reminder_test_title">Test reminder</string>
-    <string name="reminder_test_text">If you can read this, reminders work.</string>
+    <string name="reminder_test_text">This test notification arrived. Scheduled reminder timing depends on Android settings.</string>
 
     <!-- Actions -->
     <string name="action_done">Done</string>

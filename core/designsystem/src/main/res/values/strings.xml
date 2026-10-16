@@ -16,13 +16,13 @@
     <!-- Short instructions. Voice: precise, kind, occasionally dry (design.md §2.6). -->
     <string name="advice_instruction_see_bright_light">Outside is best. A window seat counts.</string>
     <string name="advice_instruction_see_light">Stay out of the dark. Lights on, no sunglasses.</string>
-    <string name="advice_instruction_avoid_light">Sunglasses on, even if it feels silly. Especially if it feels silly.</string>
-    <string name="advice_instruction_sleep">Cool, dark and quiet. If sleep won\'t come, just stay in the dark.</string>
+    <string name="advice_instruction_avoid_light">Wear dark sunglasses and dim your screens.</string>
+    <string name="advice_instruction_sleep">Keep the room cool, dark and quiet. If you cannot sleep, rest in the dark.</string>
     <string name="advice_instruction_nap">Keep it short and set an alarm.</string>
     <string name="advice_instruction_optional_nap">Only if you need it. Twenty minutes is plenty.</string>
-    <string name="advice_instruction_melatonin">The type and dose you chose. No driving afterwards.</string>
-    <string name="advice_instruction_caffeine">Little and often beats one big cup.</string>
-    <string name="advice_instruction_avoid_caffeine">It would still be with you at bedtime.</string>
+    <string name="advice_instruction_melatonin">Check the type and dose with a doctor or pharmacist. Do not drive for several hours afterwards.</string>
+    <string name="advice_instruction_caffeine">Choose small amounts of coffee or tea.</string>
+    <string name="advice_instruction_avoid_caffeine">Caffeine now may affect your next sleep.</string>
     <string name="advice_instruction_peak_fatigue">Your body\'s low point. Take extra care, especially driving.</string>
     <string name="advice_instruction_flight">Follow the light and sleep cards on board.</string>
 

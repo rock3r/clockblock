@@ -9,8 +9,8 @@
 
     <!-- 1. Welcome. -->
     <string name="welcome_kicker">Clockblock</string>
-    <string name="welcome_headline">Jet lag is two clocks disagreeing.</string>
-    <string name="welcome_body">We help your body clock catch up with the one on the wall: light, sleep and caffeine, timed to the minute.</string>
+    <string name="welcome_headline">Help your body clock adjust to local time.</string>
+    <string name="welcome_body">Clockblock plans when to use light, sleep and caffeine to help you adjust after travel.</string>
     <string name="welcome_badge_offline">Works offline</string>
     <string name="welcome_badge_free">Free and open source</string>
     <string name="welcome_badge_private">No account</string>
@@ -71,7 +71,7 @@
     <string name="sleep_noon">Noon</string>
     <string name="sleep_midnight">Midnight</string>
     <string name="sleep_hint_short">Is this your usual night?</string>
-    <string name="sleep_hint_long">That\'s a lot of sleep. Lucky you.</string>
+    <string name="sleep_hint_long">Is this your usual sleep duration?</string>
     <string name="sleep_hint_linked">Same as work days for now.</string>
     <string name="sleep_egg_time">24:12</string>
     <string name="sleep_egg_caption">your body\'s day</string>
@@ -89,21 +89,21 @@
     <string name="chronotype_sheet_title">Which sounds more like you?</string>
     <string name="chronotype_suggested">What your sleep suggests</string>
     <string name="chronotype_definite_morning">Early bird</string>
-    <string name="chronotype_definite_morning_description">Up with the sun, fading by 10\u00A0pm.</string>
+    <string name="chronotype_definite_morning_description">You wake early and feel sleepy early in the evening.</string>
     <string name="chronotype_moderate_morning">Morning person</string>
     <string name="chronotype_moderate_morning_description">Mornings are your best hours.</string>
     <string name="chronotype_intermediate">Somewhere in between</string>
-    <string name="chronotype_intermediate_description">Neither a lark nor an owl. Most people are here.</string>
+    <string name="chronotype_intermediate_description">You have no strong preference for mornings or evenings.</string>
     <string name="chronotype_moderate_evening">Evening person</string>
-    <string name="chronotype_moderate_evening_description">Slow mornings, sharp evenings.</string>
+    <string name="chronotype_moderate_evening_description">You feel more alert in the evening than in the morning.</string>
     <string name="chronotype_definite_evening">Night owl</string>
-    <string name="chronotype_definite_evening_description">Midnight is early. Alarms are the enemy.</string>
+    <string name="chronotype_definite_evening_description">You prefer to sleep late and wake late.</string>
 
     <!-- 4. Tools / Preferences. -->
     <string name="tools_headline">Your tools</string>
     <string name="tools_body">Pick what you\'re happy to use. You can change any of this later in Settings.</string>
     <string name="tool_caffeine">I drink caffeine</string>
-    <string name="tool_caffeine_description">Little-and-often coffee to stay sharp, and a cut-off before sleep. If you don\'t drink it, no need to start now.</string>
+    <string name="tool_caffeine_description">Suggests small amounts of caffeine for alertness, with a cut-off before sleep. You do not need to start using caffeine.</string>
     <string name="tool_planes">I can sleep on planes</string>
     <string name="tool_planes_description">Off means in-flight sleep becomes rest in the dark.</string>
     <string name="tool_naps">Naps are OK</string>
@@ -122,12 +122,12 @@
     <string name="melatonin_note_title">Before you use melatonin</string>
     <string name="melatonin_note_show">Read the safety note</string>
     <string name="melatonin_note_hide">Hide the safety note</string>
-    <string name="melatonin_note_dose">The plan suggests 0.5 mg of fast-release melatonin. More is not better.</string>
+    <string name="melatonin_note_dose">The plan suggests 0.5 mg of fast-release melatonin. Check the dose with a doctor or pharmacist.</string>
     <string name="melatonin_note_doctor">Check with a doctor or pharmacist first, especially if you are pregnant or breastfeeding, have epilepsy or an autoimmune condition, or take blood thinners, fluvoxamine or immunosuppressants.</string>
     <string name="melatonin_note_driving">Don\'t drive or operate machinery for several hours after taking it.</string>
     <string name="melatonin_note_legal">Rules differ by country: over the counter in the US, prescription-only in the UK and Australia, not approved in Japan.</string>
     <string name="melatonin_note_ack">I\'ve read this and I\'ll check what applies to me</string>
-    <string name="effort_title">How hard should the plan push?</string>
+    <string name="effort_title">Choose a planning strategy</string>
     <string name="effort_gentle">Gentle</string>
     <string name="effort_balanced">Balanced</string>
     <string name="effort_max">Max</string>
@@ -136,8 +136,8 @@
     <string name="effort_max_description">The Balanced pace. For eastward shifts of 8 to 12 hours, it tries both directions on the model and switches if the other one is more than a day faster.</string>
 
     <!-- 5. Reminders. -->
-    <string name="reminders_headline">Reminders that actually arrive</string>
-    <string name="reminders_body">One quiet nudge before each change, timed to the minute. Never while you\'re meant to be asleep, except to wake you.</string>
+    <string name="reminders_headline">Set up plan reminders</string>
+    <string name="reminders_body">Clockblock schedules a reminder before each change. It avoids sleep windows, except for wake-up reminders. Android permissions affect delivery and timing.</string>
     <string name="reminders_preview_description">A sample reminder: See bright light, with how long is left and what comes next.</string>
     <string name="reminders_preview_caption">A sample. Yours follow your own plan.</string>
     <!-- The sample's body clock offset and its other zone's city (the sample trip is Lisbon to Tokyo). -->
@@ -150,7 +150,7 @@
     <string name="reminders_notifications_allowed">Notifications allowed</string>
     <string name="reminders_notifications_off">Notifications are off. You can turn them on in Android\'s settings.</string>
     <string name="reminders_exact">Exact timing</string>
-    <string name="reminders_exact_description">Without it, Android may deliver reminders up to 10\u00A0minutes late.</string>
+    <string name="reminders_exact_description">Without it, Clockblock requests a 10-minute delivery window. Android may delay reminders further.</string>
     <string name="reminders_open_settings">Open settings</string>
     <string name="reminders_granted">Allowed</string>
     <string name="reminders_maybe_later">Maybe later</string>
