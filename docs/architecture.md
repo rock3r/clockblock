@@ -1,19 +1,17 @@
 # Architecture
 
-Clockblock is a multi-module Android app that works without a network connection. Trips, the user profile
-and settings are stored as JSON files in DataStore on the device. A pure-Kotlin planner turns a trip and a
-profile into a plan. Everything else reads that plan through a single repository: the screens, the two
-home-screen widgets and the ongoing "Now" notification.
+Clockblock runs offline as a multi-module Android app.
+DataStore stores trips, profiles and settings in local JSON files.
+A pure-Kotlin planner builds each plan from a trip and profile.
+Screens, widgets and the ongoing Now notification read plans through one repository.
 
-This page explains how the modules fit together, how data moves through the app, and the rules that keep times
-correct across time zones. For the planner itself, read [planning-engine.md](planning-engine.md). For
-notifications and widgets, read [surfaces.md](surfaces.md).
+The sections below describe module dependencies, data flow and time-zone handling.
+[planning-engine.md](planning-engine.md) describes plan generation. [surfaces.md](surfaces.md) covers notifications and widgets.
 
 ## Modules
 
-The domain types and the science code are plain JVM modules with no Android dependency. That keeps the planner
-fast to test and easy to reason about. Everything else is an Android library. The `:app` module puts them
-together.
+Domain types and planning code use plain JVM modules, so their tests can run without Android.
+The other libraries depend on Android. The `:app` module connects them.
 
 ```mermaid
 flowchart TD
@@ -44,12 +42,11 @@ flowchart TD
     data --> model
 ```
 
-The diagram shows production dependencies only, and leaves out the direct dependencies of `:app` on the core
-modules. Every feature module also gets `:core:model`, `:core:designsystem`, `:core:data` and Metro from the
-`clockblock.android.feature` convention plugin. `:core:testing` is a test-only dependency of the features, `:widget`,
-`:core:data` and `:app`. `:feature:settings` depends on `:feature:onboarding` because the Settings editors reuse
-the onboarding profile pickers (sleep dial, chronotype, tools, effort). This is the only dependency between two
-features.
+The diagram shows production dependencies and omits `:app`'s direct core dependencies.
+The `clockblock.android.feature` plugin gives each feature `:core:model`, `:core:designsystem`, `:core:data` and Metro.
+Features, `:widget`, `:core:data` and `:app` use `:core:testing` only in tests.
+Settings reuses onboarding's sleep, chronotype, tools and effort editors through `:feature:onboarding`.
+This is the only feature-to-feature dependency.
 
 | Module | Kind | What lives there |
 |---|---|---|
@@ -68,17 +65,16 @@ features.
 
 ## How data flows
 
-All user and domain data (profile, settings, trips and advice logs) lives in four DataStore JSON files.
-Repositories expose that state as `Flow`s. The plan is never stored:
+Four DataStore JSON files hold profiles, settings, trips and advice logs.
+Repositories expose their state as `Flow`s.
 [`DefaultPlanRepository`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/DefaultPlanRepository.kt)
-computes it from the trip and the profile when something asks for it, and keeps recent results in memory.
+computes plans on request from trips and profiles. It caches recent results in memory without storing plans on disk.
 
-A fifth DataStore file, `widget_configs.json`, holds each placed widget's options (see
-[surfaces](surfaces.md#widget-options)). Widget ids belong to the launcher on this device, so it isn't in the app's
-backup file. Android's own backup and phone-to-phone transfer restore it along with the widgets.
+A fifth file, `widget_configs.json`, stores each placed widget's options. See [surfaces](surfaces.md#widget-options).
+Manual backup exports exclude these device-specific widget ids.
+Android backup and phone-to-phone transfers restore this file with the widgets.
 
-Four small SharedPreferences files hold bookkeeping state. They aren't user data and aren't part of the app's
-backup file:
+Four SharedPreferences files store operational state. Manual backup exports exclude them.
 
 | Store | What it keeps |
 |---|---|
@@ -108,11 +104,10 @@ flowchart LR
     AdviceLogRepository --> vms
 ```
 
-In words: the profile and trip repositories feed the plan repository, which asks the planner for a plan. The
-ViewModels and the alarm scheduler both read the plan from that repository. The scheduler then refreshes every
-`PlanSurface`, so the notification and the widgets show the same advice as the app. They lag only when the
-scheduler's alarm is delayed (no exact-alarm access: up to 10 minutes while awake, usually about an hour in Doze; see
-[surfaces](surfaces.md#the-scheduler)).
+The plan repository sends profile and trip data to the planner.
+ViewModels and the alarm scheduler read the result. The scheduler refreshes every `PlanSurface` from that plan.
+Without exact-alarm access, updates can lag by 10 minutes while awake and usually about an hour in Android's idle mode, Doze.
+See [surfaces](surfaces.md#the-scheduler) for timing limits.
 
 ### Android backup
 
@@ -125,14 +120,15 @@ device:
 - **Left out:** the snooze and the handled alarm instants (both tied to this device's alarms) and the widget render
   bookkeeping, which the new phone works out again. Plans are never stored.
 
-Cloud backups are made on any device, including ones without a screen lock that can't encrypt them end to end
-(`disableIfNoEncryptionCapabilities="false"`): the app stores no secrets, and a backup beats losing your trips.
+Cloud backups remain enabled without a screen lock, when Android cannot encrypt them end to end
+(`disableIfNoEncryptionCapabilities="false"`). This policy allows trip recovery on those devices.
 [`BackupRulesTest`](../app/src/test/kotlin/dev/sebastiano/clockblocker/opus/BackupRulesTest.kt) checks the lists
 against `StoreFiles` and the SharedPreferences names, so a renamed or new store can't drop out of backups silently.
 
-A restore brings files, not alarms, and no boot or app-update broadcast follows it. The first process start (opening the app, or a
-restored widget asking for an update) runs `ClockblockApplication.onCreate`, which starts the alarm scheduler: it
-arms reminders from the restored plan and refreshes every surface.
+Android restores files without restoring alarms or sending boot and app-update broadcasts.
+The next process start runs `ClockblockApplication.onCreate` and starts the scheduler.
+Opening the app or updating a restored widget can start this process.
+The scheduler arms reminders from restored data and refreshes every surface.
 
 ### Repositories
 
@@ -151,29 +147,30 @@ Features depend on these interfaces only.
 
 The DataStore setup is in [`JsonDataStores.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/datastore/JsonDataStores.kt)
 and [`DataStoreRepositories.kt`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/datastore/DataStoreRepositories.kt).
-The JSON decoder ignores unknown keys and fills in defaults, so older and newer files still load. If a file is
-corrupt, the serializer copies it to `<name>.corrupt-<timestamp>` and starts again from the default document,
-so the app opens instead of crashing.
+The JSON decoder ignores unknown keys and supplies defaults for missing fields, allowing compatible older and newer files to load.
+For corrupt files, the serializer saves a `<name>.corrupt-<timestamp>` copy and loads the default document.
+This lets the app open without losing the damaged file.
 
 ### The plan cache
 
-`DefaultPlanRepository` keys each plan on the full content of the trip and the profile, not on the trip id. Any
-edit to either one gives a new key, and the next read computes a fresh plan. It keeps the 32 most recent plans.
+`DefaultPlanRepository` uses the complete trip and profile as its cache key.
+Editing either creates a new key; the next read computes a fresh plan. The cache keeps the 32 most recent plans.
 
 - Planning runs on the default dispatcher in the app's coroutine scope, so leaving a screen doesn't cancel it.
 - Two callers that ask for the same key at the same time share one computation.
 - A failed computation is not cached, so the next read tries again.
 
-`currentPlan` picks the trip that matters right now. It re-checks once a minute through a
+`currentPlan` selects the active trip and rechecks once a minute through a
 [`Ticker`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/time/Time.kt). The rule lives in
 [`NowTrip`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/NowTrip.kt), and the Trips
-list uses the same one, so the Now tab and the Trips tab always agree. A trip is active while `now` is inside its
-window: from the start of the first plan day to the end of the last plan day or of its last advice block (the last
-night's sleep runs past midnight), whichever is later, always including the flights. Without a plan, the window
-runs from take-off to two days after landing. A plan never starts more than 14 days before departure or runs more
-than 30 days after arrival. When several trips are active, the one that departs last wins, so the days before a
-return flight replace the end of the outbound trip's plan. If no trip is active, the next upcoming trip is used. Logging advice as Done or Skipped
-does not change the plan.
+list uses that same rule, keeping the Now and Trips tabs consistent.
+A trip's active window starts with its first plan day and always includes its flights.
+It ends after both the final plan day and final advice block have ended, including sleep extending past midnight.
+Without a plan, the window runs from take-off until two days after arrival.
+Plans start at most 14 days before departure and end at most 30 days after arrival.
+When active trips overlap, the latest departure takes priority. Pre-return advice can therefore replace the outbound plan's final days.
+If no trip is active, `currentPlan` selects the next upcoming trip.
+Done and Skipped logs leave the plan unchanged.
 
 ## Dependency injection
 
@@ -258,7 +255,7 @@ advice is running
 
 ## Time rules
 
-Jet lag apps break easily on time zones, so the code follows a few strict rules:
+All time handling must follow these rules:
 
 - Instants are stored in UTC. Zones are stored as IANA ids such as `Europe/Rome`, never as fixed offsets, so
   daylight-saving changes are always handled by `java.time`.
@@ -294,18 +291,18 @@ Import has two modes, implemented in `BackupManager.restore`:
   entries are added only for trips that end up identical to the backup's, and only when the device ends up
   with the backup's profile. Otherwise the same id could point at a different block.
 
-Deleting a trip keeps its advice log, so Undo can restore both. When either mode adds a trip whose id isn't on
-the device, it first sets that trip's log to exactly the backup's entries (`AdviceLogRepository.replaceAll`;
-Merge with a different profile sets it to none), so entries left by a deleted trip never attach to the imported
-one.
+Deleting a trip retains its advice log for Undo.
+Before importing a missing trip id, both modes replace that id's log with the backup's entries through `AdviceLogRepository.replaceAll`.
+Merge clears those entries when the resulting profile differs from the backup.
+This prevents logs from deleted trips attaching to an imported trip with the same id.
 
-The whole file is decoded before anything is written, so a bad file changes nothing. Files from a newer app
-version are refused. Files from before the app was renamed (`"format": "opus-clockblock"`) still import.
-Exported files are named `clockblock-backup-YYYY-MM-DD.json`.
+The importer decodes the whole file before writing any data. Invalid files leave existing data unchanged.
+It rejects backups from newer app versions and accepts the old `"format": "opus-clockblock"` name.
+Exports use `clockblock-backup-YYYY-MM-DD.json` filenames.
 
 ## Offline airport data
 
-Trip entry needs an airport or city and its time zone, without a network. The
+Trip entry searches airports, cities and time zones offline. The
 [`tools/places`](../tools/places/README.md) script builds `core/data/src/main/assets/places.tsv` from
 OurAirports and mwgg/Airports data. It checks every zone against `java.time`. The current file has about 4,100
 airports and is about 318 KB.

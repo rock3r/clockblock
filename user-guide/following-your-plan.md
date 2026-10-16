@@ -1,8 +1,8 @@
 # Following your plan
 
-Your plan is a list of short blocks: see light, avoid light, sleep, nap, coffee or no coffee. The plan screen
-always shows what to do now, until when, and what comes next. You don't need to understand the science to follow
-it. If you want to know why a block is there, tap **Why?**.
+Your plan schedules light, sleep, naps and caffeine in timed blocks.
+The plan screen shows the current advice, its end time and the next block.
+Tap **Why?** for a block's reason and research sources.
 
 ## Opening the plan
 
@@ -21,7 +21,7 @@ it. If you want to know why a block is there, tap **Why?**.
 
 <img src="images/plan-now.png" alt="The plan screen for Rome to New York on Day 1, Adapting. The header shows FCO to JFK and Next: Avoid caffeine in 8 h, at 16:00 (22:00 Rome). Below, day pills from −1 to +3 with +1 picked. The dial shows 08:00 in New York and 10:28 body, 2½ h ahead, with an arc saying Avoid light until 09:00, then avoid caffeine. The Now card says Avoid light, 1 h left, until 09:00." width="300" />
 
-From top to bottom:
+The screen has seven main parts, in this order:
 
 1. **The header** shows the airport codes and the trip, the day of the plan ("Day 2 · Adapting" or "Pre-trip day −1";
    on a small phone it also says how far off your body clock is, when the dial leaves out its pill) and the next block
@@ -40,28 +40,27 @@ On a small phone, the day strip moves below the Now card so that **Done** stays 
 
 ### The day strip
 
-Each pill counts the days around your flight ("−2", "−1", a plane on the travel day, "+1", "+2", with a tick on the day
-you're adapted), with the day of the week underneath ("Mon–Tue" when a flight runs overnight) and two small
-dots: the hollow dot is local time and the filled dot is your body clock. The further apart they are, the bigger
-the gap that day. Once your body has caught up, the dots sit on top of each other. Today's pill has an outline.
+Each day button counts from the flight date: "−2", "−1", a plane for travel, then "+1", "+2" and later days.
+A tick marks estimated adjustment. Weekday labels can span two days for overnight flights, such as "Mon–Tue".
+The hollow dot represents local time; the filled dot represents your body clock.
+Their distance shows the estimated time difference. They overlap when the clocks match. An outline marks today.
 
-Tap a pill to see that day at the current time of day. The header, the dial and the Now card switch to that day, and
-the Now card's heading says which day you're looking at, for example "Day 3 at 11:00". Tap today's pill, or **Now**
-in the toolbar, to go back. On a tablet, the timeline also scrolls to the day you picked. And when you scroll the
-timeline yourself, the strip follows it: the day you're looking at gets a short bar under its pill. That doesn't
-pick the day.
+Tap a day button to preview that day at the current time of day.
+The header, dial and Now card update. The card names the preview, such as "Day 3 at 11:00".
+Tap today's button or the toolbar's **Now** to return.
+On tablets, selecting a day also scrolls the timeline there.
+Scrolling the timeline manually adds a bar below the visible day's button. This leaves the selected day unchanged.
 
 ### The dial
 
 <img src="images/two-skies-dial.png" alt="The dial at 14:20 in Tokyo. The outer ring is the Tokyo sky, labelled Tokyo day and Tokyo night. The inner ring is labelled Your body's day and Your body's night, and its night is turned round from Tokyo's. In the middle: Tokyo, 14:20, 09:56 body and 4½ h behind. A needle crosses both rings, and outside them an arc says See bright light until 15:00, then see some light." width="300" />
 
-The dial shows two skies. The outer ring is the sky where you are: light for day, dark for night, with dawn and
-dusk in between. The inner ring is the sky your body thinks it is under. The gap between the two nights is your
-jet lag. As you adapt, the inner ring turns a little each day, and once you've adapted the two rings match.
+The outer dial ring shows local daylight, darkness, dawn and dusk.
+The inner ring shows the same sky shifted by your estimated body clock difference.
+The distance between the night sections shows that difference. The rings align as your estimated body clock adjusts.
 
-The big number in the middle is the local time. The smaller italic time under it ("09:56 body") is the time your
-body clock thinks it is. The pill under that says how far apart they are, for example "4½ h behind", "2 h ahead"
-or "in sync".
+The large central number shows local time. The smaller italic number shows estimated body clock time, such as "09:56 body".
+The label below gives the difference: "4½ h behind", "2 h ahead" or "in sync".
 
 The needle points at the time shown. Outside the rings, an arc shows the block under the needle, with its name and
 when it ends ("See bright light until 15:00") and what comes next. When nothing is on, it shows the next block and
@@ -124,13 +123,13 @@ the plan is faster, a pill says by how much, for example "~3 days faster". Below
 - The vertical line marks when you **arrive**, and the dot shows the moment on screen. It moves when you pick a day
   in the day strip.
 
-#### The long way round
+#### Why some eastward plans shift later
 
-After a big jump east, some plans move your body clock *later* instead of earlier, for example 13 hours later
-rather than 11 hours earlier for Los Angeles to Dubai. The card explains why when this happens: morning light at
-the destination would fall before your body's low point, where light pushes the clock the wrong way, and most body
-clocks find moving later a little easier. This is a judgement call that experts still debate, so the app never
-claims it's faster. See [the science](../docs/science.md) for details.
+Large eastward trips can use a delay plan.
+For example, Los Angeles to Dubai can require a 13-hour delay to reach the same clock time as an 11-hour advance.
+Destination morning light can fall before your body's estimated low point and delay your clock.
+Many people also adjust more easily to later times. The card explains this direction choice without promising faster adjustment.
+Researchers still debate the choice. See [the science](../docs/science.md).
 
 ### The timeline
 
@@ -141,7 +140,7 @@ adapted. Each block shows its local time and how long it lasts on one line ("22:
 underneath, the time at the other end of the trip. With large text, the duration moves to its own line. Earlier days
 are folded away; tap **Show N earlier days** to see them. Tap any block to read why it's there.
 
-A few details help you read it:
+The timeline uses these visual markers:
 
 - The block happening now sits in an outlined card, with its start time in colour, a **Now** label and a line
   across its capsule at the current time. Blocks that are over are greyed back a little; blocks still to come are
@@ -166,7 +165,8 @@ of the way, and it comes back when you scroll back up or reach the end of the pl
 
 <img src="images/why-sheet.png" alt="The Why sheet for See bright light, 10:00 to 13:30 London. Sections: Why, How, If you skip it and The science, citing Khalsa et al. 2003 and St Hilaire et al. 2012." width="300" />
 
-Tap **Why?** on the Now card, or tap a block in the timeline. The sheet that opens has four parts:
+Tap **Why?** on the Now card or a timeline block to open its explanation.
+The sheet contains four sections:
 
 - **Why**: what this block does for your body clock.
 - **How**: practical tips.
@@ -182,7 +182,7 @@ to this block**.
 
 ## What the blocks mean
 
-Every block has a text label, so you never have to guess from an icon.
+Every block pairs its icon with a text label.
 
 | Label | What to do |
 |---|---|
@@ -200,25 +200,26 @@ Every block has a text label, so you never have to guess from an icon.
 
 ## When you miss something
 
-Life happens. Tap **Skipped** or **Can't do this** and carry on with the next block. The plan doesn't change when
-you skip a block: missing one block just makes adapting take a little longer.
+Tap **Skipped** or **Can't do this**, then follow the next block.
+Skipping can delay adjustment. Clockblock records the check-in without changing the plan.
 
-If your flights change, edit the trip (or use [I'm delayed](planning-a-trip.md#when-your-flight-is-delayed)). The
-plan is rebuilt around the new times.
+If flights change, edit the trip or use [I'm delayed](planning-a-trip.md#when-your-flight-is-delayed).
+Clockblock rebuilds the plan using the new flight times.
 
 ## Night-safe
 
 <img src="images/night-safe.png" alt="The plan screen in Night-safe mode: dark and dim, a Night-safe chip at the top, and the Now card saying Avoid light until 01:00." width="300" />
 
-Looking at a bright phone screen can undo an "Avoid light" block. So when your plan says to avoid light or sleep,
-or during your body's night when no light is planned, the plan screen turns dark and dim and shows a
-**Night-safe** chip. You can turn this off in Settings ("Night-safe automatically").
+A bright screen adds light during an avoidance window.
+Night-safe darkens and dims the plan screen during sleep, light avoidance, or body night without planned light.
+The screen shows a **Night-safe** label. Disable **Night-safe automatically** in Settings to turn this feature off.
 
 ## Other things you may see
 
 <img src="images/plan-upcoming.png" alt="A plan that hasn't started: SFO to LHR, San Francisco to London, Starts Thu 11 Jun, Next: Avoid light, Thu 11 Jun 20:00 (04:00 London +1), with day pills from −4 and the dial at 09:00 in sync. The card says Your plan starts Thu 11 Jun. Nothing to do until then. Below, 3 d with your plan against 6 d without a plan, ~3 days faster." width="280" />
 
-Instead of a Now card, the plan sometimes shows a message. The picture shows a plan that starts in a few days.
+When the plan has no current advice, a message replaces the Now card.
+This example shows a plan that starts in a few days.
 
 | Message | What it means |
 |---|---|
@@ -232,8 +233,8 @@ Instead of a Now card, the plan sometimes shows a message. The picture shows a p
 
 <img src="images/celebration.png" alt="A celebration screen: Clockblocked. Your body is on London time. About 3 days faster than going it alone. A button says Lovely." width="280" />
 
-When your body clock has caught up with your destination, the app tells you, once. It also estimates how much
-time the plan saved you.
+Clockblock shows a celebration once when the plan estimates that your body clock has adjusted.
+It also shows the estimated time saved by following the plan.
 
 ## The plan menu
 

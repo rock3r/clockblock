@@ -1,11 +1,9 @@
 # Testing and CI
 
-The project is built test-first, with JVM tests (plain JUnit and Robolectric), committed screenshot goldens and
-end-to-end tests that run on an emulator. Every pull request runs them in GitHub Actions, and Codex reviews the
-change.
+Clockblock uses test-first development with JVM tests, screenshot goldens and emulator end-to-end tests.
+GitHub Actions runs the suites on each pull request. Codex reviews the change.
 
-This page explains what each kind of test covers, how to run it, and how a pull request gets from "opened" to
-"ready to merge".
+The sections below list test coverage, commands and pull request checks.
 
 ## Test layers
 
@@ -19,11 +17,11 @@ This page explains what each kind of test covers, how to run it, and how a pull 
 The screenshot tests are JUnit 4 tests too, so they also run in `./gradlew test`, without comparing images.
 `verifyRoborazziDebug` runs the same tests and fails when an image differs from its golden.
 
-`:app` has two flavours, `play` and `oss` (see [README](../README.md#build-and-test)). Its unit and screenshot tests run
-on `play` only; `DistributionManifestTest` checks that `USE_EXACT_ALARM` never reaches the play manifest and that
-the oss manifest adds it. `:app`'s flavourless `testDebugUnitTest`, `recordRoborazziDebug`, `verifyRoborazziDebug`
-and `compareRoborazziDebug` are aliases of the play tasks, so the root-level commands cover it. Aliases don't take
-`--tests`: filter on the play task, for example `:app:recordRoborazziPlayDebug --tests '*ShellScreenshotTest*'`.
+The `:app` module has `play` and `oss` flavours. See [README](../README.md#build-and-test).
+Unit and screenshot tests run on `play` only.
+`DistributionManifestTest` requires `USE_EXACT_ALARM` in the oss manifest and excludes it from play.
+The flavourless `testDebugUnitTest`, `recordRoborazziDebug`, `verifyRoborazziDebug` and `compareRoborazziDebug` names alias play tasks.
+Root commands therefore include `:app`. Aliases reject `--tests`; filter the play task directly, such as `:app:recordRoborazziPlayDebug --tests '*ShellScreenshotTest*'`.
 
 ## Conventions
 
@@ -44,14 +42,13 @@ These rules come from [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIB
 
 ## Screenshot tests
 
-Screenshot tests call `compose.captureRoboImageInvalidated(...)` from `:core:testing` and write to
-`<module>/src/test/screenshots/`. The helper redraws every view before it captures: Robolectric 4.17 at SDK 37 often
-skips drawing a fresh Compose view, which records a blank golden. The goldens are committed,
-so a pull request shows every pixel it changes. The base class in `:core:designsystem`,
+Screenshot tests call `compose.captureRoboImageInvalidated(...)` from `:core:testing` and write to `<module>/src/test/screenshots/`.
+The helper redraws every view before capture. Robolectric 4.17 at SDK 37 can otherwise capture a blank, newly created Compose view.
+Committed goldens make pixel changes visible in pull requests. The base class in `:core:designsystem`,
 [`ScreenshotTest`](../core/designsystem/src/test/kotlin/dev/sebastiano/clockblocker/opus/core/designsystem/ScreenshotTest.kt),
 can render a component in light or dark, in Night-safe or Opus mode, at a custom font scale, and on the 12-hour
-or 24-hour clock. Goldens render with reduced motion on. This makes them stable, and it also proves that every
-component has a readable still state when animations are off (see [MOTION.md](../MOTION.md)).
+or 24-hour clock. Goldens use reduced motion for stable images and readable still-state checks.
+See [MOTION.md](../MOTION.md).
 
 ```sh
 ./gradlew :feature:plan:verifyRoborazziDebug   # compare one module with its goldens
@@ -85,11 +82,11 @@ They drive the real app, with real DataStore files and real notifications.
 class. It provides a Compose test rule and a UiAutomator `UiDevice`. Tests check which screen is showing through
 the navigation shell's route tags (for example `route_now`).
 
-Each test starts from a clean state without restarting the process.
+Each test resets app data without restarting the process.
 [`AppDataReset`](../app/src/androidTest/kotlin/dev/sebastiano/clockblocker/opus/e2e/AppDataReset.kt) does this
-because `pm clear` would also kill the test instrumentation. It closes every activity, resets each repository's
-DataStore to its default document through the `AppGraph`, clears all SharedPreferences files and cancels all
-notifications. Runtime permissions stay granted between tests.
+because `pm clear` would stop test instrumentation.
+It closes activities, resets repository DataStores through `AppGraph`, clears SharedPreferences and cancels notifications.
+Runtime permissions remain granted between tests.
 
 ```sh
 ./gradlew :app:connectedPlayDebugAndroidTest   # needs a running emulator or a connected device
@@ -107,10 +104,9 @@ builds don't include it.
 
 ## CI
 
-There are two workflows. `.github/workflows/ci.yml` (CI) has six jobs, and `.github/workflows/e2e.yml` (e2e)
-has the emulator job. Both run on every pull request, on every push to `main`, and on demand. A new push to a pull request
-cancels the run that is still in progress. The emulator job has its own workflow so the babysit-pr watcher, which
-retries failed workflows by name, can rerun an emulator flake automatically without rerunning the rest of CI.
+The `.github/workflows/ci.yml` workflow has six jobs. The separate `.github/workflows/e2e.yml` workflow runs the emulator suite.
+Both run on pull requests, pushes to `main` and manual requests. New PR pushes cancel older active runs.
+The separate emulator workflow lets babysit-pr retry emulator failures without repeating all other CI jobs.
 
 ```mermaid
 flowchart LR
@@ -141,9 +137,9 @@ Every Gradle job sets up JDK 21 and the Android SDK through the local composite 
 `.github/actions/setup-android-build`. It installs `platforms;android-37.1`, the build tools and the platform tools
 with the runner's own `sdkmanager`.
 
-The Screenshots job runs on macOS, unlike the others, which run on Linux. The goldens are recorded on macOS. On
-Linux, the hatched arcs on the plan dial anti-alias slightly differently, which is enough to fail a pixel-exact
-comparison. A shared runner OS keeps the comparison exact, so a one-glyph regression still fails.
+The Screenshots job runs on macOS, matching the system used to record goldens. Other jobs run on Linux.
+Linux renders the dial's hatched arcs with different anti-aliasing, which fails pixel-exact comparisons.
+Matching operating systems avoids those differences while retaining checks for small visual regressions.
 
 ## Pull requests and review
 
@@ -169,9 +165,9 @@ flowchart TD
     watch -->|"Needs a human decision"| owner["Hand back to the owner"]
 ```
 
-In words: CI and Codex both start when a pull request opens. A watcher script then follows the pull request. It
-reports failed checks and new review comments, and someone (a person or a coding agent) fixes them and pushes
-again. The loop ends when the pull request is ready, or when it needs the owner to decide.
+The watcher reports failed checks and review comments after a pull request opens.
+A contributor or coding agent fixes failures, answers findings and pushes updates.
+The watcher stops when the PR meets its merge requirements or needs an owner decision.
 
 The watcher is part of the babysit-pr skill (v2.2.1), vendored in `.agents/skills/babysit-pr/` from
 [rock3r/babysit-pr-skill](https://github.com/rock3r/babysit-pr-skill). Its `SKILL.md` explains how to use it. The
@@ -190,5 +186,5 @@ python3 .agents/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --once      #
 python3 .agents/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --snapshot  # current state, no waiting
 ```
 
-The watcher needs an authenticated `gh` CLI. Don't edit the vendored skill by hand. Update it with its `sync.py`
-script (the source is recorded in `.agents/skills/babysit-pr/VERSION`).
+Authenticate `gh` before running the watcher.
+Update the vendored skill only through `sync.py`. Its `VERSION` file records the source in `.agents/skills/babysit-pr/`.

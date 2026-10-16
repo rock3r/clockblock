@@ -6,8 +6,8 @@
 
 <p align="center">
   <strong>A free, open-source jet lag planner for Android that works entirely offline.</strong><br />
-  It tells you when to see light, avoid light, sleep and drink coffee, timed to the minute from published
-  circadian science. No account, no network, no tracking.
+  Clockblock schedules light, sleep and caffeine from published circadian research.
+  It requires no account and has no network access or tracking.
 </p>
 
 <p align="center">
@@ -26,37 +26,31 @@
   <img src="docs/screenshots/plan-why-sheet.png" alt="The Why sheet for See bright light: why it helps, how to do it, what happens if you skip it, and the science" width="19%" />
 </p>
 
-Jet lag is two clocks disagreeing: the one on the wall and the one in your body. Clockblock builds a plan
-that moves your body clock towards your destination, then tells you what to do and until when: light, sleep, naps
-and caffeine. Each piece of advice explains why it's there. Everything runs on your phone. It's a free,
-transparent alternative to commercial jet lag apps.
+Clockblock builds a schedule to help your body clock adjust to destination time.
+The plan gives start and end times for light, sleep, naps and caffeine.
+Each block explains its purpose and cites research. All planning runs on your phone, without a paid service.
 
 To use the app, read the [user guide](user-guide/README.md). To understand or change the code, start with the
 [documentation index](docs/README.md).
 
 ## Features
 
-- Plans for multi-leg trips with connections. You type the flights in by hand, with an offline search for
-  airports and time zones.
-- The Two skies dial shows the sky where you are and the sky your body thinks it is under, so the jet lag is the
-  gap between the two nights. Drag the needle to look ahead.
-- The Now card always says what to do and until when, in local time with the other zone underneath. Mark advice
-  as Done, Skipped or "Can't do this", with Undo.
-- Every piece of advice has a "Why?" that explains it in plain language and cites the research.
-- The plan adapts to you: your usual sleep, your chronotype (from early bird to night owl), how hard you want to
-  push, whether you drink caffeine or sleep on planes, and whether to start adjusting before you leave. Melatonin
-  stays off unless you opt in.
-- Short trips can stay on home time instead of adapting. An "I'm delayed" button moves a late flight and rebuilds
-  the plan.
-- Reminders arrive just before each change, never while you should be asleep except to wake you. One quiet
-  ongoing notification shows the current advice, and becomes a Live Update on travel days.
-- Two home-screen widgets, *Two clocks* and *Next up*, built with Remote Compose.
-- Night-safe mode, so checking your plan doesn't work against it: the plan screen turns dark and dim when the
-  plan says avoid light or sleep, or during your body's night when no light is planned. The widgets switch to
-  dark while the plan says avoid light or sleep.
-- Works on phones, foldables and tablets (with a two-pane layout), in landscape and with large fonts. Every piece
-  of advice has a text label, never an icon alone, and motion keeps its meaning with "Remove animations" on.
-- JSON backup and restore, and calendar (ICS) export of any plan.
+- Enter connecting flights manually with offline airport and time-zone search.
+- Compare local and estimated body clock time on the Two skies dial. Drag its needle to preview later advice.
+- Read current advice and its end time on the Now card, with times in both zones.
+  Record Done, Skipped or "Can't do this", and use Undo to clear the answer.
+- Open "Why?" on any block for its purpose and sources.
+- Set usual sleep, chronotype, adjustment rate, caffeine, in-flight sleep and pre-departure adjustment preferences.
+  Melatonin remains off until you opt in.
+- Keep your body clock on home time for short trips. Use "I'm delayed" to update flight times and rebuild the plan.
+- Receive reminders before plan changes. During planned sleep, Clockblock sends only the wake-up reminder.
+  A silent ongoing notification shows current advice and supports travel-day Live Updates.
+- Read plans on Remote Compose home-screen widgets, including *Two clocks* and *Next up*.
+- Use Night-safe to darken and dim the plan during sleep, light avoidance or body night without planned light.
+  Widgets darken during sleep and light avoidance.
+- Use phone, foldable and tablet layouts, including landscape and large text.
+  Advice always has a text label. Static states retain meaning with "Remove animations" enabled.
+- Back up and restore JSON files, or export a plan as an iCalendar (ICS) file.
 
 <p align="center">
   <img src="docs/screenshots/widgets/remote_two_clocks.png" alt="Two clocks widgets: the Two skies dial in light, dark and night-safe shows 15:20 local and 08:20 body time, with Avoid light until 16:30, next to the empty state, No trip, Plan one; below, the wide version shows the two skies as two bars beside a Tokyo · Day 2 card and a Done button" width="48%" />
@@ -68,13 +62,13 @@ uses two columns: the day strip, the dial and the Now card beside the day's time
 
 ## The science
 
-The planner estimates when your body clock's low point (the core body temperature minimum) falls. Light in the
-hours after that point moves the clock earlier, and light in the hours before it moves the clock later. The plan
-places light and darkness on the correct side, picks a direction (earlier or later) from the distance and your
-chronotype, and limits the daily shift to rates that human studies show people can manage. Sleep, naps and
-caffeine are fitted around it. A published mathematical model of the human body clock (Hannay 2019) then
-simulates the plan to estimate how long adapting takes, with and without it. The tests also check plans against
-that model and a second one (Forger 1999).
+The planner estimates the core body temperature minimum, a daily low point used to track body clock phase.
+Light after that point moves the clock earlier. Light before it moves the clock later.
+The plan schedules light and darkness for the chosen direction, based on the time difference and chronotype.
+Daily shift limits follow rates reported in human studies. The planner schedules sleep, naps and caffeine around those shifts.
+
+The Hannay 2019 mathematical model simulates adjustment with and without the plan.
+Tests check plans against Hannay 2019 and Forger 1999.
 
 The docs cite the research and list the planning rules and known limitations.
 
@@ -84,17 +78,18 @@ The docs cite the research and list the planning rules and known limitations.
 
 ## Privacy
 
-Clockblock has **no network access**: the app doesn't request the `INTERNET` permission. There are no
-accounts, no analytics, no ads, no crash reporters and no third-party SDKs. Your trips and profile live in the
-app's private storage. They leave the device only when you export a backup or calendar file, share a plan
-summary to another app, or when Android's own backup (if you have it turned on) or a
-phone-to-phone transfer copies them. See [Moving to a new phone](user-guide/settings-and-your-data.md#moving-to-a-new-phone).
+Clockblock omits the `INTERNET` permission and has **no network access**.
+It has no accounts, analytics, ads, crash reporters or third-party service SDKs.
+Trips and profiles stay in private app storage unless you export, share or transfer them.
+Exports include backup and calendar files. Sharing sends a plan summary to another app.
+Android can copy data through enabled system backups or phone-to-phone transfers.
+See [Moving to a new phone](user-guide/settings-and-your-data.md#moving-to-a-new-phone).
 
 ## Not medical advice
 
-Clockblock gives general information for healthy adults, based on published research. It isn't medical
-advice, it doesn't measure anything about you, and it isn't meant for flight crew on duty. If you have a health
-condition, are pregnant, or take medication, talk to a doctor before changing your sleep.
+Clockblock gives healthy adults general information based on published research. It cannot give medical advice and takes no measurements of your body.
+Flight crew must not use it for duty schedules.
+If you have a health condition, are pregnant, or take medication, consult a doctor before changing your sleep.
 
 Melatonin suggestions are off by default. Turning them on shows a safety note first. Melatonin is a prescription
 medicine in some countries, and you should check with a pharmacist or doctor before taking it.
@@ -114,19 +109,19 @@ You need JDK 21 and the Android SDK with platform 37.1. Create `local.properties
 ./gradlew :app:connectedPlayDebugAndroidTest   # end-to-end tests on a device or emulator
 ```
 
-The app comes in two flavours. `play` is the Google Play build: reminders are on the minute once you allow exact
-alarms. `oss`, for distribution outside Google Play, gets exact alarms at install (`USE_EXACT_ALARM`), which Google
-Play only allows for alarm and calendar apps.
+The `play` flavour requests exact-alarm access so reminders can arrive on the minute.
+The `oss` flavour distributes outside Google Play and receives `USE_EXACT_ALARM` at installation.
+Google Play restricts that permission to alarm and calendar apps.
 
 The debug build needs no API keys, no backend and no signing setup. The app runs on Android 17 (API 37) and later.
 
-The project is built test-first: about 1,100 JVM tests, 193 screenshot goldens and 22 end-to-end tests at the time
-of writing. CI runs them all on every pull request. See [docs/testing.md](docs/testing.md).
+The project uses test-first development, with roughly 1,100 JVM tests, 193 screenshot goldens and 22 end-to-end tests.
+Continuous integration (CI) runs these suites on each pull request. See [docs/testing.md](docs/testing.md).
 
 ## Architecture
 
-A multi-module Gradle build. The domain types and the planner are plain JVM modules with no Android dependency;
-everything else is Android.
+Clockblock uses a multi-module Gradle build.
+The domain types and planner use plain JVM modules. The other modules depend on Android.
 
 | Module | Kind | Purpose |
 |---|---|---|
@@ -140,9 +135,10 @@ everything else is Android.
 | `:widget` | Android + Compose | Remote Compose widgets |
 | `:app` | Application | Navigation 3 shell, adaptive layouts, Metro DI graph |
 
-The stack: AGP 9 with built-in Kotlin, Kotlin 2.4, JDK 21, Jetpack Compose (alpha BOM) with Material 3
-Expressive, Navigation 3, [Metro](https://github.com/ZacSweers/metro) for dependency injection, Remote Compose,
-DataStore with kotlinx-serialization, and `java.time` with IANA zone ids (offsets are never stored).
+The build uses Android Gradle Plugin (AGP) 9 with built-in Kotlin, Kotlin 2.4 and JDK 21.
+Jetpack Compose's alpha bill of materials (BOM) supplies Material 3 Expressive.
+The app uses Navigation 3, [Metro](https://github.com/ZacSweers/metro) dependency injection, Remote Compose and DataStore with kotlinx-serialization.
+Time handling uses `java.time` and IANA zone ids. Persistence stores zone ids rather than fixed offsets.
 
 Read more:
 

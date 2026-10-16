@@ -1,13 +1,12 @@
 # Clockblock — jet lag planning algorithm
 
-This document describes what `:core:circadian` computes and why. The science, the evidence review and the
-original pseudo-code are in [`science.md`](science.md) (§ references below point there); this file documents
-the **implemented** behaviour, including every place where the code deliberately goes beyond or differs from the
-reference scripts in `docs/research/reference/`.
+The `:core:circadian` module computes jet lag schedules using the rules below.
+[`science.md`](science.md) contains the evidence review and original pseudocode; section references here point to that review.
+This page describes implemented behaviour, including changes from the scripts in `docs/research/reference/`.
 
-> Not medical advice. The planner produces a schedule of light, sleep, caffeine, nap and (opt-in) melatonin
-> suggestions from published human phase-response data and a published mathematical model of the body clock. It does not
-> measure anything about the user.
+> The planner gives general timing information and cannot give medical advice.
+> Published human phase-response data and a mathematical body clock model guide light, sleep, caffeine, nap and opt-in melatonin suggestions.
+> The app takes no measurements of the user.
 
 ## 1. Public API
 
@@ -33,28 +32,24 @@ reference scripts in `docs/research/reference/`.
 | Chronotype | `UserProfile.chronotype` | Definite/Moderate morning → early, Intermediate → neutral, Moderate/Definite evening → late. |
 | Preferences | `useMelatonin`, `useCaffeine`, `canSleepOnPlanes`, `headStartDays`, `napsOk`, `intensity` | See §5.1. |
 
-The **home body clock** (the start phase) is the UTC offset at the first departure of `Trip.bodyClockStartZoneId`,
-or of the first leg's origin when that is null (or a zone the device's tzdata doesn't know). The planner never reads
-`profile.homeZoneId`. What matters is where the body clock is entrained when the trip starts, and the home zone
-alone doesn't say: someone who has spent three weeks in New York is on New York time whatever their profile says,
-and someone who landed there yesterday isn't. So the default assumes the traveller is entrained where they start,
-which is right for anyone flying out from home and for long stays. The trip editor offers "Body clock when you
-leave" (departure city or home) only when the home zone and the first departure city are on different UTC offsets
-at departure, and stores the home zone's IANA id when home is picked. On a new or return trip, until the user picks,
-the editor preselects home when the trip comes back home (its last flight lands on the home zone's offset at
-arrival), since after a short stay away the body is probably still on home time, and the departure city otherwise.
-Save stores the preselected choice like a picked one, so null keeps meaning the departure city and trips saved
-earlier plan as before.
+The **home body clock** starts at `Trip.bodyClockStartZoneId`'s UTC offset at first departure.
+Null or unknown zone ids fall back to the first leg's origin. The planner never reads `profile.homeZoneId`.
+It assumes adjustment to the chosen starting zone. A traveller's profile home zone cannot describe recent adjustment after a stay elsewhere.
 
-The same offset is the "home" of everything downstream: the per-segment Δ in §3 (so a trip within one zone still
-gets a plan when the body clock starts elsewhere), the cycle planner's starting body offset, home-time mode, the
-no-plan drift track, and the validator's `Itinerary` (§6). The validator then models the days before departure as
-habitual days on that offset: someone who has only just arrived is assumed not to have started adapting to the
-departure city yet. That slightly overstates the remaining shift if they have, which is the cautious side.
+The editor shows "Body clock when you leave" only when home and departure offsets differ at departure.
+Choosing home stores its IANA zone id.
+For new and return trips, the editor preselects home if the final arrival offset matches home at arrival.
+This assumes limited adjustment after a short stay. Other routes preselect departure city until the user chooses.
+Saving stores the selected default just like a manual choice.
+Null continues to mean departure city, preserving older trips' behaviour.
 
-All computation runs in *planner hours*: `Double` hours since the UTC midnight of the first departure. Every
-modern UTC offset is a multiple of 15 min, so rounding to 15 min on this grid is also exact on the local grid
-(Kathmandu +5:45 and Chatham +12:45 included).
+The same offset sets segment Δ (§3), the initial body offset, home-time mode, no-plan drift and the validator's `Itinerary` (§6).
+A route within one zone can therefore need a plan if the body clock starts elsewhere.
+The validator models pre-departure days on that starting offset.
+It assumes no partial adjustment to the departure city, which can overestimate the remaining shift after a recent stay.
+
+The engine computes in *planner hours*: `Double` hours since UTC midnight on the first departure date.
+Modern UTC offsets use 15-minute multiples. Rounding this grid to 15 minutes also matches local quarter-hours, including Kathmandu +5:45 and Chatham +12:45.
 
 ## 3. Mode selection
 
@@ -107,13 +102,14 @@ its output with the committed reference printouts byte for byte. Per segment:
    1.5 h delay (2.0 with a light box), ≤ 3 h in total and never making the departure-day wake later than
    dep − 3 h; post-departure 1.5 h advance / 2.0 h delay. Stops at the destination once `|φ* − φ| ≤ 0.5 h`.
 
-**Multi-leg itineraries (§10).** Layovers < 24 h are pass-through. Stops of 24–72 h that lie *against* the
-direction of travel hold the clock (no shift while there). Stops ≥ 72 h start a new segment that continues from
-the body clock the previous segment reached, with `floor(stay / 24) − 2` (capped at `preFlightDays`) pre-flight
-days before its first departure; the previous segment stops shifting when those begin.
+For multi-leg itineraries (§10), layovers < 24 h keep the current destination target.
+Stops of 24–72 h against the travel direction hold the body clock without a shift.
+Stops ≥ 72 h start a segment from the previous segment's estimated body clock.
+The next segment gets `floor(stay / 24) − 2` pre-flight days, capped at `preFlightDays`.
+The previous segment stops shifting when those days begin.
 
-**Can't sleep on planes.** In-flight sleep is replaced by *avoid light* with reason `RestInFlight` ("rest in the
-dark with an eye mask"); the ODE treats it as dim (5 lux) instead of dark.
+When the user cannot sleep on planes, the planner replaces in-flight sleep with *avoid light* and reason `RestInFlight`.
+The advice says to rest in darkness with an eye mask. The ordinary differential equation (ODE) model assigns 5 lux to this rest.
 
 ### 4.1 Card assembly and the feasibility filter
 
@@ -134,11 +130,11 @@ dark with an eye mask"); the ODE treats it as dim (5 lux) instead of dark.
 
 ### 4.2 Phase trajectory
 
-`JetLagPlan.phase` holds one point per hour from the first day's start to the last day's end. The body offset is
-linearly interpolated between the planned CBTmins (each cycle's `home + φ`); the nearest CBTmin comes from the
-cycle series, continued every 24 h before, after and between segments. Offsets are stored continuously when they
-fit `ZoneOffset`'s ±18 h, otherwise wrapped per point into (−12, 12] — consumers interpolate along the shortest
-arc (`JetLagPlan.bodyOffsetAt`, `adaptationProgressAt`).
+`JetLagPlan.phase` stores hourly points from the first day's start through the last day's end.
+The engine linearly interpolates body offsets between planned CBTmins, using each cycle's `home + φ`.
+It extends the cycle series every 24 h before, after and between segments to find the nearest CBTmin.
+Offsets stay continuous within `ZoneOffset`'s ±18 h range. Outside it, each point wraps into (−12, 12].
+Consumers interpolate along the shortest arc through `JetLagPlan.bodyOffsetAt` and `adaptationProgressAt`.
 
 ## 5. Parameters
 
@@ -189,19 +185,20 @@ reviews/modelling, **D** opinion; "eng." = engineering choice.
 
 ## 6. Estimates and validation (§13)
 
-The validator turns a plan into lux(t) with the §4.4 table (sleep 0, avoid 10 / in-flight 5, seek 3000 by day,
-500 at night or 5000 with a box, in-flight seek 1000, flight 100, neutral 250, outdoor 3000 between 12:00 and
-14:00 local), integrates the model with RK4 (dt = 0.1 h on an integer step grid) after a shared 40-day warm-up on
-the habitual "typical day", reads out CBTmins, and reports **days to adapt** = time from arrival to the first
-CBTmin that starts a run of three within ±1 h of the model's own entrained CBTmin on destination time.
-`estimatedDaysWithoutPlan` simulates the typical day on the clock of wherever the traveller is (home, layover
-city, destination) with 100 lux in flight.
+The validator converts advice to lux(t) using §4.4.
+Sleep uses 0 lux; avoidance uses 10 lux, or 5 in flight.
+Seek windows use 3000 lux by day, 500 at night, 5000 with a light box, or 1000 in flight.
+Neutral waking uses 250 lux, except outdoor lunch from 12:00–14:00 local at 3000 lux. Neutral flight uses 100 lux.
+
+Both simulations start with a shared 40-day warm-up on habitual days.
+The model uses RK4 with dt = 0.1 h on an integer step grid.
+**Days to adapt** counts from arrival to the first of three consecutive CBTmins within ±1 h of the model's entrained destination CBTmin.
+`estimatedDaysWithoutPlan` follows typical days on home, layover and destination clocks, with 100 lux in flight.
 
 * **Model choice.** Estimates use **Hannay19** (Hannay, Booth & Forger 2019) by default: it is the Tier-2 model
   in §13.7, numerically less stiff than Forger99 at dt = 0.1 h, and gives finite no-plan values for all fixtures.
   Forger99 is available via `EstimateModel.Forger99` and is tested against the same fixtures.
-* **Not adapted within the horizon** (`arr + 21 days`) is reported as 21.0 rather than infinity, so plans stay
-  JSON-serialisable.
+* If adjustment exceeds the horizon (`arr + 21 days`), the validator reports 21.0 to keep the result JSON-serialisable.
 * Layovers are simulated on the ground at the layover city's clock (the reference treats the whole journey as
   "in flight").
 
@@ -245,8 +242,8 @@ city, destination) with 100 lux in flight.
 
 ## 8. References
 
-Full list with DOIs in [`science.md` §16](science.md#16-references-dois-verified-against-pubmedpublisher-records-during-this-research-unless-marked).
-Key sources for the implemented rules:
+[`science.md` §16](science.md#16-references-dois-verified-against-pubmedpublisher-records-during-this-research-unless-marked) lists the references with DOIs.
+The implemented rules draw on these sources:
 
 * Khalsa SBS et al. *J Physiol* 2003;549:945 — light PRC (seek/avoid windows).
 * St Hilaire MA et al. *J Physiol* 2012;590:3035 — 1 h light PRC.

@@ -1,13 +1,13 @@
 # The planning engine
 
-The planner turns one trip and one user profile into a complete jet lag plan: what to do about light, sleep,
-naps, caffeine and (if the user opted in) melatonin, from a few days before departure until the body clock has
-caught up. It is plain Kotlin in `:core:circadian`, with no Android code, no I/O and no clock reads. The same
-trip and profile always give the same plan.
+The planner builds a light, sleep, nap and caffeine schedule from one trip and profile.
+It adds melatonin only after opt-in. The schedule covers pre-departure adjustment through estimated adaptation.
+The `:core:circadian` module uses plain Kotlin without Android code, input/output operations or clock reads.
+Identical trip and profile inputs produce identical advice.
 
-This page covers how the engine is wired into the app and what each stage does. The rules themselves (every
-threshold, every formula, every known limitation) are in [algorithm.md](algorithm.md). The research behind them
-is in [science.md](science.md).
+[algorithm.md](algorithm.md) defines the engine's thresholds, formulas and limitations.
+[science.md](science.md) gives the supporting research.
+The sections below describe its app integration and processing stages.
 
 ## Where it sits
 
@@ -16,7 +16,7 @@ The app talks to the planner through one interface,
 `AppGraph` binds it to
 [`DefaultJetLagPlanner`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/DefaultJetLagPlanner.kt).
 Only [`DefaultPlanRepository`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/plan/DefaultPlanRepository.kt)
-calls it. Screens, widgets and notifications all read plans from that repository, never from the planner.
+calls it. Screens, widgets and notifications read plans through that repository.
 
 ```mermaid
 sequenceDiagram
@@ -38,9 +38,9 @@ sequenceDiagram
     end
 ```
 
-The cache key is the whole trip and the whole profile, so any change to either gives a new plan. `now` is only
-recorded as the plan's `generatedAt` time and doesn't change the advice. See
-[architecture.md](architecture.md#the-plan-cache) for how the cache shares and limits work.
+The cache key contains the complete trip and profile. Changing either creates a new plan.
+The `now` argument sets `generatedAt` without affecting advice.
+[architecture.md](architecture.md#the-plan-cache) explains shared computations and cache limits.
 
 ## When a plan is recomputed
 
@@ -78,11 +78,10 @@ flowchart TD
     track --> plan["JetLagPlan with stable advice ids"]
 ```
 
-In words: the builder first converts the trip into hours and splits long stopovers into separate segments. It
-then picks a mode, checking in this order. A trip set to "Home time" gets a home-time plan. Otherwise, a trip
-where no segment shifts the clock by 2 hours or more gets no real plan, only flight markers and a few sleep
-nights. Otherwise, a short trip with a return flight within 72 hours (body clock on Auto) gets a home-time plan.
-Every other trip goes through the cycle planner. All three modes end in the same assembly steps.
+The builder converts flights to planner hours and splits long stopovers into segments.
+It checks modes in order: explicit Home time, shifts below two hours, then an Auto return within 72 hours.
+Small shifts produce flight markers and a few sleep nights. Explicit Home time and short Auto trips use home-time schedules.
+Other trips use the cycle planner. All modes share the final assembly stages.
 
 | Stage | Code | What it does | Rules in algorithm.md |
 |---|---|---|---|
@@ -94,18 +93,16 @@ Every other trip goes through the cycle planner. All three modes end in the same
 | Calendar days | [`DayBuilder.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/DayBuilder.kt) | Splits the plan into days, each in the zone the user is in that day | [§4](algorithm.md#4-decision-procedure-adapt-mode) |
 | Phase track | [`PhaseTrack.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/engine/PhaseTrack.kt) | The body-clock curve that the dial and the "body 3½ h behind" header read | [§4.2](algorithm.md#42-phase-trajectory) |
 
-Each piece of advice gets an id from `PlanBuilder.stableId`: the first 8 bytes of a SHA-256 hash of the trip id,
-the advice type, the day index and the card's position among cards of the same type that day. The id is
-positional, not a hash of the content. So:
+`PlanBuilder.stableId` hashes the trip id, advice type, day index and same-type position using SHA-256.
+It uses the first eight hash bytes as the advice id.
+Card position determines identity. Content changes affect identity only when they change that position.
 
-- If the plan is computed again with the same inputs, every card gets the same id. That keeps check-ins, snoozes
-  and reminder de-duplication attached to the right card, and lets a second calendar export update events
-  instead of duplicating them.
-- If only a card's time or reason changes, it keeps its id, along with its advice log and its calendar event, as
-  long as it stays on the same day and in the same order among same-type cards (cards are counted in start-time
-  order).
-- If a re-plan adds or removes a card of the same type earlier that day, the later cards of that type shift
-  position. Their ids, and the logs attached to them, then belong to a different card.
+- Recomputing identical inputs preserves every id, check-in, snooze and reminder deduplication record.
+  Re-exporting the calendar can therefore update existing events.
+- Changing only a time or reason preserves identity while the day and same-type position stay unchanged.
+  The advice log and calendar event stay attached. The planner counts same-type cards by start time.
+- Adding or removing an earlier same-type card shifts later positions that day.
+  Their ids and attached logs can then refer to different advice.
 
 ## Body clock choice
 
@@ -119,10 +116,8 @@ The trip editor's "Body clock" setting maps to `Trip.strategyOverride`:
 
 ## Testing the engine
 
-The planner is a port of a Python reference implementation. Its tests compare the Kotlin cycle planner byte for
-byte with reference printouts, check both model ports against published fixtures, and run property tests over
-hundreds of generated itineraries (extreme zones, half-hour offsets, daylight-saving changes). The properties
-include "never throws", "ids are unique and stable" and "conflicting advice never overlaps", such as sleep and a
-light window. The 67 tests in `:core:circadian` run on the JVM in seconds. See
-[algorithm.md §6.1](algorithm.md#61-test-coverage) for the full list and [testing.md](testing.md) for how to
-run them.
+Tests compare this Kotlin port byte for byte with Python reference output.
+They check both model ports against published fixtures and generate hundreds of itineraries across unusual zones and daylight-saving changes.
+Properties require stable unique ids, no exceptions and no conflicting overlaps, such as sleep with light exposure.
+The 67 engine tests run on the JVM in seconds.
+[algorithm.md §6.1](algorithm.md#61-test-coverage) lists coverage; [testing.md](testing.md) gives commands.

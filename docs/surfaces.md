@@ -1,11 +1,15 @@
 # Surfaces: notifications and widgets
 
-Outside the app, the plan appears in three places: one ongoing "Now" notification, short reminders before advice
-starts, and three home-screen widgets (*Two clocks*, *Next up* and *Route globe*). One scheduler controls all of them. It wakes up
-at each advice boundary, reads the current plan, posts at most one reminder and redraws every surface from the
-same plan at the same moment, so right after each refresh they all agree. Between
-refreshes they can drift: a delayed scheduler wake-up (see [The scheduler](#the-scheduler)) leaves them behind
-the app.
+The plan appears outside the app through the ongoing Now notification, advice reminders and three home-screen widgets.
+The widgets are *Two clocks*, *Next up* and *Route globe*.
+
+One scheduler controls them all. At each advice boundary, it reads the current plan, posts at most one reminder and refreshes every surface.
+The surfaces agree after each refresh. A delayed alarm can leave them behind the app between refreshes (see [The scheduler](#the-scheduler)).
+
+- [The scheduler](#the-scheduler) controls alarms and refreshes.
+- [The Now notification](#the-now-notification) shows advice and actions.
+- [Widgets](#widgets) show clocks, advice and routes.
+- [Permissions](#permissions) control reminder delivery.
 
 The code is in `:core:notifications` and `:widget`. The shared contract,
 [`PlanSurface`](../core/data/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/data/PlanSurface.kt), is in
@@ -38,51 +42,39 @@ sequenceDiagram
     Sched->>AM: arm the next transitions
 ```
 
-In words: whenever the plan or the settings change, the scheduler arms alarms for the next few boundaries and
-redraws the surfaces. When an alarm fires, the scheduler does not trust what it planned earlier. It reads the
-current plan again, decides whether a reminder is still correct, redraws everything and arms the next alarms.
+When an alarm fires, the scheduler reads the plan again. It checks whether the reminder still applies, refreshes the surfaces and schedules the next alarms.
 
-A few details matter:
+The scheduler uses these timing rules:
 
-- It arms the next 8 alarm times at most (each may carry several transitions), plus a pending snooze, a
-  15-minute progress tick while a Live Update is showing, (with reminders on) the next change of the Now
-  notification's body-clock header and the widget dial's next refresh (`TransitionPlanner.nextDialRefresh`). The
-  route globe's tick is a separate alarm (see below).
-  Widgets capture the dial's blocks and only move the hand, so the dial needs a refresh of its own at two points:
-  - when a block comes into view (`nextDialEntry`, 15 hours before it starts: the dial's 16 hours of future, less an
-    hour for a clock change). Without it, a block more than 16 hours away would stay off the dial until it starts.
-  - when a moment stops being due (`nextMomentEnd`, a minute after melatonin). A widget captured at the moment
-    features it, and nothing else happens at its end, so it would stay featured until a later alarm.
+- It schedules at most 8 alarm times, each with one or more transitions. It also schedules a pending snooze and 15-minute progress updates during Live Updates.
+  With reminders on, it schedules the next body-clock header change. It also schedules the next widget dial refresh (`TransitionPlanner.nextDialRefresh`).
+  Widgets capture the blocks once and then move only the hand. Two events require a new capture:
+  - `nextDialEntry` refreshes 15 hours before a block starts. This allows an hour for a clock change within the dial's 16-hour future range.
+    Without this refresh, a block outside that range would remain absent until it starts.
+  - `nextMomentEnd` refreshes a minute after melatonin. Without this refresh, the widget would keep highlighting the moment until a later alarm.
 
-  Like the plan's transitions, neither of the dial refreshes fires inside a Sleep or Nap window: the wake-up refreshes
-  everything. The one exception is a moment that starts exactly at bedtime. Its alarm fires and the widget features
-  it, so its end refresh still fires, a minute into the sleep.
-- While a *Route globe* widget is placed, the globe gets its own tick (`TransitionPlanner.nextGlobeRefresh`), apart
-  from the chain above. The globe changes by itself in two ways: the traveller marker moves along a flight, and the
-  day-night line sweeps round. So the tick runs only around the flights: every 15 minutes while one is in the air, and
-  on the hour on the ground, from a day before the first flight departs to a day after the last one lands. Further
-  out, the globe follows the normal boundaries like the other widgets (a trip weeks away arms one alarm, at the
-  window's start). The tick is cosmetic, so it's a non-wakeup `RTC` alarm (`setWindow`, 10 minutes): a sleeping
-  phone isn't woken for it, and it's delivered when the phone next wakes, e.g. when the screen turns on. It re-renders
-  only the *Route globe* widgets (`PlanSurface.refreshGlobe`), with no reminder, and arms the next tick.
+  Dial refreshes skip Sleep and Nap windows because wake-up refreshes everything.
+  A moment starting exactly at bedtime is an exception. Its alarm highlights it, so its end refresh runs one minute into sleep.
+- A placed *Route globe* widget gets a separate alarm (`TransitionPlanner.nextGlobeRefresh`). It updates the traveller marker and the day-night boundary.
+  It runs every 15 minutes in flight and hourly on the ground.
+  This schedule starts a day before the first departure and ends a day after the last landing.
+  Outside that range, the globe follows normal plan boundaries. A distant trip schedules one alarm at the range's start.
+  The globe uses a non-wakeup `RTC` alarm with a 10-minute `setWindow`. The phone delivers it when it next wakes, such as when the screen turns on.
+  It refreshes only globe widgets through `PlanSurface.refreshGlobe`, posts no reminder and schedules the next update.
 - When the user allows exact alarms (`SCHEDULE_EXACT_ALARM`), it uses `setExactAndAllowWhileIdle`. Without that
   permission, it arms each instant twice:
   - a 10-minute `setWindow`, which keeps reminders within 10 minutes while the phone is awake. It isn't
     allow-while-idle, so Doze holds it until a maintenance window, which can be hours away overnight.
-  - a backstop with `setAndAllowWhileIdle` for the same instant (request code `200 + slot`). Doze lets it through,
-    but it is inexact: the platform usually delivers it within an hour of the instant. That is best effort, not a
-    bound: Battery Saver, app standby buckets and the allow-while-idle quota can delay it further.
+  - a second alarm with `setAndAllowWhileIdle` for the same instant (request code `200 + slot`). Doze allows this inexact alarm through, usually within an hour.
+    Android gives no upper time limit. Battery Saver, app standby buckets and the allow-while-idle quota can delay it further.
 
   Inexact alarms can arrive late and out of order (an instant's silent Start before the reminder due 15 minutes
   earlier). [`HandledAlarms`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/HandledAlarms.kt)
-  persists the instants the current schedule armed (plus any that were due but not delivered yet when it was
-  re-armed) and the ones it handled. Each delivery claims every armed instant that
-  is due, reminds from all of them, then re-arms the chain, which replaces the rest. A delivery of an instant
-  already claimed (the other half of the pair) refreshes and re-arms without reminding again. Handled instants later than
-  the current time are forgotten at the next re-arm, so a clock that was set ahead and then corrected doesn't swallow
-  reminders. In Doze, reminders
-  usually arrive within about an hour instead of waiting for the next maintenance window. Granting exact access
-  cancels the backstops on the next re-arm.
+  stores scheduled instants, overdue undelivered instants from earlier schedules, and handled instants.
+  Each delivery claims all due instants, selects reminders from them and replaces the remaining schedule.
+  A duplicate delivery refreshes and reschedules without repeating a reminder.
+  Rescheduling clears handled instants later than the current time. This preserves reminders after the user corrects a clock that was ahead.
+  In Doze, reminders usually arrive within about an hour. Granting exact access cancels the second alarms when the scheduler next reschedules.
 - Reminders show absolute times ("until 16:30"), so a late alarm never shows something false.
   [`ReminderSelector`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/schedule/ReminderSelector.kt)
   drops any reminder that is no longer true when it fires.
@@ -130,22 +122,21 @@ listens for these broadcasts and re-syncs everything:
 ## The Now notification
 
 [`NowNotificationSurface`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationSurface.kt)
-shows one quiet, ongoing notification with what to do right now and until when. It replaces many separate
-pings.
+shows one quiet, ongoing notification with the current advice and its end time.
 
 ![The Now notification, expanded, in the shade on a Pixel 7 Pro: header "Clockblock · Body 3 h ahead"; a sun glyph beside "See some light" and "until 11:00 · 19:00 in London"; a pale yellow progress bar with "3h 21m" left; "Next: Avoid caffeine at 12:00 · 20:00 in London" with a small glyph; and the Done, Can't do this and Snooze 15 min buttons](../user-guide/images/notification.png)
 
-The notification is a `DecoratedCustomViewStyle` with our own content. The system still draws the icon, the header
-with the body clock, the expand button and the actions. The content is a Remote Compose document (#49) where the
-phone can play one, and the classic `RemoteViews` layouts otherwise.
+The notification uses `DecoratedCustomViewStyle` with app content. Android draws the icon, body-clock header, expand button and actions.
+Supported phones play a Remote Compose document (#49). Other phones use classic `RemoteViews` layouts.
 
-**Remote Compose content.** `:widget` owns the documents (they share the widgets' state, texts, fitting and
-glyphs) and contributes them through Metro as
+### Remote Compose content
+
+`:widget` owns the documents and shares widget state, text, fitting and glyphs. It contributes them through Metro as
 [`NowNotificationContent`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationContent.kt)
 ([`RemoteNowNotificationContent`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/RemoteNowNotificationContent.kt),
-documents in [`NowNotificationRemote.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/NowNotificationRemote.kt)),
-so `:core:notifications` doesn't depend on `:widget`. They are built from the notification's own `NowState`
-(`WidgetStateMapper.forNowNotification`), so they name the same advice as the actions under them:
+documents in [`NowNotificationRemote.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/NowNotificationRemote.kt)).
+This keeps `:core:notifications` independent of `:widget`.
+`WidgetStateMapper.forNowNotification` builds documents from the notification's `NowState`, keeping advice and actions consistent:
 
 | | Collapsed (48 dp) | Expanded (wraps its content, at most 252 dp) |
 |---|---|---|
@@ -153,26 +144,25 @@ so `:core:notifications` doesn't depend on `:widget`. They are built from the no
 | Progress | — | A bar from the block's start to its end, and the time left ("1h 22m") |
 | Next | — | "Next: Avoid light at 23:30 · 15:30 in Los Angeles", with its glyph |
 
-The until line keeps the other zone's time in every form it tries (shorter place names, then the airport code)
-and is left out when none fits. Once the headline is logged, it starts with the outcome ("✓ Done · until 19:00 ·
-…"). In a gap, the label is "Free time", the line gives when it ends, and the next row only names the next block
-("Next: Sleep"), since the line above already has its times. There is no Done button in the document: the
-notification's actions do that, for accessibility and automation. The bar and the countdown run on the shade's
-clock, so they need no re-post. Every colour is a light and dark pair (`themedColor`), and the player draws the
-pair for the shade's theme: when night mode flips, SystemUI re-applies the views and the document repaints, with no
-re-post. There is no Night-safe look. The main region carries a spoken description (the block with both zones'
-times, the outcome, the time left and what's next) and opens the plan, like the content intent. The title and text
-are still set, so the shade's accessibility, the ticker, wearables and automation get text.
+The until line always includes the other zone's time. It tries shorter place names, then the airport code, and disappears if none fits.
+A logged headline starts with its outcome: "✓ Done · until 19:00 · …".
+In a gap, the label says "Free time" and gives its end time. The next row says "Next: Sleep" without repeating the times.
 
-**Fallback.** `NowNotificationSurface` posts the classic content instead, with nothing for the user to set, when
-the platform player reports no supported document version, when rendering or building throws, when `notify`
-rejects the notification, or when SystemUI drops it. SystemUI inflates notifications after `notify` returns and
-cancels one it can't inflate without telling the app (the platform documents an `IllegalArgumentException` for
-`DrawInstructions` nested in another `RemoteViews`, which is what a notification template does; 37.0 and 37.1
-don't enforce it there). So 5 seconds after posting a Remote Compose notification the surface checks that it is
-still showing. If it is gone and nothing was posted since, it records the system build (`Build.FINGERPRINT`) and
-posts the classic one; Remote Compose stays off until the system is updated. A user who swipes the notification away
-within those 5 seconds turns it off the same way.
+The notification actions handle Done for accessibility and automation. The document has no Done button.
+The bar and countdown use the notification panel's clock without reposting.
+Each `themedColor` has light and dark values. SystemUI reapplies the views after a theme change, so the document repaints without reposting.
+Notifications have no Night-safe theme.
+
+The main region opens the plan and supplies a spoken description. It includes both zones' times, the outcome, time left and next advice.
+The notification also sets its title and text for accessibility, the ticker, wearables and automation.
+
+`NowNotificationSurface` automatically uses classic content if the player supports no document version, building or rendering throws, `notify` rejects it, or SystemUI removes it.
+
+SystemUI inflates notifications after `notify` returns. It can silently cancel a notification that fails to inflate.
+The platform documents an `IllegalArgumentException` for `DrawInstructions` inside another `RemoteViews`, as notification templates require. Versions 37.0 and 37.1 do not enforce this restriction there.
+
+Five seconds after posting, the surface checks whether the notification remains visible. If it disappeared without a later post, the surface records `Build.FINGERPRINT` and posts classic content.
+Remote Compose stays disabled until a system update. Swiping away the notification within those five seconds also disables it.
 
 **Classic content**
 ([`NowNotificationViews`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NowNotificationViews.kt),
@@ -187,33 +177,29 @@ layouts `notif_now_collapsed` / `notif_now_expanded`) reads top to bottom:
 | Next | — | "Next: Avoid light at 23:30 · 15:30 Los Angeles" |
 | Tip | — | The headline's tip, in italics |
 
-"until" is always the headline's **own** end, the same time the app's Now card and the widgets show (#43).
-Blocks that overlap it are never folded into that time: ones already running are listed under "Also now" with
-their own end, and the one that starts next gets the "Next" line, even when it starts before the headline ends.
-In a gap, the title is "Nothing right now" and the line says what's next; the expanded view shows a neutral clock
-chip and neither view has a bar. The collapsed view shows local times only; in the expanded one every time
-(until, also, next) is followed by the other zone as a short tail, kept on one line with no-break spaces.
+The until time belongs to the headline, matching the app's Now card and widgets (#43).
+"Also now" lists overlapping active blocks with their own end times. "Next" shows the next block, including one that starts before the headline ends.
 
-The small icon (status bar, AOD, the header on older shades) is always the app's Horizon mark, tinted with the
-headline's accent (`nowNotificationAccent`), so you can tell it's Clockblock at a glance; newer shades show the app
-icon there instead. The advice glyph lives in the body: in the custom content, or the large icon on the lock-screen
-version, reminders and the Live Update. In the classic content, chips and bars use the design system's advice
-colours, light and dark (copied into
-[`NotificationPalette`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationPalette.kt),
-kept in step by `NotificationPaletteTest`), and the shade picks the pair for its theme. Text uses the shade's own
-notification text appearances, so it follows dark mode and the font size. Every glyph sits next to its text
-label and is hidden from TalkBack, which reads the labels; the bar is hidden too, since "until" says the same.
+In a gap, the title says "Nothing right now" and the line names the next advice.
+The expanded view shows a neutral clock chip. Neither view shows a progress bar.
+The collapsed view uses local times only. The expanded view adds the other zone after every time, using no-break spaces to keep it together.
 
-The classic bar only moves when the notification is rebuilt. Plan boundaries rebuild it anyway; in between, an
-inexact, **non-wakeup** alarm (`AlarmManager.RTC`, every 5 minutes, `NotificationIntents.progressTick`) re-renders
-it. A sleeping phone isn't woken for it: the alarm is delivered the next time the phone wakes up, so the bar (and
-an "Also now" line that changed inside a sleep window) is current when you look. The tick is cancelled whenever the
-Now notification is hidden, its channel is blocked in system settings, it shows Remote Compose content (whose bar
-moves by itself), or it becomes the travel-day Live Update. There is no `setWhen` time: the shade would show the
-device's zone, not the plan's.
+The small icon uses the app's Horizon mark with the headline accent (`nowNotificationAccent`).
+It appears in the status bar, always-on display and older notification headers. Newer headers show the app icon.
+The advice glyph appears in custom content or as the large icon on lock-screen notifications, reminders and Live Updates.
+Classic chips and bars use the design system's light and dark advice colours from
+[`NotificationPalette`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/NotificationPalette.kt).
+`NotificationPaletteTest` checks that the palettes agree. Android selects colours for the notification panel's theme.
+System notification text styles follow dark mode and font size.
+TalkBack reads text labels and skips adjacent glyphs. It skips the bar because the until time gives the same information.
 
-The redacted lock-screen version uses the standard big-text template with the same text (headline, "until"
-line, "Also now", "Next", tip) and the advice chip as its large icon, whichever content the full version has.
+The classic bar moves when the notification rebuilds at plan boundaries or on a five-minute progress alarm (`NotificationIntents.progressTick`).
+This inexact, non-wakeup `AlarmManager.RTC` alarm waits until a sleeping phone wakes. It updates the bar and any "Also now" changes during sleep.
+The scheduler cancels it when the notification is hidden, its channel is blocked, Remote Compose supplies content, or a Live Update replaces it.
+The notification omits `setWhen` because Android would display that time in the device's zone.
+
+The lock-screen version always uses the standard big-text template and an advice chip as its large icon.
+It formats the headline, until time, "Also now", "Next" and tip, subject to the [redaction rules](#lock-screen-redaction).
 
 It is hidden when reminders are off, notifications are blocked, no plan is in progress, or the user snoozed it.
 [`NowState.kt`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/now/NowState.kt)
@@ -236,46 +222,48 @@ included. Reminders get a set of actions that depends on their kind (`Notificati
 | `Moment` (melatonin) | Done, "Snooze 15 min" |
 | `WakeUp` | none |
 
-`AdviceActionReceiver` logs the action and refreshes the surfaces. Snoozing hides the Now notification for 15
-minutes, then posts a `Snoozed` reminder, but only if the advice is still running then
-(`ReminderSelector.snoozed` returns `null` once the block has ended; for melatonin, once its reminder window has
-passed). The snooze state is kept in
+`AdviceActionReceiver` logs the action and refreshes the surfaces. Snoozing hides the Now notification for 15 minutes.
+It then posts a `Snoozed` reminder only if the advice still applies.
+`ReminderSelector.snoozed` returns `null` after the block ends, or after melatonin's reminder window passes.
+The snooze state lives in
 [`SnoozeStore`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/SnoozeStore.kt).
 
-Every time in a notification (Now, the travel-day Live Update and its status chip, reminders) is in the plan's
-local zone, never the device's: `JetLagPlan.localZoneAt` in
+All notification times use the plan's local zone, including reminders, Live Updates and status chips. `JetLagPlan.localZoneAt` in
 [`PlanZones.kt`](../core/circadian/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/circadian/PlanZones.kt)
-returns the zone of the plan day containing the instant. The travel day keeps the departure zone until the last
-landing, then switches to the next day's zone, even after an evening arrival whose travel day runs to midnight.
-Before the plan it returns the first day's zone, after it the last day's. The secondary-zone line uses `secondaryZoneFor`:
-the destination, or home once local time is the destination's, left out when it has the same UTC offset right
-now. The plan screen (`PlanMoment`, the rail) and the widgets (`WidgetStateMapper`) call the same two functions,
-so all three surfaces agree on what "local" means even when the phone's zone is elsewhere. `NotificationClock`
-has no zone on purpose.
+returns the zone of the plan day containing the instant.
+The travel day keeps the departure zone until the last landing, then uses the next day's zone.
+This also applies after an evening arrival when the travel day continues until midnight.
+Outside the plan, it uses the first or last day's zone.
 
-The notification's subtext (the header line) shows the body-clock offset relative to that local zone, rounded to
-the half hour: "Body 3½ h behind", "Body 2 h ahead", or "Body clock in sync" under 30 minutes. It shows the offset
-rather than a body time of day, which would change every minute. The offset itself drifts along the plan's phase
-trajectory, so the scheduler arms one extra alarm at the next instant the rounded reading changes
-(`BodyClockHeader.nextChange`, scanned in 10-minute steps up to 36 hours ahead, with the local zone read at each
-step, so moving to the next plan day's zone counts as a change) and re-renders the notification there ([`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt)).
+`secondaryZoneFor` selects the destination, or home once local time uses the destination's zone.
+It omits the secondary zone when the current UTC offsets match.
+The plan screen (`PlanMoment` and the rail) and widgets (`WidgetStateMapper`) use the same functions. `NotificationClock` has no zone.
+
+The header shows the body-clock offset from local time, rounded to half an hour.
+Examples include "Body 3½ h behind", "Body 2 h ahead" and "Body clock in sync" for offsets under 30 minutes.
+An offset avoids the minute-by-minute updates a body time would need.
+
+`BodyClockHeader.nextChange` scans 36 hours ahead in 10-minute steps. It reads the local zone at each step, including plan-day zone changes.
+The scheduler adds an alarm when the rounded offset next changes and refreshes the header through
+[`NotificationTextFormatter.bodyClock`](../core/notifications/src/main/kotlin/dev/sebastiano/clockblocker/opus/core/notifications/text/NotificationTextFormatter.kt).
 
 ### Lock-screen redaction
 
-Every Now notification and reminder carries a public version, built by the same formatter with `redact = true`:
-no flight number, no route, no secondary-zone line, tips or "also", melatonin shown as "Plan step" with a neutral
-icon, and moments as "Unlock to see details". Times and the kind of block stay. The public version has no
-actions, because their set alone can name the advice (Done with Snooze is melatonin). It is always the plain
-big-text template, never the custom views (they would carry the private text), with the advice chip as its large
-icon. When the user turns on
-`AppSettings.hideLockScreenDetails` ("Hide details on the lock screen"), the notification's visibility becomes
-`VISIBILITY_PRIVATE`, so Android shows the public version on a secure lock screen whenever the user's system
-setting hides sensitive content. With the setting off (the default), visibility stays public and the full text
-shows, as before. While the setting is on, `AdviceAlarmScheduler` checks on every plan or settings emission (so
-also on the first one after a restart) for a reminder on screen without a public version. Under the same lock as
-reminder posts, `ReminderNotifier.redactShowing` rebuilds it redacted without alerting again, keeping its timeout.
-A reminder left over from an earlier process is withdrawn instead, because what it said is no longer known.
-Lock-screen widgets honour the same setting (see [Lock-screen widgets](#lock-screen-widgets)).
+Every Now notification and reminder includes a public version from the same formatter with `redact = true`.
+It removes flight numbers, routes, secondary-zone times, tips and "Also now".
+It labels melatonin "Plan step" with a neutral icon and moments "Unlock to see details". Times and block kinds remain.
+
+The public version has no actions because action combinations can identify advice: Done with Snooze identifies melatonin.
+It uses the standard big-text template and an advice chip as its large icon. Custom views contain private text.
+
+"Hide details on the lock screen" (`AppSettings.hideLockScreenDetails`) sets visibility to `VISIBILITY_PRIVATE`.
+Android then shows the public version on secure lock screens when system settings hide sensitive content.
+The setting defaults to off, with public visibility and full text.
+
+While enabled, `AdviceAlarmScheduler` checks each plan or settings emission for a visible reminder without a public version. This includes the first emission after restart.
+`ReminderNotifier.redactShowing` rebuilds it under the reminder-posting lock, preserving its timeout without another alert.
+It withdraws reminders from earlier processes because their original text is unknown.
+[Lock-screen widgets](#lock-screen-widgets) use the same setting.
 
 ### Live Update on travel days
 
@@ -285,17 +273,19 @@ The Now notification becomes a Live Update during the travel day. It uses
 defines the travel window as 3 hours before the first departure to 2 hours after the last arrival.
 It never has custom content, Remote Compose or classic: Android only promotes notifications without custom views.
 
-Android's rules say a Live Update must be ongoing, started by the user and time-sensitive. So the app shows it
-only inside the travel window and only while a real plan window is active, not just a flight marker. At other
-times the normal ongoing notification is used. Both use the same notification id, so the change happens in
-place.
+Android requires Live Updates to be ongoing, user-started and time-sensitive.
+The app shows one only inside the travel window while an advice window is active. A flight marker alone does not qualify.
+Otherwise, the app shows the normal ongoing notification. Both use the same notification ID, so the notification changes in place.
 
-Its subtext adds the route and the phase of the day before the body-clock offset:
-"LHR → HND · Departs 11:30 · Body 8 h behind", then "Next flight HH:MM" between legs, "Lands HH:MM" in the air and
-"Landed" after the last arrival (`NotificationTextFormatter.travelSubText`). Phases use absolute times, not
-countdowns, because no refresh fires inside sleep windows to keep a countdown current. The route comes from the
-trip's origin and destination codes (`TripRoute`, looked up through `TripRepository`) and is dropped from the
-public version.
+`NotificationTextFormatter.travelSubText` adds the route and travel phase before the body-clock offset:
+
+- Before departure: "LHR → HND · Departs 11:30 · Body 8 h behind".
+- Between legs: "Next flight HH:MM".
+- In flight: "Lands HH:MM".
+- After the last arrival: "Landed".
+
+Phases use absolute times because sleep windows prevent countdown refreshes.
+`TripRepository` supplies the origin and destination codes through `TripRoute`. The public version omits the route.
 
 ### Channels
 
@@ -318,43 +308,42 @@ notification.
 
 ![Two clocks widgets: the 2×2 Two skies dial in light, dark and night-safe, the empty state "No trip, Plan one", and the 2×2 landscape layout with the Two strips beside the now card and Done](screenshots/widgets/remote_two_clocks.png)
 
-The *Two clocks* widget draws the app's own dial from the shared spec
-([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)): the *Two skies* dial in the
-2×2, 2×3 and 4×3 layouts, and the *Two strips* in the 1×1, the 2×1 and 4×1 rows and the 2×2 landscape layout,
-where a round dial would get too small to read. Both show local time on the outer sky (or the top strip) and the
-body clock on the inner one, with the needle (or the now line) at local time. With no trip, every size says "No
-trip" and "Plan one".
+The *Two clocks* widget follows the shared [dial spec](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration).
+It uses *Two skies* in 2×2, 2×3 and 4×3 layouts.
+It uses *Two strips* in 1×1, 2×1, 4×1 and landscape 2×2 layouts, where a round dial would be too small.
+Local time appears on the outer sky or top strip. Body time appears on the inner sky or bottom strip.
+The needle or now line follows local time. Without a trip, every size says "No trip" and "Plan one".
 
-[`WidgetDial`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDial.kt) lays the spec out
-at capture time for the dial's region at the layout's minimum size, and
+[`WidgetDial`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDial.kt) lays out the dial at the layout's minimum size.
 [`drawDialSpec`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/RemoteDialSpec.kt) replays it
-into the Remote Compose canvas, scaled to the real size. The level of detail (glance, simple, full) follows that
-region in dp, the same rule the app uses: most widget dials are glances (the two skies, the needle and both
-times), and the wide rows are simple (with the bars' labels and the jet lag). The dial uses the widget's face
-colour and the system font, since Remote Compose can't load the app's font. Text on the dial is never smaller than
-7 dp: the AM/PM marker holds that size and the digits give way. Labels (the ring and bar labels, the advice's name,
-the jet lag) are at least 10 sp and grow with the font scale. A label its ring or bar can't hold at that size is
-left out rather than shrunk; the strips still pair the local time with the top bar and the body time with the
-bottom one, and the jet lag pill goes before the body time does. The smaller readouts (the body time, "in sync",
-AM/PM) keep the same floor. When they don't fit at it, "in sync" goes first, then the body time's AM/PM, then the
-local time's; the body time itself always stays. In 12-hour time the local time is laid out for
-its widest reading ("10:00", and the wider of the locale's two markers), so the digits and marker the launcher writes
-never run into anything. The markers are the locale's own ("PM", "pm", "p. m.", "오후"), the same as in the app.
+into the Remote Compose canvas at the actual size.
+The region's size in dp sets the detail level: glance, simple or full, using the app's rules.
+Most widget dials use glance detail: both skies, the needle and both times. Wide rows use simple detail, adding bar labels and jet lag.
 
-The launcher's clock keeps the dial live between captures: the needle turns (or the now line slides), and both
-times are written from the launcher's clock. Labels that stepped aside for the needle stay put until the next
-capture, at the next advice boundary. The wash over the part of the current block that has passed is left out,
-since it can't follow the needle. The body ring is the simple one unless the widget's options ask for the precise
-one (see [Widget options](#widget-options)).
+The dial uses the widget face colour and system font. Remote Compose cannot load the app's font.
+Dial text stays at least 7 dp tall. The AM/PM marker keeps that size while the digits shrink.
+Ring labels, bar labels, advice names and jet lag stay at least 10 sp and follow font scale.
+Labels disappear if they cannot fit their ring or bar at that size.
+
+The strips keep local time paired with the top bar and body time with the bottom bar. The jet lag pill disappears before body time.
+Smaller readouts use the same minimum: body time, "in sync" and AM/PM.
+When space runs out, "in sync" disappears first, followed by body AM/PM, then local AM/PM. Body time remains.
+The 12-hour layout reserves room for "10:00" and the wider locale marker to prevent overlap.
+Markers match the app's locale: "PM", "pm", "p. m." or "오후".
+
+The launcher updates the needle or now line and both times between captures.
+Labels moved to avoid the needle keep their positions until the next capture at an advice boundary.
+The widget omits elapsed-block shading because it cannot follow the needle.
+The body ring defaults to Simple; [widget options](#widget-options) can select Precise.
 
 ![The widget dial next to the app dial at the same state: Two skies at 96, 176 and 290 dp and Two strips at 110×80 and 250×56, app first in each pair, light then dark](screenshots/widgets/remote_dial_vs_app.png)
 
-Remote Compose has a few gaps, and the widget falls back:
+The widget handles Remote Compose limits in three ways:
 
-- No shaders from Kotlin: the sky gradients are drawn as short segments of constant colour.
-- No letter spacing: tracked and curved text is set glyph by glyph (curved text turns per glyph rather than using
-  `drawTextOnCircle`, which can't be checked on a real launcher yet).
-- Four typeface styles only: weights round to regular or bold, so the body time is regular italic.
+- Kotlin cannot supply shaders, so the widget draws sky gradients as short, constant-colour segments.
+- Remote Compose has no letter-spacing setting, so the widget places spaced and curved text glyph by glyph.
+  Each curved glyph rotates separately. `drawTextOnCircle` remains unverified on a real launcher.
+- Remote Compose supports four typeface styles. Weights round to regular or bold, and body time uses regular italic.
 
 ![Next up widgets: 4×1 rows with Done (the label leaves no room for the countdown at the row's minimum size), 2×1 "Free time" in every theme, 1×1 tiles and the empty state](screenshots/widgets/remote_next_up.png)
 
@@ -364,19 +353,19 @@ block's last hour. When the plan has no advice left, it shows "Clockblocked" (th
 
 ![Route globe widgets: the 2×2 globe in light (whole upcoming route), dark and night-safe (active leg highlighted with the traveller marker), the empty state, and the 4×2 layout comparing pre-trip against in-flight](screenshots/widgets/remote_route_globe.png)
 
-The *Route globe* widget draws the trip's route across a 3D orthographic day-and-night Earth
-([`WidgetGlobe`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetGlobe.kt), sharing
-`GlobeGeo`, `land_dots.bin` and `SubsolarPoint` with the plan screen's `RouteGlobe`). Before the first departure,
-it shows the whole route (origin → connections → destination) with no active-leg highlight or traveller marker.
-Once the trip is underway, it frames and highlights the active leg (in the air, or the next leg during a connection)
-and draws the traveller marker along the great-circle arc when in flight, with the solar terminator, sunlit ocean
-glow and night-side city lights at the capture instant. While at least one *Route globe* widget is placed
-(`PlanSurface.hasPlacedGlobe`), `AdviceAlarmScheduler` keeps the globe's own tick armed around the flights (see
-[The scheduler](#the-scheduler)), and cancels it when the last one is removed. Dots of the same brightness
-share one `GlobeOp.Dots` bucket (and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`). The dots are thinned
-to one per cell of an equal-area grid on the sphere, sized for the widget, so they crowd towards the horizon as on the
-in-app globe, and each dot's radius goes with the square root of its depth (a disc on the sphere shows that much of
-its area), so they shrink towards the horizon. Dots under 0.4 dp are dropped, and every size bucket stays under 24 KB.
+The *Route globe* widget draws the route on a 3D orthographic Earth with day and night lighting.
+[`WidgetGlobe`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetGlobe.kt) shares `GlobeGeo`, `land_dots.bin` and `SubsolarPoint` with the plan screen's `RouteGlobe`.
+Before departure, it shows the origin, connections and destination without a highlighted leg or traveller marker.
+During travel, it frames and highlights the active flight, or the next leg during a connection.
+In flight, the traveller marker follows the great-circle arc.
+The day-night boundary, ocean lighting and night-side city lights reflect the capture instant.
+
+While `PlanSurface.hasPlacedGlobe` is true, `AdviceAlarmScheduler` schedules [globe updates](#the-scheduler) around flights. Removing the last globe widget cancels them.
+Dots with equal brightness share a `GlobeOp.Dots` bucket and one `RemotePaint` in `RecordingCanvas`'s `PaintTracker`.
+The renderer keeps one dot per cell of a widget-sized, equal-area spherical grid.
+Projection makes dots denser near the horizon, matching the app globe.
+Each dot's radius scales with the square root of its depth, matching the projected area of a disc on the sphere.
+The renderer drops dots under 0.4 dp and keeps each size bucket under 24 KB.
 
 ### Sizes
 
@@ -394,10 +383,13 @@ widgets. The table shows the layout on a typical portrait home screen.
 | 2×3 | Two skies, a now card ("Tokyo · Day 2", label, times) and Done | The 2×2 stack plus two "Up next" rows, with the route | The route, the globe and the now card |
 | 4×3 | A header strip with the route, Two skies, the now card, Done, two "Up next" rows and the adaptation bar | The 2×3 stack, wider | A header strip with the route, the globe, the now card, two "Up next" rows and the adaptation bar |
 
-Landscape cells are wide and short. There, a 2×1 Next up is a short 4×1 row next to Done: the label, and the
-"until" line with the other zone's time joined on ("until 4:30 PM · 11:30 PM SFO"). A 1×1 and a 2×1 Two clocks
-get the short, wide Two strips with the bars' labels. A 2×2 Two clocks gets the Two strips, the now card and Done
-side by side, a 2×2 Route globe gets the globe and the now card side by side, and a 2×2 Next up gets the 4×2 capsules.
+Landscape layouts use the wider, shorter cells:
+
+- 2×1 Next up uses a short 4×1 row beside Done. Its until line combines both zones: "until 4:30 PM · 11:30 PM SFO".
+- 1×1 and 2×1 Two clocks use short, wide Two strips with bar labels.
+- 2×2 Two clocks places Two strips, the now card and Done side by side.
+- 2×2 Route globe places the globe and now card side by side.
+- 2×2 Next up uses the 4×2 capsules.
 
 [`WidgetSizes`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetSizes.kt) lists every
 layout with its minimum size in dp. The launcher plays the layout whose minimum is closest to the widget's size
@@ -420,18 +412,16 @@ dp.
 
 ### Labels never clip
 
-No label is cut off or ends in "…" at any size from 57×51 dp (a 1×1 cell) up, at font scales up to 1.3×. All three
-widgets declare that size as their smallest (`minResizeWidth` / `minResizeHeight`), so a launcher can't shrink one
-below it. The launcher can't measure text, so
-[`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) decides at capture
-time what each layout shows, measuring the text the way the player draws it
-([`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt)). It fits each
-layout at the smallest size the launcher can give it: its minimum less 1 dp, because the launcher rounds the
-widget's size up before it compares. The launcher only ever stretches a layout, so text that fits there fits at
-every larger size. The fit depends on the font scale, the display density and Bold text (which makes every glyph
-wider, and which the captured text bakes in), so `WidgetUpdater` captures the widgets again when any of them
-changes, as it does for a light/dark switch. Android sends no broadcast for these changes,
-so if the app isn't running at the time, the next widget update or advice boundary re-renders every widget.
+Labels remain whole from 57×51 dp upward, at font scales through 1.3×.
+All widgets declare this minimum through `minResizeWidth` and `minResizeHeight`.
+[`LabelFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/LabelFit.kt) chooses visible content at capture time because the launcher cannot measure text.
+It uses [`TextFit`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/text/TextFit.kt) to match the player's text measurements.
+
+Each layout fits at its minimum minus 1 dp, accounting for the launcher's size rounding.
+The launcher stretches layouts, so text that fits this minimum fits larger sizes too.
+Font scale, display density and Bold text affect fitting. Captured text includes Bold text's wider glyphs.
+`WidgetUpdater` captures widgets again when these settings or the light/dark theme change.
+Android sends no broadcast for the text and density changes. If the app is stopped, the next widget update or advice boundary refreshes every widget.
 
 - Text shrinks down to a floor: 13 sp for the label, 11 sp for the "until" line, 10 sp for the other zone's time
   and for Done.
@@ -456,38 +446,43 @@ so if the app isn't running at the time, the next widget update or advice bounda
 - The 1×1 Next up shows only the label, never the other zone. Its label may shrink until it is 7 dp tall on
   screen (6 sp at 1.3×), so long labels fit a 57 dp cell. The adapted state says "Adapted" there: "Clockblocked" is
   one long word that would shrink well below the other labels. Screen readers still hear "Clockblocked".
-- In the 2×2 and 2×3 stacks and the 1×1, the countdown is sized for the widest text it shows before the next
-  refresh: "2h 59m" with 2 hours left, not "23h 59m" (the rows keep room for "23h 59m"). Beside the stack's glyph it
-  shrinks to 12 sp and drops its space ("2h59m") before it goes, so at the default font size a 2×3 shows it for any
-  block under 10 hours. The 1×1 shows "2h59m" only where it fits at 8 sp; at the 57 dp minimum that is the block's
-  last hour ("59m").
+- The 2×2, 2×3 and 1×1 countdowns reserve the widest reading before the next refresh, such as "2h 59m" with two hours left.
+  Rows always reserve room for "23h 59m".
+  Beside a stack's glyph, the countdown shrinks to 12 sp and removes its space ("2h59m") before disappearing.
+  At default font size, a 2×3 shows it for blocks under 10 hours.
+  The 1×1 shows it only where it fits at 8 sp. At the 57 dp minimum, this means the last hour ("59m").
 
 [`WidgetLabelFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetLabelFitTest.kt)
-checks every label in every layout at that size, at 0.85×, 1× and 1.3×, with 12 h times, the four longest
-city names in the bundled places list, and two longer fixed names that only fit when shortened. It runs at five densities, from mdpi to xxxhdpi, because text rounds to
-whole pixels differently on each. It also checks that the "until" line never drops, that the other zone's time
-drops only at 1.3×, that "Up next" never keeps a row the now block needs, and that each docs cell gets a layout no
-larger than itself. The `remote_labels_*` goldens show every real label, and the `remote_minimums_*` goldens show
-each layout at its minimum size with the longest texts.
+checks every label and layout at minimum size, with 0.85×, 1× and 1.3× font scales and 12-hour times.
+It uses the four longest bundled city names and two longer names that require shortening.
+Five densities, from mdpi to xxxhdpi, cover different whole-pixel rounding.
+The test checks that the until line remains and the other zone disappears only at 1.3×.
+It also checks that "Up next" yields space to current advice and each documented cell receives a layout that fits.
+The `remote_labels_*` goldens show every real label. The `remote_minimums_*` goldens show minimum-size layouts with the longest text.
 
 Text on the dial follows the same rule.
 [`WidgetDialFitTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialFitTest.kt)
-lays out the dial of every Two clocks layout at its minimum and checks that each piece of text stays inside its
-region, overlaps no other text and is at least 7 dp tall, that every label and readout is at least 10 sp, that
-ring and bar labels sit inside their ring or bar, and that the body time is always there (unless in sync). It runs at mdpi, xhdpi and xxhdpi, at 1× and 1.3×, in
-12 h and 24 h, at several hours of the day, for each demo plan, on the home screen and redacted. It also checks the
-level each layout gets, that the needle and both clocks are always there, and that a redacted dial names no place.
+checks every Two clocks dial at its minimum size. Text must stay within its region, avoid other text and remain at least 7 dp tall.
+Labels and readouts must stay at least 10 sp. Ring and bar labels must fit inside their ring or bar.
+Body time must remain unless the clocks are in sync.
+The test covers mdpi, xhdpi and xxhdpi densities, 1× and 1.3× font scales, and 12-hour and 24-hour formats.
+It covers several hours, every demo plan, home-screen widgets and redacted widgets.
+It also checks detail levels, the needle, both clocks and the absence of place names on redacted dials.
 [`WidgetDialContrastTest`](../widget/src/test/kotlin/dev/sebastiano/clockblocker/opus/widget/rc/WidgetDialContrastTest.kt)
 checks the dial's ink against its face and skies in every widget palette.
 
 The route ("LIS → HND") uses the same dot-matrix IATA codes as the app's trip cards
 ([`RouteStrip`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/draw/RouteStrip.kt) draws the
-designsystem's `DotMatrixFont` cells). It shows only where it has room without crowding the times: in the 4×3 Two
-Clocks header strip, next to "Tokyo · Day 2", at the end of the "Up next" title on the 2×3 and 4×3 Next up, and
-at the top of the 2×2, 2×3, 4×2 and 4×3 Route globe layouts. Screen readers read the codes letter by letter.
+designsystem's `DotMatrixFont` cells). It appears where space allows:
 
-Places are named after the trip, so the header and the other-zone times match the route. An SFO trip reads "San
-Francisco · Day 2", not "Los Angeles" (the city of its `America/Los_Angeles` zone).
+- The 4×3 Two clocks header, beside "Tokyo · Day 2".
+- The end of the 2×3 and 4×3 Next up titles.
+- The top of 2×2, 2×3, 4×2 and 4×3 Route globe layouts.
+
+Screen readers read the codes letter by letter.
+
+Place names follow the trip, so the header and secondary times match the route.
+An SFO trip reads "San Francisco · Day 2" even though its zone is `America/Los_Angeles`.
 `WidgetStateMapper.placeNames` takes each zone's city from the trip's airports, and the trip's origin and
 destination win over a connection in the same zone. A zone the trip doesn't name, or a trip that can't be read,
 falls back to the zone's city.
@@ -512,17 +507,15 @@ What a screen reader hears matches what the widget shows:
 
 ### Lock-screen widgets
 
-When "Hide details on the lock screen" (`AppSettings.hideLockScreenDetails`) is on, a widget placed on the lock
-screen (host category `WIDGET_CATEGORY_KEYGUARD`) shows the redacted plan, like the notification's public version:
-no route, no city or other-zone times, melatonin shown as "Plan step" with a neutral glyph, no melatonin
-marks on the dial, and on Route globe a calm day-and-night Earth with no route arcs, stops or traveller marker. The
-header keeps only the plan day ("Day 2"), and the adapted state says "Your body is on
-local time". Times and the kind of block stay. Home-screen widgets keep every detail.
-[`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) decides per
-widget id from the host category (a bit mask, so keyguard may come with other bits), and
-`WidgetStateMapper.redact` strips the state. If the settings can't be read in time, lock-screen widgets stay
-redacted. The scheduler refreshes every `PlanSurface` when settings change, so flipping the setting re-renders
-widgets straight away.
+"Hide details on the lock screen" (`AppSettings.hideLockScreenDetails`) redacts widgets hosted in `WIDGET_CATEGORY_KEYGUARD`.
+It removes routes, cities, secondary-zone times and melatonin dial marks. Melatonin becomes "Plan step" with a neutral glyph.
+Route globe shows Earth with day and night lighting, without route arcs, stops or a traveller marker.
+The header keeps "Day 2" and the adapted state says "Your body is on local time".
+Times and block kinds remain. Home-screen widgets keep full details.
+
+[`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt) checks each widget's host category bit mask, including masks with additional bits.
+`WidgetStateMapper.redact` removes private state. Lock-screen widgets remain redacted if settings cannot be read in time.
+Changing settings refreshes every `PlanSurface` immediately.
 
 ![Redacted lock-screen widgets: Two clocks 4×3 and Next up 2×3 in light and dark, with "Day 2" and no route](screenshots/widgets/remote_keyguard.png)
 
@@ -541,17 +534,17 @@ button is a second host action in the Remote Compose document.
 
 ### Themes
 
-Widgets follow the app's theme setting (light, dark or system). When "Night-safe automatically" is on and the
-current advice is avoid light or sleep, they switch to night-safe: true black, dim amber text and buttons, no
-tinted cards, and dimmed advice colours, sky and globe.
+Widgets follow the app's light, dark or system theme setting.
+With "Night-safe automatically" enabled, avoid-light and sleep advice activate Night-safe.
+This theme uses true black, dim amber text and buttons, untinted cards, and dimmed advice colours, sky and globe.
 
 ### Widget options
 
-Each placed *Two clocks* widget has its own options (#52). For now there is one: the body ring, Simple (the default)
-or Precise ([design.md §A](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)). The widget declares
-`android:configure` with `reconfigurable|configuration_optional`, so the launcher doesn't open the screen when the
-widget is placed, and offers it later (touch and hold the widget, then Reconfigure or the pencil, depending on the
-launcher). *Next up* and *Route globe* have no options yet, so they declare no configuration screen.
+Each *Two clocks* widget saves its own body-ring choice (#52): Simple by default, or Precise
+([dial spec](design.md#a-two-skies-dial--hero-of-plan-screen-widget-celebration)).
+It declares `android:configure` with `reconfigurable|configuration_optional`. The launcher skips configuration when placing the widget and offers it later.
+Touch and hold the widget, then choose Reconfigure or the pencil, depending on the launcher.
+*Next up* and *Route globe* have no configuration screens.
 
 ![The Customise widget screen on a phone: the Two clocks widget previewed at its home-screen size, then the Body ring choice as two cards, Simple (selected) and Precise, each drawing the dial that way with a radio button, its name and what it shows](screenshots/widgets/widget_config.png)
 
@@ -560,27 +553,32 @@ is exported for the launcher, so it opens only for an id that belongs to one of 
 with `RESULT_CANCELED`. For our own widgets it always returns `RESULT_OK`: a choice is saved and drawn on the widget
 the moment it is made, so Done and Back both keep it.
 
-- **Store.** `WidgetConfigRepository` (`widget_configs.json`) maps each `appWidgetId` to a `WidgetConfig`. Widget ids
-  belong to the launcher on this device, so the file isn't in the app's backup file. Android's own backup and
-  phone-to-phone transfer do carry it along with the widgets (see [backup rules](architecture.md#android-backup)). `onDeleted` drops a widget's options. `onRestored` moves them to the new
-  ids, marks the restore complete (`OPTION_APPWIDGET_RESTORE_COMPLETED`) and draws the widgets. The platform's own
-  update can race the move, but renders are serialised, so the later one wins. Nothing sweeps the options of ids
-  that aren't placed: during a restore the old ids are exactly that. The launcher never reuses widget ids, so a
-  missed `onDeleted` only leaves a few stray bytes.
-- **Rendering.** `WidgetUpdater.render` reads the options once per update and applies each widget's own
-  (`WidgetModel.bodyRing`). The scheduler doesn't watch the options; `WidgetUpdater.configure` saves a change and
-  redraws that one widget.
-- **Preview.** The screen shows the widget at its home-screen size in the current orientation, scaled down to fit.
-  The host reports its sizes in no guaranteed order (a foldable reports one per posture), so the preview takes the
-  tallest portrait size in portrait and the widest landscape size in landscape, and follows a rotation. Without
-  reported sizes it falls back to min width × max height (portrait) or max width × min height (landscape). It hosts the same `RemoteViews` the launcher gets in an `AppWidgetHostView`, which takes no touches
-  (its Done button would log the advice) and is hidden from TalkBack in favour of the widget's own description. With
-  no trip it previews the sample trip the widget picker uses, and says so. A lock-screen widget's preview is
-  redacted just like the widget when **Hide details on the lock screen** is on, and stays redacted if the settings
-  can't be read.
-- **Layout.** On a phone the preview stays pinned above the options and takes at most 45% of the height; from 600 dp
-  wide the preview and the options sit side by side. The choices are a radio group of cards, each with a name and a
-  description, never a picture alone.
+#### Saved options
+
+`WidgetConfigRepository` maps `appWidgetId` to `WidgetConfig` in `widget_configs.json`.
+The app's backup file excludes these device-specific IDs. Android backup and phone-to-phone transfer carry options with widgets (see [backup rules](architecture.md#android-backup)).
+`onDeleted` removes options. `onRestored` moves options to new IDs, sets `OPTION_APPWIDGET_RESTORE_COMPLETED` and renders the widgets.
+Platform updates can race restoration, but renders run in sequence and the later render takes effect.
+The repository keeps options for unplaced IDs because restoration needs the old IDs. Launchers never reuse IDs, so missed deletion only wastes a little storage.
+
+`WidgetUpdater.render` reads options once per update and applies `WidgetModel.bodyRing` for each widget.
+The scheduler does not watch options. `WidgetUpdater.configure` saves a choice and redraws that widget.
+
+#### Configuration preview
+
+The preview uses the widget's home-screen size and current orientation, scaled down to fit.
+Host sizes have no guaranteed order; foldables report one per posture.
+The preview selects the tallest portrait size in portrait and the widest landscape size in landscape. It updates on rotation.
+Without reported sizes, it uses minimum width × maximum height in portrait, or maximum width × minimum height in landscape.
+
+An `AppWidgetHostView` displays the launcher's actual `RemoteViews`. It rejects touches to prevent Done from logging advice.
+TalkBack reads the widget description instead of the preview's controls.
+Without a trip, the preview labels and shows the widget picker's sample trip.
+Lock-screen previews follow **Hide details on the lock screen** and remain redacted if settings cannot be read.
+
+On phones, the preview stays above the options and uses at most 45% of the height.
+At widths of 600 dp or more, the preview and options sit side by side.
+The choices form a radio group. Each card has a name, description and picture.
 
 ### How widgets render
 
@@ -592,10 +590,10 @@ flowchart LR
     renderer -->|"unknown version<br/>or capture failure"| placeholder["'Open Clockblock'<br/>placeholder"]
 ```
 
-In words: [`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt)
+[`WidgetUpdater`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetUpdater.kt)
 reads the plan and settings.
 [`WidgetStateMapper`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/state/WidgetStateMapper.kt)
-turns them into plain widget state, with no Android code, so it is easy to test.
+turns them into plain widget state without Android code.
 [`WidgetRenderer`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/WidgetRenderer.kt) then
 captures a Remote Compose document for each size and wraps it in `RemoteViews.DrawInstructions`. The launcher
 plays the document and animates the dial hand and the countdown itself, without waking the app. Remote Compose is
@@ -612,37 +610,36 @@ Other widget behaviour:
 - Tapping a widget opens the plan through a deep link. In the empty state, it opens the trip editor.
 - The widget picker shows generated previews built from a demo plan
   ([`DemoPlans.kt`](../widget/src/main/kotlin/dev/sebastiano/clockblocker/opus/widget/preview/DemoPlans.kt)).
-  They are published again when the app version, the system night mode, the font scale, Bold text or the display
-  density changes, so the picker matches the current theme and its labels are fitted for the current text size.
+  The app republishes previews after app-version, system-theme, font-scale, Bold text or display-density changes.
+  This keeps preview themes and label sizes current.
 
-Settings can also pin a widget directly: its Widgets card calls the `WidgetPinning` interface in `:core:data`
-(`isSupported()`, `requestPin(PinnableWidget)`), which `:app` implements with
-`AppWidgetManager.requestPinAppWidget` against the three providers, so `:feature:settings` never depends on
-`:widget`. The card is hidden when the launcher can't pin.
+The Widgets card in Settings can pin widgets through `WidgetPinning` in `:core:data`.
+Its methods are `isSupported()` and `requestPin(PinnableWidget)`.
+`:app` implements them with `AppWidgetManager.requestPinAppWidget` for all three providers. This keeps `:feature:settings` independent of `:widget`.
+The card stays hidden when the launcher cannot pin widgets.
 
 The widget goldens are in [`widget/src/test/screenshots`](../widget/src/test/screenshots). The images on this page
 are copies of them.
 
 ## Permissions
 
-Onboarding asks for notifications from its last step ("Reminders that actually arrive"), right under a sample of the
-Now notification: the real Remote Compose document for the widgets' sample plan (`NowNotificationContent.preview`),
-pinned to mid-afternoon in Tokyo so it always reads as daytime (its countdown then runs on with the real clock), played
-in the app, or the standard notification's look where Remote Compose can't play. Once notifications are allowed
-it offers exact timing as an optional row, only where the user could still grant it
-(`NotificationPermissionState.exactAlarmsRequestable` and not yet allowed). Settings shows the current
-state under "What Android allows": a one-line summary that expands to a row per permission, each with a button to
-fix it. The summary starts (and re-opens) expanded whenever `NotificationPermissionState.isReliable` is false;
-Live Updates and battery optimisation are optional extras and never force it open. Everything still works
-without them, with fewer or less punctual reminders.
+Onboarding requests notifications in its last step, "Reminders that actually arrive", below a Now notification preview.
+`NowNotificationContent.preview` plays the real Remote Compose document with the widgets' sample plan.
+It starts in Tokyo's mid-afternoon for a daytime appearance, then its countdown follows the real clock.
+Where Remote Compose cannot play, the preview uses the standard notification appearance.
+
+After notification permission, onboarding offers optional exact timing if `NotificationPermissionState.exactAlarmsRequestable` is true and access remains denied.
+Settings shows "What Android allows" as an expandable summary. Each permission row includes a button to change it.
+The summary starts expanded and reopens whenever `NotificationPermissionState.isReliable` is false.
+Live Updates and battery optimisation exemptions are optional and do not force it open.
+Without these permissions, the app still works with fewer or later reminders.
 
 Exact alarms depend on the build's `distribution` flavour. The `play` build (Google Play) declares
 `SCHEDULE_EXACT_ALARM`, which starts denied on new installs, so the user grants it in "Alarms & reminders". The
 `oss` build (outside Google Play) declares `USE_EXACT_ALARM` instead
-([`app/src/oss/AndroidManifest.xml`](../app/src/oss/AndroidManifest.xml)). It is granted at install and
-`AlarmManager.canScheduleExactAlarms()` returns true, so the scheduler always arms exact alarms, onboarding never
-offers the exact timing row, and Settings' row shows "Allowed". Google Play only accepts `USE_EXACT_ALARM` from alarm and calendar apps, so
-`DistributionManifestTest` checks that it never reaches the play manifest.
+([`app/src/oss/AndroidManifest.xml`](../app/src/oss/AndroidManifest.xml)). Android grants it at install, and `AlarmManager.canScheduleExactAlarms()` returns true.
+The scheduler always uses exact alarms. Onboarding omits the exact-timing row, and Settings shows "Allowed".
+Google Play accepts `USE_EXACT_ALARM` only for alarm and calendar apps. `DistributionManifestTest` checks that the play manifest excludes it.
 
 | Permission | Why | Who controls it | Without it |
 |---|---|---|---|

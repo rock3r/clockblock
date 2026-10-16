@@ -1,7 +1,9 @@
-# Clockblock — Product & Visual Design Research
+# Clockblock product and visual design
 
-> Scope: (1) Timeshifter teardown + MVP/"beyond" feature lists, (2) Material 3 Expressive visual & motion direction + a full visual identity, (3) widgets / glanceable surfaces.
-> Research date: 2026-10-04. Facts marked **[verified]** were read directly from the cited source during this session; **[reported]** = from user reviews/press; **[inferred]** = my reading of screenshots/marketing copy or general knowledge, so check it before relying on it.
+> This research covers Timeshifter, initial and later feature proposals, visual identity, motion, widgets and notifications.
+> Research date: 2026-10-04.
+> **[verified]** means the research checked the cited source. **[reported]** identifies user reviews or press reports.
+> **[inferred]** identifies an unverified interpretation of screenshots, marketing text or background knowledge.
 
 > [!NOTE]
 > This document was written before the app was built. The visual identity in it is current, but some technical
@@ -11,13 +13,21 @@
 
 ---
 
-## TL;DR (opinionated)
+## Design summary
 
-1. **Timeshifter's science is good; its UX is fragile.** Users love the results but hate four things: (a) **brittle trip editing** (3-hour edit window, "times overlap" bugs, can't add flights without a flight number), (b) **notifications that are unreliable or contradict the in-app plan**, (c) **timezone confusion** (the plan only shows the timezone you're currently in), and (d) **pay-per-trip pricing for something that runs entirely on-device.** We fix all four by being **offline-first, account-free, manual-entry-friendly, dual-timezone, and free.**
-2. **Our signature visual is the "Two skies" dial**: a 24 h radial dial with an outer ring for the sky where you are and an inner ring for the sky your body thinks it is under, which turns day by day until it lines up with the outer one. Jet lag = the angle between the two nights. Everything else (timeline, widgets, notifications, celebration) comes out of that one idea.
-3. **Our M3 Expressive metaphor: "wavy = jet-lagged, flat = adapted."** The wavy progress indicator's amplitude shrinks as you adapt. Shape-morphing advice markers (Sun → `Sunny`, Sleep → `Pill`, Fatigue → `SoftBurst`…) come alive when an action becomes "now".
-4. **Identity**: "Dusk Instrument": a precise scientific instrument at twilight. Primary seed **Twilight Indigo `#4F46E5`**, tertiary **Marigold `#FFB000`** (light), fixed semantic "advice colours" harmonised to dynamic colour. Type: **Google Sans Flex**, which *is* open source (OFL) and on Google Fonts since 2025-11-12, with axes `wght 1–1000, wdth 25–151, opsz 6–144, ROND 0–100, GRAD 0–100, slnt −10–0` [verified via Google Fonts metadata + google/fonts repo METADATA.pb]. Bundle it as a variable TTF. Use **Fraunces** (SOFT/WONK axes) only for editorial moments.
-5. **Glanceable first**: a single ongoing **"Now" notification** instead of 15 separate pings. On travel day it becomes an Android 16 `Notification.ProgressStyle` Live Update with segments for advice blocks, points for take-off/landing, and a plane tracker icon. Glance widgets: *Next up*, *Two Clocks dial*, *Today ribbon*, *Trip countdown*.
+1. Clockblock addresses reported Timeshifter problems with editing, notification reliability, time-zone clarity and pricing.
+   It supports offline manual entry, two-zone times and free use without an account.
+   Reports include a three-hour edit limit, overlap errors and missing flights without flight numbers.
+2. The Two skies dial compares local sky time with estimated body clock time on two rings.
+   Their night sections align as the body clock adjusts.
+3. The adaptation indicator reduces wave amplitude as adjustment progresses. Advice markers change shape when their blocks become active.
+4. The visual identity, "Dusk Instrument", uses Twilight Indigo `#4F46E5`, Marigold `#FFB000` and fixed advice colours.
+   Google Sans Flex supplies primary text; Fraunces supplies selected headlines.
+   Google Fonts metadata and `METADATA.pb` confirm its SIL Open Font License (OFL) and availability since 2025-11-12.
+   Bundle the variable TTF with axes `wght 1–1000, wdth 25–151, opsz 6–144, ROND 0–100, GRAD 0–100, slnt −10–0`.
+   Use Fraunces's SOFT and WONK axes only in the specified headline contexts.
+5. One ongoing Now notification shows current advice. The travel-day version uses Android 16 `Notification.ProgressStyle` with advice segments and take-off/landing points.
+   The initial widget proposals include Next up, Two Clocks dial, Today ribbon and Trip countdown.
 
 ---
 
@@ -32,9 +42,14 @@
 | **My Circadian Day®** | Daily timing for light, meals, exercise | ([advice guide](https://www.timeshifter.com/timeshifting/advice-guide)) |
 | Concierge | Human-made plans for athletes/execs | Enterprise |
 
-Marketing pillars (all trademarked): **Circadian Time™** (advice timed to biological time), **Practicality Filter™** (fits advice to the "real world"), **Quick Turnaround®** (auto-detects short trips, so you stay on home time), pre-travel adjustment, push notifications, "intuitive **3-hour view**" plus full-plan view, complex itineraries with **unlimited stopovers**, and flight editing for delays ([jet-lag-app](https://www.timeshifter.com/jet-lag-app)). Science claims: built on the St Hilaire 2012 light PRC, Eastman & Burgess 2009, and Czeisler 1999 (period ≈ 24.2 h); "96.4% of users… without feeling jet lagged", from about 130k post-flight surveys. Play: 4.6★ / 1.9k reviews, 100k+ installs. iOS: 4.66★ / 2.6k ratings [verified].
+Timeshifter markets biological-time advice as **Circadian Time™**, practical scheduling as **Practicality Filter™**, and short-trip detection as **Quick Turnaround®**.
+Its [jet lag page](https://www.timeshifter.com/jet-lag-app) also lists pre-travel adjustment, notifications, three-hour and full-plan views, unlimited stopovers and delay editing.
+The company cites St Hilaire 2012, Eastman & Burgess 2009 and Czeisler 1999 (period ≈ 24.2 h).
+Its claim that "96.4% of users… without feeling jet lagged" comes from about 130,000 post-flight surveys.
+At research time, Play listed 4.6★ from 1,900 reviews and 100,000+ installs. iOS listed 4.66★ from 2,600 ratings [verified].
 
-Disclaimers they ship: "intended for healthy adults 18+", "**not intended for pilots and flight crew on duty**", not FDA evaluated [verified, Play listing]. **We should ship similar disclaimers.**
+The Play listing limits use to healthy adults aged 18+ and excludes pilots and flight crew on duty [verified].
+It also states that the FDA has not evaluated the product. Clockblock must include comparable safety limits.
 
 > Naming caution: avoid their trademarks ("Timeshift®", "Practicality Filter™", "Quick Turnaround®", "Circadian Time™"). Suggested names for ours: **"Real-life mode"**, **"Short trip: stay on home time"**, **"Body clock"**.
 
@@ -53,7 +68,9 @@ Questions asked (sources: Rick Steves forum walkthrough, DIY Travel review, supp
 - Probably also age/sex for chronotype norms. [inferred, unverified]
 - Advice settings **can't be changed while a plan is active**. To change them you delete the flights, edit settings, then re-add the flights ([support FAQ](https://www.timeshifter.com/support/jet-lag)) [verified].
 
-**What's missing** [reported, App Store reviews via iTunes RSS]: "I can't sleep on planes"; "I won't wake at 6 am on vacation" (destination sleep preference); work hours on pre-travel days ("avoid light 8–11 am… I have to be at work at 8:30"); time to reach the airport ("4 hours away from the airport… told me to sleep during the time I need to travel"); "told me to sleep while I'm on my 2 hour layover".
+App Store reviews report missing controls for in-flight sleep, destination bedtime, pre-travel work hours, airport transit and layovers.
+Examples include "I can't sleep on planes" and "told me to sleep while I'm on my 2 hour layover".
+Another traveller needed four hours to reach the airport during a planned sleep block [reported, iTunes RSS].
 
 ## 1.3 Trip creation [verified unless noted]
 
@@ -66,7 +83,10 @@ Questions asked (sources: Rick Steves forum walkthrough, DIY Travel review, supp
 
 ## 1.4 The plan
 
-**Structure.** The home ("advice") page lists plans as **circles with destination and date**. A plan view has a **3-hour "now" view** and a **full plan** (day by day, hour by hour). Days run: **pre-travel days** (e.g. 2 days ahead for US West → Europe), **travel day(s)** (including a pre-flight nap and in-flight sleep/light advice), and **post-arrival days** until adapted. The homebound plan is separate. Notifications arrive **about 30 min before each change**, including on Apple Watch [reported].
+The advice page lists plans as circles with destination and date.
+Each plan offers a three-hour current view and a full day-by-day schedule.
+Schedules include pre-travel, travel and post-arrival days through adjustment. Travel advice can include pre-flight naps and in-flight sleep or light.
+Return plans appear separately. Users report notifications about 30 minutes before changes, including on Apple Watch [reported].
 
 **Advice card catalogue**: the exact set we must cover, from the [advice guide](https://www.timeshifter.com/timeshifting/advice-guide) [verified]:
 
@@ -84,15 +104,19 @@ Questions asked (sources: Rick Steves forum walkthrough, DIY Travel review, supp
 | **Peak fatigue** | Be extra cautious | Safety warning |
 | *(My Circadian Day)* Eat normally / lean & light / avoid eating; Exercise normally / low / avoid | | "Beyond" scope. Timeshifter itself says food is a *weak* zeitgeber |
 
-Field-guide copy also worth echoing ([how to timeshift](https://www.timeshifter.com/timeshifting/how-to-timeshift)): "You can avoid light anywhere (sunglasses)… get exposed to light anywhere (turn on lights, max screen brightness)… If you can't sleep, just stay in the dark… Follow the advice as much as possible." Kit list: dark sunglasses, sleep mask, optional melatonin ([what you need](https://www.timeshifter.com/timeshifting/what-you-need)).
+Timeshifter's [field guide](https://www.timeshifter.com/timeshifting/how-to-timeshift) gives alternatives such as sunglasses, indoor lighting and dark rest when sleep is difficult.
+Its [equipment list](https://www.timeshifter.com/timeshifting/what-you-need) includes dark sunglasses, a sleep mask and optional melatonin.
 
 ## 1.5 Shift work app [verified]
-Quick Shift Entry (multiple dates in seconds), **Commute time** + **"get ready" time**, **Fatigue prediction**, advice notifications. It supports rotating, fixed-night, on-call and irregular schedules ([shift-work-app](https://www.timeshifter.com/shift-work-app)). *For us this is a natural v2: the same engine, fed by a repeating schedule instead of flights.*
+The [shift-work app](https://www.timeshifter.com/shift-work-app) supports quick entry, commute and preparation time, fatigue prediction and advice notifications.
+It covers rotating, fixed-night, on-call and irregular schedules.
+A later Clockblock version could explore repeating schedules as planner inputs.
 
 ## 1.6 Settings, widgets, platform
 - Profile (bottom-left icon) → advice settings, push notifications [verified FAQ].
 - An Apple Watch companion exists. A reviewer reported the **watch showing different advice than the phone** [reported].
-- I found no evidence of Android home-screen widgets. An iOS reviewer explicitly asked for **Live Activities** ("leverage newer iOS functionalities, like live notifications") [reported]. **This is an open gap on Android: Live Updates + Glance widgets.**
+- The research found no evidence of Android home-screen widgets.
+  An iOS reviewer requested Live Activities [reported]. Clockblock could address similar needs through Android Live Updates and widgets.
 
 ## 1.7 What users complain about (≈750 recent App Store reviews: US/GB/AU, 57 at ≤3★) [reported]
 
@@ -113,7 +137,8 @@ Quick Shift Entry (multiple dates in seconds), **Commute time** + **"get ready" 
 
 Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet Lag—If You Don't Have Much Else to Do"* ([Wirecutter](https://www.nytimes.com/wirecutter/reviews/timeshifter-app-review/)). DIY Travel gave it 3.5/5: "it did work… but I found the whole process quite annoying… wearing sunglasses at odd times, even indoors… embarrassing at work" ([DIY Travel](https://diytravelagent.blog/2026/05/12/timeshifter-app-review-does-it-actually-work/)). A Rick Steves forum user "printed out the whole schedule, laid it out on the dining room table", then loved the 30-min Apple Watch nudges ([forum](https://community.ricksteves.com/travel-forum/general-europe/jet-lag-i-tried-the-timeshifter-app)) [verified]. Other coverage: [Fodor's](https://www.fodors.com/news/news/review-timeshifter-the-neuroscience-app-that-claims-to-fight-against-jet-lag), [VICE](https://www.vice.com/en/article/timeshifter-jet-lag-app/), [r/TravelHacks thread](https://www.reddit.com/r/TravelHacks/comments/1axswmf/experiences_with_timeshifter_app/) (not readable from my environment).
 
-**Design takeaway:** the product must reduce *effort* and *embarrassment*. Use framing like "Wear sunglasses (or stay indoors away from windows)", offer alternatives on each card, and show the *cost of skipping* ("skipping this delays adaptation by ~½ day").
+Advice cards must offer practical alternatives, such as sunglasses or a dim indoor space.
+Explain possible effects of skipping without blaming the user. Give a numerical delay only when the model supports that estimate.
 
 ## 1.8 Proposed MVP (v1.0)
 
@@ -166,7 +191,10 @@ Press tone: Wirecutter's headline is literally *"This App Can Help You Beat Jet 
 
 ## 2.1 What M3 Expressive gives us (API facts checked against androidx source)
 
-**Research basis.** Google ran 46 studies with 18,000+ participants. Expressive layouts let users spot key UI elements **up to 4× faster** and closed the age gap: 45+ users found controls as fast as younger ones ([design.google research](https://design.google/library/expressive-material-design-google-research), [M3 blog: building with M3 Expressive](https://m3.material.io/blog/building-with-m3-expressive), [Google blog launch](https://blog.google/products/android/material-3-expressive-android-wearos-launch/)). *Implication for us:* emphasis is functional. The **current action** must be the most emphasised element on every surface.
+Google reports 46 studies with 18,000+ participants.
+Participants found important controls up to four times faster in Expressive layouts, with similar results for older and younger users.
+Sources: [Google research](https://design.google/library/expressive-material-design-google-research), [M3 blog](https://m3.material.io/blog/building-with-m3-expressive), [launch post](https://blog.google/products/android/material-3-expressive-android-wearos-launch/).
+Clockblock must give the current action the strongest visual emphasis on each view.
 
 **Shapes.** `androidx.compose.material3.MaterialShapes` has **35** `RoundedPolygon`s [verified in `MaterialShapes.kt`]: `Circle, Square, Slanted, Arch, Fan, Arrow, SemiCircle, Oval, Pill, Triangle, Diamond, ClamShell, Pentagon, Gem, Sunny, VerySunny, Cookie4Sided, Cookie6Sided, Cookie7Sided, Cookie9Sided, Cookie12Sided, Clover4Leaf, Clover8Leaf, Burst, SoftBurst, Boom, SoftBoom, Flower, Puffy, PuffyDiamond, Ghostish, PixelCircle, PixelTriangle, Bun, Heart`. Morph them with `androidx.graphics.shapes.Morph(a, b)` → `morph.toPath(progress)` and wrap in a custom `Shape` ([shapes guide](https://developer.android.com/develop/ui/compose/graphics/draw/shapes), [MaterialShapes ref](https://developer.android.com/reference/kotlin/androidx/compose/material3/MaterialShapes)).
 
@@ -194,7 +222,7 @@ Spatial specs (position, size, shape) bounce. Effects specs (colour, alpha) neve
 - Button `shapes` that morph on press
 - Emphasized type styles (`displayLargeEmphasized` … `labelSmallEmphasized`) [verified in `Typography.kt`]
 
-## 2.2 Inspiration board: what to steal, and from whom
+## 2.2 Design references
 
 | Source | Steal this | Avoid |
 |---|---|---|
@@ -215,9 +243,9 @@ Search links for further moodboarding (no specific shots verified): [Dribbble ci
 ## 2.3 Signature design concepts (concrete)
 
 ### A. "Two skies" dial ⭐ (hero of Plan screen, widget, celebration)
-Chosen in #46 from three concepts. Two rings and nothing else structural: **the outer ring is the sky where you
-are, the inner ring is the sky your body thinks it is under.** The angle between the two nights *is* the jet lag;
-once you're adapted the two rings are identical.
+Issue #46 selected this design from three proposals.
+The outer ring shows the local sky. The inner ring shows that sky shifted by the estimated body clock offset.
+The angle between their night sections shows the difference. The rings align when the estimate reaches destination time.
 - **Geometry:** 24 h dial, **noon at top, midnight at bottom** (sun overhead = day up). Numerals 12 · 18 · 00 · 06
   (12 p · 6 p · 12 a · 6 a on 12-hour clocks) sit just inside the body ring.
 - **Outer ring = local sky.** Day, dawn and dusk colours from that day's real sunrise and sunset at the trip's
@@ -274,26 +302,74 @@ once you're adapted the two rings are identical.
   Full (narration). A glyph never shows without its name.
 
 ### B. Day timeline ("Rail")
-Vertical rail (Structured-style). Each advice block is a capsule whose **height = duration**. A leading shape glyph sits in an advice-colour container. The rail background is a faint **body-clock sky gradient**, so you *see* that your body is at "night" while the local label says 14:00. The current block expands into the **Now card** with a `CircularWavyProgressIndicator` countdown ring around its glyph. A dual time column shows local time plus a muted secondary tz; tapping the column header cycles Local / Home / Destination / Body.
+The proposed timeline uses vertically arranged capsules with **height = duration**, following Structured's layout.
+Each block starts with an advice glyph on its advice-colour container.
+A faint body-clock sky gradient shows estimated biological day or night behind local-time labels.
+The current block expands into the Now card, with `CircularWavyProgressIndicator` around its glyph.
+The time column shows local and secondary zones. Its proposed header cycles through Local, Home, Destination and Body.
 
-**Rail colour roles** (`RailColors`). Advice colours belong to the capsules and chips only; nothing neutral on the rail is filled with a grey container, because the pale advice containers (Sleep, Avoid light, naps, melatonin) sit a tone or two from the surface containers and a grey row or chip read as one more pill. Every capsule draws a 1.5 dp edge in its advice hue's deep tone, pushed darker (light) or lighter (dark) until it keeps 3.2:1 against the page, the Now card and the body-clock strip over either, so it holds under any wallpaper palette. The Now row is a card on the lowest surface container with a 2 dp `primary` outline (a dial-highlighted row: `outline`), inset 2 dp so two Now rows read as two cards; its start time is `primary`. Upcoming rows use `onSurface`; past rows step back through colour roles, never alpha (label and times `onSurfaceVariant`, capsule washed 45 % into the page with its edge kept at 2.2:1). Nested chips are outlined (`outlineVariant`) at rest and take their advice container plus the capsule's edge when on now or highlighted. A 2 dp `outlineVariant` line joins a day's capsules edge to edge: each row draws it from its top edge into its capsule and from under its capsule to its bottom edge, so it never breaks between rows, and it runs on through the Now marker between blocks (or down to it after the day's last block); it stops at day headers. The Now card's outline is drawn over it. Patterns are drawn in the capsule's content colour at 22 % alpha, except Sleep's star dots: small and sparse, they take the lowest alpha that keeps each dot at 3:1 against its capsule (2.2:1 on a past one), so they read on every palette without getting loud. A range and its duration share a line when they fit, else the duration moves whole under it with no separator; the other zone's city moves whole under its times. `RailContrastAuditTest` computes all of this for the static theme and wallpaper palettes, light and dark.
+`RailColors` reserves advice fills for capsules and chips. Neutral rows avoid grey containers that could resemble pale sleep, nap, melatonin or avoid-light advice.
+Each capsule has a 1.5 dp edge in its advice hue.
+The edge darkens in light theme or lightens in dark theme until contrast reaches 3.2:1 against all supported backgrounds.
+Those backgrounds include the page, Now card and body-clock strip over either.
+
+The Now row uses the lowest surface container, a 2 dp `primary` outline and 2 dp inset.
+Its start time uses `primary`. A dial-highlighted row uses `outline` instead.
+Upcoming rows use `onSurface`. Past labels and times use `onSurfaceVariant` without alpha changes.
+Past capsules blend 45 % toward the page and retain a 2.2:1 edge.
+Nested chips use `outlineVariant` at rest. Active or highlighted chips use the advice container and capsule edge.
+
+A 2 dp `outlineVariant` line connects capsules from row edge to row edge and stops at day headers.
+It continues through the Now marker, including after the day's last block. The Now card's outline draws above it.
+Patterns use content colour at 22 % alpha.
+Sleep's sparse star dots use the lowest alpha reaching 3:1, or 2.2:1 for past blocks.
+When a range and duration cannot share a line, the whole duration moves below without a separator.
+The secondary city also moves whole below its times.
+`RailContrastAuditTest` checks these rules in light and dark static and wallpaper palettes.
 
 ### C. Body-clock sky header
-An immersive, edge-to-edge header (`PlanHeader`) over a full-bleed sky painted by **body-clock time**, not local time, melting into the page at its foot. Over the sky: dot-matrix airport codes (`SFO ✈ LHR`), the stage ("Day 2 · Adapting"; on compact phones where the dial omits its offset pill, it also carries "body 3½ h behind"), the city title ("San Francisco → London"), and the next action ("Next: Avoid caffeine in 1 h 20 min" + "at 14:00 · 22:00 London", or its date and time when more than 24 h away). The next action always counts from now, never from a picked day or a scrubbed moment (the Now card says what a preview is about), and the cards below don't repeat it. It collapses on scroll to a single navigation row with the trip title (the sky stays laid out at the expanded size and is clipped, and its fade into the page is a mask that slides with the header's bottom edge and fades out as it collapses, so scrolling never re-draws the sky); short windows keep it collapsed, with the stage and the next action on their own lines under the title (its times move under the headline rather than being cut). This is the "aha": *outside it's noon, inside you it's 4 am.*
+`PlanHeader` fills the available width with a sky based on **body-clock time** and a fade into the page below.
+It shows dot-matrix airport codes, the plan stage, city title and next action.
+Compact phones add the body offset to the stage when the dial lacks its offset label.
+The next-action line includes both zones, or a date and time for actions more than 24 h away.
+It always counts from now, including during day previews and scrubbing. Cards below avoid repeating this line.
 
-The sun or moon rides a faint dashed half-sine path across the navigation row (issue #21): the sun from sunrise to sunset (with a warm radial glow strongest at golden hour), the moon from sunset to sunrise (with a seeded star field that comes out through dusk). A **ghost ring** marks where it would be by the wall clock. When the body is ½ h or more off on the same half of the day, a faint arc joins the two along the path. In step, the ring circles the sun. When the wall clock is on the other half (before sunrise, after sunset), the ring waits at the nearer end. The sky, the path and both markers use the real sunrise and sunset where the traveller is that day (NOAA `Sun`, as in the dial), so the same hour lands on the same spot. Once in a while (`HeaderAmbient`: at most every 12 h, after the header has been in view for a few seconds), a few stars breathe in and out and a small plane crosses with a fading contrail (self-timed on `MotionDurationScale`, off under Reduce motion, in sleep windows, in Night-safe and on short windows). Decoration only, no semantics: the dial pill (or compact header subtitle) says how far off the body is, in words.
+Scrolling collapses the header to a navigation row with the trip title.
+The sky keeps its expanded layout and clips to the header. Its bottom mask moves and fades without redrawing the sky.
+Short windows keep the header collapsed, with stage and next action below the title.
+Times move below the action headline when necessary to prevent clipping.
+
+Issue #21 adds a sun or moon on a faint dashed half-sine path across the navigation row.
+The sun follows sunrise to sunset with a warm radial glow strongest near sunrise and sunset.
+The moon follows sunset to sunrise, with seeded stars appearing through dusk.
+An outline ring marks the equivalent local-clock position.
+An arc joins the markers when their difference is at least ½ h and both occupy the same half-day.
+Aligned markers overlap. If local time falls in the other half-day, its marker sits at the nearer endpoint.
+
+The sky and markers share the dial's NOAA `Sun` sunrise and sunset calculation for that day's location.
+`HeaderAmbient` allows a decorative star-and-plane session at most every 12 h, after several seconds of header visibility.
+It scales time through `MotionDurationScale` and disables sessions during reduced motion, sleep, Night-safe and short windows.
+The dial label or compact header subtitle retains the body offset in text without this animation.
 
 ### D. Wavy adaptation indicator ("wavy = jet-lagged")
-A `LinearWavyProgressIndicator` with `progress = adaptation %` and `amplitude = { misalignmentHours / initialMisalignment }`. The wave literally **calms down** as you adapt; it is flat on arrival-adapted. Reused in the trip list rows and the widget (as a static bitmap).
+`LinearWavyProgressIndicator` uses `progress = adaptation %` and `amplitude = { misalignmentHours / initialMisalignment }`.
+Its wave amplitude reaches zero at adjustment. Trip rows and widget bitmaps reuse the same indicator.
 
 ### E. Great-circle trip card
-Dot-matrix orthographic globe (≈1,500 dots from a bundled 1-bit 360×180 land mask). Dashed great-circle arc with an `Arrow` glyph oriented along the tangent (`PathMeasure.getPosTan`). On travel day the plane advances in real time. Caption "+8 h · 8 zones east · eastward is harder". Fully Canvas, no map SDK, offline. For cards and editor headers the design system also offers a flattened `RouteArcBanner`: dot-matrix airport codes (`IataCode`, our own 5 × 7 Canvas glyphs, not a copy of any brand font) bridged by the same dashed arc, flat until a destination is picked.
+The proposed orthographic globe uses about 1,500 dots from a bundled 1-bit 360×180 land mask.
+A dashed great-circle route carries an `Arrow` tangent to the path through `PathMeasure.getPosTan`.
+The plane advances during travel. The caption gives shift hours and direction.
+Canvas draws the globe offline without a map SDK.
+Cards and editor headers can use `RouteArcBanner`, with dot-matrix `IataCode` airport labels and a dashed arc.
+Its custom 5 × 7 Canvas glyphs use original geometry. The arc stays flat until a destination is selected.
 
-### F. Adaptation tide chart
-Days on x, misalignment hours on y. The predicted curve is a dashed line; check-ins are dots. The area fill uses the effort level's colour. Shows Gentle / Balanced / Max side by side during setup.
+### F. Adaptation chart
+The proposed chart plots days on the x axis and misalignment hours on the y axis.
+A dashed line shows predictions; dots show check-ins. The area fill uses the effort level's colour.
+Setup would compare Gentle, Balanced and Max side by side.
 
 ### G. Night-safe UI 🔑 (a functional design choice)
-When the plan says **Avoid light** or **Sleep**, the app must not sabotage it:
+During **Avoid light** or **Sleep**, Night-safe must reduce screen light:
 - Force dark theme, true black `#000000` surfaces.
 - Drop illustration luminance.
 - Shift accents to a dim amber/red tone (tone 30–40).
@@ -301,13 +377,14 @@ When the plan says **Avoid light** or **Sleep**, the app must not sabotage it:
 - Switch to a custom *calm* `MotionScheme` (damping 1.0, stiffness ≈ 200).
 - Show a banner: "Night-safe mode: you're in an avoid-light window".
 
-During avoid-light and sleep windows, the app uses dim surfaces and amber or red accents.
-
 ### H. Light meter (beyond MVP)
-Reads `Sensor.TYPE_LIGHT` into a log-scale lux gauge built on a `CircularWavyProgressIndicator`; amplitude rises with lux ("more light, more energy"). Labels: <50 dim · 100–500 indoor · 1k+ bright · 10k+ daylight.
+The proposed meter reads `Sensor.TYPE_LIGHT` into a logarithmic lux gauge using `CircularWavyProgressIndicator`.
+Wave amplitude increases with lux. Labels identify <50 as dim, 100–500 as indoor, 1k+ as bright and 10k+ as daylight.
 
 ### I. Celebration
-When the dial's rings align, a **confetti burst of MaterialShapes** (Sunny, Clover4Leaf, PuffyDiamond, Cookie4Sided) in advice colours, with a physics drop. The wavy line flattens. Headline in Fraunces: **"Clockblocked."** Sub: "Your body is on Tokyo time. 3 days, 2 h faster than going it alone." Fire it once, and skip it under reduce-motion.
+When the dial rings align, the proposed celebration drops Sunny, Clover4Leaf, PuffyDiamond and Cookie4Sided confetti in advice colours.
+The wave flattens and a Fraunces headline says **"Clockblocked."**
+Supporting text names destination time and estimated time saved. Play the celebration once and skip its motion under reduced motion.
 
 ## 2.4 Visual identity: "Dusk Instrument"
 
@@ -333,7 +410,12 @@ When the dial's rings align, a **confetti burst of MaterialShapes** (Sunny, Clov
 
 *(Container/on hexes are M3 tone 90/10 and 30/90 approximations; regenerate them with material-color-utilities `TonalPalette.fromInt(seed)` at build time.)*
 
-**Glyph edge.** The active advice glyph (Now card, checked tool rows, the rail's "now" block) is filled with the vivid colour. Where that fill is too pale to reach 3:1 against its own container and the surfaces it sits on (WCAG 1.4.11 for graphical objects), the role has an `outline`: a deeper (dark theme: lighter) tone of the same hue, drawn as a thin inner edge so the shape reads without changing the advice colour. Light: See bright light `#8A5A00`, See some light `#8F6400`, Nap `#4A58D0`, Nap if you're tired `#5560D8`, Melatonin `#7552C4`. Dark: Sleep `#AAB4FF`. Every other role's fill already reaches 3:1 and draws no edge. `ContrastAuditTest` checks this for every role.
+Active glyphs use vivid advice fills on the Now card, enabled tool rows and current timeline blocks.
+When fill contrast falls below 3:1 against its container or background, an `outline` supplies a thin inner edge.
+The outline uses the same hue, darker in light theme and lighter in dark theme, following WCAG 1.4.11.
+Light-theme edges use `#8A5A00` for bright light, `#8F6400` for some light and `#4A58D0` for naps.
+Optional naps use `#5560D8`; melatonin uses `#7552C4`. Dark-theme sleep uses `#AAB4FF`.
+Other fills reach 3:1 without an edge. `ContrastAuditTest` checks every role.
 
 **Sky ramp** (illustrations, headers, dial outer ring). Two-stop gradients, indexed by solar or body time:
 - Night `#0B1026 → #1B1F4B`
@@ -349,13 +431,16 @@ Blend 15% toward `primary` when dynamic colour is active so skies sit inside the
 - **Google Sans Flex**: OFL, on Google Fonts since 2025-11-12 [verified]. Axes: `wght 1–1000, wdth 25–151, opsz 6–144, ROND 0–100, GRAD 0–100, slnt −10–0`. **Bundle** the variable TTF in `res/font`, subset to Latin + Latin-ext + symbols with `pyftsubset`, keeping `tnum`, `case`, `ss0x`. Bundle rather than use GMS downloadable fonts, because downloadable fonts don't give reliable arbitrary-axis control and don't work on de-Googled/F-Droid devices. Set axes with `FontVariation.Settings(FontVariation.weight(…), FontVariation.width(…), FontVariation.Setting("ROND", …), FontVariation.Setting("slnt", …))`.
   - Display (times): `wght 300` idle → `wght 700` when emphasised. Animate weight with `fastSpatialSpec` on minute change. `tnum` always on so times don't jitter.
   - Headlines: `wght 600, ROND 40`. Body: `wght 400, ROND 0, opsz auto`. Compact chips/labels: `wdth 88`.
-  - **Body-clock readouts: `slnt −10, ROND 100`** (the "dreamy" twin of local time).
+  - Body-clock readouts use `slnt −10, ROND 100` to distinguish them from local time.
   - Map to the M3 type scale. Emphasized styles = +200 weight and, for display, `ROND 100`.
-- **Fraunces** (OFL; axes `opsz 9–144, wght 100–900, SOFT 0–100, WONK 0–1` [verified]): **only** for editorial moments (onboarding headlines, celebration, Opus easter egg, empty states). Use `opsz 144, SOFT 100, WONK 1`. It adds warmth and a little wit, like a tiny serif signature on an instrument.
-- **Fallback:** Roboto Flex (same axis model minus `ROND`).
+- Use **Fraunces** for onboarding headlines, celebrations, Opus mode and empty states only.
+  Its OFL font has axes `opsz 9–144, wght 100–900, SOFT 0–100, WONK 0–1` [verified].
+  Set `opsz 144, SOFT 100, WONK 1`.
+- Use Roboto Flex as fallback. It has the same axis model except `ROND`.
 
-### Shape language: "shapes carry meaning, never decoration"
-A MaterialShape appears **only** as (a) an advice glyph container, (b) a dial marker, (c) loading/celebration. Cards stay rounded rectangles (extra-large 28 dp corners; the Now card 32 dp). This restraint is what keeps it from looking like generic M3E slop.
+### Shape roles
+Use MaterialShape only for advice glyph containers, dial markers, loading indicators and celebrations.
+Cards use rounded rectangles with 28 dp corners; the Now card uses 32 dp corners.
 
 | Meaning | Shape | Morph when it becomes "now" |
 |---|---|---|
@@ -404,7 +489,7 @@ Always pair icons with a text label in cards (fixes complaint #9).
 | 10 | **Bloom** (Adapted / celebration) | `Flower` scales in, a check mark path trims on, orbiting `Clover4Leaf`/`Sunny` confetti | Bounce + orbit |
 | 11 | **Suitcase o'clock** (No trips yet) | Suitcase rounded rect, `Arch` handle, a clock face on its side, luggage tag with "?" | Clock hand ticks once per second, 3 times, then rests |
 
-### Motion personality: "Springy by day, syrupy by night"
+### Day and night motion
 - **Day (body-clock day):** `MotionScheme.expressive()`. Card → Now uses defaultSpatial; glyph morphs use fastSpatial; colour uses defaultEffects.
 - **Night / avoid-light windows:** custom calm scheme (no overshoot, about 1.5× slower) + Night-safe UI.
 - **Signature moments:** inner-ring rotation on day change (Standard slowSpatial, no overshoot); hour-tick haptics while scrubbing; `SEGMENT_TICK` haptic when crossing an advice boundary; ring "click" + confetti on adaptation; changed digits roll vertically (`RollingText`, Standard spatial; no weight spring, see MOTION.md).
@@ -421,12 +506,13 @@ Always pair icons with a text label in cards (fixes complaint #9).
 - **Settings:** profile (sleep, chronotype, tools), reminders (lead time, channels, quiet rules, test reminder), appearance (dynamic colour, theme, reduce motion, Night-safe auto), data (export/import, delete all), about/science/licences.
 
 ## 2.6 Copy voice
-Short, precise, kind, occasionally dry. Examples:
-- "See bright light · until 15:00. Outside is best. A window seat counts."
-- "Avoid light · 2 h 10 m. Sunglasses on, even if it feels silly. Especially if it feels silly."
-- "Your body thinks it's 04:12. Be gentle with it."
+Use short sentences with specific actions and times. Describe estimated body clock times as estimates.
+Avoid jokes, idioms and blame. Examples:
+- "See bright light until 15:00. Go outside or sit by a window."
+- "Avoid light for 2 h 10 m. Wear sunglasses or stay somewhere dim."
+- "Your estimated body clock time is 04:12."
 
-Never guilt; skipping shows the cost, then moves on.
+When users skip advice, explain the possible effect and show the next action.
 
 ## 2.7 Easter eggs (tasteful; never during sleep windows, never block function, disabled by reduce-motion)
 
