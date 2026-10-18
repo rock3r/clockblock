@@ -137,6 +137,7 @@ internal fun OnboardingTopBar(
     labelDrop: () -> Float = labelAlpha,
     progressDrop: () -> Float = progressAlpha,
     skipDrop: () -> Float = skipAlpha,
+    modifier: Modifier = Modifier,
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -144,7 +145,7 @@ internal fun OnboardingTopBar(
     val progress by animateFloatAsState(target, motion.dataSpatial(), label = "onboardingProgress")
     val label = stringResource(R.string.onboarding_progress, step.index + 1, OnboardingStep.Count)
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .then(if (visible) Modifier else Modifier.clearAndSetSemantics { })
             .padding(start = 24.dp, end = 8.dp, top = 8.dp)

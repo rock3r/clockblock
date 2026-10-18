@@ -201,7 +201,7 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
  * start and end of a move in the search, so the layout never flips while you type.
  *
  * The first Next from the sleep step plays the chronotype spectacle (see `ChronotypeReveal`): the step moves on at
- * once, the sleep step fades away and the bars fade out and take no input until the reveal rests. Back during it is an
+ * once, the sleep step fades away and the bars dim to half and take no input until the reveal rests. Back during it is an
  * ordinary back to the sleep step. Skipped when motion is reduced or TalkBack explores by touch.
  */
 @Composable
@@ -282,7 +282,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val short = maxHeight < 480.dp
         val searchMode = step == OnboardingStep.HomeZone && homeSearch.fullHeight
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        val bars = animateFloatAsState(if (spectacleRunning) 0f else 1f, motion.fade(), label = "spectacleBars")
+        // During the spectacle the bars stay on screen, dimmed and inert, instead of vanishing and popping back.
+        val bars = animateFloatAsState(if (spectacleRunning) SpectacleBarsAlpha else 1f, motion.colour(), label = "spectacleBars")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         if (step == OnboardingStep.Sleep) {
@@ -294,7 +295,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             topBar = {
                 OnboardingTopBar(
                     step = topBarStep(step, steps.transition.currentState),
-                    visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
+                    visible = step != OnboardingStep.Welcome && !searchMode,
                     // The drop follows the entrance alone: at rest it is 1, so fading out toward Welcome doesn't
                     // slide, and an entrance frozen by an early Back keeps its offset while the items fade out.
                     slide = !ClockblockTheme.reduceMotion,
@@ -308,7 +309,9 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     onSkip = actions::skip,
                     // Moving until the transition rests on Welcome, so the fade out doesn't restart the wave.
                     waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
-                        steps.transition.targetState == OnboardingStep.Welcome) && !searchMode && !spectacleRunning,
+                        steps.transition.targetState == OnboardingStep.Welcome) && !searchMode,
+                    // Dimmed under the spectacle: Skip keeps its look (not disabled) but takes no input.
+                    modifier = if (spectacleRunning) Modifier.inert() else Modifier,
                 )
             },
             disclaimer = {
@@ -518,3 +521,6 @@ private fun Modifier.stepRoom(top: () -> Int, bottom: Int): Modifier = layout { 
 
 /** Onboarding never grows wider than this: past it, the window only gains margins. */
 private val OnboardingMaxWidth = 1080.dp
+
+/** The top and bottom bars' opacity while the chronotype spectacle plays: still there, plainly not for now. */
+private const val SpectacleBarsAlpha = 0.5f
