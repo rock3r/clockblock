@@ -1,5 +1,6 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -32,7 +33,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -423,7 +424,9 @@ private fun ChronotypeRevealArt(
     val target = chronotype.skyPose()
     val hour = remember { Animatable(target.hour) }
     val position = remember { Animatable(target.position) }
-    // Sun ⇄ moon: one clock for the cross-fade, pop and wobble (BodySwap), from wherever the last swap had got to.
+    // Sun ⇄ moon: one clock for the cross-fade and pop (BodySwap), from wherever the last swap had got to, with a
+    // CONFIRM haptic at the top of the pop (straight away when motion is reduced and the swap snaps).
+    val view = LocalView.current
     val restingMoon = if (target.evening) 1f else 0f
     var moonFrom by remember { mutableFloatStateOf(restingMoon) }
     var moonTo by remember { mutableFloatStateOf(restingMoon) }
@@ -436,6 +439,10 @@ private fun ChronotypeRevealArt(
             moonFrom = BodySwap.moonFraction(moonFrom, moonTo, swap.value)
             moonTo = targetMoon
             swap.snapTo(0f)
+            launch {
+                snapshotFlow { swap.value >= BodySwap.PopPeak }.first { it }
+                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            }
             swap.animateTo(1f, motion.bodySwap())
         }
     }
@@ -456,7 +463,6 @@ private fun ChronotypeRevealArt(
         modifier = modifier,
         cornerRadius = RevealCorner,
         bodyScale = { 1f + BodySwap.PopScale * BodySwap.pop(swap.value) },
-        bodyTilt = { BodySwap.wobble(swap.value) },
     )
 }
 
