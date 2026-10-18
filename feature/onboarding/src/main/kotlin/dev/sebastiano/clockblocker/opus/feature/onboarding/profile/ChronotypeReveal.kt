@@ -32,6 +32,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
@@ -87,6 +88,7 @@ import dev.sebastiano.clockblocker.opus.core.model.Chronotype
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import dev.sebastiano.clockblocker.opus.feature.onboarding.rememberTouchExplorationEnabled
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -116,7 +118,8 @@ object ChronotypeRevealTags {
  * - The first time from the sleep dial ([spectacleFrom]: the dial's inner face, in root coordinates), the spectacle:
  *   a `MaterialShapes` shape grows out of the dial's face, rises to the card spinning through two morphs, and pops
  *   into the card's rounded rectangle, where the illustration fades in. A tap (or TalkBack's labelled click) skips to
- *   the end; a tap on the link once it shows also opens the sheet. [onSpectacleFinished] follows either.
+ *   the end; a tap on the link once it shows also opens the sheet. [onSpectacleFinished] follows either, and
+ *   [onSpectacleName] as the chronotype's name starts to appear (or at the skip).
  * - The chronotype's landscape enters layer by layer, each chronotype its own way (`ChronotypeScene`), the sky warming
  *   from three hours earlier; then the words stagger down into place.
  *
@@ -137,6 +140,7 @@ fun ChronotypeReveal(
     daysOffLinked: Boolean = false,
     spectacleFrom: Rect? = null,
     onSpectacleFinished: () -> Unit = {},
+    onSpectacleName: () -> Unit = {},
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -153,6 +157,14 @@ fun ChronotypeReveal(
         )
     }
     val currentOnSpectacleFinished by rememberUpdatedState(onSpectacleFinished)
+    val currentOnSpectacleName by rememberUpdatedState(onSpectacleName)
+    if (entrance.start == RevealStart.Spectacle) {
+        LaunchedEffect(entrance) {
+            // The name's first frame on screen, a skip landing everything at once included.
+            snapshotFlow { entrance.words.value > NameStagger.start }.first { it }
+            currentOnSpectacleName()
+        }
+    }
     val scope = rememberCoroutineScope()
     var choreography by remember { mutableStateOf<Job?>(null) }
     // Counted as played as soon as it's shown: leaving mid-entrance (Next during the rise) and coming back, or a
@@ -347,7 +359,7 @@ internal fun RevealWords(
         style = if (compact) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialDisplay.copy(fontSize = 40.sp, lineHeight = 46.sp),
         color = colors.onSurface,
         textAlign = align,
-        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, 0.16f..0.62f).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
+        modifier = Modifier.fillMaxWidth().staggeredWord(wordsProgress, NameStagger).semantics { heading() }.testTag(ChronotypeRevealTags.Name),
     )
     Spacer(Modifier.size(if (compact) 4.dp else 12.dp))
     Text(
@@ -593,6 +605,9 @@ private fun rememberAmbient(enabled: Boolean, periodMillis: Int, reverse: Boolea
 private val RevealArtSize = 200.dp
 private val ShortPaneHeight = 480.dp
 private val RevealCorner = 32.dp
+
+/** The chronotype name's share of the staggered words: second in, after the kicker. */
+internal val NameStagger = 0.16f..0.62f
 
 /** The link's share of the staggered words: the last line in. */
 internal val LinkStagger = 0.68f..1.00f

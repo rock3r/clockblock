@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -201,8 +202,9 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
  * start and end of a move in the search, so the layout never flips while you type.
  *
  * The first Next from the sleep step plays the chronotype spectacle (see `ChronotypeReveal`): the step moves on at
- * once, the sleep step fades away and the bars dim to half and take no input until the reveal rests. Back during it is an
- * ordinary back to the sleep step. Skipped when motion is reduced or TalkBack explores by touch.
+ * once, the sleep step fades away and the bars dim to half (no input until back in full) until the chronotype's name
+ * starts to appear. Back during it is an ordinary back to the sleep step. Skipped when motion is reduced or TalkBack
+ * explores by touch.
  */
 @Composable
 fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modifier: Modifier = Modifier) {
@@ -212,6 +214,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
     var spectacleFrom by remember { mutableStateOf<Rect?>(null) }
     var spectacleActive by remember { mutableStateOf(false) }
+    // The bars dim for the spectacle's first part and come back as the chronotype's name starts to appear.
+    var spectacleDimsBars by remember { mutableStateOf(false) }
     val spectacleOrigin = remember { SpectacleOrigin() }
     val allowed = !ClockblockTheme.reduceMotion && !rememberTouchExplorationEnabled()
     // Reduce motion or TalkBack turning on ends it too: the reveal then sits at rest.
@@ -240,6 +244,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     if (spectacleAllowed) {
                         spectacleFrom = spectacleOrigin.dialFace ?: Rect.Zero
                         spectacleActive = true
+                        spectacleDimsBars = true
                     }
                 }
                 actions.next()
@@ -282,8 +287,14 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val short = maxHeight < 480.dp
         val searchMode = step == OnboardingStep.HomeZone && homeSearch.fullHeight
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        // During the spectacle the bars stay on screen, dimmed and inert, instead of vanishing and popping back.
-        val bars = animateFloatAsState(if (spectacleRunning) SpectacleBarsAlpha else 1f, motion.colour(), label = "spectacleBars")
+        // During the spectacle the bars stay on screen, dimmed, instead of vanishing and popping back: they fade to half
+        // as it starts and back in full as the chronotype's name starts to appear, and take input only when in full.
+        val bars = animateFloatAsState(
+            if (spectacleRunning && spectacleDimsBars) SpectacleBarsAlpha else 1f,
+            motion.chromeDim(),
+            label = "spectacleBars",
+        )
+        val barsInert by remember { derivedStateOf { bars.value < 1f } }
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         if (step == OnboardingStep.Sleep) {
@@ -311,7 +322,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
                         steps.transition.targetState == OnboardingStep.Welcome) && !searchMode,
                     // Dimmed under the spectacle: Skip keeps its look (not disabled) but takes no input.
-                    modifier = if (spectacleRunning) Modifier.inert() else Modifier,
+                    modifier = if (barsInert) Modifier.inert() else Modifier,
                 )
             },
             disclaimer = {
@@ -331,7 +342,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                         // Folded away under the full-height search: out of keyboard and D-pad focus too.
                         .focusProperties { canFocus = !searchMode }
                         .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier)
-                        .then(if (spectacleRunning) Modifier.inert() else Modifier),
+                        .then(if (barsInert) Modifier.inert() else Modifier),
                 )
             },
             steps = { barHeight, noteHeight ->
@@ -363,6 +374,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                     homeSearch = homeSearch,
                                     spectacleFrom = spectacleFrom.takeIf { target == OnboardingStep.Chronotype },
                                     onSpectacleFinished = { spectacleActive = false },
+                                    onSpectacleName = { spectacleDimsBars = false },
                                 )
                             }
                         }

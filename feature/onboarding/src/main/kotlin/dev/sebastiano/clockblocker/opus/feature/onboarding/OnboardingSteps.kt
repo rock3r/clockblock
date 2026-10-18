@@ -118,6 +118,7 @@ internal fun OnboardingStepBody(
     homeSearch: HomeSearchState = rememberHomeSearchState(),
     spectacleFrom: Rect? = null,
     onSpectacleFinished: () -> Unit = {},
+    onSpectacleName: () -> Unit = {},
 ) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
@@ -157,6 +158,7 @@ internal fun OnboardingStepBody(
             daysOffLinked = state.profile.daysOffSleep == null,
             spectacleFrom = spectacleFrom,
             onSpectacleFinished = onSpectacleFinished,
+            onSpectacleName = onSpectacleName,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,

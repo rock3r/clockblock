@@ -166,6 +166,13 @@ class ClockblockMotion internal constructor(
         if (reduceMotion) snap() else tween((RevealWordsMillis * navigationTimeScale).toInt(), easing = LinearEasing)
 
     /**
+     * Chrome dimming out of the way of a rare moment, and back (the onboarding bars under the chronotype spectacle):
+     * a [ChromeDimMillis] fade each way, on standard easing. ×1.5 under Calm.
+     */
+    fun <T> chromeDim(): FiniteAnimationSpec<T> =
+        tween((ChromeDimMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
      * Screen-level navigation movement: push/pop slides, the fade-through scale, list-detail pane bounds.
      * Navigation is a 100+/day surface, so it binds to the Standard scheme (never bounces) and snaps when motion
      * is reduced; opacity still cross-fades via [navigationFadeIn] / [navigationFadeOut].
@@ -284,6 +291,9 @@ class ClockblockMotion internal constructor(
         /** The chronotype reveal's layered landscape entrance, and its staggered words. */
         const val RevealLayersMillis = 1_100
         const val RevealWordsMillis = 800
+
+        /** Chrome dimming for a rare moment, each way (see [chromeDim]). */
+        const val ChromeDimMillis = 300
 
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)

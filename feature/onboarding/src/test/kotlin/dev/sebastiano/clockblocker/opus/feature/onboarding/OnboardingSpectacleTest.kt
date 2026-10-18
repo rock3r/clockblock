@@ -39,6 +39,7 @@ import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeRev
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.floats.plusOrMinus
+import io.kotest.matchers.floats.shouldBeLessThan
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlin.math.abs
@@ -212,11 +213,37 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
         val progress = compose.onNodeWithTag(OnboardingTags.Progress, useUnmergedTree = true).getUnclippedBoundsInRoot()
         val nextAtRest = inkIn(next)
         val progressAtRest = inkIn(progress)
-        startSpectacle()
+        // A 300 ms fade, not a cut: partway down after 150 ms.
+        startSpectacle(millis = 150)
+        (inkIn(next) / nextAtRest) shouldBe (0.75f plusOrMinus 0.2f)
+        compose.mainClock.advanceTimeBy(250)
         (inkIn(next) / nextAtRest) shouldBe (0.5f plusOrMinus 0.15f)
         (inkIn(progress) / progressAtRest) shouldBe (0.5f plusOrMinus 0.15f)
         settle()
         (inkIn(next) / nextAtRest) shouldBe (1f plusOrMinus 0.15f)
+    }
+
+    @Test
+    fun `the bars come back in full, and work, as the chronotype's name starts to appear`() {
+        showSleep()
+        val next = compose.onNodeWithTag(OnboardingTags.Next).getUnclippedBoundsInRoot()
+        val name = { compose.onNodeWithTag(ChronotypeRevealTags.Name).ink() }
+        val nextAtRest = inkIn(next)
+        startSpectacle()
+        // Dimmed and inert through the shape, the pop and the landscape…
+        compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
+        var frames = 0
+        while (inkIn(next) / nextAtRest < 0.55f && frames++ < MaxFramesToName) compose.mainClock.advanceTimeByFrame()
+        // Past the spins, the pop and most of the landscape (about two seconds in all)…
+        (400 + frames * 16) shouldBeGreaterThan 1_500
+        val nameAsBarsReturn = name()
+        // …the bars start back as the name appears: it is still coming in.
+        compose.mainClock.advanceTimeBy(350)
+        spectacleShown() shouldBe true
+        (inkIn(next) / nextAtRest) shouldBe (1f plusOrMinus 0.1f)
+        compose.onNodeWithTag(OnboardingTags.Next).assertExists()
+        settle()
+        nameAsBarsReturn shouldBeLessThan name()
     }
 
     /** How far the strongest pixel in [bounds] (of the root) stands out from the screen's background. */
@@ -493,6 +520,7 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
 
     private companion object {
         const val MaxFramesToStart = 20
+        const val MaxFramesToName = 400
     }
 
     private fun DpRect.centreIn(density: Density) = with(density) { Offset(((left + right) / 2).toPx(), ((top + bottom) / 2).toPx()) }
