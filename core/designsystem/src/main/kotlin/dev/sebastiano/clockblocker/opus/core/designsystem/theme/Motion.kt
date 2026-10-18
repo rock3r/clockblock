@@ -200,11 +200,12 @@ class ClockblockMotion internal constructor(
 
     /**
      * Incoming step (or staggered chrome item [index]) in a seekable onboarding step transition: starts once
-     * [stepFadeOut] has finished, each subsequent item delayed by [NavigationStaggerMillis].
+     * [stepFadeOut] has finished, each subsequent item delayed by [NavigationStaggerMillis]. [lagMillis] holds the
+     * whole group back further, so one group of chrome reads as a beat after another (see [StepTopBarLagMillis]).
      */
-    fun <T> stepFadeIn(index: Int = 0): FiniteAnimationSpec<T> = tween(
+    fun <T> stepFadeIn(index: Int = 0, lagMillis: Int = 0): FiniteAnimationSpec<T> = tween(
         durationMillis = (StepFadeInMillis * navigationTimeScale).toInt(),
-        delayMillis = ((StepFadeOutMillis + index * NavigationStaggerMillis) * navigationTimeScale).toInt(),
+        delayMillis = ((StepFadeOutMillis + lagMillis + index * NavigationStaggerMillis) * navigationTimeScale).toInt(),
         easing = StepFadeInEasing,
     )
 
@@ -265,6 +266,12 @@ class ClockblockMotion internal constructor(
         const val StepFadeOutMillis = 60
         const val StepFadeInMillis = 240
         const val NavigationStaggerMillis = 30
+
+        /**
+         * Leaving Welcome, the onboarding top bar (step label, progress, Skip) drops in this much after the bottom
+         * bar's Back / Next, so the two read as distinct beats. Returning to Welcome there is no lag.
+         */
+        const val StepTopBarLagMillis = 180
 
         /** One of the chronotype spectacle's [SpectacleSpins] spins (the rise spans them all). */
         const val SpectacleSpinMillis = 560

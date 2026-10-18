@@ -115,10 +115,12 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
 
 /**
  * Step N of 5, the wavy progress line and Skip. Always composed and measured (the steps reserve its height), shown
- * through [labelAlpha], [progressAlpha] and [skipAlpha] (scaled by [barAlpha]), read in the draw phase. Entering from
- * Welcome ([slide] true), the three items drop in from above, staggered; returning to Welcome (or under reduced
- * motion), [slide] is false and they fade out together in place. While hidden ([visible] false: Welcome, the home
- * search, the spectacle) it is silent for TalkBack and Skip is off.
+ * through [labelAlpha], [progressAlpha] and [skipAlpha] (scaled by [barAlpha]), read in the draw phase. With [slide]
+ * on, each item sits 12 dp above its place until its drop progress ([labelDrop], [progressDrop], [skipDrop]; by
+ * default its alpha) reaches 1, so entering from Welcome they drop in, staggered. Under reduced motion [slide] is off
+ * and they only fade. While hidden ([visible] false: Welcome, the home
+ * search, the spectacle) it is silent for TalkBack and Skip is off. The wave keeps moving while [waveMoving], which
+ * stays true through the fade out toward Welcome (a speed change mid-fade makes the wave jump).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -131,6 +133,10 @@ internal fun OnboardingTopBar(
     progressAlpha: () -> Float,
     skipAlpha: () -> Float,
     onSkip: () -> Unit,
+    waveMoving: Boolean = visible,
+    labelDrop: () -> Float = labelAlpha,
+    progressDrop: () -> Float = progressAlpha,
+    skipDrop: () -> Float = skipAlpha,
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -150,7 +156,7 @@ internal fun OnboardingTopBar(
                 label,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide),
+                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide, drop = labelDrop),
             )
             Spacer(Modifier.size(6.dp))
             // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
@@ -158,10 +164,10 @@ internal fun OnboardingTopBar(
                 progress = { progress },
                 amplitude = { p -> (1f - p).coerceIn(0f, 1f) },
                 wavelength = 28.dp,
-                waveSpeed = if (reduce || !visible) 0.dp else 14.dp,
+                waveSpeed = if (reduce || !waveMoving) 0.dp else 14.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .topBarItem(progressAlpha, barAlpha, slide)
+                    .topBarItem(progressAlpha, barAlpha, slide, drop = progressDrop)
                     .semantics { contentDescription = label }
                     .testTag(OnboardingTags.Progress),
             )
@@ -174,7 +180,7 @@ internal fun OnboardingTopBar(
             modifier = Modifier
                 .heightIn(min = 48.dp)
                 .testTag(OnboardingTags.Skip)
-                .topBarItem(skipAlpha, barAlpha, slide, enabled = skippable),
+                .topBarItem(skipAlpha, barAlpha, slide, enabled = skippable, drop = skipDrop),
         ) { Text(stringResource(R.string.onboarding_skip)) }
     }
 }
@@ -184,10 +190,11 @@ private fun Modifier.topBarItem(
     barAlpha: () -> Float,
     slide: Boolean,
     enabled: Boolean = true,
+    drop: () -> Float = itemAlpha,
 ): Modifier = graphicsLayer {
     val p = itemAlpha().coerceIn(0f, 1f)
     alpha = if (enabled) p * barAlpha() else 0f
-    translationY = if (slide) -(1f - p) * TopBarDrop.toPx() else 0f
+    translationY = if (slide) -(1f - drop().coerceIn(0f, 1f)) * TopBarDrop.toPx() else 0f
 }
 
 private val TopBarDrop = 12.dp
