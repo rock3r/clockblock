@@ -423,27 +423,40 @@ private fun ChronotypeRevealArt(
     val target = chronotype.skyPose()
     val hour = remember { Animatable(target.hour) }
     val position = remember { Animatable(target.position) }
-    val moon = remember { Animatable(if (target.evening) 1f else 0f) }
+    // Sun ⇄ moon: one clock for the cross-fade, pop and wobble (BodySwap), from wherever the last swap had got to.
+    val restingMoon = if (target.evening) 1f else 0f
+    var moonFrom by remember { mutableFloatStateOf(restingMoon) }
+    var moonTo by remember { mutableFloatStateOf(restingMoon) }
+    val swap = remember { Animatable(1f) }
     LaunchedEffect(target) {
         if (hour.value != target.hour) launch { hour.animateTo(target.hour, motion.artEntrance()) }
         if (position.value != target.position) launch { position.animateTo(target.position, motion.artEntrance()) }
         val targetMoon = if (target.evening) 1f else 0f
-        if (moon.value != targetMoon) moon.animateTo(targetMoon, motion.colour())
+        if (moonTo != targetMoon) {
+            moonFrom = BodySwap.moonFraction(moonFrom, moonTo, swap.value)
+            moonTo = targetMoon
+            swap.snapTo(0f)
+            swap.animateTo(1f, motion.bodySwap())
+        }
     }
-    // The rays only turn while a sun shows (an evening type's sky has the moon): no loop runs for nothing.
-    val sunRotation = rememberAmbient(!reduce && !target.evening, ClockblockMotion.SunRotationMillis, reverse = false)
+    // The rays only turn while a sun shows (an evening type's sky has the moon): no loop runs for nothing. A sun fading
+    // out under a swap keeps turning, so it doesn't snap back to its first angle.
+    val swapping by remember { derivedStateOf { swap.value < 1f } }
+    val sunRotation = rememberAmbient(!reduce && (!target.evening || swapping), ClockblockMotion.SunRotationMillis, reverse = false)
     val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
     ChronotypeScene(
         chronotype = chronotype,
         hour = { hour.value - (1f - entrance()) * EntranceHours },
         position = { position.value },
-        moonFraction = { moon.value },
+        moonFraction = { BodySwap.moonFraction(moonFrom, moonTo, swap.value) },
         entrance = entrance,
         sunRotation = { sunRotation.value },
         twinkle = { twinkle.value },
         drawn = drawn,
         modifier = modifier,
         cornerRadius = RevealCorner,
+        bodyScale = { 1f + BodySwap.PopScale * BodySwap.pop(swap.value) },
+        bodyTilt = { BodySwap.wobble(swap.value) },
     )
 }
 

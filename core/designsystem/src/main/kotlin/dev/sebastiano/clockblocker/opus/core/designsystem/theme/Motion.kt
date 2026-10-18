@@ -173,6 +173,13 @@ class ClockblockMotion internal constructor(
         tween((ChromeDimMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
 
     /**
+     * The sun and moon swapping in a chronotype illustration (a rare pick): one linear [BodySwapMillis] clock that
+     * the cross-fade, pop and wobble each shape their own way. ×1.5 under Calm; snaps when reduced (a plain swap).
+     */
+    fun bodySwap(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((BodySwapMillis * navigationTimeScale).toInt(), easing = LinearEasing)
+
+    /**
      * Screen-level navigation movement: push/pop slides, the fade-through scale, list-detail pane bounds.
      * Navigation is a 100+/day surface, so it binds to the Standard scheme (never bounces) and snaps when motion
      * is reduced; opacity still cross-fades via [navigationFadeIn] / [navigationFadeOut].
@@ -294,6 +301,9 @@ class ClockblockMotion internal constructor(
 
         /** Chrome dimming for a rare moment, each way (see [chromeDim]). */
         const val ChromeDimMillis = 300
+
+        /** The sun ⇄ moon swap in a chronotype illustration (see [bodySwap]). */
+        const val BodySwapMillis = 600
 
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
