@@ -5,6 +5,8 @@ import android.view.accessibility.AccessibilityManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
@@ -31,10 +33,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +65,8 @@ import dev.sebastiano.clockblocker.opus.core.model.UserProfile
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePrewarm
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** Test tags for the e2e suite. */
 object OnboardingTags {
@@ -256,11 +262,12 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         ::welcomeOnly,
     )
     val chrome = steps.transition.animateChrome(motion, index = 0)
-    // The top bar drops in a beat after Back / Next (StepTopBarLagMillis), so the two read as distinct moves.
-    val topBarLag = ClockblockMotion.StepTopBarLagMillis
-    val labelChrome = steps.transition.animateChrome(motion, index = 0, lagMillis = topBarLag)
-    val progressChrome = steps.transition.animateChrome(motion, index = 1, lagMillis = topBarLag)
-    val skipChrome = steps.transition.animateChrome(motion, index = 2, lagMillis = topBarLag)
+    // The top bar drops in a beat after Back / Next (StepTopBarLagMillis), so the two read as distinct moves. That
+    // lagged entrance runs on its own clock: on the step transition it would outlast the step's 300 ms, so a Back
+    // tapped once the step looks settled would find the transition still on Welcome and cut instead of animating.
+    // Leaving for Welcome (and predictive back's seek) stays on the step transition.
+    val topBarExit = steps.transition.animateTopBarExit(motion)
+    val topBarEntrance = rememberTopBarEntrance(steps.transition, motion)
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -291,10 +298,13 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
                     slide = !ClockblockTheme.reduceMotion && !returningToWelcome,
                     barAlpha = { (1f - search.value) * bars.value },
-                    labelAlpha = labelChrome,
-                    progressAlpha = progressChrome,
-                    skipAlpha = skipChrome,
+                    labelAlpha = { topBarExit() * topBarEntrance[0].value },
+                    progressAlpha = { topBarExit() * topBarEntrance[1].value },
+                    skipAlpha = { topBarExit() * topBarEntrance[2].value },
                     onSkip = actions::skip,
+                    // Moving until the transition rests on Welcome, so the fade out doesn't restart the wave.
+                    waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
+                        steps.transition.targetState == OnboardingStep.Welcome) && !searchMode && !spectacleRunning,
                 )
             },
             disclaimer = {
@@ -414,15 +424,66 @@ private fun Transition<OnboardingStep>.animateAroundWelcome(
 }
 
 /**
- * Non-Welcome chrome opacity (0 on Welcome, 1 elsewhere): fades in at stagger slot [index], [lagMillis] late, when
- * leaving Welcome, and fades out together (un-staggered, no lag) when returning to Welcome.
+ * Non-Welcome chrome opacity (0 on Welcome, 1 elsewhere): fades in at stagger slot [index] when leaving Welcome, and
+ * fades out together (un-staggered) when returning to Welcome.
  */
 @Composable
-private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, index: Int, lagMillis: Int = 0): () -> Float =
+private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, index: Int): () -> Float =
     animateAroundWelcome(
-        label = "chromeFade$index${if (lagMillis > 0) "Lagged" else ""}",
-        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else motion.stepFadeIn(index, lagMillis) },
+        label = "chromeFade$index",
+        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else motion.stepFadeIn(index) },
     ) { 1f - welcomeOnly(it) }
+
+/**
+ * The top bar's share of the step transition: fades out on `stepFadeOut()` returning to Welcome (so predictive back
+ * seeks it), and snaps to 1 leaving Welcome, where [rememberTopBarEntrance] does the fading in. A snap adds no
+ * duration, so the step transition still settles with the step.
+ */
+@Composable
+private fun Transition<OnboardingStep>.animateTopBarExit(motion: ClockblockMotion): () -> Float =
+    animateAroundWelcome(
+        label = "topBarExit",
+        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else snap() },
+    ) { 1f - welcomeOnly(it) }
+
+/**
+ * The top bar's label, progress line and Skip dropping in when leaving Welcome: staggered on
+ * `stepFadeIn(index, StepTopBarLagMillis)`, from the moment the step transition starts moving, and run outside it (in
+ * a scope that outlives the transition) so they never hold it on Welcome. Back at rest on Welcome they reset to 0;
+ * on any other step they start (and stay) at 1.
+ */
+@Composable
+private fun rememberTopBarEntrance(
+    transition: Transition<OnboardingStep>,
+    motion: ClockblockMotion,
+): List<Animatable<Float, AnimationVector1D>> {
+    val initial = if (transition.currentState == OnboardingStep.Welcome) 0f else 1f
+    val items = remember { List(TopBarItems) { Animatable(initial) } }
+    val scope = rememberCoroutineScope()
+    val onWelcome = transition.currentState == OnboardingStep.Welcome
+    val atWelcome = onWelcome && transition.targetState == OnboardingStep.Welcome
+    val leavingWelcome = onWelcome && transition.targetState != OnboardingStep.Welcome
+    val currentMotion by rememberUpdatedState(motion)
+    LaunchedEffect(atWelcome) {
+        if (atWelcome) items.forEach { it.snapTo(0f) }
+    }
+    LaunchedEffect(leavingWelcome) {
+        if (!leavingWelcome) return@LaunchedEffect
+        // Not tied to this effect: the entrance outlasts the transition, whose end would otherwise cancel it.
+        scope.launch {
+            // Wait for the step transition to start moving (it first lays the incoming step out at its start).
+            snapshotFlow { transition.playTimeNanos > 0 || transition.currentState != OnboardingStep.Welcome }.first { it }
+            if (transition.targetState == OnboardingStep.Welcome) return@launch
+            items.forEachIndexed { index, item ->
+                launch { item.animateTo(1f, currentMotion.stepFadeIn(index, ClockblockMotion.StepTopBarLagMillis)) }
+            }
+        }
+    }
+    return items
+}
+
+/** The top bar's label, progress line and Skip. */
+private const val TopBarItems = 3
 
 /**
  * Reserves a step's room for the chrome around it: [top] (read in layout, so the home search can fold it away frame

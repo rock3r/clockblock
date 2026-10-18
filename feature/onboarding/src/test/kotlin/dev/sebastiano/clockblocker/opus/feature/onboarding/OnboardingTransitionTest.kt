@@ -149,6 +149,23 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `going back as soon as the step looks settled, while the top bar is still dropping in, plays the back transition`() {
+        show(OnboardingStep.Welcome)
+        go(OnboardingStep.HomeZone)
+        // The step and the buttons are at rest by now; only the top bar's lagged entrance may still be running.
+        frame(LookSettled)
+        val backAtRest = boundsOf(OnboardingTags.Back)
+        go(OnboardingStep.Welcome)
+        frame(EarlyTransition)
+        // A real Home → Welcome transition: Home is still fading out and Back is on its way off the start edge,
+        // rather than a cut back to Welcome (the step transition never settled on Home).
+        compose.onNodeWithText(homeHeadline).assertExists()
+        boundsOf(OnboardingTags.Back).left shouldBeLessThan backAtRest.left
+        frame(Settled)
+        compose.onNodeWithText(homeHeadline).assertDoesNotExist()
+    }
+
+    @Test
     fun `get started shrinks into next and back enters from the start edge`() {
         show(OnboardingStep.Welcome)
         val started = boundsOf(OnboardingTags.GetStarted)
@@ -640,6 +657,9 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
         const val MidTransition = 120L
         const val StaggerMidTransition = 160L
         const val Settled = 3_000L
+
+        /** Past the 300 ms step morph (plus the first frames), before the top bar's lagged entrance ends. */
+        const val LookSettled = 400L
         const val InkThreshold = 5
     }
 }

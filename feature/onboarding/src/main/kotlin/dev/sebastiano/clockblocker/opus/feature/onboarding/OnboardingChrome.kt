@@ -118,7 +118,8 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
  * through [labelAlpha], [progressAlpha] and [skipAlpha] (scaled by [barAlpha]), read in the draw phase. Entering from
  * Welcome ([slide] true), the three items drop in from above, staggered; returning to Welcome (or under reduced
  * motion), [slide] is false and they fade out together in place. While hidden ([visible] false: Welcome, the home
- * search, the spectacle) it is silent for TalkBack and Skip is off.
+ * search, the spectacle) it is silent for TalkBack and Skip is off. The wave keeps moving while [waveMoving], which
+ * stays true through the fade out toward Welcome (a speed change mid-fade makes the wave jump).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -131,6 +132,7 @@ internal fun OnboardingTopBar(
     progressAlpha: () -> Float,
     skipAlpha: () -> Float,
     onSkip: () -> Unit,
+    waveMoving: Boolean = visible,
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
@@ -158,7 +160,7 @@ internal fun OnboardingTopBar(
                 progress = { progress },
                 amplitude = { p -> (1f - p).coerceIn(0f, 1f) },
                 wavelength = 28.dp,
-                waveSpeed = if (reduce || !visible) 0.dp else 14.dp,
+                waveSpeed = if (reduce || !waveMoving) 0.dp else 14.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .topBarItem(progressAlpha, barAlpha, slide)
