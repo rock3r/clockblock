@@ -166,6 +166,39 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `going back while the top bar is still dropping in, it fades out from where it was without jumping`() {
+        show(OnboardingStep.Welcome)
+        go(OnboardingStep.HomeZone)
+        frame(TopBarDropping - FirstFrame)
+        val earlier = labelInkRow()
+        frame(FirstFrame)
+        val before = labelInkRow()
+        go(OnboardingStep.Welcome)
+        val after = labelInkRow()
+        // Frozen mid-drop: the label neither snaps down to its resting place (the old jump: over 30 px) nor keeps
+        // dropping. At most the frame in flight when Back lands still moves it, at the drop's own speed.
+        before shouldNotBe null
+        after shouldNotBe null
+        val perFrame = abs(before!! - earlier!!)
+        abs(after!! - before) shouldBeLessThan perFrame + 2
+    }
+
+    /**
+     * The row where the step label (above the progress line, left of Skip) has the most ink, or null when it is
+     * invisible: unlike its top edge, it doesn't move as the label fades.
+     */
+    private fun labelInkRow(): Int? {
+        val map = compose.onRoot().captureToImage().toPixelMap()
+        val bg = map[map.width / 2, map.height / 2 + map.height / 4]
+        val progress = compose.onNodeWithTag(OnboardingTags.Progress, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val bottom = with(compose.density) { progress.top.toPx() }.toInt() - 4
+        val right = with(compose.density) { progress.right.toPx() }.toInt() / 2
+        val rows = (0 until bottom).map { y -> (0 until right).sumOf { x -> colorDistance(map[x, y], bg).toDouble() } }
+        val best = rows.indices.maxBy { rows[it] }
+        return best.takeIf { rows[it] > 1.0 }
+    }
+
+    @Test
     fun `get started shrinks into next and back enters from the start edge`() {
         show(OnboardingStep.Welcome)
         val started = boundsOf(OnboardingTags.GetStarted)
@@ -660,6 +693,9 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
 
         /** Past the 300 ms step morph (plus the first frames), before the top bar's lagged entrance ends. */
         const val LookSettled = 400L
+
+        /** Into the top bar label's lagged entrance (it fades and drops in from 240 ms to 480 ms). */
+        const val TopBarDropping = 400L
         const val InkThreshold = 5
     }
 }

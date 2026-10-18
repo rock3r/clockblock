@@ -267,7 +267,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // tapped once the step looks settled would find the transition still on Welcome and cut instead of animating.
     // Leaving for Welcome (and predictive back's seek) stays on the step transition.
     val topBarExit = steps.transition.animateTopBarExit(motion)
-    val topBarEntrance = rememberTopBarEntrance(steps.transition, motion)
+    val topBarEntrance = rememberTopBarEntrance(step, steps.transition, motion)
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -285,7 +285,6 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val bars = animateFloatAsState(if (spectacleRunning) 0f else 1f, motion.fade(), label = "spectacleBars")
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
-        val returningToWelcome = steps.transition.targetState == OnboardingStep.Welcome
         if (step == OnboardingStep.Sleep) {
             ChronotypePrewarm()
         }
@@ -296,11 +295,16 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 OnboardingTopBar(
                     step = topBarStep(step, steps.transition.currentState),
                     visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
-                    slide = !ClockblockTheme.reduceMotion && !returningToWelcome,
+                    // The drop follows the entrance alone: at rest it is 1, so fading out toward Welcome doesn't
+                    // slide, and an entrance frozen by an early Back keeps its offset while the items fade out.
+                    slide = !ClockblockTheme.reduceMotion,
                     barAlpha = { (1f - search.value) * bars.value },
                     labelAlpha = { topBarExit() * topBarEntrance[0].value },
                     progressAlpha = { topBarExit() * topBarEntrance[1].value },
                     skipAlpha = { topBarExit() * topBarEntrance[2].value },
+                    labelDrop = { topBarEntrance[0].value },
+                    progressDrop = { topBarEntrance[1].value },
+                    skipDrop = { topBarEntrance[2].value },
                     onSkip = actions::skip,
                     // Moving until the transition rests on Welcome, so the fade out doesn't restart the wave.
                     waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
@@ -449,11 +453,13 @@ private fun Transition<OnboardingStep>.animateTopBarExit(motion: ClockblockMotio
 /**
  * The top bar's label, progress line and Skip dropping in when leaving Welcome: staggered on
  * `stepFadeIn(index, StepTopBarLagMillis)`, from the moment the step transition starts moving, and run outside it (in
- * a scope that outlives the transition) so they never hold it on Welcome. Back at rest on Welcome they reset to 0;
- * on any other step they start (and stay) at 1.
+ * a scope that outlives the transition) so they never hold it on Welcome. Heading back to Welcome (a tap or predictive
+ * back) freezes them where they are, so the exit fades them out from there; if the gesture is cancelled, they finish
+ * on `fade()`. Back at rest on Welcome they reset to 0; on any other step they start (and stay) at 1.
  */
 @Composable
 private fun rememberTopBarEntrance(
+    step: OnboardingStep,
     transition: Transition<OnboardingStep>,
     motion: ClockblockMotion,
 ): List<Animatable<Float, AnimationVector1D>> {
@@ -463,9 +469,23 @@ private fun rememberTopBarEntrance(
     val onWelcome = transition.currentState == OnboardingStep.Welcome
     val atWelcome = onWelcome && transition.targetState == OnboardingStep.Welcome
     val leavingWelcome = onWelcome && transition.targetState != OnboardingStep.Welcome
+    // On the step too, not only the transition's target: that one changes a frame or two later, while the entrance
+    // carries on dropping. Predictive back only moves the target.
+    val headingToWelcome = !onWelcome &&
+        (step == OnboardingStep.Welcome || transition.targetState == OnboardingStep.Welcome)
+    val awayFromWelcome = !onWelcome && !headingToWelcome
     val currentMotion by rememberUpdatedState(motion)
     LaunchedEffect(atWelcome) {
         if (atWelcome) items.forEach { it.snapTo(0f) }
+    }
+    LaunchedEffect(headingToWelcome) {
+        if (headingToWelcome) items.forEach { it.stop() }
+    }
+    LaunchedEffect(awayFromWelcome) {
+        // A cancelled predictive back leaves a frozen entrance behind: finish it (a running one carries on as it is).
+        if (awayFromWelcome) {
+            items.forEach { item -> if (!item.isRunning && item.value < 1f) launch { item.animateTo(1f, currentMotion.fade()) } }
+        }
     }
     LaunchedEffect(leavingWelcome) {
         if (!leavingWelcome) return@LaunchedEffect
