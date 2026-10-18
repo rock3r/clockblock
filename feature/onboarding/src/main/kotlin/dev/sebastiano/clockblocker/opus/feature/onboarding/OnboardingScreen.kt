@@ -256,8 +256,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         ::welcomeOnly,
     )
     val chrome = steps.transition.animateChrome(motion, index = 0)
-    val progressChrome = steps.transition.animateChrome(motion, index = 1)
-    val skipChrome = steps.transition.animateChrome(motion, index = 2)
+    // The top bar drops in a beat after Back / Next (StepTopBarLagMillis), so the two read as distinct moves.
+    val topBarLag = ClockblockMotion.StepTopBarLagMillis
+    val labelChrome = steps.transition.animateChrome(motion, index = 0, lagMillis = topBarLag)
+    val progressChrome = steps.transition.animateChrome(motion, index = 1, lagMillis = topBarLag)
+    val skipChrome = steps.transition.animateChrome(motion, index = 2, lagMillis = topBarLag)
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -288,7 +291,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
                     slide = !ClockblockTheme.reduceMotion && !returningToWelcome,
                     barAlpha = { (1f - search.value) * bars.value },
-                    labelAlpha = chrome,
+                    labelAlpha = labelChrome,
                     progressAlpha = progressChrome,
                     skipAlpha = skipChrome,
                     onSkip = actions::skip,
@@ -411,14 +414,14 @@ private fun Transition<OnboardingStep>.animateAroundWelcome(
 }
 
 /**
- * Non-Welcome chrome opacity (0 on Welcome, 1 elsewhere): fades in at stagger slot [index] when leaving Welcome, and
- * fades out together (un-staggered) when returning to Welcome.
+ * Non-Welcome chrome opacity (0 on Welcome, 1 elsewhere): fades in at stagger slot [index], [lagMillis] late, when
+ * leaving Welcome, and fades out together (un-staggered, no lag) when returning to Welcome.
  */
 @Composable
-private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, index: Int): () -> Float =
+private fun Transition<OnboardingStep>.animateChrome(motion: ClockblockMotion, index: Int, lagMillis: Int = 0): () -> Float =
     animateAroundWelcome(
-        label = "chromeFade$index",
-        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else motion.stepFadeIn(index) },
+        label = "chromeFade$index${if (lagMillis > 0) "Lagged" else ""}",
+        spec = { if (targetState == OnboardingStep.Welcome) motion.stepFadeOut() else motion.stepFadeIn(index, lagMillis) },
     ) { 1f - welcomeOnly(it) }
 
 /**
