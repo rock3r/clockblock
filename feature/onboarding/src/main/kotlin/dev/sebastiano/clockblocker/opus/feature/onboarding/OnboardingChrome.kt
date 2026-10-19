@@ -433,7 +433,6 @@ private fun RemindersPrimary(state: OnboardingUiState, actions: OnboardingAction
     if (state.remindersHandled) {
         Button(
             onClick = actions::finish,
-            enabled = !state.isSaving,
             contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
             modifier = Modifier
                 .heightIn(min = ButtonDefaults.MediumContainerHeight)
@@ -443,7 +442,6 @@ private fun RemindersPrimary(state: OnboardingUiState, actions: OnboardingAction
     } else {
         TextButton(
             onClick = actions::finish,
-            enabled = !state.isSaving,
             modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
         ) { Text(stringResource(R.string.reminders_maybe_later), style = MaterialTheme.typography.titleMedium) }
     }

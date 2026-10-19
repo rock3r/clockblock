@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -214,9 +215,21 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
         compose.onNodeWithTag(RemindersTags.NotificationsAllowed).assertExists()
         compose.onNodeWithTag(RemindersTags.ExactAlarm).performScrollTo().performClick()
-        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
         compose.onNodeWithTag(OnboardingTags.Back).performClick()
-        actions.calls shouldContainExactly listOf("exact", "finish", "back")
+        compose.onNodeWithTag(OnboardingTags.Finish).performClick()
+        actions.calls shouldContainExactly listOf("exact", "back", "finish")
+    }
+
+    @Test
+    fun `once finishing, nothing takes input while the profile saves, and the buttons stay enabled`() {
+        show(onboardingState(OnboardingStep.Reminders))
+        compose.onNodeWithTag(RemindersTags.AllowNotifications).assertIsEnabled()
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
+        // Inert, not disabled: out of the semantics tree (no taps, focus or TalkBack) but drawn as they were.
+        compose.onNodeWithTag(OnboardingTags.Back).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.AllowNotifications).assertDoesNotExist()
+        compose.onNodeWithTag(RemindersTags.AllowNotifications, useUnmergedTree = true).assertExists()
+        actions.calls shouldContainExactly listOf("finish")
     }
 
     @Test

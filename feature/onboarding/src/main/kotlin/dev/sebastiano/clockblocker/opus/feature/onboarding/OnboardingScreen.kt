@@ -155,14 +155,15 @@ interface OnboardingActions {
 fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, onTakeoff: () -> Unit = {}) {
     val viewModel = metroViewModel<OnboardingViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val finished by viewModel.finished.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnFinished by rememberUpdatedState(onFinished)
     val currentOnTakeoff by rememberUpdatedState(onTakeoff)
     // A finish that takes off saves while the plane leaves, and hands over once both are done.
     var tookOff by remember { mutableStateOf(false) }
     var landed by remember { mutableStateOf(false) }
-    LaunchedEffect(state.isFinished, tookOff, landed) {
-        if (state.isFinished && (!tookOff || landed)) currentOnFinished()
+    LaunchedEffect(finished, tookOff, landed) {
+        if (finished && (!tookOff || landed)) currentOnFinished()
     }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshPermissions()
@@ -257,8 +258,10 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     val currentStep by rememberUpdatedState(step)
     val spectacleAllowed by rememberUpdatedState(allowed)
     // Finishing: the runway plane takes off and the content leaves (Takeoff) before the profile is saved and the app
-    // takes over (its sweep follows). Nothing takes input meanwhile. Skipped with the spectacle's conditions.
+    // takes over (its sweep follows). Nothing takes input meanwhile, with or without it: the buttons keep their look
+    // (not disabled) as they leave. The take-off is skipped with the spectacle's conditions.
     val takeoff = remember { Animatable(0f) }
+    val takeoffClock = remember(takeoff) { { takeoff.value } }
     var leaving by remember { mutableStateOf(false) }
     val leaveScope = rememberCoroutineScope()
     val currentMotion by rememberUpdatedState(ClockblockTheme.motion)
@@ -279,8 +282,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
 
             override fun finish() {
                 if (leaving) return
-                if (!spectacleAllowed) return actions.finish()
                 leaving = true
+                if (!spectacleAllowed) return actions.finish()
                 actions.takeoff()
                 // Saved meanwhile, so the hand-over doesn't wait for it after the take-off.
                 actions.finish()
@@ -353,7 +356,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         if (step == OnboardingStep.Sleep) {
             ChronotypePrewarm()
         }
-        CompositionLocalProvider(LocalTakeoff provides if (leaving) ({ takeoff.value }) else null) {
+        CompositionLocalProvider(LocalTakeoff provides takeoffClock) {
         OnboardingFrame(
             searchProgress = { search.value },
             keyboard = keyboard,
@@ -445,7 +448,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 .widthIn(max = OnboardingMaxWidth)
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                // Leaving: nothing takes a tap, focus or TalkBack while the plane takes off.
+                // Leaving: nothing takes a tap, focus or TalkBack while the profile saves and the plane takes off.
                 .then(if (leaving) Modifier.inert() else Modifier),
             disclaimerOverlap = bottomBarVerticalPadding(short),
         )

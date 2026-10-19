@@ -520,7 +520,6 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
                     when (ask) {
                         NotificationAsk.Ask -> Button(
                             onClick = actions::requestNotifications,
-                            enabled = !state.isSaving,
                             contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
                             modifier = Modifier
                                 .fillMaxWidth()

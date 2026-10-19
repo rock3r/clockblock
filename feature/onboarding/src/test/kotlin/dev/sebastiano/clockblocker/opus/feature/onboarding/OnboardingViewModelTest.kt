@@ -24,6 +24,8 @@ import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeSameInstanceAs
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -183,16 +185,24 @@ class OnboardingViewModelTest {
     fun `finish saves the profile once and reports completion`() = runTest {
         val vm = viewModel()
         vm.setChronotype(Chronotype.ModerateEvening)
-        vm.state.test {
-            awaitItem().isFinished.shouldBeFalse()
+        vm.finished.test {
+            awaitItem().shouldBeFalse()
             vm.finish()
-            var item = awaitItem()
-            while (!item.isFinished) item = awaitItem()
+            awaitItem().shouldBeTrue()
             cancelAndIgnoreRemainingEvents()
         }
         vm.finish()
         profiles.saveCount shouldBe 1
         profiles.current?.chronotype shouldBe Chronotype.ModerateEvening
+    }
+
+    @Test
+    fun `finishing leaves the UI state alone, so the take-off doesn't recompose the screen`() = runTest {
+        val vm = viewModel()
+        val before = vm.state.value
+        vm.finish()
+        vm.finished.first { it }
+        vm.state.value shouldBeSameInstanceAs before
     }
 
     @Test

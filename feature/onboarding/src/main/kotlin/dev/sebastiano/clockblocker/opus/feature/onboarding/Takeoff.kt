@@ -65,12 +65,15 @@ internal object Takeoff {
     private fun stage(progress: Float, from: Float, to: Float): Float = ((progress - from) / (to - from)).coerceIn(0f, 1f)
 }
 
-/** The finish clock while onboarding is leaving, or null the rest of the time. */
-internal val LocalTakeoff = staticCompositionLocalOf<(() -> Float)?> { null }
+/**
+ * The finish clock: 0 until onboarding leaves. Provided once and only ever read in the layer phase, so the take-off
+ * starting recomposes nothing (a value provided as it starts would recompose every step under it, a long first frame).
+ */
+internal val LocalTakeoff = staticCompositionLocalOf<() -> Float> { { 0f } }
 
-/** The item in exit [slot] rises out and fades as onboarding leaves (read in the layer phase); nothing otherwise. */
+/** The item in exit [slot] rises out and fades as onboarding leaves (read in the layer phase). */
 internal fun Modifier.takeoffExit(slot: Int): Modifier = composed {
-    val takeoff = LocalTakeoff.current ?: return@composed Modifier
+    val takeoff = LocalTakeoff.current
     graphicsLayer {
         val e = Takeoff.exit(slot, takeoff())
         alpha = 1f - e

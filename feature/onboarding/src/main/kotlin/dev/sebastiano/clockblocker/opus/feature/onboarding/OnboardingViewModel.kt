@@ -73,7 +73,6 @@ enum class OnboardingStep {
  * @property notificationsAsked the notification permission prompt has answered at least once in this flow.
  * @property notificationPreview the real Now notification's content for a sample plan, when this device can play it;
  *   `null` draws the standard notification's look.
- * @property isFinished the profile has been saved; the route calls `onFinished()`.
  * @property easterEggs the sleep dial's 24.2 egg may run ([EasterEggGate]: Reduce motion off, plan not saying sleep).
  */
 data class OnboardingUiState(
@@ -92,8 +91,6 @@ data class OnboardingUiState(
     val notificationPreview: RemoteViews? = null,
     /** When the flow opened; used to show "now" in candidate home zones and in the notification preview. */
     val now: Instant = Instant.EPOCH,
-    val isSaving: Boolean = false,
-    val isFinished: Boolean = false,
     val easterEggs: Boolean = false,
 ) {
     val usingDeviceZone: Boolean get() = profile.homeZoneId == deviceZoneId && homePlace == null
@@ -149,6 +146,16 @@ class OnboardingViewModel(
         },
     )
     val state: StateFlow<OnboardingUiState> = _state.asStateFlow()
+
+    private val _finished = MutableStateFlow(false)
+
+    /**
+     * The profile has been saved; the route calls `onFinished()`. Apart from [state]: saving happens while the finish
+     * takes off, and a new UI state then would recompose the whole screen under it.
+     */
+    val finished: StateFlow<Boolean> = _finished.asStateFlow()
+
+    private var saving = false
 
     private var touched = false
     private var searchJob: Job? = null
@@ -297,14 +304,14 @@ class OnboardingViewModel(
         }
     }
 
-    /** Saves the profile, then flags [OnboardingUiState.isFinished]. Idempotent. */
+    /** Saves the profile, then flags [finished]. Idempotent. */
     fun finish() {
-        val current = _state.value
-        if (current.isSaving || current.isFinished) return
-        _state.update { it.copy(isSaving = true) }
+        if (saving || _finished.value) return
+        saving = true
         viewModelScope.launch {
             profiles.save(_state.value.profile)
-            _state.update { it.copy(isSaving = false, isFinished = true) }
+            saving = false
+            _finished.value = true
         }
     }
 
