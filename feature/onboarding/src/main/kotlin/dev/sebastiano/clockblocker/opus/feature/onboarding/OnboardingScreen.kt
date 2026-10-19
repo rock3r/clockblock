@@ -273,6 +273,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // Leaving for Welcome (and predictive back's seek) stays on the step transition.
     val topBarExit = steps.transition.animateTopBarExit(motion)
     val topBarEntrance = rememberTopBarEntrance(step, steps.transition, motion)
+    // The last step: Skip slides out and fades as its room goes to the progress line, the runway for a little plane.
+    // Seeked with the steps (predictive back scrubs it back), so it lives on the step transition, within its 300 ms.
+    val lastStep = steps.transition.animateAround(OnboardingStep.Reminders, "lastStep", { motion.stepSpatial() }, ::remindersOnly)
+    val lastStepFade = steps.transition.animateAround(OnboardingStep.Reminders, "lastStepFade", { motion.stepCrossFade() }, ::remindersOnly)
+    val taxi = rememberRunwayTaxi(step, steps.transition, motion)
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -289,6 +294,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
         // During the spectacle the bars stay on screen, dimmed, instead of vanishing and popping back: they fade to half
         // as it starts and back in full as the chronotype's name starts to appear, and take input only when in full.
+        // A new window width is a new runway: the holding point follows it.
+        val runwayPlane = remember(taxi, maxWidth) { RunwayPlanePose(taxi = { taxi.value }, alpha = lastStepFade) }
         val bars = animateFloatAsState(
             if (spectacleRunning && spectacleDimsBars) SpectacleBarsAlpha else 1f,
             motion.chromeDim(),
@@ -317,6 +324,9 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     labelDrop = { topBarEntrance[0].value },
                     progressDrop = { topBarEntrance[1].value },
                     skipDrop = { topBarEntrance[2].value },
+                    lastStep = lastStep,
+                    skipLeaves = lastStepFade,
+                    plane = runwayPlane,
                     onSkip = actions::skip,
                     // Moving until the transition rests on Welcome, so the fade out doesn't restart the wave.
                     waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
@@ -420,7 +430,8 @@ private fun welcomeOnly(step: OnboardingStep): Float = if (step == OnboardingSte
 
 /**
  * Animates a Welcome-only float value on [this] step transition: [spec] when entering or leaving Welcome and a [snap]
- * elsewhere, so other steps' transitions (and their predictive back seek) never inherit a Welcome duration.
+ * elsewhere, so other steps' transitions (and their predictive back seek) never inherit a Welcome duration. See
+ * [animateAround].
  *
  * Keyed on [Transition.currentState] so that when a transition settles (`currentState` moves to `targetState`) the
  * animation state is re-seeded at its resting value; otherwise `SeekableTransitionState.onTotalDurationChanged`
@@ -432,14 +443,68 @@ private fun Transition<OnboardingStep>.animateAroundWelcome(
     label: String,
     spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
     targetValueByState: (OnboardingStep) -> Float,
+): () -> Float = animateAround(OnboardingStep.Welcome, label, spec, targetValueByState)
+
+/**
+ * Animates a float value tied to [around] on [this] step transition: [spec] when entering or leaving [around] and a
+ * [snap] elsewhere. Keyed on [Transition.currentState]: see the note on re-seeding above.
+ */
+@Composable
+private fun Transition<OnboardingStep>.animateAround(
+    around: OnboardingStep,
+    label: String,
+    spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
+    targetValueByState: (OnboardingStep) -> Float,
 ): () -> Float {
     val animated = key(currentState) {
         animateFloat(
-            transitionSpec = { if (initialState == OnboardingStep.Welcome || targetState == OnboardingStep.Welcome) spec() else snap() },
+            transitionSpec = { if (initialState == around || targetState == around) spec() else snap() },
             label = label,
         ) { targetValueByState(it) }
     }
     return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
+}
+
+/** 1 on the last step (Reminders), 0 on every other step. */
+private fun remindersOnly(step: OnboardingStep): Float = if (step == OnboardingStep.Reminders) 1f else 0f
+
+/**
+ * The runway plane's taxi to its holding point (0 → 1) when the last step comes in, on `taxi()`: like the top bar's
+ * entrance it runs on its own clock (it outlasts the 300 ms step transition, which must still settle with the step).
+ * Heading away from the last step freezes it where it is while the plane fades out (on the step transition); at rest
+ * on any other step it is back at 0, so coming back taxis in again.
+ */
+@Composable
+private fun rememberRunwayTaxi(
+    step: OnboardingStep,
+    transition: Transition<OnboardingStep>,
+    motion: ClockblockMotion,
+): Animatable<Float, AnimationVector1D> {
+    val last = OnboardingStep.Reminders
+    val taxi = remember { Animatable(if (transition.currentState == last) 1f else 0f) }
+    val scope = rememberCoroutineScope()
+    val currentMotion by rememberUpdatedState(motion)
+    val arriving = transition.currentState != last && transition.targetState == last
+    val leaving = transition.currentState == last && (step != last || transition.targetState != last)
+    val awayAtRest = transition.currentState != last && transition.targetState != last
+    LaunchedEffect(awayAtRest) { if (awayAtRest) taxi.snapTo(0f) }
+    LaunchedEffect(leaving) { if (leaving) taxi.stop() }
+    // A cancelled predictive back leaves the taxi frozen: it rolls on to its holding point (a running one carries on).
+    val atLast = transition.currentState == last && transition.targetState == last && step == last
+    LaunchedEffect(atLast) {
+        if (atLast && !taxi.isRunning && taxi.value < 1f) taxi.animateTo(1f, currentMotion.taxi())
+    }
+    LaunchedEffect(arriving) {
+        if (!arriving) return@LaunchedEffect
+        // Not tied to this effect: the taxi outlasts the transition, whose end would otherwise cancel it.
+        scope.launch {
+            snapshotFlow { transition.playTimeNanos > 0 || transition.currentState == last }.first { it }
+            if (transition.targetState != last) return@launch
+            taxi.snapTo(0f)
+            taxi.animateTo(1f, currentMotion.taxi())
+        }
+    }
+    return taxi
 }
 
 /**

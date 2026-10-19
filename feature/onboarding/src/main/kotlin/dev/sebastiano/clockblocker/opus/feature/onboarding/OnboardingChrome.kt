@@ -22,12 +22,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layoutId
@@ -121,6 +129,10 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
  * and they only fade. While hidden ([visible] false: Welcome, the home
  * search, the spectacle) it is silent for TalkBack and Skip is off. The wave keeps moving while [waveMoving], which
  * stays true through the fade out toward Welcome (a speed change mid-fade makes the wave jump).
+ *
+ * On the last step there is nothing left to skip: [lastStep] (0 → 1, read in layout and draw) slides Skip out to the
+ * end while it fades ([skipLeaves]), and its room goes to the progress line, now the runway for a little plane that
+ * taxis to its holding point a third of the way along ([plane]).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -137,6 +149,9 @@ internal fun OnboardingTopBar(
     labelDrop: () -> Float = labelAlpha,
     progressDrop: () -> Float = progressAlpha,
     skipDrop: () -> Float = skipAlpha,
+    lastStep: () -> Float = { 0f },
+    skipLeaves: () -> Float = lastStep,
+    plane: RunwayPlanePose? = null,
     modifier: Modifier = Modifier,
 ) {
     val motion = ClockblockTheme.motion
@@ -169,22 +184,98 @@ internal fun OnboardingTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .topBarItem(progressAlpha, barAlpha, slide, drop = progressDrop)
+                    .then(if (plane != null) Modifier.runwayPlane(plane) else Modifier)
                     .semantics { contentDescription = label }
                     .testTag(OnboardingTags.Progress),
             )
         }
-        Spacer(Modifier.width(8.dp))
         val skippable = step != OnboardingStep.Reminders
         TextButton(
             onClick = onSkip,
-            enabled = visible && skippable,
+            enabled = visible,
             modifier = Modifier
+                .skipSlot(lastStep)
                 .heightIn(min = 48.dp)
                 .testTag(OnboardingTags.Skip)
-                .topBarItem(skipAlpha, barAlpha, slide, enabled = skippable, drop = skipDrop),
+                .topBarItem({ skipAlpha() * (1f - skipLeaves().coerceIn(0f, 1f)) }, barAlpha, slide, drop = skipDrop)
+                // Nothing to skip on the last step: still drawn while it leaves, but no longer a control.
+                .then(if (skippable) Modifier else Modifier.inertChrome()),
         ) { Text(stringResource(R.string.onboarding_skip)) }
     }
 }
+
+/**
+ * Skip's room in the top bar: its own width plus the gap before it, shrinking as [leaving] goes 0 → 1 (read in
+ * layout) to just the end inset that mirrors the line's start, while Skip itself keeps its size and slides out past
+ * the end. The progress line beside it grows into the room it leaves.
+ */
+private fun Modifier.skipSlot(leaving: () -> Float): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0))
+    val gap = SkipGap.roundToPx()
+    val p = leaving().coerceIn(0f, 1f)
+    val room = placeable.width + gap
+    val width = lerp(room.toFloat(), LineEndInset.toPx(), p).roundToInt()
+    layout(width, placeable.height) { placeable.placeRelative(gap + (room * p).roundToInt(), 0) }
+}
+
+private val SkipGap = 8.dp
+
+/** With Skip gone, the line ends this far before the bar's own end padding: 24 dp from the edge, like its start. */
+private val LineEndInset = 16.dp
+
+/** Drawn, but not a control: takes no taps and no focus, and TalkBack doesn't see it. */
+private fun Modifier.inertChrome(): Modifier = this
+    .clearAndSetSemantics { }
+    .focusProperties { canFocus = false }
+    .pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+        }
+    }
+
+/**
+ * Where the runway plane is: [taxi] its way from the start of the line to its holding point a third of the way along
+ * (0 → 1), and [alpha] its opacity, both read in draw.
+ */
+@Stable
+internal class RunwayPlanePose(val taxi: () -> Float, val alpha: () -> Float) {
+    /**
+     * The whole runway's width once Skip has left: the line shrinks back while the plane fades out on Back, and the
+     * holding point stays a third of the way along the runway it parked on instead of drifting with it.
+     */
+    internal var runwayWidth: Float = 0f
+}
+
+/** The plane on the progress line, wheels on the line, taking off towards the end (mirrored in RTL). */
+private fun Modifier.runwayPlane(pose: RunwayPlanePose): Modifier = composed {
+    val color = MaterialTheme.colorScheme.primary
+    val wing = MaterialTheme.colorScheme.tertiary
+    drawWithContent {
+        drawContent()
+        val alpha = pose.alpha().coerceIn(0f, 1f)
+        if (alpha <= 0f) {
+            pose.runwayWidth = 0f
+            return@drawWithContent
+        }
+        val length = RunwayPlaneLength.toPx()
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        // The widest the runway has been since the plane appeared (a new window size makes a new pose).
+        pose.runwayWidth = maxOf(pose.runwayWidth, size.width)
+        // From the start of the line to its holding point: the plane's middle a third of the way along the runway.
+        val travel = pose.runwayWidth * HoldingPoint - length / 2f
+        val fromStart = travel * pose.taxi().coerceIn(0f, 1f)
+        val ground = size.height / 2f - RunwayStroke.toPx() / 2f + RunwayGroundNudge.toPx()
+        val tailX = if (rtl) size.width - fromStart else fromStart
+        with(RunwayPlane) { drawRunwayPlane(Offset(tailX, ground), length, color, alpha, mirrored = rtl, wingColor = wing) }
+    }
+}
+
+private val RunwayPlaneLength = 34.dp
+private val RunwayStroke = 4.dp
+
+/** The flat line sits a touch below the indicator's middle: wheels on the line, not hovering over it. */
+private val RunwayGroundNudge = 2.dp
+private const val HoldingPoint = 1f / 3f
 
 private fun Modifier.topBarItem(
     itemAlpha: () -> Float,

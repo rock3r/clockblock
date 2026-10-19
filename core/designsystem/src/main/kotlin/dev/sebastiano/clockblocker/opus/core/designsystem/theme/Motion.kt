@@ -226,6 +226,21 @@ class ClockblockMotion internal constructor(
     /** Night-safe / body-night surfaces are ~1.5× slower (see [CalmMotionScheme]). */
     private val navigationTimeScale: Float get() = if (isCalm) 1.5f else 1f
 
+    /**
+     * Chrome cross-fading across a whole seekable onboarding step transition (Skip leaving on the last step, the
+     * runway plane fading out on Back): spans the same [StepFadeOutMillis] + [StepFadeInMillis] window as
+     * [stepSpatial], so it never outlasts the step, but still fades when motion is reduced.
+     */
+    fun <T> stepCrossFade(): FiniteAnimationSpec<T> =
+        tween(((StepFadeOutMillis + StepFadeInMillis) * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
+     * The little plane taxiing along the onboarding progress line to its holding point on the last step: slowing to
+     * a stop (emphasized decelerate) over [TaxiMillis]. ×1.5 under Calm; snaps when reduced.
+     */
+    fun taxi(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((TaxiMillis * navigationTimeScale).toInt(), easing = EmphasizedDecelerate)
+
     /** True under [CalmMotionScheme] (Night-safe colours or the body clock's night). */
     val isCalm: Boolean get() = scheme === CalmMotionScheme
 
@@ -304,6 +319,9 @@ class ClockblockMotion internal constructor(
 
         /** The sun ⇄ moon swap in a chronotype illustration (see [bodySwap]). */
         const val BodySwapMillis = 600
+
+        /** The runway plane's taxi to its holding point (see [taxi]). */
+        const val TaxiMillis = 900
 
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)

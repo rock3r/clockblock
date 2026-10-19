@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -196,7 +197,7 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
     @Test
     fun `notifications are asked from the card, maybe later finishes without asking`() {
         show(onboardingState(OnboardingStep.Reminders))
-        compose.onNodeWithTag(OnboardingTags.Skip).assertIsNotEnabled()
+        compose.onNodeWithTag(OnboardingTags.Skip).assertHasNoClickAction()
         compose.onNodeWithTag(OnboardingTags.Finish).assertDoesNotExist()
         compose.onNodeWithTag(NotificationPreviewTags.Card).assertExists()
         // No Remote Compose player here: the card draws the standard notification's look.
