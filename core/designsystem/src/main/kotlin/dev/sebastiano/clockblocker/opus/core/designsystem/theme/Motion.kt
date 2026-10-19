@@ -166,6 +166,20 @@ class ClockblockMotion internal constructor(
         if (reduceMotion) snap() else tween((RevealWordsMillis * navigationTimeScale).toInt(), easing = LinearEasing)
 
     /**
+     * Chrome dimming out of the way of a rare moment, and back (the onboarding bars under the chronotype spectacle):
+     * a [ChromeDimMillis] fade each way, on standard easing. ×1.5 under Calm.
+     */
+    fun <T> chromeDim(): FiniteAnimationSpec<T> =
+        tween((ChromeDimMillis * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
+     * The sun and moon swapping in a chronotype illustration (a rare pick): one linear [BodySwapMillis] clock that
+     * the cross-fade, pop and wobble each shape their own way. ×1.5 under Calm; snaps when reduced (a plain swap).
+     */
+    fun bodySwap(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((BodySwapMillis * navigationTimeScale).toInt(), easing = LinearEasing)
+
+    /**
      * Screen-level navigation movement: push/pop slides, the fade-through scale, list-detail pane bounds.
      * Navigation is a 100+/day surface, so it binds to the Standard scheme (never bounces) and snaps when motion
      * is reduced; opacity still cross-fades via [navigationFadeIn] / [navigationFadeOut].
@@ -211,6 +225,37 @@ class ClockblockMotion internal constructor(
 
     /** Night-safe / body-night surfaces are ~1.5× slower (see [CalmMotionScheme]). */
     private val navigationTimeScale: Float get() = if (isCalm) 1.5f else 1f
+
+    /**
+     * Chrome cross-fading across a whole seekable onboarding step transition (Skip leaving on the last step, the
+     * runway plane fading out on Back): spans the same [StepFadeOutMillis] + [StepFadeInMillis] window as
+     * [stepSpatial], so it never outlasts the step, but still fades when motion is reduced.
+     */
+    fun <T> stepCrossFade(): FiniteAnimationSpec<T> =
+        tween(((StepFadeOutMillis + StepFadeInMillis) * navigationTimeScale).toInt(), easing = FastOutSlowInEasing)
+
+    /**
+     * The little plane taxiing along the onboarding progress line to its holding point on the last step: slowing to
+     * a stop (emphasized decelerate) over [TaxiMillis]. ×1.5 under Calm; snaps when reduced.
+     */
+    fun taxi(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((TaxiMillis * navigationTimeScale).toInt(), easing = EmphasizedDecelerate)
+
+    /**
+     * Onboarding's finish (a once-per-install moment): one linear [TakeoffMillis] clock for the runway plane's
+     * take-off roll, rotation and climb and the content leaving, each shaping its share. ×1.5 under Calm; snaps when
+     * reduced (the take-off is skipped).
+     */
+    fun takeoff(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((TakeoffMillis * navigationTimeScale).toInt(), easing = LinearEasing)
+
+    /**
+     * The plane seen from above sweeping the window after onboarding, revealing the app behind its wings: it arrives
+     * already flying (no slow start, so the cover never sits empty) and eases out over [SweepMillis]. ×1.5 under
+     * Calm; snaps when reduced (no sweep).
+     */
+    fun sweep(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((SweepMillis * navigationTimeScale).toInt(), easing = SweepEasing)
 
     /** True under [CalmMotionScheme] (Night-safe colours or the body clock's night). */
     val isCalm: Boolean get() = scheme === CalmMotionScheme
@@ -285,10 +330,26 @@ class ClockblockMotion internal constructor(
         const val RevealLayersMillis = 1_100
         const val RevealWordsMillis = 800
 
+        /** Chrome dimming for a rare moment, each way (see [chromeDim]). */
+        const val ChromeDimMillis = 300
+
+        /** The sun ⇄ moon swap in a chronotype illustration (see [bodySwap]). */
+        const val BodySwapMillis = 600
+
+        /** The runway plane's taxi to its holding point (see [taxi]). */
+        const val TaxiMillis = 900
+
+        /** Onboarding's take-off and content exit, before the sweep (see [takeoff]). */
+        const val TakeoffMillis = 330
+
+        /** The top-down plane's sweep revealing the app (see [sweep]). */
+        const val SweepMillis = 900
+
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
         private val StepFadeInEasing = CubicBezierEasing(0.3f, 0.2f, 0.7f, 0.95f)
         private val StepSpatialEasing = CubicBezierEasing(0.4f, 0f, 0.6f, 1f)
+        private val SweepEasing = CubicBezierEasing(0.2f, 0.2f, 0.4f, 1f)
 
         /** Each staggered line's own ease in (emphasized decelerate). */
         val StaggerEasing: Easing = EmphasizedDecelerate

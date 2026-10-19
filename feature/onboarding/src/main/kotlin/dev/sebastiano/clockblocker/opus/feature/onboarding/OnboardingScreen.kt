@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +117,12 @@ interface OnboardingActions {
     fun loadNotificationPreview(widthDp: Int)
     fun finish()
 
+    /** The finish's take-off has started (the app's sweep follows the finish). */
+    fun takeoff() = Unit
+
+    /** The finish's take-off has played out: onboarding can hand over once the profile is saved. */
+    fun takeoffLanded() = Unit
+
     /** Does nothing; for previews and screenshot tests. */
     object None : OnboardingActions {
         override fun next() = Unit
@@ -141,15 +148,23 @@ interface OnboardingActions {
 
 /**
  * Entry point of the onboarding flow (navigation contract used by `:app`; keep this signature).
- * Saves the [dev.sebastiano.clockblocker.opus.core.model.UserProfile] and calls [onFinished].
+ * Saves the [dev.sebastiano.clockblocker.opus.core.model.UserProfile] and calls [onFinished]. When the finish plays
+ * its take-off (motion allowed), [onTakeoff] comes first, as it starts, so the app can follow with its sweep.
  */
 @Composable
-fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, onTakeoff: () -> Unit = {}) {
     val viewModel = metroViewModel<OnboardingViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val finished by viewModel.finished.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnFinished by rememberUpdatedState(onFinished)
-    LaunchedEffect(state.isFinished) { if (state.isFinished) currentOnFinished() }
+    val currentOnTakeoff by rememberUpdatedState(onTakeoff)
+    // A finish that takes off saves while the plane leaves, and hands over once both are done.
+    var tookOff by remember { mutableStateOf(false) }
+    var landed by remember { mutableStateOf(false) }
+    LaunchedEffect(finished, tookOff, landed) {
+        if (finished && (!tookOff || landed)) currentOnFinished()
+    }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshPermissions()
         onPauseOrDispose { }
@@ -177,6 +192,14 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             override fun openExactAlarmSettings() = launchSafely(context, viewModel.exactAlarmSettingsIntent())
             override fun loadNotificationPreview(widthDp: Int) = viewModel.loadNotificationPreview(widthDp)
             override fun finish() = viewModel.finish()
+            override fun takeoff() {
+                tookOff = true
+                currentOnTakeoff()
+            }
+
+            override fun takeoffLanded() {
+                landed = true
+            }
         }
     }
     OnboardingContent(state, actions, modifier)
@@ -201,8 +224,9 @@ private fun launchSafely(context: android.content.Context, intent: android.conte
  * start and end of a move in the search, so the layout never flips while you type.
  *
  * The first Next from the sleep step plays the chronotype spectacle (see `ChronotypeReveal`): the step moves on at
- * once, the sleep step fades away and the bars fade out and take no input until the reveal rests. Back during it is an
- * ordinary back to the sleep step. Skipped when motion is reduced or TalkBack explores by touch.
+ * once, the sleep step fades away and the bars dim to half (no input until back in full) until the chronotype's name
+ * starts to appear. Back during it is an ordinary back to the sleep step. Skipped when motion is reduced or TalkBack
+ * explores by touch.
  */
 @Composable
 fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modifier: Modifier = Modifier) {
@@ -212,6 +236,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     var spectaclePlayed by rememberSaveable { mutableStateOf(false) }
     var spectacleFrom by remember { mutableStateOf<Rect?>(null) }
     var spectacleActive by remember { mutableStateOf(false) }
+    // The bars dim for the spectacle's first part and come back as the chronotype's name starts to appear.
+    var spectacleDimsBars by remember { mutableStateOf(false) }
     val spectacleOrigin = remember { SpectacleOrigin() }
     val allowed = !ClockblockTheme.reduceMotion && !rememberTouchExplorationEnabled()
     // Reduce motion or TalkBack turning on ends it too: the reveal then sits at rest.
@@ -231,6 +257,14 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     }
     val currentStep by rememberUpdatedState(step)
     val spectacleAllowed by rememberUpdatedState(allowed)
+    // Finishing: the runway plane takes off and the content leaves (Takeoff) before the profile is saved and the app
+    // takes over (its sweep follows). Nothing takes input meanwhile, with or without it: the buttons keep their look
+    // (not disabled) as they leave. The take-off is skipped with the spectacle's conditions.
+    val takeoff = remember { Animatable(0f) }
+    val takeoffClock = remember(takeoff) { { takeoff.value } }
+    var leaving by remember { mutableStateOf(false) }
+    val leaveScope = rememberCoroutineScope()
+    val currentMotion by rememberUpdatedState(ClockblockTheme.motion)
     val stepActions = remember(actions) {
         object : OnboardingActions by actions {
             override fun next() {
@@ -240,13 +274,27 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     if (spectacleAllowed) {
                         spectacleFrom = spectacleOrigin.dialFace ?: Rect.Zero
                         spectacleActive = true
+                        spectacleDimsBars = true
                     }
                 }
                 actions.next()
             }
+
+            override fun finish() {
+                if (leaving) return
+                leaving = true
+                if (!spectacleAllowed) return actions.finish()
+                actions.takeoff()
+                // Saved meanwhile, so the hand-over doesn't wait for it after the take-off.
+                actions.finish()
+                leaveScope.launch {
+                    takeoff.animateTo(1f, currentMotion.takeoff())
+                    actions.takeoffLanded()
+                }
+            }
         }
     }
-    val steps = rememberOnboardingStepTransition(step, onBack = actions::back)
+    val steps = rememberOnboardingStepTransition(step, onBack = actions::back, backEnabled = !leaving)
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
@@ -268,6 +316,15 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     // Leaving for Welcome (and predictive back's seek) stays on the step transition.
     val topBarExit = steps.transition.animateTopBarExit(motion)
     val topBarEntrance = rememberTopBarEntrance(step, steps.transition, motion)
+    // The last step: Skip slides out and fades as its room goes to the progress line, the runway for a little plane.
+    // Seeked with the steps (predictive back scrubs it back), so it lives on the step transition, within its 300 ms.
+    val lastStep = steps.transition.animateAround(OnboardingStep.Reminders, "lastStep", { motion.stepSpatial() }, ::remindersOnly)
+    val lastStepFade = steps.transition.animateAround(OnboardingStep.Reminders, "lastStepFade", { motion.stepCrossFade() }, ::remindersOnly)
+    val taxi = rememberRunwayTaxi(step, steps.transition, motion)
+    // The progress line's fill moves with the steps, not on its own clock: an incoming step that takes a while to
+    // compose delays the transition's start until it is laid out, and a fill started on the step change would run out
+    // its time during those frames and then jump. On the transition it also scrubs with predictive back.
+    val progress = steps.transition.animateStepValue("progress", { motion.stepSpatial() }) { progressFor(topBarStep(it)) }
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -282,19 +339,32 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         val short = maxHeight < 480.dp
         val searchMode = step == OnboardingStep.HomeZone && homeSearch.fullHeight
         val search = animateFloatAsState(if (searchMode) 1f else 0f, motion.navigationSpatial(), label = "searchMode")
-        val bars = animateFloatAsState(if (spectacleRunning) 0f else 1f, motion.fade(), label = "spectacleBars")
+        // During the spectacle the bars stay on screen, dimmed, instead of vanishing and popping back: they fade to half
+        // as it starts and back in full as the chronotype's name starts to appear, and take input only when in full.
+        // A new window width is a new runway: the holding point follows it.
+        val runwayPlane = remember(taxi, maxWidth) {
+            RunwayPlanePose(taxi = { taxi.value }, alpha = lastStepFade, takeoff = { takeoff.value })
+        }
+        val bars = animateFloatAsState(
+            if (spectacleRunning && spectacleDimsBars) SpectacleBarsAlpha else 1f,
+            motion.chromeDim(),
+            label = "spectacleBars",
+        )
+        val barsInert by remember { derivedStateOf { bars.value < 1f } }
         // Centred and capped on large windows: the two columns, progress line and bottom actions stay together
         // instead of spreading to the window edges.
         if (step == OnboardingStep.Sleep) {
             ChronotypePrewarm()
         }
+        CompositionLocalProvider(LocalTakeoff provides takeoffClock) {
         OnboardingFrame(
             searchProgress = { search.value },
             keyboard = keyboard,
             topBar = {
                 OnboardingTopBar(
                     step = topBarStep(step, steps.transition.currentState),
-                    visible = step != OnboardingStep.Welcome && !searchMode && !spectacleRunning,
+                    progress = progress,
+                    visible = step != OnboardingStep.Welcome && !searchMode,
                     // The drop follows the entrance alone: at rest it is 1, so fading out toward Welcome doesn't
                     // slide, and an entrance frozen by an early Back keeps its offset while the items fade out.
                     slide = !ClockblockTheme.reduceMotion,
@@ -305,10 +375,15 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     labelDrop = { topBarEntrance[0].value },
                     progressDrop = { topBarEntrance[1].value },
                     skipDrop = { topBarEntrance[2].value },
+                    lastStep = lastStep,
+                    skipLeaves = lastStepFade,
+                    plane = runwayPlane,
                     onSkip = actions::skip,
                     // Moving until the transition rests on Welcome, so the fade out doesn't restart the wave.
                     waveMoving = !(steps.transition.currentState == OnboardingStep.Welcome &&
-                        steps.transition.targetState == OnboardingStep.Welcome) && !searchMode && !spectacleRunning,
+                        steps.transition.targetState == OnboardingStep.Welcome) && !searchMode,
+                    // Dimmed under the spectacle: Skip keeps its look (not disabled) but takes no input.
+                    modifier = if (barsInert) Modifier.inert() else Modifier,
                 )
             },
             disclaimer = {
@@ -328,7 +403,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                         // Folded away under the full-height search: out of keyboard and D-pad focus too.
                         .focusProperties { canFocus = !searchMode }
                         .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier)
-                        .then(if (spectacleRunning) Modifier.inert() else Modifier),
+                        .then(if (barsInert) Modifier.inert() else Modifier)
+                        .takeoffExit(Takeoff.BottomBar),
                 )
             },
             steps = { barHeight, noteHeight ->
@@ -360,15 +436,23 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                                     homeSearch = homeSearch,
                                     spectacleFrom = spectacleFrom.takeIf { target == OnboardingStep.Chronotype },
                                     onSpectacleFinished = { spectacleActive = false },
+                                    onSpectacleName = { spectacleDimsBars = false },
                                 )
                             }
                         }
                     }
                 }
             },
-            modifier = Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter),
+            modifier = Modifier
+                .fillMaxHeight()
+                .widthIn(max = OnboardingMaxWidth)
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                // Leaving: nothing takes a tap, focus or TalkBack while the profile saves and the plane takes off.
+                .then(if (leaving) Modifier.inert() else Modifier),
             disclaimerOverlap = bottomBarVerticalPadding(short),
         )
+        }
     }
 }
 
@@ -405,7 +489,8 @@ private fun welcomeOnly(step: OnboardingStep): Float = if (step == OnboardingSte
 
 /**
  * Animates a Welcome-only float value on [this] step transition: [spec] when entering or leaving Welcome and a [snap]
- * elsewhere, so other steps' transitions (and their predictive back seek) never inherit a Welcome duration.
+ * elsewhere, so other steps' transitions (and their predictive back seek) never inherit a Welcome duration. See
+ * [animateAround].
  *
  * Keyed on [Transition.currentState] so that when a transition settles (`currentState` moves to `targetState`) the
  * animation state is re-seeded at its resting value; otherwise `SeekableTransitionState.onTotalDurationChanged`
@@ -417,14 +502,85 @@ private fun Transition<OnboardingStep>.animateAroundWelcome(
     label: String,
     spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
     targetValueByState: (OnboardingStep) -> Float,
+): () -> Float = animateAround(OnboardingStep.Welcome, label, spec, targetValueByState)
+
+/**
+ * Animates a float value tied to [around] on [this] step transition: [spec] when entering or leaving [around] and a
+ * [snap] elsewhere. Keyed on [Transition.currentState]: see the note on re-seeding above.
+ */
+@Composable
+private fun Transition<OnboardingStep>.animateAround(
+    around: OnboardingStep,
+    label: String,
+    spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
+    targetValueByState: (OnboardingStep) -> Float,
 ): () -> Float {
     val animated = key(currentState) {
         animateFloat(
-            transitionSpec = { if (initialState == OnboardingStep.Welcome || targetState == OnboardingStep.Welcome) spec() else snap() },
+            transitionSpec = { if (initialState == around || targetState == around) spec() else snap() },
             label = label,
         ) { targetValueByState(it) }
     }
     return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
+}
+
+/** How full the progress line is on [step]: its share of the questions. */
+private fun progressFor(step: OnboardingStep): Float = (step.index + 1f) / OnboardingStep.Count
+
+/**
+ * Animates a float value on [this] step transition on every step change (seekable, so predictive back scrubs it),
+ * re-seeded on [Transition.currentState] like [animateAround].
+ */
+@Composable
+private fun Transition<OnboardingStep>.animateStepValue(
+    label: String,
+    spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
+    targetValueByState: (OnboardingStep) -> Float,
+): () -> Float {
+    val animated = key(currentState) { animateFloat(transitionSpec = { spec() }, label = label) { targetValueByState(it) } }
+    return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
+}
+
+/** 1 on the last step (Reminders), 0 on every other step. */
+private fun remindersOnly(step: OnboardingStep): Float = if (step == OnboardingStep.Reminders) 1f else 0f
+
+/**
+ * The runway plane's taxi to its holding point (0 → 1) when the last step comes in, on `taxi()`: like the top bar's
+ * entrance it runs on its own clock (it outlasts the 300 ms step transition, which must still settle with the step).
+ * Heading away from the last step freezes it where it is while the plane fades out (on the step transition); at rest
+ * on any other step it is back at 0, so coming back taxis in again.
+ */
+@Composable
+private fun rememberRunwayTaxi(
+    step: OnboardingStep,
+    transition: Transition<OnboardingStep>,
+    motion: ClockblockMotion,
+): Animatable<Float, AnimationVector1D> {
+    val last = OnboardingStep.Reminders
+    val taxi = remember { Animatable(if (transition.currentState == last) 1f else 0f) }
+    val scope = rememberCoroutineScope()
+    val currentMotion by rememberUpdatedState(motion)
+    val arriving = transition.currentState != last && transition.targetState == last
+    val leaving = transition.currentState == last && (step != last || transition.targetState != last)
+    val awayAtRest = transition.currentState != last && transition.targetState != last
+    LaunchedEffect(awayAtRest) { if (awayAtRest) taxi.snapTo(0f) }
+    LaunchedEffect(leaving) { if (leaving) taxi.stop() }
+    // A cancelled predictive back leaves the taxi frozen: it rolls on to its holding point (a running one carries on).
+    val atLast = transition.currentState == last && transition.targetState == last && step == last
+    LaunchedEffect(atLast) {
+        if (atLast && !taxi.isRunning && taxi.value < 1f) taxi.animateTo(1f, currentMotion.taxi())
+    }
+    LaunchedEffect(arriving) {
+        if (!arriving) return@LaunchedEffect
+        // Not tied to this effect: the taxi outlasts the transition, whose end would otherwise cancel it.
+        scope.launch {
+            snapshotFlow { transition.playTimeNanos > 0 || transition.currentState == last }.first { it }
+            if (transition.targetState != last) return@launch
+            taxi.snapTo(0f)
+            taxi.animateTo(1f, currentMotion.taxi())
+        }
+    }
+    return taxi
 }
 
 /**
@@ -518,3 +674,6 @@ private fun Modifier.stepRoom(top: () -> Int, bottom: Int): Modifier = layout { 
 
 /** Onboarding never grows wider than this: past it, the window only gains margins. */
 private val OnboardingMaxWidth = 1080.dp
+
+/** The top and bottom bars' opacity while the chronotype spectacle plays: still there, plainly not for now. */
+private const val SpectacleBarsAlpha = 0.5f

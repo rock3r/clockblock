@@ -112,7 +112,10 @@ fun AppNavDisplay(
     val provider: (NavKey) -> NavEntry<NavKey> = entryProvider {
         entry<OnboardingRoute> {
             val guard = rememberNavigationGuard()
-            destinations.Onboarding(onFinished = guard { navigator.finishOnboarding(currentHasTrips) })
+            destinations.Onboarding(
+                onFinished = guard { navigator.finishOnboarding(currentHasTrips) },
+                onTakeoff = navigator::armTakeoff,
+            )
         }
         entry<NowRoute> {
             val guard = rememberNavigationGuard()

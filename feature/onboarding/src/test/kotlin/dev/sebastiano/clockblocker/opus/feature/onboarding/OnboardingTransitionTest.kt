@@ -454,6 +454,42 @@ class OnboardingTransitionTest : ClockblockScreenshotTest() {
     }
 
     @Test
+    fun `the progress fill moves with the step transition and scrubs with predictive back`() {
+        show(OnboardingStep.Sleep)
+        val atSleep = progressFill()
+        startBackGesture()
+        progressBackGesture(0.5f)
+        val halfway = progressFill()
+        cancelBackGesture()
+        go(OnboardingStep.HomeZone)
+        frame(Settled)
+        val atHome = progressFill()
+        // Halfway through the gesture, the fill is halfway between the two steps'.
+        atSleep shouldBeGreaterThan halfway
+        halfway shouldBeGreaterThan atHome
+    }
+
+    /**
+     * How far the progress line's fill reaches, in pixels: the last column, short of the stop dot at the track's end,
+     * with a pixel in the fill's colour anywhere across the (wavy) line.
+     */
+    private fun progressFill(): Int {
+        compose.invalidateAllViews()
+        val map = compose.onRoot().captureToImage().toPixelMap()
+        val line = boundsOf(OnboardingTags.Progress)
+        val (top, bottom, left, right) = with(compose.density) {
+            listOf(line.top.toPx(), line.bottom.toPx(), line.left.toPx(), (line.right - 16.dp).toPx()).map { it.roundToInt() }
+        }
+        val bg = map[2, top]
+        // The fill's colour: the strongest ink in the line's first columns.
+        var fill = bg
+        for (y in top until bottom) if (colorDistance(map[left + 3, y], bg) > colorDistance(fill, bg)) fill = map[left + 3, y]
+        var reach = left
+        for (x in left until right) if ((top until bottom).any { y -> colorDistance(map[x, y], fill) < 0.15f }) reach = x
+        return reach
+    }
+
+    @Test
     fun `predictive back from home to welcome scrubs without double exposure`() =
         assertPredictiveBackPair(
             from = OnboardingStep.HomeZone,

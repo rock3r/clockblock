@@ -118,6 +118,7 @@ internal fun OnboardingStepBody(
     homeSearch: HomeSearchState = rememberHomeSearchState(),
     spectacleFrom: Rect? = null,
     onSpectacleFinished: () -> Unit = {},
+    onSpectacleName: () -> Unit = {},
 ) {
     val animated = !ClockblockTheme.reduceMotion
     when (step) {
@@ -157,6 +158,7 @@ internal fun OnboardingStepBody(
             daysOffLinked = state.profile.daysOffSleep == null,
             spectacleFrom = spectacleFrom,
             onSpectacleFinished = onSpectacleFinished,
+            onSpectacleName = onSpectacleName,
         )
         OnboardingStep.Tools -> StepLayout(
             wide = wide,
@@ -230,12 +232,14 @@ private fun StepLayout(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     if (!short) {
-                        art(Modifier.size(200.dp))
+                        art(Modifier.takeoffExit(Takeoff.Art).size(200.dp))
                         Spacer(Modifier.size(24.dp))
                     }
-                    StepHeadline(headline, if (short) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialHeadline)
+                    Box(Modifier.takeoffExit(Takeoff.Headline)) {
+                        StepHeadline(headline, if (short) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialHeadline)
+                    }
                     Spacer(Modifier.size(12.dp))
-                    StepBody(body)
+                    Box(Modifier.takeoffExit(Takeoff.Body)) { StepBody(body) }
                 }
             }
             Column(
@@ -243,7 +247,9 @@ private fun StepLayout(
                 verticalArrangement = Arrangement.Center,
             ) {
                 // Collapsed, the controls take the whole width (the full-height search lays out side by side).
-                Column(if (collapsed) Modifier.fillMaxWidth() else Modifier.widthIn(max = 560.dp)) { controls(controlsHeight) }
+                Column((if (collapsed) Modifier.fillMaxWidth() else Modifier.widthIn(max = 560.dp)).takeoffExit(Takeoff.Controls)) {
+                    controls(controlsHeight)
+                }
             }
         }
     } else BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -267,17 +273,17 @@ private fun StepLayout(
                             // The art sits beside the headline, not above it: the controls (the sleep dial most of all) need
                             // the height.
                             Row(verticalAlignment = Alignment.Top) {
-                                art(Modifier.size(CompactSideArtSize))
+                                art(Modifier.takeoffExit(Takeoff.Art).size(CompactSideArtSize))
                                 Spacer(Modifier.size(12.dp))
-                                StepHeadline(headline)
+                                Box(Modifier.takeoffExit(Takeoff.Headline)) { StepHeadline(headline) }
                             }
                             Spacer(Modifier.size(8.dp))
-                            StepBody(body)
+                            Box(Modifier.takeoffExit(Takeoff.Body)) { StepBody(body) }
                             Spacer(Modifier.size(24.dp))
                         }
                     }
                 },
-                controls = controls,
+                controls = { available -> Column(Modifier.takeoffExit(Takeoff.Controls)) { controls(available) } },
             )
         }
     }
@@ -514,7 +520,6 @@ private fun RemindersControls(state: OnboardingUiState, actions: OnboardingActio
                     when (ask) {
                         NotificationAsk.Ask -> Button(
                             onClick = actions::requestNotifications,
-                            enabled = !state.isSaving,
                             contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
                             modifier = Modifier
                                 .fillMaxWidth()

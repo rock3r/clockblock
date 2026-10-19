@@ -23,6 +23,12 @@ enum class NavigationDirection {
 
     /** Between top-level destinations: fade-through. */
     TopLevel,
+
+    /**
+     * Onboarding finishing under the take-off sweep: the screens swap instantly, hidden under the sweep's cover, which
+     * then reveals the app.
+     */
+    Takeoff,
 }
 
 /**
@@ -65,6 +71,23 @@ class AppNavigator(
 
     /** A deep link received during first-run onboarding, applied once it completes. */
     private var pendingDeepLink: DeepLinkTarget? = null
+
+    /** Onboarding's finish took off: the shell sweeps over its hand-over to the app. */
+    private var takeoffArmed: Boolean = false
+
+    /** The take-off sweep is on screen, over the app. */
+    var takeoffSweep: Boolean by mutableStateOf(false)
+        private set
+
+    /** Onboarding's finish is taking off: the hand-over [finishOnboarding] does next plays under the sweep. */
+    fun armTakeoff() {
+        takeoffArmed = true
+    }
+
+    /** The sweep has revealed the app. */
+    fun takeoffSwept() {
+        takeoffSweep = false
+    }
 
     val currentBackStack: NavBackStack<NavKey> get() = backStacks.getValue(selected)
 
@@ -172,15 +195,18 @@ class AppNavigator(
      * Trips (and applies a deep link received meanwhile); after a replay, simply pops it.
      */
     fun finishOnboarding(hasTrips: Boolean) {
+        val sweep = takeoffArmed
+        takeoffArmed = false
+        takeoffSweep = sweep
         if (isOnboarding) {
             home = if (hasTrips) TopLevelDestination.Now else TopLevelDestination.Trips
-            lastDirection = NavigationDirection.TopLevel
+            lastDirection = if (sweep) NavigationDirection.Takeoff else NavigationDirection.TopLevel
             selected = home
             pendingDeepLink?.let { pendingDeepLink = null; open(it) }
         } else {
             val stack = currentBackStack
             if (stack.last() == OnboardingRoute) {
-                lastDirection = NavigationDirection.Backward
+                lastDirection = if (sweep) NavigationDirection.Takeoff else NavigationDirection.Backward
                 stack.removeAt(stack.lastIndex)
             }
         }

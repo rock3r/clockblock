@@ -31,12 +31,15 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.IntRect
 import androidx.test.core.app.ApplicationProvider
 import dev.sebastiano.clockblocker.opus.core.testing.invalidateAllViews
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypePrewarm
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.ChronotypeRevealTags
 import dev.sebastiano.clockblocker.opus.feature.onboarding.profile.SleepDialTags
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.floats.plusOrMinus
+import io.kotest.matchers.floats.shouldBeLessThan
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlin.math.abs
@@ -186,14 +189,14 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun `the hidden back and next take no taps during the spectacle`() {
+    fun `the dimmed back and next take no taps during the spectacle`() {
         showSleep()
         val back = compose.onNodeWithTag(OnboardingTags.Back).getUnclippedBoundsInRoot()
         val next = compose.onNodeWithTag(OnboardingTags.Next).getUnclippedBoundsInRoot()
         startSpectacle()
         compose.onRoot().performTouchInput { click(back.centreIn(this)) }
         compose.mainClock.advanceTimeBy(100)
-        // Still hidden: the tap didn't cancel the spectacle.
+        // Still inert (out of the semantics tree): the tap didn't cancel the spectacle.
         compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
         compose.onRoot().performTouchInput { click(next.centreIn(this)) }
         compose.mainClock.advanceTimeBy(100)
@@ -201,6 +204,63 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
         settle()
         hostStep shouldBe OnboardingStep.Chronotype
         calls shouldContainExactly listOf("next")
+    }
+
+    @Test
+    fun `during the spectacle the bars stay on screen at half opacity, then come back in full`() {
+        showSleep()
+        val next = compose.onNodeWithTag(OnboardingTags.Next).getUnclippedBoundsInRoot()
+        val progress = compose.onNodeWithTag(OnboardingTags.Progress, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val nextAtRest = inkIn(next)
+        val progressAtRest = inkIn(progress)
+        // A 300 ms fade, not a cut: partway down after 150 ms.
+        startSpectacle(millis = 150)
+        (inkIn(next) / nextAtRest) shouldBe (0.75f plusOrMinus 0.2f)
+        compose.mainClock.advanceTimeBy(250)
+        (inkIn(next) / nextAtRest) shouldBe (0.5f plusOrMinus 0.15f)
+        (inkIn(progress) / progressAtRest) shouldBe (0.5f plusOrMinus 0.15f)
+        settle()
+        (inkIn(next) / nextAtRest) shouldBe (1f plusOrMinus 0.15f)
+    }
+
+    @Test
+    fun `the bars come back in full, and work, as the chronotype's name starts to appear`() {
+        showSleep()
+        val next = compose.onNodeWithTag(OnboardingTags.Next).getUnclippedBoundsInRoot()
+        val name = { compose.onNodeWithTag(ChronotypeRevealTags.Name).ink() }
+        val nextAtRest = inkIn(next)
+        startSpectacle()
+        // Dimmed and inert through the shape, the pop and the landscape…
+        compose.onNodeWithTag(OnboardingTags.Next).assertDoesNotExist()
+        var frames = 0
+        while (inkIn(next) / nextAtRest < 0.55f && frames++ < MaxFramesToName) compose.mainClock.advanceTimeByFrame()
+        // Past the spins, the pop and most of the landscape (about two seconds in all)…
+        (400 + frames * 16) shouldBeGreaterThan 1_500
+        val nameAsBarsReturn = name()
+        // …the bars start back as the name appears: it is still coming in.
+        compose.mainClock.advanceTimeBy(350)
+        spectacleShown() shouldBe true
+        (inkIn(next) / nextAtRest) shouldBe (1f plusOrMinus 0.1f)
+        compose.onNodeWithTag(OnboardingTags.Next).assertExists()
+        settle()
+        nameAsBarsReturn shouldBeLessThan name()
+    }
+
+    /** How far the strongest pixel in [bounds] (of the root) stands out from the screen's background. */
+    private fun inkIn(bounds: DpRect): Float {
+        val pixels = compose.onRoot().captureToImage().toPixelMap()
+        val background = pixels[1, 1]
+        val px = with(compose.density) {
+            IntRect(bounds.left.roundToPx(), bounds.top.roundToPx(), bounds.right.roundToPx(), bounds.bottom.roundToPx())
+        }
+        var ink = 0f
+        for (x in px.left.coerceAtLeast(0) until px.right.coerceAtMost(pixels.width)) {
+            for (y in px.top.coerceAtLeast(0) until px.bottom.coerceAtMost(pixels.height)) {
+                val c = pixels[x, y]
+                ink = maxOf(ink, abs(c.red - background.red) + abs(c.green - background.green) + abs(c.blue - background.blue))
+            }
+        }
+        return ink
     }
 
     /**
@@ -460,6 +520,7 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
 
     private companion object {
         const val MaxFramesToStart = 20
+        const val MaxFramesToName = 400
     }
 
     private fun DpRect.centreIn(density: Density) = with(density) { Offset(((left + right) / 2).toPx(), ((top + bottom) / 2).toPx()) }

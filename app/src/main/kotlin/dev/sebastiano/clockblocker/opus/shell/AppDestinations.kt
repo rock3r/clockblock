@@ -20,8 +20,9 @@ import dev.sebastiano.clockblocker.opus.feature.trips.TripsScreen
  */
 @Stable
 interface AppDestinations {
+    /** [onTakeoff]: onboarding's finish is taking off; the shell's sweep will follow [onFinished]. */
     @Composable
-    fun Onboarding(onFinished: () -> Unit)
+    fun Onboarding(onFinished: () -> Unit, onTakeoff: () -> Unit)
 
     /** [tripId] null = the current plan (Now). [onBack] null = no up affordance. */
     @Composable
@@ -66,8 +67,8 @@ interface AppDestinations {
 /** The real screens from `:feature:*`. */
 object FeatureDestinations : AppDestinations {
     @Composable
-    override fun Onboarding(onFinished: () -> Unit) {
-        OnboardingScreen(onFinished = onFinished)
+    override fun Onboarding(onFinished: () -> Unit, onTakeoff: () -> Unit) {
+        OnboardingScreen(onFinished = onFinished, onTakeoff = onTakeoff)
     }
 
     @Composable

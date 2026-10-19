@@ -77,8 +77,8 @@ fun ChronotypeSky(
  * The chronotype landscape with every moving part as a lambda read in the draw phase only (so an animation never
  * recomposes): [hour] picks the sky, [position] places the sun or moon along its path, [moonFraction] cross-fades sun
  * (0) and moon (1), [entrance] (0 → 1) assembles the landscape layer by layer, [sunRotation] turns the sun's rays
- * (0 → 1 = 45°) and [twinkle] (0 → 1) breathes the stars. The geometry that only depends on the size is built once
- * per size.
+ * (0 → 1 = 45°) and [twinkle] (0 → 1) breathes the stars. [bodyScale] grows the sun or moon (1 at rest). The
+ * geometry that only depends on the size is built once per size.
  *
  * With a [chronotype], the entrance is that chronotype's own (see [SceneEntrance]); without one, everything simply
  * fades and rises in together. Either way the scene at `entrance = 1` is exactly the scene at rest.
@@ -101,6 +101,7 @@ fun ChronotypeScene(
     twinkle: () -> Float = { 0.5f },
     drawn: () -> Boolean = { true },
     cornerRadius: Dp = 14.dp,
+    bodyScale: () -> Float = { 1f },
 ) {
     val sky = ClockblockTheme.sky
     val tertiary = ClockblockTheme.artColors.tertiary
@@ -133,6 +134,7 @@ fun ChronotypeScene(
                         entrance = entrance(),
                         sunRotation = sunRotation(),
                         twinkle = twinkle(),
+                        bodyScale = bodyScale(),
                     )
                 }
             },
@@ -349,6 +351,7 @@ private fun DrawScope.drawChronotypeScene(
     entrance: Float,
     sunRotation: Float,
     twinkle: Float,
+    bodyScale: Float = 1f,
 ) {
     val m = moonFraction.coerceIn(0f, 1f)
     val act = SceneEntrance.of(chronotype, entrance.coerceIn(0f, 1f))
@@ -360,7 +363,7 @@ private fun DrawScope.drawChronotypeScene(
     if (m > 0f) drawStars(geometry, shapes, light, twinkle, act)
     if (light.day > 0.01f) drawClouds(geometry, light, position, act)
     drawSunPath(geometry, position * act.path, act.path)
-    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, act)
+    drawSunAndMoon(geometry, shapes, light, celestial, gradient, tertiary, sunRotation, act, bodyScale)
     drawHills(geometry, horizonSky, hills, m, act.hills)
     if (geometry.detailed) drawDetails(geometry, light, hills, position, act)
 }
@@ -616,9 +619,10 @@ private fun DrawScope.drawSunAndMoon(
     tertiary: Color,
     sunRotation: Float,
     act: SceneEntrance,
+    bodyScale: Float = 1f,
 ) {
     val p = c.p
-    val r = c.r * act.bodyScale
+    val r = c.r * act.bodyScale * bodyScale
     val m = light.m
     withTransform({ clipRect(bottom = g.horizon + g.h * 0.04f) }) {
         if (m < 1f) {

@@ -31,6 +31,9 @@ root-level commands still cover it, but aliases don't take `--tests`: filter on 
 
 `local.properties` must contain `sdk.dir=<path to your Android SDK>` (gitignored).
 
+When working with perf issues, you MUST measure and trace before attempting any changes, and after, as it's been
+proven that changes made without having accurate numbers can cause serious regressions instead. Measure, then optimise.
+
 ## Pull requests & CI
 
 - All changes land on `main` through pull requests. CI (`.github/workflows/ci.yml`) runs wrapper validation, unit
