@@ -117,6 +117,9 @@ interface OnboardingActions {
     fun loadNotificationPreview(widthDp: Int)
     fun finish()
 
+    /** The finish's take-off has started (the app's sweep follows the finish). */
+    fun takeoff() = Unit
+
     /** Does nothing; for previews and screenshot tests. */
     object None : OnboardingActions {
         override fun next() = Unit
@@ -142,14 +145,16 @@ interface OnboardingActions {
 
 /**
  * Entry point of the onboarding flow (navigation contract used by `:app`; keep this signature).
- * Saves the [dev.sebastiano.clockblocker.opus.core.model.UserProfile] and calls [onFinished].
+ * Saves the [dev.sebastiano.clockblocker.opus.core.model.UserProfile] and calls [onFinished]. When the finish plays
+ * its take-off (motion allowed), [onTakeoff] comes first, as it starts, so the app can follow with its sweep.
  */
 @Composable
-fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, onTakeoff: () -> Unit = {}) {
     val viewModel = metroViewModel<OnboardingViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentOnTakeoff by rememberUpdatedState(onTakeoff)
     LaunchedEffect(state.isFinished) { if (state.isFinished) currentOnFinished() }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshPermissions()
@@ -178,6 +183,7 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             override fun openExactAlarmSettings() = launchSafely(context, viewModel.exactAlarmSettingsIntent())
             override fun loadNotificationPreview(widthDp: Int) = viewModel.loadNotificationPreview(widthDp)
             override fun finish() = viewModel.finish()
+            override fun takeoff() = currentOnTakeoff()
         }
     }
     OnboardingContent(state, actions, modifier)
@@ -235,6 +241,12 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     }
     val currentStep by rememberUpdatedState(step)
     val spectacleAllowed by rememberUpdatedState(allowed)
+    // Finishing: the runway plane takes off and the content leaves (Takeoff) before the profile is saved and the app
+    // takes over (its sweep follows). Nothing takes input meanwhile. Skipped with the spectacle's conditions.
+    val takeoff = remember { Animatable(0f) }
+    var leaving by remember { mutableStateOf(false) }
+    val leaveScope = rememberCoroutineScope()
+    val currentMotion by rememberUpdatedState(ClockblockTheme.motion)
     val stepActions = remember(actions) {
         object : OnboardingActions by actions {
             override fun next() {
@@ -249,9 +261,20 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 }
                 actions.next()
             }
+
+            override fun finish() {
+                if (leaving) return
+                if (!spectacleAllowed) return actions.finish()
+                leaving = true
+                actions.takeoff()
+                leaveScope.launch {
+                    takeoff.animateTo(1f, currentMotion.takeoff())
+                    actions.finish()
+                }
+            }
         }
     }
-    val steps = rememberOnboardingStepTransition(step, onBack = actions::back)
+    val steps = rememberOnboardingStepTransition(step, onBack = actions::back, backEnabled = !leaving)
     // Each step keeps its saved state while you move away and back (T-017: the welcome clocks don't re-slide,
     // art entrances don't replay, scroll positions and open helpers stay put).
     val stepStates = rememberSaveableStateHolder()
@@ -299,7 +322,9 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         // During the spectacle the bars stay on screen, dimmed, instead of vanishing and popping back: they fade to half
         // as it starts and back in full as the chronotype's name starts to appear, and take input only when in full.
         // A new window width is a new runway: the holding point follows it.
-        val runwayPlane = remember(taxi, maxWidth) { RunwayPlanePose(taxi = { taxi.value }, alpha = lastStepFade) }
+        val runwayPlane = remember(taxi, maxWidth) {
+            RunwayPlanePose(taxi = { taxi.value }, alpha = lastStepFade, takeoff = { takeoff.value })
+        }
         val bars = animateFloatAsState(
             if (spectacleRunning && spectacleDimsBars) SpectacleBarsAlpha else 1f,
             motion.chromeDim(),
@@ -311,6 +336,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
         if (step == OnboardingStep.Sleep) {
             ChronotypePrewarm()
         }
+        CompositionLocalProvider(LocalTakeoff provides if (leaving) ({ takeoff.value }) else null) {
         OnboardingFrame(
             searchProgress = { search.value },
             keyboard = keyboard,
@@ -357,7 +383,8 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                         // Folded away under the full-height search: out of keyboard and D-pad focus too.
                         .focusProperties { canFocus = !searchMode }
                         .then(if (searchMode) Modifier.clearAndSetSemantics { } else Modifier)
-                        .then(if (barsInert) Modifier.inert() else Modifier),
+                        .then(if (barsInert) Modifier.inert() else Modifier)
+                        .takeoffExit(Takeoff.BottomBar),
                 )
             },
             steps = { barHeight, noteHeight ->
@@ -396,9 +423,16 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                     }
                 }
             },
-            modifier = Modifier.fillMaxHeight().widthIn(max = OnboardingMaxWidth).fillMaxWidth().align(Alignment.TopCenter),
+            modifier = Modifier
+                .fillMaxHeight()
+                .widthIn(max = OnboardingMaxWidth)
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                // Leaving: nothing takes a tap, focus or TalkBack while the plane takes off.
+                .then(if (leaving) Modifier.inert() else Modifier),
             disclaimerOverlap = bottomBarVerticalPadding(short),
         )
+        }
     }
 }
 

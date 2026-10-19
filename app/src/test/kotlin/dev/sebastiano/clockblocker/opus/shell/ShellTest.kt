@@ -81,9 +81,27 @@ class ShellTest {
         tag("onboarding_finish").performClick()
         compose.waitForIdle()
 
+        tag(ShellTestTags.TakeoffSweep).assertDoesNotExist()
         tag("screen_trips").assertIsDisplayed()
         tag(ShellTestTags.NavTrips).assertIsDisplayed().assertIsSelected()
         tag(ShellTestTags.NavNow).assertIsDisplayed().assertIsNotSelected()
+    }
+
+    @Test
+    fun `a finish that took off hands over under the sweep, which reveals the app and goes`() {
+        launch(hasProfile = false, hasTrips = false)
+        compose.mainClock.autoAdvance = false
+
+        tag("onboarding_takeoff").performClick()
+        compose.mainClock.advanceTimeBy(50)
+
+        // The app is already there underneath (the suite in place), under the sweep's cover.
+        tag(ShellTestTags.TakeoffSweep).assertExists()
+        tag("screen_trips").assertExists()
+        tag(ShellTestTags.NavTrips).assertExists()
+        compose.mainClock.advanceTimeBy(3_000)
+        tag(ShellTestTags.TakeoffSweep).assertDoesNotExist()
+        tag("screen_trips").assertIsDisplayed()
     }
 
     @Test

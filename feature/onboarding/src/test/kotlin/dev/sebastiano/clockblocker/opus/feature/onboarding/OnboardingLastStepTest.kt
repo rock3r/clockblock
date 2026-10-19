@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
@@ -45,12 +46,14 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
 
     private val actions = object : OnboardingActions by OnboardingActions.None {
         override fun skip() { calls += "skip" }
+        override fun takeoff() { calls += "takeoff" }
+        override fun finish() { calls += "finish" }
         override fun back() { calls += "back"; step = OnboardingStep.entries[step.ordinal - 1] }
     }
 
-    private fun show(start: OnboardingStep) {
+    private fun show(start: OnboardingStep, reduceMotion: Boolean = false) {
         step = start
-        setContent(reduceMotion = false) {
+        setContent(reduceMotion = reduceMotion) {
             backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
             OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize())
         }
@@ -133,6 +136,29 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
         compose.mainClock.advanceTimeBy(150)
         val again = requireNotNull(planeCentre())
         (again < parked) shouldBe true
+    }
+
+    @Test
+    fun `finishing takes off first, nothing takes a tap meanwhile, and the profile is saved once it has`() {
+        show(OnboardingStep.Reminders)
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
+        compose.mainClock.advanceTimeByFrame()
+        calls shouldContainExactly listOf("takeoff")
+        // Locked while it leaves: a second tap or Back does nothing.
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
+        compose.runOnUiThread { backDispatcher.onBackPressed() }
+        compose.mainClock.advanceTimeBy(200)
+        calls shouldContainExactly listOf("takeoff")
+        compose.mainClock.advanceTimeBy(400)
+        calls shouldContainExactly listOf("takeoff", "finish")
+    }
+
+    @Test
+    fun `with motion reduced, finishing saves straight away, without a take-off`() {
+        show(OnboardingStep.Reminders, reduceMotion = true)
+        compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
+        compose.mainClock.advanceTimeByFrame()
+        calls shouldContainExactly listOf("finish")
     }
 
     /** The plane's horizontal centre: the middle of the ink in the band just above the progress line, or null. */

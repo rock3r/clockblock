@@ -120,6 +120,40 @@ class AppNavigatorTest {
     }
 
     @Test
+    fun `a finish that took off hands over instantly under the sweep, which then clears`() {
+        AppNavigator(TopLevelDestination.Onboarding).apply {
+            armTakeoff()
+            takeoffSweep.shouldBeFalse()
+            finishOnboarding(hasTrips = true)
+            selected shouldBe TopLevelDestination.Now
+            lastDirection shouldBe NavigationDirection.Takeoff
+            takeoffSweep.shouldBeTrue()
+            takeoffSwept()
+            takeoffSweep.shouldBeFalse()
+        }
+    }
+
+    @Test
+    fun `a finish without a take-off (reduced motion, TalkBack) fades through as before, with no sweep`() {
+        AppNavigator(TopLevelDestination.Onboarding).apply {
+            finishOnboarding(hasTrips = false)
+            lastDirection shouldBe NavigationDirection.TopLevel
+            takeoffSweep.shouldBeFalse()
+        }
+    }
+
+    @Test
+    fun `a replayed onboarding that took off pops under the sweep too`() {
+        val navigator = AppNavigator(TopLevelDestination.Settings)
+        navigator.replayOnboarding()
+        navigator.armTakeoff()
+        navigator.finishOnboarding(hasTrips = true)
+        navigator.currentBackStack shouldContainExactly listOf(SettingsRoute)
+        navigator.lastDirection shouldBe NavigationDirection.Takeoff
+        navigator.takeoffSweep.shouldBeTrue()
+    }
+
+    @Test
     fun `first-run onboarding lands on Now with trips, Trips without`() {
         AppNavigator(TopLevelDestination.Onboarding).apply {
             finishOnboarding(hasTrips = true)

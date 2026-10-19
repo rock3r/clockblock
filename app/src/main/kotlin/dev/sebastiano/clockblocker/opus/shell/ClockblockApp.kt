@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
@@ -125,10 +126,15 @@ fun ClockblockShell(
     LaunchedEffect(showSuite) {
         // Entering a pushed detail screen, editor or onboarding is already one motion (the screen transition);
         // collapsing the suite at the same time would be a second event, so it disappears instantly. Coming back,
-        // it may slide in.
-        if (showSuite) suiteState.show() else suiteState.snapTo(NavigationSuiteScaffoldValue.Hidden)
+        // it may slide in, except under onboarding's take-off sweep, which reveals it already in place.
+        when {
+            !showSuite -> suiteState.snapTo(NavigationSuiteScaffoldValue.Hidden)
+            navigator.takeoffSweep -> suiteState.snapTo(NavigationSuiteScaffoldValue.Visible)
+            else -> suiteState.show()
+        }
     }
 
+    Box(modifier) {
     NavigationSuiteScaffold(
         navigationItems = {
             TopLevelDestination.NavigationSuite.forEach { destination ->
@@ -151,7 +157,6 @@ fun ClockblockShell(
                 )
             }
         },
-        modifier = modifier,
         navigationSuiteType = suiteType,
         state = suiteState,
     ) {
@@ -161,6 +166,9 @@ fun ClockblockShell(
             hasTrips = hasTrips,
             directive = directive,
         )
+    }
+    // Over everything, bars and rails included: onboarding hands over to the app under its cover.
+    if (navigator.takeoffSweep) TakeoffSweep(onDone = navigator::takeoffSwept)
     }
 }
 
@@ -197,6 +205,9 @@ object ShellTestTags {
 
     /** The drag handle between the trips and plan panes in the list-detail layout. */
     const val PaneHandle = "shell_pane_handle"
+
+    /** Onboarding's take-off sweep over the app. */
+    const val TakeoffSweep = "shell_takeoff_sweep"
 
     /** The detail pane beside Trips while no trip is open. */
     const val PlanPlaceholder = "shell_plan_placeholder"

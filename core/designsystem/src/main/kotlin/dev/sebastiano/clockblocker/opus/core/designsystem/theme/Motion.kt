@@ -241,6 +241,21 @@ class ClockblockMotion internal constructor(
     fun taxi(): FiniteAnimationSpec<Float> =
         if (reduceMotion) snap() else tween((TaxiMillis * navigationTimeScale).toInt(), easing = EmphasizedDecelerate)
 
+    /**
+     * Onboarding's finish (a once-per-install moment): one linear [TakeoffMillis] clock for the runway plane's
+     * take-off roll, rotation and climb and the content leaving, each shaping its share. ×1.5 under Calm; snaps when
+     * reduced (the take-off is skipped).
+     */
+    fun takeoff(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((TakeoffMillis * navigationTimeScale).toInt(), easing = LinearEasing)
+
+    /**
+     * The plane seen from above sweeping the window after onboarding, revealing the app behind its wings: an even
+     * flight over [SweepMillis], easing in and out a touch. ×1.5 under Calm; snaps when reduced (no sweep).
+     */
+    fun sweep(): FiniteAnimationSpec<Float> =
+        if (reduceMotion) snap() else tween((SweepMillis * navigationTimeScale).toInt(), easing = StepSpatialEasing)
+
     /** True under [CalmMotionScheme] (Night-safe colours or the body clock's night). */
     val isCalm: Boolean get() = scheme === CalmMotionScheme
 
@@ -322,6 +337,12 @@ class ClockblockMotion internal constructor(
 
         /** The runway plane's taxi to its holding point (see [taxi]). */
         const val TaxiMillis = 900
+
+        /** Onboarding's take-off and content exit, before the sweep (see [takeoff]). */
+        const val TakeoffMillis = 400
+
+        /** The top-down plane's sweep revealing the app (see [sweep]). */
+        const val SweepMillis = 900
 
         private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)

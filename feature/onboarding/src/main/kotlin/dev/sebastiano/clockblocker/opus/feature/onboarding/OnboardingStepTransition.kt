@@ -163,10 +163,15 @@ internal class OnboardingStepTransition(
 
 /**
  * Drives [OnboardingStepTransition] from [step] (the ViewModel's source of truth) and registers the back
- * handler: enabled after the first step, it calls [onBack] on commit.
+ * handler: enabled after the first step (and while [backEnabled]: not while onboarding takes off), it calls [onBack]
+ * on commit.
  */
 @Composable
-internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -> Unit): OnboardingStepTransition {
+internal fun rememberOnboardingStepTransition(
+    step: OnboardingStep,
+    onBack: () -> Unit,
+    backEnabled: Boolean = true,
+): OnboardingStepTransition {
     val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val axisOffsetPx = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
@@ -191,7 +196,7 @@ internal fun rememberOnboardingStepTransition(step: OnboardingStep, onBack: () -
     val currentOnBack by rememberUpdatedState(onBack)
     NavigationBackHandler(
         state = backState,
-        isBackEnabled = previous != null,
+        isBackEnabled = previous != null && backEnabled,
         onBackCancelled = { scope.launch { steps.cancelBack() } },
         onBackCompleted = { currentOnBack() },
     )

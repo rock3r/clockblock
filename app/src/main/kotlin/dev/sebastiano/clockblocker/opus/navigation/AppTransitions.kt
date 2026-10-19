@@ -51,6 +51,8 @@ class AppTransitions(
         NavigationDirection.TopLevel -> fadeThrough()
         NavigationDirection.Backward -> backward()
         NavigationDirection.Forward -> if (isPop) backward() else forward()
+        // Hidden under the take-off sweep's cover: no motion of its own, the sweep is the transition.
+        NavigationDirection.Takeoff -> EnterTransition.None togetherWith ExitTransition.None
     }
 
     fun fadeThrough(): ContentTransform =

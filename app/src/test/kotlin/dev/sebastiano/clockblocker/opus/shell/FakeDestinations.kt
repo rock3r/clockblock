@@ -28,9 +28,11 @@ object FakeDestinations : AppDestinations {
     const val NewTripId = "new-trip"
 
     @Composable
-    override fun Onboarding(onFinished: () -> Unit) {
+    override fun Onboarding(onFinished: () -> Unit, onTakeoff: () -> Unit) {
         FakeScreen("screen_onboarding", "Onboarding", MaterialTheme.colorScheme.primaryContainer) {
             Button(onClick = onFinished, modifier = Modifier.testTag("onboarding_finish")) { Text("Finish") }
+            // The real onboarding's finish with its take-off: the shell's sweep follows.
+            Button(onClick = { onTakeoff(); onFinished() }, modifier = Modifier.testTag("onboarding_takeoff")) { Text("Take off") }
         }
     }
 

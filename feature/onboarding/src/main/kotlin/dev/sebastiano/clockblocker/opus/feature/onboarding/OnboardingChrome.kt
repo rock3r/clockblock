@@ -168,7 +168,7 @@ internal fun OnboardingTopBar(
                 label,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide, drop = labelDrop),
+                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide, drop = labelDrop).takeoffExit(Takeoff.TopBar),
             )
             Spacer(Modifier.size(6.dp))
             // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
@@ -181,6 +181,8 @@ internal fun OnboardingTopBar(
                     .fillMaxWidth()
                     .topBarItem(progressAlpha, barAlpha, slide, drop = progressDrop)
                     .then(if (plane != null) Modifier.runwayPlane(plane) else Modifier)
+                    // Under the plane: the runway leaves with the step label while the plane climbs away.
+                    .takeoffExit(Takeoff.TopBar)
                     .semantics { contentDescription = label }
                     .testTag(OnboardingTags.Progress),
             )
@@ -234,7 +236,7 @@ private fun Modifier.inertChrome(): Modifier = this
  * (0 → 1), and [alpha] its opacity, both read in draw.
  */
 @Stable
-internal class RunwayPlanePose(val taxi: () -> Float, val alpha: () -> Float) {
+internal class RunwayPlanePose(val taxi: () -> Float, val alpha: () -> Float, val takeoff: () -> Float = { 0f }) {
     /**
      * The whole runway's width once Skip has left: the line shrinks back while the plane fades out on Back, and the
      * holding point stays a third of the way along the runway it parked on instead of drifting with it.
@@ -259,10 +261,17 @@ private fun Modifier.runwayPlane(pose: RunwayPlanePose): Modifier = composed {
         pose.runwayWidth = maxOf(pose.runwayWidth, size.width)
         // From the start of the line to its holding point: the plane's middle a third of the way along the runway.
         val travel = pose.runwayWidth * HoldingPoint - length / 2f
-        val fromStart = travel * pose.taxi().coerceIn(0f, 1f)
-        val ground = size.height / 2f - RunwayStroke.toPx() / 2f + RunwayGroundNudge.toPx()
+        // Then, on finishing, it takes off: rolls on past the end, rotates and climbs away.
+        val t = pose.takeoff().coerceIn(0f, 1f)
+        val fromStart = travel * pose.taxi().coerceIn(0f, 1f) + Takeoff.roll(t) * (pose.runwayWidth - length - travel)
+        val ground = size.height / 2f - RunwayStroke.toPx() / 2f + RunwayGroundNudge.toPx() - Takeoff.climb(t) * Takeoff.ClimbHeight.toPx()
         val tailX = if (rtl) size.width - fromStart else fromStart
-        with(RunwayPlane) { drawRunwayPlane(Offset(tailX, ground), length, color, alpha, mirrored = rtl, wingColor = wing) }
+        with(RunwayPlane) {
+            drawRunwayPlane(
+                Offset(tailX, ground), length, color, alpha * Takeoff.alpha(t),
+                pitchDegrees = Takeoff.pitch(t), mirrored = rtl, wingColor = wing,
+            )
+        }
     }
 }
 

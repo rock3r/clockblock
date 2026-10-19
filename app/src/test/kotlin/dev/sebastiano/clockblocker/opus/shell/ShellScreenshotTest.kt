@@ -26,8 +26,8 @@ class ShellScreenshotTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
-    private fun launch(hasProfile: Boolean = true, hasTrips: Boolean = false, dark: Boolean = false) {
-        val settings = TestSettings.copy(themeMode = if (dark) ThemeMode.Dark else ThemeMode.Light)
+    private fun launch(hasProfile: Boolean = true, hasTrips: Boolean = false, dark: Boolean = false, motion: Boolean = false) {
+        val settings = TestSettings.copy(themeMode = if (dark) ThemeMode.Dark else ThemeMode.Light, reduceMotion = !motion)
         compose.setContent {
             ClockblockAppRoot(
                 uiState = ShellUiState.Ready(hasProfile = hasProfile, hasTrips = hasTrips, settings = settings),
@@ -66,6 +66,27 @@ class ShellScreenshotTest {
         launch(hasProfile = false)
         snap("compact_onboarding")
     }
+
+    /** Onboarding's take-off sweep revealing the app behind the plane's wings: a third and two thirds of the way. */
+    private fun sweepFrames(name: String) {
+        launch(hasProfile = false, motion = true)
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("onboarding_takeoff").performClick()
+        compose.mainClock.advanceTimeBy(50)
+        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithTag(ShellTestTags.TakeoffSweep).assertExists()
+        snap("${name}_sweep_1")
+        compose.mainClock.advanceTimeBy(300)
+        snap("${name}_sweep_2")
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp")
+    fun compactSweep() = sweepFrames("compact")
+
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp")
+    fun expandedSweep() = sweepFrames("expanded")
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-night")
