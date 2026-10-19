@@ -260,10 +260,13 @@ class NowNotificationRemoteTest {
         content.preview(now, 280) shouldBe null
 
         content.profileProvider = { widgetProfileFor(7) }
+        var captures = 0
         content.capturer = { profile, size, body ->
+            captures++
             captureSingleRemoteDocument(context = context, creationDisplayInfo = createCreationDisplayInfo(context, size), profile = profile, content = body)
         }
         content.preview(now, 280) shouldNotBe null
+        captures shouldBe 1
     }
 
     /** 01:40 in Tokyo, 17:40 in Lisbon: someone's evening, when an unpinned sample would read "until 05:00". */

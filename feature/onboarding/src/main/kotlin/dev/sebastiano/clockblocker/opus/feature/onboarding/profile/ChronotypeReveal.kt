@@ -1,7 +1,9 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding.profile
 
+import android.graphics.PorterDuff
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -33,8 +35,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -46,6 +50,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,23 +59,35 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.SemanticsModifierNode
+import androidx.compose.ui.node.invalidateSemantics
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -78,7 +95,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import dev.sebastiano.clockblocker.opus.core.designsystem.advice.AdviceShapes
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.ChronotypeScene
+import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.SkyPose
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.drawChronotypeSceneWarmup
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.skyPose
 import dev.sebastiano.clockblocker.opus.core.designsystem.illustration.warmChronotypeSceneShapes
@@ -86,6 +105,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.time.rememberTimeFormatter
 import dev.sebastiano.clockblocker.opus.core.model.Chronotype
+import dev.sebastiano.clockblocker.opus.core.notifications.R as NotificationR
 import dev.sebastiano.clockblocker.opus.feature.onboarding.R
 import dev.sebastiano.clockblocker.opus.feature.onboarding.rememberTouchExplorationEnabled
 import kotlinx.coroutines.Job
@@ -138,96 +158,119 @@ fun ChronotypeReveal(
     onPick: (Chronotype) -> Unit,
     wide: Boolean,
     modifier: Modifier = Modifier,
+    active: Boolean = true,
+    activeState: State<Boolean> = rememberUpdatedState(active),
     daysOffLinked: Boolean = false,
     spectacleFrom: Rect? = null,
+    spectacleFromProvider: () -> Rect? = { spectacleFrom },
     onSpectacleFinished: () -> Unit = {},
     onSpectacleName: () -> Unit = {},
 ) {
     val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
     val touchExploring = rememberTouchExplorationEnabled()
-    var played by rememberSaveable { mutableStateOf(false) }
+    val played = rememberSaveable { mutableStateOf(false) }
     val entrance = remember {
+        val initialActive = Snapshot.withoutReadObservation { activeState.value }
+        val initialFrom = Snapshot.withoutReadObservation { spectacleFromProvider() }
         RevealEntrance(
-            when {
+            start = when {
+                !initialActive -> RevealStart.Rest
                 reduce || touchExploring -> RevealStart.Rest
-                spectacleFrom != null -> RevealStart.Spectacle
-                played -> RevealStart.Rest
+                initialFrom != null -> RevealStart.Spectacle
+                played.value -> RevealStart.Rest
                 else -> RevealStart.Entrance
             },
+            spectacleFrom = initialFrom,
         )
     }
     val currentOnSpectacleFinished by rememberUpdatedState(onSpectacleFinished)
-    val currentOnSpectacleName by rememberUpdatedState(onSpectacleName)
-    if (entrance.start == RevealStart.Spectacle) {
-        LaunchedEffect(entrance) {
-            // The name's first frame on screen, a skip landing everything at once included.
-            snapshotFlow { entrance.words.value > NameStagger.start }.first { it }
-            currentOnSpectacleName()
-        }
-    }
     val scope = rememberCoroutineScope()
-    var choreography by remember { mutableStateOf<Job?>(null) }
-    // Counted as played as soon as it's shown: leaving mid-entrance (Next during the rise) and coming back, or a
-    // rotation, shows the reveal at rest instead of replaying it. Marked as the composition applies, not in the effect
-    // below, so even a recreation before the effect's first run can't save it unplayed.
-    SideEffect { played = true }
-    LaunchedEffect(entrance) {
-        choreography = coroutineContext[Job]
-        entrance.play(motion)
-        if (entrance.start == RevealStart.Spectacle) currentOnSpectacleFinished()
-    }
-    val toRest: () -> Unit = {
-        val wasSpectacle = entrance.spectacleRunning
-        choreography?.cancel()
-        scope.launch {
-            entrance.skip()
-            if (wasSpectacle) currentOnSpectacleFinished()
+    val choreography = remember { mutableStateOf<Job?>(null) }
+    val toRest: () -> Unit = remember(entrance, choreography, scope) {
+        {
+            val wasSpectacle = entrance.spectacleRunning
+            choreography.value?.cancel()
+            scope.launch {
+                entrance.skip()
+                if (wasSpectacle) currentOnSpectacleFinished()
+            }
         }
     }
-    val skip: () -> Unit = { if (entrance.spectacleRunning) toRest() }
-    // Turning on reduce motion or TalkBack mid-entrance lands it at rest too.
-    LaunchedEffect(reduce || touchExploring) { if (reduce || touchExploring) toRest() }
+    val skip: () -> Unit = remember(entrance, toRest) {
+        { if (entrance.spectacleRunning) toRest() }
+    }
+    val skipLabel = stringResource(R.string.chronotype_spectacle_skip)
+    val spectacleSemantics = remember {
+        val initialRunning = Snapshot.withoutReadObservation { entrance.spectacleRunning }
+        SpectacleSemanticsHolder(initialRunning = initialRunning, initialSkipLabel = skipLabel)
+    }
+    BindChronotypeRevealEntrance(
+        entrance = entrance,
+        played = played,
+        activeState = activeState,
+        reduce = reduce,
+        touchExploring = touchExploring,
+        spectacleFromProvider = spectacleFromProvider,
+        choreography = choreography,
+        spectacleSemantics = spectacleSemantics,
+        skipLabel = skipLabel,
+        toRest = toRest,
+        onSpectacleFinished = onSpectacleFinished,
+        onSpectacleName = onSpectacleName,
+        motion = motion,
+    )
 
     var showSheet by rememberSaveable { mutableStateOf(false) }
-    val origin = remember { mutableStateOf(Offset.Zero) }
-    val card = remember { mutableStateOf(Rect.Zero) }
+    val coords = remember { SpectacleCoords() }
+    val artEntrance = remember(entrance) { { entrance.art.value } }
+    val artDrawn = remember(entrance) { { entrance.artAlpha > 0f } }
+    val artModifier = remember(entrance) {
+        Modifier.fillMaxSize().graphicsLayer {
+            val scale = entrance.popScale
+            val a = entrance.artAlpha
+            alpha = if (scale != 1f && a >= 1f) PopLayerOpaqueAlpha else a
+            scaleX = scale
+            scaleY = scale
+            compositingStrategy = if (scale != 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+        }
+    }
     val artBlock: @Composable (Dp) -> Unit = { size ->
-        Box(
+        val boxModifier = remember(size, coords) {
             Modifier
                 .size(size)
-                .onGloballyPositioned { card.value = Rect(it.positionInRoot(), it.size.toSize()) }
-                .testTag(ChronotypeRevealTags.Art),
-        ) {
+                .onPlaced { coords.card = it }
+                .testTag(ChronotypeRevealTags.Art)
+        }
+        Box(boxModifier) {
             ChronotypeRevealArt(
                 chronotype,
-                entrance = { entrance.art.value },
-                drawn = { entrance.artAlpha > 0f },
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val scale = entrance.popScale
-                    alpha = entrance.artAlpha
-                    scaleX = scale
-                    scaleY = scale
-                    compositingStrategy = if (scale != 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
-                },
+                entrance = artEntrance,
+                drawn = artDrawn,
+                activeState = activeState,
+                modifier = artModifier,
             )
         }
     }
+    val wordsProgress = remember(entrance) { { entrance.words.value } }
+    val otherModifier = remember(wordsProgress) {
+        Modifier
+            .heightIn(min = 48.dp)
+            .staggeredWord(wordsProgress, LinkStagger)
+            .testTag(ChronotypeRevealTags.Other)
+    }
     val words: @Composable ColumnScope.(TextAlign, Alignment.Horizontal, Boolean) -> Unit = { align, horizontal, compact ->
         Column(Modifier.fillMaxWidth(), horizontalAlignment = horizontal) {
-            RevealWords(chronotype, picked, { entrance.words.value }, midSleep, daysOffLinked, align, compact)
+            RevealWords(chronotype, picked, wordsProgress, midSleep, daysOffLinked, align, compact)
             Spacer(Modifier.size(8.dp))
             TextButton(
                 // Until it shows, the link is only part of the spectacle (a keyboard or Switch Access click skips it).
                 onClick = { if (entrance.spectacleRunning && !entrance.linkShown) skip() else showSheet = true },
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .staggeredWord({ entrance.words.value }, LinkStagger)
-                    .testTag(ChronotypeRevealTags.Other),
+                modifier = otherModifier,
             ) { Text(stringResource(R.string.chronotype_reveal_other)) }
         }
     }
-    val spectacle = Modifier.spectacle(entrance, spectacleFrom, origin, card, chronotype, skip)
+    val spectacle = Modifier.spectacle(entrance, coords, chronotype, spectacleSemantics, skip)
     if (wide) BoxWithConstraints(modifier.fillMaxSize().then(spectacle)) {
         val artSize = minOf(260.dp, maxHeight * 0.6f)
         // Phones in landscape: a smaller name, so the link stays in view without scrolling.
@@ -282,6 +325,66 @@ fun ChronotypeReveal(
     }
 }
 
+@Composable
+private fun BindChronotypeRevealEntrance(
+    entrance: RevealEntrance,
+    played: MutableState<Boolean>,
+    activeState: State<Boolean>,
+    reduce: Boolean,
+    touchExploring: Boolean,
+    spectacleFromProvider: () -> Rect?,
+    choreography: MutableState<Job?>,
+    spectacleSemantics: SpectacleSemanticsHolder,
+    skipLabel: String,
+    toRest: () -> Unit,
+    onSpectacleFinished: () -> Unit,
+    onSpectacleName: () -> Unit,
+    motion: ClockblockMotion,
+) {
+    val active = activeState.value
+    val spectacleFrom = if (active) spectacleFromProvider() else null
+    var wasActive by remember { mutableStateOf(active) }
+    if (active && !wasActive) {
+        wasActive = true
+        entrance.reset(
+            nextStart = when {
+                reduce || touchExploring -> RevealStart.Rest
+                spectacleFrom != null -> RevealStart.Spectacle
+                played.value -> RevealStart.Rest
+                else -> RevealStart.Entrance
+            },
+            from = spectacleFrom,
+        )
+    } else if (!active && wasActive) {
+        wasActive = false
+        entrance.reset(RevealStart.Rest)
+    }
+    val running = entrance.spectacleRunning
+    SideEffect { spectacleSemantics.update(running = running, skipLabel = skipLabel) }
+    val currentOnSpectacleFinished by rememberUpdatedState(onSpectacleFinished)
+    val currentOnSpectacleName by rememberUpdatedState(onSpectacleName)
+    if (active) {
+        if (entrance.start == RevealStart.Spectacle) {
+            LaunchedEffect(entrance) {
+                // The name's first frame on screen, a skip landing everything at once included.
+                snapshotFlow { entrance.words.value > NameStagger.start }.first { it }
+                currentOnSpectacleName()
+            }
+        }
+        // Counted as played as soon as it's shown: leaving mid-entrance (Next during the rise) and coming back, or a
+        // rotation, shows the reveal at rest instead of replaying it. Marked as the composition applies, not in the effect
+        // below, so even a recreation before the effect's first run can't save it unplayed.
+        SideEffect { played.value = true }
+        LaunchedEffect(entrance) {
+            choreography.value = coroutineContext[Job]
+            entrance.play(motion)
+            if (entrance.start == RevealStart.Spectacle) currentOnSpectacleFinished()
+        }
+        // Turning on reduce motion or TalkBack mid-entrance lands it at rest too.
+        LaunchedEffect(reduce || touchExploring) { if (reduce || touchExploring) toRest() }
+    }
+}
+
 /**
  * The spectacle on the reveal's root, outside its scrolling (so the shape is never clipped): tracks the root's place,
  * draws the shape behind the content, and, while it plays, takes a tap anywhere as a skip (letting it through to the
@@ -290,49 +393,113 @@ fun ChronotypeReveal(
 @Composable
 private fun Modifier.spectacle(
     entrance: RevealEntrance,
-    from: Rect?,
-    origin: MutableState<Offset>,
-    card: MutableState<Rect>,
+    coords: SpectacleCoords,
     chronotype: Chronotype,
+    semanticsHolder: SpectacleSemanticsHolder,
     skip: () -> Unit,
 ): Modifier {
-    if (entrance.start != RevealStart.Spectacle) return this
-    val startFrom = remember { from }
     val fill = ClockblockTheme.sky.gradientAt(((chronotype.skyPose().hour - EntranceHours) % 24f + 24f) % 24f)
     val rim = ClockblockTheme.artColors.tertiary
-    val skipLabel = stringResource(R.string.chronotype_spectacle_skip)
     val path = remember { Path() }
-    val running = entrance.spectacleRunning
-    return this
-        .onGloballyPositioned { origin.value = it.positionInRoot() }
-        .drawWithCache {
-            if (!entrance.spectacleRunning) return@drawWithCache onDrawBehind {}
-            val local = card.value.translate(-origin.value)
-            val morphs = spectacleMorphs(if (local.isEmpty) 0f else RevealCorner.toPx() / local.width)
-            val face = startFrom?.translate(-origin.value) ?: Rect.Zero
-            onDrawBehind {
-                if (entrance.spectacleRunning && !local.isEmpty) drawSpectacleShape(entrance, morphs, face, local, fill, rim, path)
+    val currentSkip by rememberUpdatedState(skip)
+    SideEffect { semanticsHolder.onSkip = currentSkip }
+    return remember(this, entrance, coords, fill, rim, path, semanticsHolder) {
+        this
+            .onPlaced { coords.root = it }
+            .drawWithCache {
+                if (!entrance.spectacleRunning) return@drawWithCache onDrawBehind {}
+                val origin = coords.originInRoot()
+                val local = coords.cardInRoot().translate(-origin)
+                val morphs = spectacleMorphs(if (local.isEmpty) 0f else RevealCorner.toPx() / local.width)
+                val startFrom = entrance.spectacleFrom
+                val face = if (startFrom.isEmpty) Rect.Zero else startFrom.translate(-origin)
+                onDrawBehind {
+                    if (entrance.spectacleRunning && !local.isEmpty) drawSpectacleShape(entrance, morphs, face, local, fill, rim, path)
+                }
+            }
+            .then(SpectacleSemanticsElement(semanticsHolder))
+            .pointerInput(entrance) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (!entrance.spectacleRunning) return@awaitEachGesture
+                    val toLink = entrance.linkShown
+                    if (!toLink) down.consume()
+                    val up = waitForUpOrCancellation(PointerEventPass.Initial) ?: return@awaitEachGesture
+                    if (!entrance.spectacleRunning) return@awaitEachGesture
+                    if (!toLink) up.consume()
+                    semanticsHolder.onSkip()
+                }
+            }
+    }
+}
+
+@Stable
+private class SpectacleCoords {
+    var root: LayoutCoordinates? = null
+    var card: LayoutCoordinates? = null
+
+    fun originInRoot(): Offset {
+        val r = root?.takeIf { it.isAttached } ?: return Offset.Zero
+        return r.positionInRoot()
+    }
+
+    fun cardInRoot(): Rect {
+        val c = card?.takeIf { it.isAttached } ?: return Rect.Zero
+        return Rect(c.positionInRoot(), c.size.toSize())
+    }
+}
+
+@Stable
+private class SpectacleSemanticsHolder(
+    initialRunning: Boolean = false,
+    initialSkipLabel: String = "",
+) {
+    var running: Boolean = initialRunning
+        private set
+    var skipLabel: String = initialSkipLabel
+        private set
+    var onSkip: () -> Unit = {}
+    var node: SpectacleSemanticsNode? = null
+
+    fun update(running: Boolean, skipLabel: String) {
+        if (this.running != running || this.skipLabel != skipLabel) {
+            this.running = running
+            this.skipLabel = skipLabel
+            node?.invalidateSemantics()
+        }
+    }
+}
+
+private data class SpectacleSemanticsElement(
+    val holder: SpectacleSemanticsHolder,
+) : ModifierNodeElement<SpectacleSemanticsNode>() {
+    override fun create(): SpectacleSemanticsNode = SpectacleSemanticsNode(holder)
+    override fun update(node: SpectacleSemanticsNode) {
+        node.holder = holder
+        holder.node = node
+    }
+}
+
+private class SpectacleSemanticsNode(
+    var holder: SpectacleSemanticsHolder,
+) : Modifier.Node(), SemanticsModifierNode {
+    override fun onAttach() {
+        holder.node = this
+    }
+
+    override fun onDetach() {
+        if (holder.node === this) holder.node = null
+    }
+
+    override fun SemanticsPropertyReceiver.applySemantics() {
+        if (holder.running) {
+            testTag = ChronotypeRevealTags.Spectacle
+            onClick(label = holder.skipLabel) {
+                holder.onSkip()
+                true
             }
         }
-        .then(
-            if (!running) {
-                Modifier
-            } else {
-                Modifier
-                    .testTag(ChronotypeRevealTags.Spectacle)
-                    .semantics { onClick(label = skipLabel) { skip(); true } }
-                    .pointerInput(entrance) {
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                            val toLink = entrance.linkShown
-                            if (!toLink) down.consume()
-                            val up = waitForUpOrCancellation(PointerEventPass.Initial) ?: return@awaitEachGesture
-                            if (!toLink) up.consume()
-                            skip()
-                        }
-                    }
-            },
-        )
+    }
 }
 
 @Composable
@@ -418,26 +585,85 @@ private fun ChronotypeRevealArt(
     entrance: () -> Float,
     modifier: Modifier = Modifier,
     drawn: () -> Boolean = { true },
+    activeState: State<Boolean> = remember { mutableStateOf(true) },
 ) {
-    val motion = ClockblockTheme.motion
-    val reduce = ClockblockTheme.reduceMotion
     val target = chronotype.skyPose()
     val hour = remember { Animatable(target.hour) }
     val position = remember { Animatable(target.position) }
+    val restingMoon = if (target.evening) 1f else 0f
+    val moonFrom = remember { mutableFloatStateOf(restingMoon) }
+    val moonTo = remember { mutableFloatStateOf(restingMoon) }
+    val swap = remember { Animatable(1f) }
+    val sunRotation = remember { AmbientPhaseState() }
+    val twinkle = remember { AmbientPhaseState() }
+    BindChronotypeArtMotion(
+        target = target,
+        activeState = activeState,
+        hour = hour,
+        position = position,
+        moonFrom = moonFrom,
+        moonTo = moonTo,
+        swap = swap,
+        sunRotation = sunRotation,
+        twinkle = twinkle,
+    )
+    val hourLambda = remember(hour, entrance) { { hour.value - (1f - entrance()) * EntranceHours } }
+    val positionLambda = remember(position) { { position.value } }
+    val moonFractionLambda = remember(moonFrom, moonTo, swap) {
+        { BodySwap.moonFraction(moonFrom.floatValue, moonTo.floatValue, swap.value) }
+    }
+    val sunRotationLambda = remember(sunRotation) { { sunRotation.value } }
+    val twinkleLambda = remember(twinkle) { { twinkle.value } }
+    val bodyScaleLambda = remember(swap) { { 1f + BodySwap.PopScale * BodySwap.pop(swap.value) } }
+    ChronotypeScene(
+        chronotype = chronotype,
+        hour = hourLambda,
+        position = positionLambda,
+        moonFraction = moonFractionLambda,
+        entrance = entrance,
+        sunRotation = sunRotationLambda,
+        twinkle = twinkleLambda,
+        drawn = drawn,
+        modifier = modifier,
+        cornerRadius = RevealCorner,
+        bodyScale = bodyScaleLambda,
+    )
+}
+
+@Composable
+private fun BindChronotypeArtMotion(
+    target: SkyPose,
+    activeState: State<Boolean>,
+    hour: Animatable<Float, AnimationVector1D>,
+    position: Animatable<Float, AnimationVector1D>,
+    moonFrom: MutableFloatState,
+    moonTo: MutableFloatState,
+    swap: Animatable<Float, AnimationVector1D>,
+    sunRotation: AmbientPhaseState,
+    twinkle: AmbientPhaseState,
+) {
+    val active = activeState.value
+    val motion = ClockblockTheme.motion
+    val reduce = ClockblockTheme.reduceMotion
     // Sun ⇄ moon: one clock for the cross-fade and pop (BodySwap), from wherever the last swap had got to, with a
     // CONFIRM haptic at the top of the pop (straight away when motion is reduced and the swap snaps).
     val view = LocalView.current
-    val restingMoon = if (target.evening) 1f else 0f
-    var moonFrom by remember { mutableFloatStateOf(restingMoon) }
-    var moonTo by remember { mutableFloatStateOf(restingMoon) }
-    val swap = remember { Animatable(1f) }
-    LaunchedEffect(target) {
+    LaunchedEffect(target, active) {
+        if (!active) {
+            if (hour.value != target.hour) hour.snapTo(target.hour)
+            if (position.value != target.position) position.snapTo(target.position)
+            val targetMoon = if (target.evening) 1f else 0f
+            moonFrom.floatValue = targetMoon
+            moonTo.floatValue = targetMoon
+            if (swap.value != 1f) swap.snapTo(1f)
+            return@LaunchedEffect
+        }
         if (hour.value != target.hour) launch { hour.animateTo(target.hour, motion.artEntrance()) }
         if (position.value != target.position) launch { position.animateTo(target.position, motion.artEntrance()) }
         val targetMoon = if (target.evening) 1f else 0f
-        if (moonTo != targetMoon) {
-            moonFrom = BodySwap.moonFraction(moonFrom, moonTo, swap.value)
-            moonTo = targetMoon
+        if (moonTo.floatValue != targetMoon) {
+            moonFrom.floatValue = BodySwap.moonFraction(moonFrom.floatValue, moonTo.floatValue, swap.value)
+            moonTo.floatValue = targetMoon
             swap.snapTo(0f)
             launch {
                 snapshotFlow { swap.value >= BodySwap.PopPeak }.first { it }
@@ -449,21 +675,8 @@ private fun ChronotypeRevealArt(
     // The rays only turn while a sun shows (an evening type's sky has the moon): no loop runs for nothing. A sun fading
     // out under a swap keeps turning, so it doesn't snap back to its first angle.
     val swapping by remember { derivedStateOf { swap.value < 1f } }
-    val sunRotation = rememberAmbient(!reduce && (!target.evening || swapping), ClockblockMotion.SunRotationMillis, reverse = false)
-    val twinkle = rememberAmbient(!reduce, ClockblockMotion.TwinkleMillis, reverse = true)
-    ChronotypeScene(
-        chronotype = chronotype,
-        hour = { hour.value - (1f - entrance()) * EntranceHours },
-        position = { position.value },
-        moonFraction = { BodySwap.moonFraction(moonFrom, moonTo, swap.value) },
-        entrance = entrance,
-        sunRotation = { sunRotation.value },
-        twinkle = { twinkle.value },
-        drawn = drawn,
-        modifier = modifier,
-        cornerRadius = RevealCorner,
-        bodyScale = { 1f + BodySwap.PopScale * BodySwap.pop(swap.value) },
-    )
+    BindAmbientPhase(sunRotation, active && !reduce && (!target.evening || swapping), ClockblockMotion.SunRotationMillis, reverse = false)
+    BindAmbientPhase(twinkle, active && !reduce, ClockblockMotion.TwinkleMillis, reverse = true)
 }
 
 /**
@@ -485,7 +698,11 @@ private fun ChronotypeRevealArt(
  * `drawRect(surface)` of the same `200.dp` bounds so no visible pixel on the Sleep step ever changes.
  */
 @Composable
-internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: Boolean = true) {
+internal fun ChronotypePrewarm(
+    modifier: Modifier = Modifier,
+    disarmAfterFrame: Boolean = true,
+    onPrewarmed: () -> Unit = {},
+) {
     val surface = MaterialTheme.colorScheme.surface
     val outline = MaterialTheme.colorScheme.outline
     val sky = ClockblockTheme.sky
@@ -498,8 +715,21 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
     val sheetTitle = stringResource(R.string.chronotype_sheet_title)
     val suggested = stringResource(R.string.chronotype_suggested)
     val plan = stringResource(R.string.chronotype_reveal_plan)
+    val midpointLinked = stringResource(R.string.chronotype_reveal_midpoint_linked, "03:30")
+    val midpointUnlinked = stringResource(R.string.chronotype_reveal_midpoint, "03:30")
     val labels = Chronotype.entries.map { it.label() to it.description() }
+    // Warm Tools/Reminders vector drawables into LocalImageVectorCache so step transitions don't parse XML vectors synchronously.
+    painterResource(NotificationR.drawable.ic_notif_caffeine)
+    painterResource(R.drawable.onboarding_ic_flight)
+    painterResource(NotificationR.drawable.ic_notif_nap)
+    painterResource(NotificationR.drawable.ic_notif_melatonin)
+    painterResource(NotificationR.drawable.ic_notif_light)
+    painterResource(R.drawable.onboarding_ic_info)
+    painterResource(R.drawable.onboarding_ic_expand_more)
+    painterResource(R.drawable.onboarding_ic_check)
+    painterResource(NotificationR.drawable.ic_notif_app)
     remember(measurer, typography, textStyles) {
+        AdviceShapes.warmUp()
         warmChronotypeSceneShapes()
         val morphs = spectacleMorphs(RevealCorner.value / RevealArtSize.value)
         val warmPath = Path()
@@ -511,6 +741,8 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
         measurer.measure(sheetTitle, textStyles.editorialTitle)
         measurer.measure(suggested, typography.labelMedium)
         measurer.measure(plan, typography.bodyMedium)
+        measurer.measure(midpointLinked, typography.bodyMedium)
+        measurer.measure(midpointUnlinked, typography.bodyMedium)
         labels.forEach { (title, desc) ->
             measurer.measure(title, display)
             measurer.measure(title, textStyles.editorialTitle)
@@ -522,15 +754,50 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
     }
     val view = LocalView.current
     var armed by remember { mutableStateOf(true) }
+    val currentOnPrewarmed by rememberUpdatedState(onPrewarmed)
     DisposableEffect(view, disarmAfterFrame) {
         if (!disarmAfterFrame) return@DisposableEffect onDispose {}
-        val clear = Runnable { armed = false }
+        val clear = Runnable {
+            armed = false
+            currentOnPrewarmed()
+        }
         view.post(clear)
         onDispose { view.removeCallbacks(clear) }
     }
     if (!armed) return
     val fill = sky.gradientAt(10f)
     Box(modifier.size(RevealArtSize).testTag(ChronotypeRevealTags.Prewarm).clearAndSetSemantics { }) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = PrewarmTranslucentAlpha }
+                .drawWithCache {
+                    onDrawBehind {
+                        drawRect(outline)
+                        drawRect(Color.Transparent, topLeft = Offset(2f, 2f), size = Size(10f, 10f), blendMode = BlendMode.Clear)
+                        drawIntoCanvas { canvas ->
+                            canvas.save()
+                            canvas.clipRect(2f, 2f, 12f, 12f)
+                            canvas.nativeCanvas.drawColor(0, PorterDuff.Mode.CLEAR)
+                            canvas.restore()
+                        }
+                        drawLine(outline, Offset.Zero, Offset(size.width, 0f), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(outline, Offset.Zero, Offset(size.width, 0f), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Butt)
+                        drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()))
+                        drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()), style = Stroke(2.dp.toPx()))
+                        drawCircle(outline, radius = 11.dp.toPx())
+                        drawCircle(outline, radius = 11.dp.toPx(), style = Stroke(2.dp.toPx()))
+                        drawArc(
+                            color = outline,
+                            startAngle = 0f,
+                            sweepAngle = 180f,
+                            useCenter = false,
+                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+                        )
+                        drawChronotypeSceneWarmup(sky, tertiary)
+                    }
+                },
+        )
         Box(
             Modifier
                 .fillMaxSize()
@@ -544,6 +811,21 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
                         drawRoundRect(outline, cornerRadius = CornerRadius(14.dp.toPx()))
                         drawCircle(outline, radius = 11.dp.toPx(), style = Stroke(2.dp.toPx()))
                         drawChronotypeSceneWarmup(sky, tertiary)
+                    }
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = PrewarmNonIdentityScale
+                    scaleY = PrewarmNonIdentityScale
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .clip(RoundedCornerShape(RevealCorner))
+                .drawWithCache {
+                    onDrawBehind {
+                        drawRect(surface)
                     }
                 },
         )
@@ -610,15 +892,32 @@ internal fun ChronotypePrewarm(modifier: Modifier = Modifier, disarmAfterFrame: 
 /** Non-opaque alpha so Skia compiles the translucent (`SrcOver`) pipeline variants and HWUI flushes an offscreen layer. */
 private const val PrewarmTranslucentAlpha = 0.5f
 
+/**
+ * Keeps the offscreen layer on the already-compiled modulated `TextureOp` pipeline during the ~200 ms pop settle after
+ * [RevealEntrance.artAlpha] reaches 1, before [RevealEntrance.popScale] returns to 1 and [CompositingStrategy.Auto] takes over.
+ */
+private const val PopLayerOpaqueAlpha = 0.998f
+
 /** Non-identity scale so Skia compiles the `kScale_Mask` scene and `TextureOp` pipeline variants. */
 private const val PrewarmNonIdentityScale = 0.99f
 
+@Stable
+private class AmbientPhaseState : State<Float> {
+    var delegate: State<Float>? by mutableStateOf(null)
+    override val value: Float
+        get() = delegate?.value ?: 0f
+}
+
 /** A 0 → 1 ambient phase on [ClockblockMotion.ambientLoop] when [enabled]; a still 0 otherwise. Read it in draw. */
 @Composable
-private fun rememberAmbient(enabled: Boolean, periodMillis: Int, reverse: Boolean): State<Float> {
-    if (!enabled) return remember { mutableFloatStateOf(0f) }
+private fun BindAmbientPhase(holder: AmbientPhaseState, enabled: Boolean, periodMillis: Int, reverse: Boolean) {
+    if (!enabled) {
+        if (holder.delegate != null) holder.delegate = null
+        return
+    }
     val transition = rememberInfiniteTransition(label = "revealAmbient")
-    return transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "revealPhase")
+    val anim = transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "revealPhase")
+    if (holder.delegate !== anim) holder.delegate = anim
 }
 
 private val RevealArtSize = 200.dp

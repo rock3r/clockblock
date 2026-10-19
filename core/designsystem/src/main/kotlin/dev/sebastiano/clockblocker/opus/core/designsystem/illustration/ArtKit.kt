@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.getValue
@@ -160,10 +161,14 @@ internal class ArtScope(
         val style = TextStyle(
             fontFamily = ClockblockFonts.serif(weight, opticalSize = 72f),
             fontSize = with(draw) { (size * u).toSp() },
-            color = color.copy(alpha = color.alpha * alpha),
         )
         val layout = textMeasurer.measure(text, style)
-        draw.drawText(layout, topLeft = Offset(x(cx) - layout.size.width / 2f, y(cy) - layout.size.height / 2f))
+        draw.drawText(
+            textLayoutResult = layout,
+            color = color,
+            topLeft = Offset(x(cx) - layout.size.width / 2f, y(cy) - layout.size.height / 2f),
+            alpha = alpha,
+        )
     }
 }
 
@@ -228,19 +233,45 @@ internal fun ArtCanvas(
     val colors = ClockblockTheme.artColors
     val sky = ClockblockTheme.sky
     val measurer = rememberTextMeasurer()
-    val moving = animated && !LocalReduceMotion.current && ambientPeriodMillis > 0
-    val phase = rememberArtPhase(moving, ambientPeriodMillis, restPhase, reverse)
-    val semantics = if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier
-    Canvas(modifier.size(120.dp).then(semantics)) {
-        ArtScope(this, colors, sky, measurer, moving).draw(phase.value)
+    val holder = remember { ArtPhaseHolder(restPhase) }
+    BindArtPhase(holder, animated, ambientPeriodMillis, restPhase, reverse)
+    val semantics = remember(contentDescription) {
+        if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier
     }
+    val canvasModifier = remember(modifier, semantics) { modifier.size(120.dp).then(semantics) }
+    val onDraw: DrawScope.() -> Unit = remember(colors, sky, measurer, holder, draw) {
+        { ArtScope(this, colors, sky, measurer, holder.moving).draw(holder.value) }
+    }
+    Canvas(canvasModifier, onDraw = onDraw)
+}
+
+@Stable
+private class ArtPhaseHolder(initialRest: Float) {
+    var delegate: State<Float>? by mutableStateOf(null)
+    var restValue: Float by mutableFloatStateOf(initialRest)
+    var moving: Boolean by mutableStateOf(false)
+    val value: Float
+        get() = delegate?.value ?: restValue
 }
 
 @Composable
-private fun rememberArtPhase(enabled: Boolean, periodMillis: Int, rest: Float, reverse: Boolean): State<Float> {
-    if (!enabled || periodMillis <= 0) return remember(rest) { mutableFloatStateOf(rest) }
+private fun BindArtPhase(
+    holder: ArtPhaseHolder,
+    animated: Boolean,
+    periodMillis: Int,
+    rest: Float,
+    reverse: Boolean,
+) {
+    val moving = animated && !LocalReduceMotion.current && periodMillis > 0
+    if (holder.restValue != rest) holder.restValue = rest
+    if (holder.moving != moving) holder.moving = moving
+    if (!moving) {
+        if (holder.delegate != null) holder.delegate = null
+        return
+    }
     val transition = rememberInfiniteTransition(label = "art")
-    return transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "artPhase")
+    val anim = transition.animateFloat(0f, 1f, ClockblockTheme.motion.ambientLoop(periodMillis, reverse), label = "artPhase")
+    if (holder.delegate !== anim) holder.delegate = anim
 }
 
 /**

@@ -1,9 +1,10 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -72,11 +73,14 @@ internal object Takeoff {
 internal val LocalTakeoff = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /** The item in exit [slot] rises out and fades as onboarding leaves (read in the layer phase). */
-internal fun Modifier.takeoffExit(slot: Int): Modifier = composed {
+@Composable
+internal fun Modifier.takeoffExit(slot: Int): Modifier {
     val takeoff = LocalTakeoff.current
-    graphicsLayer {
-        val e = Takeoff.exit(slot, takeoff())
-        alpha = 1f - e
-        translationY = -lerp(0f, Takeoff.Rise.toPx(), e)
+    return remember(this, slot, takeoff) {
+        this.graphicsLayer {
+            val e = Takeoff.exit(slot, takeoff())
+            alpha = 1f - e
+            translationY = -lerp(0f, Takeoff.Rise.toPx(), e)
+        }
     }
 }

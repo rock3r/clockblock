@@ -30,6 +30,14 @@ class InertFrameLayoutTest {
         frame.isClickable shouldBe false
     }
 
+    @Test
+    fun `is hidden from accessibility and blocks descendant focus`() {
+        val frame = InertFrameLayout(ApplicationProvider.getApplicationContext())
+        frame.importantForAccessibility shouldBe View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        frame.descendantFocusability shouldBe ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        frame.isFocusable shouldBe false
+    }
+
     private fun tap(view: View, x: Float, y: Float) {
         val down = SystemClock.uptimeMillis()
         view.dispatchTouchEvent(MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0))

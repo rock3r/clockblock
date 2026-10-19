@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -86,7 +87,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker1D
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.SubcomposeLayout
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -115,6 +116,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
@@ -144,6 +146,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -307,7 +310,9 @@ private fun SleepDialImpl(
     }
     LaunchedEffect(editingDaysOff, reduce) {
         val target = if (editingDaysOff) 1f else 0f
-        if (reduce) swap.snapTo(target) else swap.animateTo(target, motion.containerSpatial())
+        if (swap.value != target || swap.isRunning) {
+            if (reduce) swap.snapTo(target) else swap.animateTo(target, motion.containerSpatial())
+        }
     }
 
     /** Raw minutes pushed past the longest window; drawn with resistance. */
@@ -342,8 +347,10 @@ private fun SleepDialImpl(
     val wakeGrow = remember { Animatable(1f) }
     LaunchedEffect(activeHandle) {
         val held = activeHandle
-        launch { bedGrow.animateTo(if (held == SleepHandle.Bedtime || held == SleepHandle.Both) HeldHandleScale else 1f, motion.containerSpatial()) }
-        launch { wakeGrow.animateTo(if (held == SleepHandle.Wake || held == SleepHandle.Both) HeldHandleScale else 1f, motion.containerSpatial()) }
+        val bedTarget = if (held == SleepHandle.Bedtime || held == SleepHandle.Both) HeldHandleScale else 1f
+        val wakeTarget = if (held == SleepHandle.Wake || held == SleepHandle.Both) HeldHandleScale else 1f
+        if (bedGrow.value != bedTarget || bedGrow.isRunning) launch { bedGrow.animateTo(bedTarget, motion.containerSpatial()) }
+        if (wakeGrow.value != wakeTarget || wakeGrow.isRunning) launch { wakeGrow.animateTo(wakeTarget, motion.containerSpatial()) }
     }
 
     fun nudge(handle: SleepHandle, delta: Int) {
@@ -371,11 +378,18 @@ private fun SleepDialImpl(
     val durationTemplate = remember(narrowFormat) { narrowFormat.duration(DurationTemplateMinutes) }
 
     val spectacleOrigin = LocalSpectacleOrigin.current
-    val dialContent: @Composable () -> Unit = {
-        BoxWithConstraints(
-            if (spectacleOrigin == null) Modifier else Modifier.onGloballyPositioned { spectacleOrigin.dialFace = it.innerFace() },
+    val dialContent: @Composable (sidePx: Float) -> Unit = { sidePx ->
+        Box(
+            if (spectacleOrigin == null) {
+                Modifier.fillMaxSize()
+            } else {
+                Modifier.fillMaxSize().onPlaced { coords ->
+                    spectacleOrigin.dialFaceProvider = {
+                        coords.takeIf { it.isAttached }?.innerFace()?.also { spectacleOrigin.dialFace = it }
+                    }
+                }
+            },
         ) {
-            val sidePx = constraints.maxWidth.toFloat()
             Canvas(
                 Modifier
                     .matchParentSize()
@@ -619,16 +633,20 @@ private fun SleepDialImpl(
     // they're fully back they are inert: no touches, no focus, and out of TalkBack's tree.
     var eggCoversPills by remember { mutableStateOf(false) }
     val pillsAlpha = remember { Animatable(1f) }
-    LaunchedEffect(eggCoversPills) { pillsAlpha.animateTo(if (eggCoversPills) 0f else 1f, motion.fade()) }
+    LaunchedEffect(eggCoversPills) {
+        val target = if (eggCoversPills) 0f else 1f
+        if (pillsAlpha.value != target || pillsAlpha.isRunning) pillsAlpha.animateTo(target, motion.fade())
+    }
     // Inert from the moment the line covers them until they have faded fully back in (derived, so the fade's frames
     // don't recompose anything: only the flip does).
     val pillsInert by remember { derivedStateOf { eggCoversPills || pillsAlpha.value < 1f } }
 
     /** The two pills, side by side, or one above the other ([stacked]) in the column beside a short dial. */
-    val pillsContent: @Composable (stacked: Boolean) -> Unit = { stacked ->
-        BoxWithConstraints(if (pillsInert) Modifier.clearAndSetSemantics {} else Modifier) {
+    val pillsContent: @Composable (stacked: Boolean, widthPx: Int) -> Unit = { stacked, widthPx ->
+        Box(if (pillsInert) Modifier.fillMaxWidth().clearAndSetSemantics {} else Modifier.fillMaxWidth()) {
             // Both pills share one fitted style, sized for the widest time this format can show ("10:55 PM"), so
             // the times never resize while the dial is dragged, at any font scale.
+            val maxWidth = with(density) { widthPx.toDp() }
             val pillWidth = if (stacked) maxWidth else (maxWidth - PillGap) / 2
             val pillInnerPx = with(density) { (pillWidth - PillPadding * 2).roundToPx() }
             val timeTemplates = remember(formatter) { TimeTemplates.map { formatter.formatFull(it) } }
@@ -772,11 +790,11 @@ private fun SleepDialImpl(
                 emptyList()
             }
             val toggleHeight = toggle.maxOfOrNull { it.height + gap } ?: 0
-            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(plan.stackPills) }.map { it.measure(Constraints.fixedWidth(columnWidth)) }
+            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(plan.stackPills, columnWidth) }.map { it.measure(Constraints.fixedWidth(columnWidth)) }
             val pillsHeight = pills.maxOfOrNull { it.height } ?: 0
             val hints = subcompose(SleepDialSlot.Hint) { hintContent(reserve) }.map { it.measure(Constraints.fixedWidth(columnWidth)) }
             val columnHeight = toggleHeight + pillsHeight + (hints.maxOfOrNull { it.height } ?: 0)
-            val dial = subcompose(SleepDialSlot.Dial, dialContent).map { it.measure(Constraints.fixed(side, side)) }
+            val dial = subcompose(SleepDialSlot.Dial) { dialContent(side.toFloat()) }.map { it.measure(Constraints.fixed(side, side)) }
             val rowHeight = maxOf(side, columnHeight)
             val start = (layoutWidth - (side + gap + columnWidth)) / 2
             val columnX = start + side + gap
@@ -790,7 +808,7 @@ private fun SleepDialImpl(
         } else {
             val side = plan.side
             val pillsWidth = plan.pillsWidth
-            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(false) }.map { it.measure(Constraints.fixedWidth(pillsWidth)) }
+            val pills = subcompose(SleepDialSlot.Pills) { pillsContent(false, pillsWidth) }.map { it.measure(Constraints.fixedWidth(pillsWidth)) }
             val pillsHeight = pills.maxOfOrNull { it.height } ?: 0
             val toggle = when (plan.place) {
                 TogglePlace.Beside -> subcompose(SleepDialSlot.Toggle, verticalToggle).map { it.measure(Constraints.fixedWidth(plan.besideWidth)) }
@@ -799,7 +817,7 @@ private fun SleepDialImpl(
             }
             val toggleHeight = toggle.maxOfOrNull { it.height } ?: 0
             val topHeight = if (plan.place == TogglePlace.Above) toggleHeight + gap else 0
-            val dial = subcompose(SleepDialSlot.Dial, dialContent).map { it.measure(Constraints.fixed(side, side)) }
+            val dial = subcompose(SleepDialSlot.Dial) { dialContent(side.toFloat()) }.map { it.measure(Constraints.fixed(side, side)) }
             val beside = plan.place == TogglePlace.Beside
             val besideGap = BesideGap.roundToPx()
             val rowHeight = if (beside) maxOf(side, toggleHeight) else side
@@ -975,20 +993,19 @@ private class SleepDialPlanner(
         // a landscape phone at a large font it doesn't).
         val sideBySideSide = minOf(width - gap - SideColumnWidth.roundToPx(), maxDialPx, maxH)
         val columnWidth = minOf(width - gap - sideBySideSide, SideColumnMaxWidth.roundToPx())
-        val columnToggle = if (twoSchedules) horizontalHeight(measurer, labels, labelStyle, columnWidth, ConnectedChoiceDefaults.MaxLines) + gap else 0
-        val stackPills = columnToggle + pill * 2 + pillGap <= maxH
-        val columnPills = if (stackPills) pill * 2 + pillGap else pill
-        val columnSlot = if (reserveHint) tallestHint(columnWidth).takeIf { columnToggle + columnPills + hintGap + it <= maxH } else null
-        val sideBySide = maxHeight != null && sideBySideSide >= minFit && run {
+        if (maxHeight != null && sideBySideSide >= minFit && (stackedOverflow > 0 || sideBySideSide >= side + SideBySideGain.roundToPx())) {
+            val columnToggle = if (twoSchedules) horizontalHeight(measurer, labels, labelStyle, columnWidth, ConnectedChoiceDefaults.MaxLines) + gap else 0
+            val stackPills = columnToggle + pill * 2 + pillGap <= maxH
+            val columnPills = if (stackPills) pill * 2 + pillGap else pill
+            val columnHint = if (minOf(columnWidth, PillsMaxWidth.roundToPx()) == pillsWidth) tallest else tallestHint(columnWidth)
+            val columnSlot = if (reserveHint) columnHint.takeIf { columnToggle + columnPills + hintGap + it <= maxH } else null
             val column = columnToggle + columnPills + (columnSlot?.let { hintGap + it } ?: 0)
             val overflow = (maxOf(sideBySideSide, column) - maxH).coerceAtLeast(0)
-            overflow < stackedOverflow || (overflow == 0 && sideBySideSide >= side + SideBySideGain.roundToPx())
+            if (overflow < stackedOverflow || (overflow == 0 && sideBySideSide >= side + SideBySideGain.roundToPx())) {
+                return SleepDialPlan(true, sideBySideSide, TogglePlace.None, 0, pillsWidth, columnWidth, stackPills, columnSlot)
+            }
         }
-        return if (sideBySide) {
-            SleepDialPlan(true, sideBySideSide, TogglePlace.None, 0, pillsWidth, columnWidth, stackPills, columnSlot)
-        } else {
-            SleepDialPlan(false, side, place, besideWidth, pillsWidth, 0, false, slot)
-        }
+        return SleepDialPlan(false, side, place, besideWidth, pillsWidth, 0, false, slot)
     }
 }
 
@@ -1033,7 +1050,7 @@ private fun numeralCentre(hour: Int, u: Float): Offset = pointOn(0f, 0f, hour * 
  * The hour numerals' boxes on a [sidePx] dial, relative to its centre, as drawn by [SleepDialPainter.ticks]: what the
  * centre readout must keep clear of.
  */
-private fun numeralRects(sidePx: Float, measurer: TextMeasurer, base: TextStyle, is24Hour: Boolean, density: Density): List<Rect> {
+internal fun numeralRects(sidePx: Float, measurer: TextMeasurer, base: TextStyle, is24Hour: Boolean, density: Density): List<Rect> {
     val u = sidePx / 320f
     val style = density.numeralStyle(base, u)
     return listOf(0, 6, 12, 18).map { h ->
@@ -1044,7 +1061,10 @@ private fun numeralRects(sidePx: Float, measurer: TextMeasurer, base: TextStyle,
 }
 
 /** The centre readout's two line styles and the width they share. */
-private class ReadoutStyles(val duration: TextStyle, val caption: TextStyle, val widthPx: Int)
+internal class ReadoutStyles(val duration: TextStyle, val caption: TextStyle, val widthPx: Int)
+
+private class CaptionStep(val style: TextStyle, val width: Int, val height: Int, val atFloor: Boolean)
+private class DurationStep(val style: TextStyle, val size: IntSize, val atFloor: Boolean, val canFit: Boolean)
 
 /**
  * Whether the readout's two lines, the duration ([durationW] × [durationH]) over its caption ([captionW] ×
@@ -1068,6 +1088,34 @@ private fun readoutFits(durationW: Float, durationH: Float, captionW: Float, cap
 }
 
 /**
+ * Whether the duration line alone ([durationW] × [durationH]) can ever fit on a [sidePx] dial for any caption height in
+ * `[minCaptionH, maxCaptionH]`. When false, stepping the caption down from [maxCaptionH] to [minCaptionH] cannot make
+ * [readoutFits] succeed, so [fitReadout] can skip measuring intermediate caption steps at this duration size.
+ */
+private fun durationCanFit(
+    durationW: Float,
+    durationH: Float,
+    minCaptionH: Float,
+    maxCaptionH: Float,
+    sidePx: Float,
+    numerals: List<Rect>,
+): Boolean {
+    val u = sidePx / 320f
+    val inset = ReadoutInset * u
+    val limit = (TicksInnerRadius - ReadoutInset) * u
+    // Since captionH >= minCaptionH, |top| = (durationH + captionH) / 2 >= (durationH + minCaptionH) / 2.
+    val minTop = -(durationH + minCaptionH) / 2f
+    if (Offset(-durationW / 2f, minTop).getDistance() > limit) return false
+    // For every captionH in [minCaptionH, maxCaptionH], the duration rect contains [minTop, minBottom].
+    val minBottom = (durationH - maxCaptionH) / 2f
+    if (minTop < minBottom) {
+        val core = Rect(-durationW / 2f, minTop, durationW / 2f, minBottom).inflate(inset)
+        if (numerals.any { it.overlaps(core) }) return false
+    }
+    return true
+}
+
+/**
  * Sizes the centre readout: [duration] (sized for [template], the widest value) over the widest of [captions], scaled
  * down together until both lines [readoutFits] the face, the duration never below [ReadoutMinFontSize] and the
  * caption never below [CaptionMinFontSize] (sizes at the default font scale, so a large font can't break them).
@@ -1076,7 +1124,7 @@ private fun readoutFits(durationW: Float, durationH: Float, captionW: Float, cap
  * same sizes, so on the same dial the duration is never smaller than at the default font scale. The caption gives way
  * first, so a long caption at a large font doesn't shrink the duration.
  */
-private fun Density.fitReadout(
+internal fun Density.fitReadout(
     measurer: TextMeasurer,
     duration: TextStyle,
     caption: TextStyle,
@@ -1084,32 +1132,103 @@ private fun Density.fitReadout(
     captions: List<String>,
     sidePx: Float,
     numerals: List<Rect>,
+    measureLine: (String, TextStyle) -> IntSize = { text, style ->
+        measurer.measure(text, style, maxLines = 1, softWrap = false).size
+    },
 ): ReadoutStyles {
     // The floors are physical sizes (12 and 10 sp at the default font size): a large font can't push the readout
     // into the numerals on a small dial.
     val durationFloor = (ReadoutMinFontSize.value / fontScale).sp
     val captionFloor = (CaptionMinFontSize.value / fontScale).sp
     val start = duration.fontSize.value * fontScale
-    var physical = start
-    while (true) {
-        val k = physical / start
-        val d = duration.scaled(k, durationFloor)
-        val dl = measurer.measure(template, d, maxLines = 1, softWrap = false).size
-        val durationAtFloor = d.fontSize.value <= durationFloor.value
-        // The caption (the longer egg caption above all) steps down on its own first, down to its floor, so it never
-        // costs the duration size; it starts no bigger than the duration's scale allows, keeping the hierarchy.
-        var captionK = k
-        while (true) {
-            val c = caption.scaled(captionK, captionFloor)
-            val cw = captions.maxOf { measurer.measure(it, c, maxLines = 1, softWrap = false).size.width }
-            val ch = measurer.measure(captions.first(), c, maxLines = 1).size.height
-            val captionAtFloor = c.fontSize.value <= captionFloor.value
-            val fits = readoutFits(dl.width + 1f, dl.height.toFloat(), cw + 1f, ch.toFloat(), sidePx, numerals)
-            if (fits || (durationAtFloor && captionAtFloor)) return ReadoutStyles(d, c, maxOf(dl.width, cw) + 1)
-            if (captionAtFloor) break
-            captionK -= ReadoutStepSp / start
+    val captionSteps = HashMap<Int, CaptionStep>(16)
+    var floorCaptionStep: CaptionStep? = null
+    fun measureCaptionStep(style: TextStyle): CaptionStep {
+        var cw = 0
+        var ch = 0
+        captions.forEachIndexed { index, text ->
+            val size = measureLine(text, style)
+            if (size.width > cw) cw = size.width
+            if (index == 0) ch = size.height
         }
-        physical -= ReadoutStepSp
+        val atFloor = style.fontSize.value <= captionFloor.value
+        return CaptionStep(style, cw, ch, atFloor)
+    }
+    fun captionStepAt(j: Int, captionK: Float): CaptionStep {
+        captionSteps[j]?.let { return it }
+        val c = caption.scaled(captionK, captionFloor)
+        if (c.fontSize.value <= captionFloor.value) {
+            val floor = floorCaptionStep ?: measureCaptionStep(c).also { floorCaptionStep = it }
+            captionSteps[j] = floor
+            return floor
+        }
+        return measureCaptionStep(c).also { captionSteps[j] = it }
+    }
+    val floor = measureCaptionStep(caption.scaled(0f, captionFloor)).also { floorCaptionStep = it }
+    val maxCaption = captionStepAt(0, 1f)
+    val durationSteps = HashMap<Int, DurationStep>(16)
+    var floorDurationStep: DurationStep? = null
+    fun durationStepAt(stepIndex: Int): DurationStep {
+        durationSteps[stepIndex]?.let { return it }
+        val k = (start - stepIndex * ReadoutStepSp) / start
+        val d = duration.scaled(k, durationFloor)
+        if (d.fontSize.value <= durationFloor.value) {
+            floorDurationStep?.let {
+                durationSteps[stepIndex] = it
+                return it
+            }
+        }
+        val dl = measureLine(template, d)
+        val atFloor = d.fontSize.value <= durationFloor.value
+        val canFit = atFloor || durationCanFit(dl.width + 1f, dl.height.toFloat(), floor.height.toFloat(), maxCaption.height.toFloat(), sidePx, numerals)
+        val result = DurationStep(d, dl, atFloor, canFit)
+        if (atFloor) floorDurationStep = result
+        durationSteps[stepIndex] = result
+        return result
+    }
+    var outerStep = 0
+    if (!durationStepAt(0).canFit) {
+        var lo = 1
+        var hi = ceil((start - ReadoutMinFontSize.value) / ReadoutStepSp).toInt().coerceAtLeast(1)
+        while (lo < hi) {
+            val mid = (lo + hi) ushr 1
+            if (durationStepAt(mid).canFit) hi = mid else lo = mid + 1
+        }
+        outerStep = lo
+    }
+    while (true) {
+        val k = (start - outerStep * ReadoutStepSp) / start
+        val dStep = durationStepAt(outerStep)
+        val d = dStep.style
+        val dl = dStep.size
+        val durationAtFloor = dStep.atFloor
+        val durationW = dl.width + 1f
+        val durationH = dl.height.toFloat()
+        if (dStep.canFit) {
+            val firstStep = captionStepAt(outerStep, k)
+            if (readoutFits(durationW, durationH, firstStep.width + 1f, firstStep.height.toFloat(), sidePx, numerals) ||
+                (durationAtFloor && firstStep.atFloor)
+            ) {
+                return ReadoutStyles(d, firstStep.style, maxOf(dl.width, firstStep.width) + 1)
+            }
+            if (!firstStep.atFloor) {
+                if (durationCanFit(durationW, durationH, floor.height.toFloat(), firstStep.height.toFloat(), sidePx, numerals)) {
+                    var j = outerStep + 1
+                    var captionK = k - ReadoutStepSp / start
+                    while (true) {
+                        val step = captionStepAt(j, captionK)
+                        val fits = readoutFits(durationW, durationH, step.width + 1f, step.height.toFloat(), sidePx, numerals)
+                        if (fits || (durationAtFloor && step.atFloor)) return ReadoutStyles(d, step.style, maxOf(dl.width, step.width) + 1)
+                        if (step.atFloor) break
+                        j++
+                        captionK -= ReadoutStepSp / start
+                    }
+                } else if (durationAtFloor) {
+                    return ReadoutStyles(d, floor.style, maxOf(dl.width, floor.width) + 1)
+                }
+            }
+        }
+        outerStep++
     }
 }
 

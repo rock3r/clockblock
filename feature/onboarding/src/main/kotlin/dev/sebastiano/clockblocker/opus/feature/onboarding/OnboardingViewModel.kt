@@ -2,6 +2,7 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 
 import android.content.Intent
 import android.widget.RemoteViews
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.sebastiano.clockblocker.opus.core.data.EasterEggGate
@@ -75,6 +76,7 @@ enum class OnboardingStep {
  *   `null` draws the standard notification's look.
  * @property easterEggs the sleep dial's 24.2 egg may run ([EasterEggGate]: Reduce motion off, plan not saying sleep).
  */
+@Immutable
 data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.Welcome,
     val profile: UserProfile,

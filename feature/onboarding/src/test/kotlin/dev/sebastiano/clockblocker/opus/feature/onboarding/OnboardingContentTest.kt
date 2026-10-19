@@ -46,6 +46,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Records every call so tests can assert on what the UI asked for. */
 private class RecordingActions : OnboardingActions {
     val calls = mutableListOf<String>()
+    val previewWidths = mutableListOf<Int>()
     override fun next() { calls += "next" }
     override fun back() { calls += "back" }
     override fun skip() { calls += "skip" }
@@ -62,7 +63,7 @@ private class RecordingActions : OnboardingActions {
     override fun requestNotifications() { calls += "notifications" }
     override fun openNotificationSettings() { calls += "notificationSettings" }
     override fun openExactAlarmSettings() { calls += "exact" }
-    override fun loadNotificationPreview(widthDp: Int) = Unit
+    override fun loadNotificationPreview(widthDp: Int) { previewWidths += widthDp }
     override fun finish() { calls += "finish" }
 }
 
@@ -334,5 +335,36 @@ class OnboardingContentTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(SleepDialTags.WakePill).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag(OnboardingTags.Next).assertIsDisplayed()
         actions.calls shouldContainExactly listOf("next")
+    }
+
+    @Test
+    fun `notification preview width is preloaded on welcome with the exact reminders card width`() {
+        var current by mutableStateOf(OnboardingStep.Welcome)
+        setContent { OnboardingContent(onboardingState(current), actions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+        actions.previewWidths.size shouldBe 1
+        val preloaded = actions.previewWidths.single()
+        current = OnboardingStep.Reminders
+        compose.waitForIdle()
+        actions.previewWidths.distinct() shouldContainExactly listOf(preloaded)
+    }
+
+    @Test
+    fun `stepping through the deck keeps only the current step in semantics and loads the preview once`() {
+        var current by mutableStateOf(OnboardingStep.Welcome)
+        setContent { OnboardingContent(onboardingState(current), actions, Modifier.fillMaxSize()) }
+        compose.waitForIdle()
+        for (target in OnboardingStep.entries) {
+            current = target
+            compose.mainClock.advanceTimeBy(2_000)
+            compose.waitForIdle()
+            compose.onNodeWithTag(OnboardingTags.step(target)).assertIsDisplayed()
+            for (other in OnboardingStep.entries) {
+                if (other != target) {
+                    compose.onNodeWithTag(OnboardingTags.step(other)).assertDoesNotExist()
+                }
+            }
+        }
+        actions.previewWidths.size shouldBe 1
     }
 }

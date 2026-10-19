@@ -71,18 +71,12 @@ fun <T> ConnectedChoice(
     maxLines: Int = 1,
     labelStyle: TextStyle = MaterialTheme.typography.labelLarge,
 ) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val gap = ButtonGroupDefaults.ConnectedSpaceBetween
-        val fontScale = LocalDensity.current.fontScale
-        val perOption = (maxWidth - gap * (options.size - 1)) / options.size
-        val rows = if (options.size > 2 && perOption < minOptionWidth * fontScale) {
-            options.chunked((options.size + 1) / 2)
-        } else {
-            listOf(options)
-        }
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(gap)) {
+    val gap = ButtonGroupDefaults.ConnectedSpaceBetween
+    @Composable
+    fun Rows(rows: List<List<T>>, columnModifier: Modifier = Modifier) {
+        Column(columnModifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(gap)) {
             rows.forEach { row ->
-                EqualHeights(Modifier.fillMaxWidth(), vertical = false) {
+                EqualHeights(Modifier.fillMaxWidth(), vertical = false, maxLines = maxLines) {
                     row.forEachIndexed { index, option ->
                         val checked = option == selected
                         ToggleButton(
@@ -112,6 +106,20 @@ fun <T> ConnectedChoice(
             }
         }
     }
+    if (options.size <= 2) {
+        Rows(listOf(options), modifier.fillMaxWidth())
+    } else {
+        BoxWithConstraints(modifier.fillMaxWidth()) {
+            val fontScale = LocalDensity.current.fontScale
+            val perOption = (maxWidth - gap * (options.size - 1)) / options.size
+            val rows = if (perOption < minOptionWidth * fontScale) {
+                options.chunked((options.size + 1) / 2)
+            } else {
+                listOf(options)
+            }
+            Rows(rows)
+        }
+    }
 }
 
 /**
@@ -137,7 +145,7 @@ fun <T> VerticalConnectedChoice(
     labelStyle: TextStyle = MaterialTheme.typography.labelLarge,
     maxLines: Int = ConnectedChoiceDefaults.MaxLines,
 ) {
-    EqualHeights(modifier.selectableGroup(), vertical = true) {
+    EqualHeights(modifier.selectableGroup(), vertical = true, maxLines = maxLines) {
         options.forEachIndexed { index, option ->
             ToggleButton(
                 checked = option == selected,
@@ -251,7 +259,7 @@ private fun ChoiceLabel(text: String, style: TextStyle, maxLines: Int) {
  * all as tall as the tallest one's intrinsic height, so a wrapped label never leaves its neighbour shorter.
  */
 @Composable
-private fun EqualHeights(modifier: Modifier, vertical: Boolean, content: @Composable () -> Unit) {
+private fun EqualHeights(modifier: Modifier, vertical: Boolean, maxLines: Int = 1, content: @Composable () -> Unit) {
     Layout(content, modifier) { measurables, constraints ->
         val gap = ButtonGroupDefaults.ConnectedSpaceBetween.roundToPx()
         val n = measurables.size.coerceAtLeast(1)
@@ -260,7 +268,12 @@ private fun EqualHeights(modifier: Modifier, vertical: Boolean, content: @Compos
         val shared = if (vertical) width else (width - gap * (n - 1)) / n
         val leftover = if (vertical) 0 else width - gap * (n - 1) - shared * n
         fun widthOf(i: Int) = shared + if (i < leftover) 1 else 0
-        val itemHeight = maxOf(measurables.maxOf { it.minIntrinsicHeight(shared) }, minOptionSizePx())
+        val minSize = minOptionSizePx()
+        val itemHeight = if (!vertical && maxLines == 1 && fontScale <= 1.2f) {
+            minSize
+        } else {
+            maxOf(measurables.maxOf { it.minIntrinsicHeight(shared) }, minSize)
+        }
         val placeables = measurables.mapIndexed { i, it -> it.measure(Constraints.fixed(widthOf(i), itemHeight)) }
         val height = if (vertical) itemHeight * n + gap * (n - 1) else itemHeight
         layout(width, height) {
