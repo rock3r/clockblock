@@ -163,8 +163,8 @@ internal class OnboardingStepTransition(
 
 /**
  * Drives [OnboardingStepTransition] from [step] (the ViewModel's source of truth) and registers the back
- * handler: enabled after the first step (and while [backEnabled]: not while onboarding takes off), it calls [onBack]
- * on commit.
+ * handler: enabled after the first step, it calls [onBack] on commit. While not [backEnabled] (onboarding is leaving),
+ * Back is taken and does nothing, on any step: let through, the host would pop the flow mid take-off.
  */
 @Composable
 internal fun rememberOnboardingStepTransition(
@@ -199,6 +199,13 @@ internal fun rememberOnboardingStepTransition(
         isBackEnabled = previous != null && backEnabled,
         onBackCancelled = { scope.launch { steps.cancelBack() } },
         onBackCompleted = { currentOnBack() },
+    )
+    // Not back enabled (onboarding is leaving): Back is taken and does nothing. Let through, the host would pop the
+    // flow mid take-off.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = !backEnabled,
+        onBackCompleted = {},
     )
     return steps
 }

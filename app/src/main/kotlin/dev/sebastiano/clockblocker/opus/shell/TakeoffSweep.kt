@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import kotlin.math.PI
 import kotlin.math.abs
@@ -135,6 +138,12 @@ internal fun TakeoffSweep(onDone: () -> Unit, modifier: Modifier = Modifier) {
         progress.animateTo(1f, motion.sweep())
         currentOnDone()
     }
+    // Back waits for the reveal too: it would change the screen under the plane, which then uncovers another one.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = true,
+        onBackCompleted = {},
+    )
     val path = remember { PathParser().parsePathString(PlanePathData).toPath() }
     Canvas(
         modifier

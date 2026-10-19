@@ -1,10 +1,12 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.OnBackPressedDispatcher
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
@@ -56,6 +58,12 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
         step = start
         setContent(reduceMotion = reduceMotion) {
             backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+            // The host's own Back underneath (NavDisplay popping the flow), registered before the steps' handler.
+            remember {
+                backDispatcher.addCallback(object : OnBackPressedCallback(true) {
+                    override fun handleOnBackPressed() { calls += "hostBack" }
+                })
+            }
             OnboardingContent(onboardingState(step), actions, Modifier.fillMaxSize())
         }
         compose.mainClock.advanceTimeBy(Settled)
@@ -145,7 +153,8 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
         compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
         compose.mainClock.advanceTimeByFrame()
         calls shouldContainExactly listOf("takeoff", "finish")
-        // Locked while it leaves: a second tap or Back does nothing.
+        // Locked while it leaves: a second tap or Back does nothing, and Back doesn't reach the host either (it would
+        // pop the flow mid take-off).
         compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
         compose.runOnUiThread { backDispatcher.onBackPressed() }
         compose.mainClock.advanceTimeBy(150)
@@ -158,6 +167,11 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
     fun `with motion reduced, finishing saves straight away, without a take-off`() {
         show(OnboardingStep.Reminders, reduceMotion = true)
         compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
+        compose.mainClock.advanceTimeByFrame()
+        calls shouldContainExactly listOf("finish")
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnUiThread { backDispatcher.onBackPressed() }
         compose.mainClock.advanceTimeByFrame()
         calls shouldContainExactly listOf("finish")
     }

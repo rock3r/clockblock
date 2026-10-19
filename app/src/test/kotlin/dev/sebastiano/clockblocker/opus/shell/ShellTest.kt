@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performClick
 import dev.sebastiano.clockblocker.opus.core.model.AppSettings
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkParser
 import dev.sebastiano.clockblocker.opus.navigation.DeepLinkTarget
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import org.junit.Rule
@@ -99,6 +100,11 @@ class ShellTest {
         tag(ShellTestTags.TakeoffSweep).assertExists()
         tag("screen_trips").assertExists()
         tag(ShellTestTags.NavTrips).assertExists()
+        // Back waits for the reveal: the plane always uncovers the screen the hand-over picked.
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.mainClock.advanceTimeByFrame()
+        compose.activity.isFinishing shouldBe false
+        tag(ShellTestTags.TakeoffSweep).assertExists()
         compose.mainClock.advanceTimeBy(3_000)
         tag(ShellTestTags.TakeoffSweep).assertDoesNotExist()
         tag("screen_trips").assertIsDisplayed()
