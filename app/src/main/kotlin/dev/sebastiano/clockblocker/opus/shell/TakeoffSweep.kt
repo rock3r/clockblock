@@ -37,8 +37,9 @@ import kotlin.math.hypot
  * across that heading (phones, tablets, foldables and desktop windows alike, in any orientation). Everything behind
  * its wings is revealed.
  *
- * The plane is drawn from a 24-unit square with its middle at (12, 12), nose up at y = 2 and tail at y = 22, wings
- * from x = 2 to x = 21; the reveal's edge runs across it at y = [BoundaryY], just behind the wing roots.
+ * The plane is drawn from a 24-unit square with its middle at (12, 12), nose up at y = [NoseY] and tail at y = 22,
+ * wings from x = 2 to x = 21. The reveal's edge follows the wings' swept-back trailing edges, tucked just under them
+ * ([edgeY]), and runs straight across beyond the tips: no cover shows behind the wings, and none is revealed ahead.
  */
 internal class SweepGeometry(val size: Size) {
     /** The heading, a unit vector: up and to the left, along the diagonal. */
@@ -66,23 +67,52 @@ internal class SweepGeometry(val size: Size) {
     fun along(progress: Float): Float =
         lerp(-alongExtent / 2f - NoseAhead * scale, alongExtent / 2f + TailBehind * scale, progress.coerceIn(0f, 1f))
 
-    /** Where the reveal's edge is along the heading at [progress]: everything behind it shows the app. */
-    fun boundary(progress: Float): Float = along(progress) - (BoundaryY - Middle) * scale
+    /**
+     * The foremost point of the reveal's edge along the heading at [progress] (at the wing roots): everything behind
+     * the edge shows the app.
+     */
+    fun boundary(progress: Float): Float = along(progress) - (edgeY(RootX) - Middle) * scale
 
-    /** Whether the point [p] (window pixels) is still covered at [progress]. */
+    /** The heading turned a quarter clockwise: the plane's own x axis on screen. */
+    private val across: Offset = Offset(-heading.y, heading.x)
+
+    /** Whether the point [p] (window pixels) is still covered at [progress]: ahead of the reveal's edge. */
     fun covered(p: Offset, progress: Float): Boolean {
         val centre = Offset(size.width / 2f, size.height / 2f)
-        val d = p - centre
-        return d.x * heading.x + d.y * heading.y > boundary(progress)
+        val d = p - centre - heading * along(progress)
+        val x = Middle + (d.x * across.x + d.y * across.y) / scale
+        val y = Middle - (d.x * heading.x + d.y * heading.y) / scale
+        return y < edgeY(x)
     }
 
     internal companion object {
         const val Middle = 12f
-        const val NoseAhead = 10f
+        const val NoseY = 0.6f
+        const val NoseAhead = Middle - NoseY
         const val TailBehind = 10f
-        const val BoundaryY = 14f
         const val Wingspan = 19f
         const val WingMargin = 1.08f
+
+        /** The wing roots' and tips' trailing edges (plane units), and how far under the wing the edge tucks. */
+        private const val RootX = 11.5f
+        private const val LeftTipX = 2f
+        private const val RightTipX = 21f
+        private const val LeftRootX = 10f
+        private const val RightRootX = 13f
+        private const val TipTrailingY = 16f
+        private const val RootTrailingY = 13.5f
+        private const val Tuck = 0.35f
+
+        /** The reveal's edge at plane x [x]: along the trailing edges, flat beyond the tips and across the fuselage. */
+        fun edgeY(x: Float): Float = when {
+            x <= LeftTipX || x >= RightTipX -> TipTrailingY
+            x < LeftRootX -> lerp(TipTrailingY, RootTrailingY, (x - LeftTipX) / (LeftRootX - LeftTipX))
+            x <= RightRootX -> RootTrailingY
+            else -> lerp(RootTrailingY, TipTrailingY, (x - RightRootX) / (RightTipX - RightRootX))
+        } - Tuck
+
+        /** The edge as a polyline of plane points, from far left to far right. */
+        val edge: List<Offset> = listOf(LeftTipX, LeftRootX, RightRootX, RightTipX).map { Offset(it, edgeY(it)) }
     }
 }
 
@@ -123,12 +153,21 @@ internal fun TakeoffSweep(onDone: () -> Unit, modifier: Modifier = Modifier) {
 
 private fun DrawScope.drawSweep(g: SweepGeometry, progress: Float, plane: Path, cover: Color, planeColor: Color) {
     val centre = Offset(size.width / 2f, size.height / 2f)
-    val big = hypot(size.width, size.height) * 2f
-    // In a frame turned so the heading points up: the cover is everything above the reveal's edge.
+    // Far enough, in plane units, to run past any corner of the window.
+    val far = hypot(size.width, size.height) * 2f / g.scale
+    // In a frame turned so the heading points up: the cover is everything ahead of the reveal's edge, which follows
+    // the wings' trailing edges.
     withTransform({ rotate(g.rotationDegrees, pivot = centre) }) {
-        val edge = centre.y - g.boundary(progress)
-        drawRect(cover, topLeft = Offset(centre.x - big, edge - big), size = Size(big * 2f, big))
         val middle = Offset(centre.x, centre.y - g.along(progress))
+        val coverPath = Path().apply {
+            moveTo(-far, SweepGeometry.edgeY(-far))
+            SweepGeometry.edge.forEach { lineTo(it.x, it.y) }
+            lineTo(far, SweepGeometry.edgeY(far))
+            lineTo(far, -far)
+            lineTo(-far, -far)
+            close()
+        }
+        drawPlane(coverPath, middle, g.scale, cover)
         // A soft shadow below and behind, as from a plane flying low over the app.
         translate(ShadowOffset.toPx() * 0.4f, ShadowOffset.toPx()) { drawPlane(plane, middle, g.scale, Color.Black.copy(alpha = 0.18f)) }
         drawPlane(plane, middle, g.scale, planeColor)
@@ -144,6 +183,9 @@ private fun DrawScope.drawPlane(path: Path, middle: Offset, scale: Float, color:
 
 private val ShadowOffset = 18.dp
 
-/** Material's "flight" glyph, nose up (the same as the Now notification's flight icon). */
+/**
+ * Material's "flight" glyph, nose up (the Now notification's flight icon), with an ogive nose coming to a point at
+ * (11.5, [SweepGeometry.NoseY]) instead of its round cap.
+ */
 private const val PlanePathData =
-    "M21,16v-2l-8,-5V3.5c0,-0.83 -0.67,-1.5 -1.5,-1.5S10,2.67 10,3.5V9l-8,5v2l8,-2.5V19l-2,1.5V22l3.5,-1 3.5,1v-1.5L13,19v-5.5l8,2.5z"
+    "M21,16v-2l-8,-5V4.2C13,2.9 12.3,1.5 11.5,0.6C10.7,1.5 10,2.9 10,4.2V9l-8,5v2l8,-2.5V19l-2,1.5V22l3.5,-1 3.5,1v-1.5L13,19v-5.5l8,2.5z"

@@ -120,6 +120,9 @@ interface OnboardingActions {
     /** The finish's take-off has started (the app's sweep follows the finish). */
     fun takeoff() = Unit
 
+    /** The finish's take-off has played out: onboarding can hand over once the profile is saved. */
+    fun takeoffLanded() = Unit
+
     /** Does nothing; for previews and screenshot tests. */
     object None : OnboardingActions {
         override fun next() = Unit
@@ -155,7 +158,12 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, onTa
     val context = LocalContext.current
     val currentOnFinished by rememberUpdatedState(onFinished)
     val currentOnTakeoff by rememberUpdatedState(onTakeoff)
-    LaunchedEffect(state.isFinished) { if (state.isFinished) currentOnFinished() }
+    // A finish that takes off saves while the plane leaves, and hands over once both are done.
+    var tookOff by remember { mutableStateOf(false) }
+    var landed by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isFinished, tookOff, landed) {
+        if (state.isFinished && (!tookOff || landed)) currentOnFinished()
+    }
     LifecycleResumeEffect(viewModel) {
         viewModel.refreshPermissions()
         onPauseOrDispose { }
@@ -183,7 +191,14 @@ fun OnboardingScreen(onFinished: () -> Unit, modifier: Modifier = Modifier, onTa
             override fun openExactAlarmSettings() = launchSafely(context, viewModel.exactAlarmSettingsIntent())
             override fun loadNotificationPreview(widthDp: Int) = viewModel.loadNotificationPreview(widthDp)
             override fun finish() = viewModel.finish()
-            override fun takeoff() = currentOnTakeoff()
+            override fun takeoff() {
+                tookOff = true
+                currentOnTakeoff()
+            }
+
+            override fun takeoffLanded() {
+                landed = true
+            }
         }
     }
     OnboardingContent(state, actions, modifier)
@@ -267,9 +282,11 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
                 if (!spectacleAllowed) return actions.finish()
                 leaving = true
                 actions.takeoff()
+                // Saved meanwhile, so the hand-over doesn't wait for it after the take-off.
+                actions.finish()
                 leaveScope.launch {
                     takeoff.animateTo(1f, currentMotion.takeoff())
-                    actions.finish()
+                    actions.takeoffLanded()
                 }
             }
         }

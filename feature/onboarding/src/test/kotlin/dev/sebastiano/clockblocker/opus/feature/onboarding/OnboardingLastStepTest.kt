@@ -48,6 +48,7 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
         override fun skip() { calls += "skip" }
         override fun takeoff() { calls += "takeoff" }
         override fun finish() { calls += "finish" }
+        override fun takeoffLanded() { calls += "landed" }
         override fun back() { calls += "back"; step = OnboardingStep.entries[step.ordinal - 1] }
     }
 
@@ -139,18 +140,18 @@ class OnboardingLastStepTest : ClockblockScreenshotTest() {
     }
 
     @Test
-    fun `finishing takes off first, nothing takes a tap meanwhile, and the profile is saved once it has`() {
+    fun `finishing takes off and saves at once, nothing takes a tap meanwhile, and it lands after the take-off`() {
         show(OnboardingStep.Reminders)
         compose.onNodeWithTag(OnboardingTags.MaybeLater).performClick()
         compose.mainClock.advanceTimeByFrame()
-        calls shouldContainExactly listOf("takeoff")
+        calls shouldContainExactly listOf("takeoff", "finish")
         // Locked while it leaves: a second tap or Back does nothing.
         compose.onNodeWithTag(OnboardingTags.MaybeLater).assertDoesNotExist()
         compose.runOnUiThread { backDispatcher.onBackPressed() }
-        compose.mainClock.advanceTimeBy(200)
-        calls shouldContainExactly listOf("takeoff")
-        compose.mainClock.advanceTimeBy(400)
+        compose.mainClock.advanceTimeBy(150)
         calls shouldContainExactly listOf("takeoff", "finish")
+        compose.mainClock.advanceTimeBy(400)
+        calls shouldContainExactly listOf("takeoff", "finish", "landed")
     }
 
     @Test

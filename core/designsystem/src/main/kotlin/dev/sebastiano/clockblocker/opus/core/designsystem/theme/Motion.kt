@@ -250,11 +250,12 @@ class ClockblockMotion internal constructor(
         if (reduceMotion) snap() else tween((TakeoffMillis * navigationTimeScale).toInt(), easing = LinearEasing)
 
     /**
-     * The plane seen from above sweeping the window after onboarding, revealing the app behind its wings: an even
-     * flight over [SweepMillis], easing in and out a touch. ×1.5 under Calm; snaps when reduced (no sweep).
+     * The plane seen from above sweeping the window after onboarding, revealing the app behind its wings: it arrives
+     * already flying (no slow start, so the cover never sits empty) and eases out over [SweepMillis]. ×1.5 under
+     * Calm; snaps when reduced (no sweep).
      */
     fun sweep(): FiniteAnimationSpec<Float> =
-        if (reduceMotion) snap() else tween((SweepMillis * navigationTimeScale).toInt(), easing = StepSpatialEasing)
+        if (reduceMotion) snap() else tween((SweepMillis * navigationTimeScale).toInt(), easing = SweepEasing)
 
     /** True under [CalmMotionScheme] (Night-safe colours or the body clock's night). */
     val isCalm: Boolean get() = scheme === CalmMotionScheme
@@ -339,7 +340,7 @@ class ClockblockMotion internal constructor(
         const val TaxiMillis = 900
 
         /** Onboarding's take-off and content exit, before the sweep (see [takeoff]). */
-        const val TakeoffMillis = 400
+        const val TakeoffMillis = 330
 
         /** The top-down plane's sweep revealing the app (see [sweep]). */
         const val SweepMillis = 900
@@ -348,6 +349,7 @@ class ClockblockMotion internal constructor(
         private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
         private val StepFadeInEasing = CubicBezierEasing(0.3f, 0.2f, 0.7f, 0.95f)
         private val StepSpatialEasing = CubicBezierEasing(0.4f, 0f, 0.6f, 1f)
+        private val SweepEasing = CubicBezierEasing(0.2f, 0.2f, 0.4f, 1f)
 
         /** Each staggered line's own ease in (emphasized decelerate). */
         val StaggerEasing: Easing = EmphasizedDecelerate
