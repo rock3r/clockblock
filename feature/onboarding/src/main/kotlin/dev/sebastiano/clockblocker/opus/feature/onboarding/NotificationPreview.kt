@@ -1,7 +1,9 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.layout.Arrangement
@@ -121,7 +123,8 @@ internal fun NotificationPreview(remote: RemoteViews?, now: Instant, onContentWi
 
 /**
  * The real document, played by the platform's Remote Compose player through `RemoteViews.apply`, in the app's own
- * light or dark (the player picks its palette from the context's night mode).
+ * light or dark (the player picks its palette from the context's night mode). It carries the notification's tap
+ * actions, so it is hosted in an [InertFrameLayout]: here it is an example, not a control.
  */
 @Composable
 private fun RemoteContent(views: RemoteViews, onFailure: () -> Unit) {
@@ -129,7 +132,7 @@ private fun RemoteContent(views: RemoteViews, onFailure: () -> Unit) {
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val themed = remember(context, dark) { context.withNightMode(dark) }
     AndroidView(
-        factory = { FrameLayout(themed) },
+        factory = { InertFrameLayout(themed) },
         update = { frame ->
             if (frame.tag !== views) {
                 frame.removeAllViews()
@@ -150,6 +153,17 @@ private fun Context.withNightMode(dark: Boolean): Context {
     config.uiMode = (config.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
         (if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
     return createConfigurationContext(config)
+}
+
+/**
+ * A frame whose children never see a touch: it takes every gesture for itself and does nothing with it (no click, no
+ * ripple), so a played notification document's tap actions can't fire.
+ */
+internal class InertFrameLayout(context: Context) : FrameLayout(context) {
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean = false
 }
 
 /**
