@@ -278,6 +278,10 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
     val lastStep = steps.transition.animateAround(OnboardingStep.Reminders, "lastStep", { motion.stepSpatial() }, ::remindersOnly)
     val lastStepFade = steps.transition.animateAround(OnboardingStep.Reminders, "lastStepFade", { motion.stepCrossFade() }, ::remindersOnly)
     val taxi = rememberRunwayTaxi(step, steps.transition, motion)
+    // The progress line's fill moves with the steps, not on its own clock: an incoming step that takes a while to
+    // compose delays the transition's start until it is laid out, and a fill started on the step change would run out
+    // its time during those frames and then jump. On the transition it also scrubs with predictive back.
+    val progress = steps.transition.animateStepValue("progress", { motion.stepSpatial() }) { progressFor(topBarStep(it)) }
     val nearWelcome = steps.transition.currentState == OnboardingStep.Welcome || steps.transition.targetState == OnboardingStep.Welcome
     val keyboard = rememberKeyboardAboveBars()
     BoxWithConstraints(
@@ -313,6 +317,7 @@ fun OnboardingContent(state: OnboardingUiState, actions: OnboardingActions, modi
             topBar = {
                 OnboardingTopBar(
                     step = topBarStep(step, steps.transition.currentState),
+                    progress = progress,
                     visible = step != OnboardingStep.Welcome && !searchMode,
                     // The drop follows the entrance alone: at rest it is 1, so fading out toward Welcome doesn't
                     // slide, and an entrance frozen by an early Back keeps its offset while the items fade out.
@@ -462,6 +467,23 @@ private fun Transition<OnboardingStep>.animateAround(
             label = label,
         ) { targetValueByState(it) }
     }
+    return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
+}
+
+/** How full the progress line is on [step]: its share of the questions. */
+private fun progressFor(step: OnboardingStep): Float = (step.index + 1f) / OnboardingStep.Count
+
+/**
+ * Animates a float value on [this] step transition on every step change (seekable, so predictive back scrubs it),
+ * re-seeded on [Transition.currentState] like [animateAround].
+ */
+@Composable
+private fun Transition<OnboardingStep>.animateStepValue(
+    label: String,
+    spec: Transition.Segment<OnboardingStep>.() -> FiniteAnimationSpec<Float>,
+    targetValueByState: (OnboardingStep) -> Float,
+): () -> Float {
+    val animated = key(currentState) { animateFloat(transitionSpec = { spec() }, label = label) { targetValueByState(it) } }
     return { if (currentState == targetState) targetValueByState(currentState) else animated.value }
 }
 

@@ -20,10 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -122,7 +120,7 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
 }
 
 /**
- * Step N of 5, the wavy progress line and Skip. Always composed and measured (the steps reserve its height), shown
+ * Step N of 5, the wavy progress line ([progress], read in draw) and Skip. Always composed and measured (the steps reserve its height), shown
  * through [labelAlpha], [progressAlpha] and [skipAlpha] (scaled by [barAlpha]), read in the draw phase. With [slide]
  * on, each item sits 12 dp above its place until its drop progress ([labelDrop], [progressDrop], [skipDrop]; by
  * default its alpha) reaches 1, so entering from Welcome they drop in, staggered. Under reduced motion [slide] is off
@@ -138,6 +136,7 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
 @Composable
 internal fun OnboardingTopBar(
     step: OnboardingStep,
+    progress: () -> Float,
     visible: Boolean,
     slide: Boolean,
     barAlpha: () -> Float,
@@ -154,10 +153,7 @@ internal fun OnboardingTopBar(
     plane: RunwayPlanePose? = null,
     modifier: Modifier = Modifier,
 ) {
-    val motion = ClockblockTheme.motion
     val reduce = ClockblockTheme.reduceMotion
-    val target = (step.index + 1f) / OnboardingStep.Count
-    val progress by animateFloatAsState(target, motion.dataSpatial(), label = "onboardingProgress")
     val label = stringResource(R.string.onboarding_progress, step.index + 1, OnboardingStep.Count)
     Row(
         modifier
@@ -177,7 +173,7 @@ internal fun OnboardingTopBar(
             Spacer(Modifier.size(6.dp))
             // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
             LinearWavyProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 amplitude = { p -> (1f - p).coerceIn(0f, 1f) },
                 wavelength = 28.dp,
                 waveSpeed = if (reduce || !waveMoving) 0.dp else 14.dp,
