@@ -1,13 +1,8 @@
 package dev.sebastiano.clockblocker.opus.feature.onboarding
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,11 +34,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -56,6 +60,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -63,12 +68,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.Placeable
-import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.unit.Constraints
 import dev.sebastiano.clockblocker.opus.core.designsystem.component.PlaceResultRow
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.Place
@@ -126,8 +125,8 @@ fun HomeSearch(
     wide: Boolean = false,
     above: @Composable () -> Unit = {},
     below: @Composable () -> Unit = {},
+    roomPx: (Density.() -> Int)? = null,
 ) {
-    val motion = ClockblockTheme.motion
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
@@ -139,21 +138,27 @@ fun HomeSearch(
     // in narrow columns, so the room is planned with one (before the first layout the field can't be focused yet).
     val needed = measured.aboveResults + measured.below +
         measured.sampleRow * MinVisibleResults + with(density) { SegmentedGap.roundToPx() } * (MinVisibleResults - 1)
-    val roomPx = with(density) { room.roundToPx() }
+    val currentRoomPx = if (roomPx != null) {
+        Snapshot.withoutReadObservation { with(density) { roomPx() } }
+    } else {
+        with(density) { room.roundToPx() }
+    }
     // Once full height, it stays so until the search ends: the room it measures changes as the host folds away.
-    val fullHeight = focused && keyboardTarget > 0 && (state.fullHeight || roomPx - keyboardTarget < needed)
-    SideEffect { state.fullHeight = fullHeight }
-    DisposableEffect(state) { onDispose { state.fullHeight = false } }
-
+    val fullHeight = focused && keyboardTarget > 0 && (state.fullHeight || currentRoomPx - keyboardTarget < needed)
     // Hiding the keyboard (its own button, or Back, which the keyboard takes first) ends the search too.
     var keyboardSeen by remember { mutableStateOf(false) }
-    LaunchedEffect(focused, keyboardTarget > 0) {
+    SideEffect {
+        state.fullHeight = fullHeight
         when {
             !focused -> keyboardSeen = false
             keyboardTarget > 0 -> keyboardSeen = true
-            keyboardSeen -> focusManager.clearFocus()
+            keyboardSeen -> {
+                keyboardSeen = false
+                focusManager.clearFocus()
+            }
         }
     }
+    DisposableEffect(state) { onDispose { state.fullHeight = false } }
     // The first Back leaves the full-height search, the next one the screen (registered after the screen's own
     // handler, so it wins).
     NavigationBackHandler(
@@ -162,13 +167,12 @@ fun HomeSearch(
         onBackCompleted = { focusManager.clearFocus() },
     )
 
+    val resultsScrollState = rememberScrollState()
     val sideBySide = wide && fullHeight
     Layout(
         content = {
-            AnimatedVisibility(
+            FoldingSlot(
                 visible = !fullHeight,
-                enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
-                exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
                 modifier = Modifier.layoutId(SearchSlot.Above),
             ) { above() }
             OutlinedTextField(
@@ -176,20 +180,10 @@ fun HomeSearch(
                 onValueChange = onQueryChange,
                 label = { Text(stringResource(R.string.home_search_label)) },
                 leadingIcon = {
-                    AnimatedContent(
-                        targetState = fullHeight,
-                        transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
-                        label = "homeSearchLeadingIcon",
-                    ) { inSearch ->
-                        if (inSearch) {
-                            // The arrow is auto-mirrored: it points to the start edge in RTL by itself.
-                            IconButton(onClick = { focusManager.clearFocus() }, modifier = Modifier.testTag(HomeZoneTags.CloseSearch)) {
-                                Icon(painterResource(R.drawable.onboarding_ic_arrow_back), contentDescription = stringResource(R.string.home_search_close))
-                            }
-                        } else {
-                            Icon(painterResource(R.drawable.onboarding_ic_search), contentDescription = null)
-                        }
-                    }
+                    SearchLeadingIcon(
+                        fullHeight = fullHeight,
+                        onClose = { focusManager.clearFocus() },
+                    )
                 },
                 trailingIcon = if (query.isNotEmpty()) {
                     {
@@ -212,17 +206,15 @@ fun HomeSearch(
                     .testTag(HomeZoneTags.Search),
             )
             ResultCount(query, results, resultsQuery, rowHeight = { measured.sampleRow }, modifier = Modifier.layoutId(SearchSlot.Count))
-            Box(Modifier.layoutId(SearchSlot.Results).then(if (fullHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
+            Box(Modifier.layoutId(SearchSlot.Results).then(if (fullHeight) Modifier.verticalScroll(resultsScrollState) else Modifier)) {
                 val pick = { place: Place ->
                     onPick(place)
                     focusManager.clearFocus()
                 }
                 if (sideBySide) ResultGrid(results, now, pick) else ResultList(results, now, pick)
             }
-            AnimatedVisibility(
+            FoldingSlot(
                 visible = !fullHeight,
-                enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
-                exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
                 modifier = Modifier.layoutId(SearchSlot.Below),
             ) { below() }
             // Measured, never placed (so never drawn or touched) and silent for TalkBack.
@@ -233,7 +225,8 @@ fun HomeSearch(
             .then(
                 if (fullHeight) {
                     Modifier.layout { measurable, constraints ->
-                        val height = (roomPx - keyboardNow()).coerceAtLeast(0)
+                        val totalRoomPx = if (roomPx != null) roomPx() else room.roundToPx()
+                        val height = (totalRoomPx - keyboardNow()).coerceAtLeast(0)
                         val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
                         layout(placeable.width, height) { placeable.place(0, 0) }
                     }
@@ -242,7 +235,6 @@ fun HomeSearch(
                 },
             ),
     ) { measurables, constraints ->
-        // The folding slots leave the composition once folded away.
         fun slot(id: SearchSlot, constraints: Constraints): Placeable? = measurables.firstOrNull { it.layoutId == id }?.measure(constraints)
         val width = constraints.maxWidth
         val gap = FieldGap.roundToPx()
@@ -258,7 +250,6 @@ fun HomeSearch(
             val height = constraints.maxHeight
             val results = slot(SearchSlot.Results, Constraints.fixed(resultsWidth, height))
             slot(SearchSlot.Below, Constraints.fixed(0, 0))
-            slot(SearchSlot.SampleRow, Constraints.fixed(0, 0))
             layout(width, height) {
                 val fieldTop = above.heightOrZero
                 above?.placeRelative(0, 0)
@@ -271,7 +262,6 @@ fun HomeSearch(
             val field = slot(SearchSlot.Field, column)
             val count = slot(SearchSlot.Count, column)
             val below = slot(SearchSlot.Below, column)
-            val sample = slot(SearchSlot.SampleRow, column)
             val resultsTop = above.heightOrZero + field.heightOrZero + gap + count.heightOrZero
             val bounded = fullHeight && constraints.hasBoundedHeight
             val results = slot(
@@ -279,6 +269,7 @@ fun HomeSearch(
                 if (bounded) Constraints.fixed(width, (constraints.maxHeight - resultsTop - below.heightOrZero).coerceAtLeast(0)) else column,
             )
             if (!fullHeight) {
+                val sample = slot(SearchSlot.SampleRow, column)
                 measured.aboveResults = resultsTop
                 measured.below = below.heightOrZero
                 measured.sampleRow = sample.heightOrZero
@@ -290,6 +281,150 @@ fun HomeSearch(
                 count?.placeRelative(0, above.heightOrZero + field.heightOrZero + gap)
                 results?.placeRelative(0, resultsTop)
                 below?.placeRelative(0, resultsTop + results.heightOrZero)
+            }
+        }
+    }
+}
+
+internal enum class FoldingAxis { Vertical, Horizontal }
+
+@Stable
+internal class FoldingProgress {
+    var expand: () -> Float = { 1f }
+    var alpha: () -> Float = { 1f }
+
+    @Composable
+    fun Bind(visible: Boolean) {
+        val motion = ClockblockTheme.motion
+        val target = if (visible) 1f else 0f
+        val expandState = animateFloatAsState(target, motion.navigationSpatial(), label = "foldingExpand")
+        val alphaState = animateFloatAsState(target, motion.fade(), label = "foldingAlpha")
+        expand = remember(expandState) { { expandState.value } }
+        alpha = remember(alphaState) { { alphaState.value } }
+    }
+}
+
+/**
+ * Folds [content] in and out on [axis] (`navigationSpatial()` + `fade()`) without disposing its composition when
+ * folded away, so opening or closing full-height search never tears down or recreates the header or current-zone card.
+ */
+@Composable
+internal fun FoldingSlot(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    axis: FoldingAxis = FoldingAxis.Vertical,
+    content: @Composable () -> Unit,
+) {
+    val progress = remember { FoldingProgress() }
+    progress.Bind(visible)
+    val semanticsHolder = remember { StepSemanticsHolder(initialActive = visible) }
+    SideEffect { semanticsHolder.setActive(visible) }
+    val inert = remember(semanticsHolder) { { !semanticsHolder.active } }
+    val layerBlock = remember(progress) {
+        val block: GraphicsLayerScope.() -> Unit = {
+            alpha = progress.alpha().coerceIn(0f, 1f)
+        }
+        block
+    }
+    val slotModifier = remember(modifier, progress, semanticsHolder, inert) {
+        modifier
+            .drawWithContent {
+                if (progress.expand() < 1f) {
+                    clipRect { this@drawWithContent.drawContent() }
+                } else {
+                    drawContent()
+                }
+            }
+            .inertWhen(semanticsHolder, inert)
+    }
+    val measurePolicy = remember(progress, axis, layerBlock, semanticsHolder) {
+        MeasurePolicy { measurables, constraints ->
+            val expand = progress.expand().coerceIn(0f, 1f)
+            val placeable = measurables.firstOrNull()?.measure(constraints.copy(minWidth = 0, minHeight = 0))
+            val fullWidth = placeable?.width ?: 0
+            val fullHeight = placeable?.height ?: 0
+            val width = if (axis == FoldingAxis.Horizontal) (fullWidth * expand).roundToInt() else fullWidth
+            val height = if (axis == FoldingAxis.Vertical) (fullHeight * expand).roundToInt() else fullHeight
+            layout(width, height) {
+                if (placeable != null && (semanticsHolder.active || (width > 0 && height > 0))) {
+                    val x = if (axis == FoldingAxis.Horizontal) width - fullWidth else 0
+                    val y = if (axis == FoldingAxis.Vertical) height - fullHeight else 0
+                    placeable.placeRelativeWithLayer(x, y, layerBlock = layerBlock)
+                }
+            }
+        }
+    }
+    Layout(
+        content = content,
+        modifier = slotModifier,
+        measurePolicy = measurePolicy,
+    )
+}
+
+@Composable
+private fun SearchLeadingIcon(
+    fullHeight: Boolean,
+    onClose: () -> Unit,
+) {
+    val progress = remember { FoldingProgress() }
+    progress.Bind(fullHeight)
+    val closeSemantics = remember {
+        StepSemanticsHolder(
+            initialTag = HomeZoneTags.CloseSearch,
+            initialActive = fullHeight,
+        )
+    }
+    SideEffect {
+        closeSemantics.update(newTag = HomeZoneTags.CloseSearch, newActive = fullHeight)
+    }
+    val closeInert = remember(closeSemantics) { { !closeSemantics.active } }
+    val closeModifier = remember(closeSemantics, closeInert) {
+        Modifier.inertWhen(closeSemantics, closeInert)
+    }
+    val searchLayer = remember(progress) {
+        val block: GraphicsLayerScope.() -> Unit = {
+            alpha = (1f - progress.alpha()).coerceIn(0f, 1f)
+        }
+        block
+    }
+    val closeLayer = remember(progress) {
+        val block: GraphicsLayerScope.() -> Unit = {
+            alpha = progress.alpha().coerceIn(0f, 1f)
+        }
+        block
+    }
+    Layout(
+        content = {
+            Icon(painterResource(R.drawable.onboarding_ic_search), contentDescription = null)
+            // The arrow is auto-mirrored: it points to the start edge in RTL by itself.
+            IconButton(onClick = onClose, modifier = closeModifier) {
+                Icon(
+                    painterResource(R.drawable.onboarding_ic_arrow_back),
+                    contentDescription = stringResource(R.string.home_search_close),
+                )
+            }
+        },
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val searchPlaceable = measurables[0].measure(loose)
+        val closePlaceable = measurables[1].measure(loose)
+        val width = if (fullHeight) closePlaceable.width else searchPlaceable.width
+        val height = if (fullHeight) closePlaceable.height else searchPlaceable.height
+        layout(width, height) {
+            val p = progress.alpha().coerceIn(0f, 1f)
+            if (p < 1f) {
+                searchPlaceable.placeRelativeWithLayer(
+                    (width - searchPlaceable.width) / 2,
+                    (height - searchPlaceable.height) / 2,
+                    layerBlock = searchLayer,
+                )
+            }
+            if (p > 0f || fullHeight) {
+                closePlaceable.placeRelativeWithLayer(
+                    (width - closePlaceable.width) / 2,
+                    (height - closePlaceable.height) / 2,
+                    layerBlock = closeLayer,
+                )
             }
         }
     }

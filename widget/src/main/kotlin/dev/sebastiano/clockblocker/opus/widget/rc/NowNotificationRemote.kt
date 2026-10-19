@@ -304,10 +304,22 @@ object NowNotificationDocuments {
         val collapsed = capturer(size(slots.collapsedWidthDp, NotificationSlots.COLLAPSED_HEIGHT_DP.toFloat())) {
             NowNotificationCollapsedRemote(model, slots.collapsedWidthDp)
         }
-        val expanded = capturer(size(slots.expandedWidthDp, expandedHeightDp(context, model, slots.expandedWidthDp))) {
-            NowNotificationExpandedRemote(model, slots.expandedWidthDp)
-        }
+        val expanded = captureExpanded(context, model, slots.expandedWidthDp, capturer)
         return Documents(collapsed, expanded)
+    }
+
+    /** Captures only the expanded document (used by the onboarding preview, which never displays the collapsed row). */
+    internal suspend fun captureExpanded(
+        context: Context,
+        model: ThemedWidgetModel,
+        widthDp: Int,
+        capturer: suspend (Size, @RemoteComposable @Composable () -> Unit) -> CapturedDocument,
+    ): CapturedDocument {
+        val density = context.resources.displayMetrics.density
+        val size = Size(widthDp * density, ceil(expandedHeightDp(context, model, widthDp)) * density)
+        return capturer(size) {
+            NowNotificationExpandedRemote(model, widthDp)
+        }
     }
 
     /** How tall the expanded view comes out at [widthDp], in dp: what it wraps to, within the shade's 252 dp cap. */

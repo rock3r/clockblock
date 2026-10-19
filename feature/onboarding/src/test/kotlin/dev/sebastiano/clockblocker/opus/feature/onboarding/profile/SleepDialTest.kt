@@ -39,12 +39,14 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.sebastiano.clockblocker.opus.core.designsystem.dial.DialGeometry
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.model.SleepWindow
 import dev.sebastiano.clockblocker.opus.core.testing.captureRoboImageInvalidated
 import dev.sebastiano.clockblocker.opus.feature.onboarding.ClockblockScreenshotTest
 import io.kotest.matchers.floats.shouldBeLessThan
+import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -431,6 +433,37 @@ class SleepDialTest : ClockblockScreenshotTest() {
     @Test
     fun readout_ten_oh_five_large_font() = snap("sleep_dial_readout_10h05_fontscale_1_5", fontScale = 1.5f) {
         SleepDial(tenOhFive, daysOff, {}, {}, Modifier.padding(16.dp))
+    }
+
+    @Test
+    fun fit_readout_memoizes_caption_steps_instead_of_remeasuring_per_outer_step() {
+        val measured = mutableListOf<Pair<String, Float>>()
+        setContent(fontScale = 1.5f) {
+            val measurer = rememberTextMeasurer(cacheSize = 0)
+            val density = LocalDensity.current
+            val textStyles = ClockblockTheme.textStyles
+            val captionBase = androidx.compose.material3.MaterialTheme.typography.labelLarge
+            val sidePx = with(density) { 200.dp.toPx() }
+            val labels = numeralRects(sidePx, measurer, textStyles.timeLabel, is24Hour = true, density = density)
+            with(density) {
+                fitReadout(
+                    measurer = measurer,
+                    duration = textStyles.timeHeadline.copy(fontSize = 30.sp, lineHeight = 36.sp),
+                    caption = captionBase,
+                    template = "88h 88m",
+                    captions = listOf("of sleep", "your body's day"),
+                    sidePx = sidePx,
+                    numerals = labels,
+                    measureLine = { text, style ->
+                        measured += text to style.fontSize.value
+                        measurer.measure(text, style, maxLines = 1, softWrap = false).size
+                    },
+                )
+            }
+        }
+        // Every (text, fontSize) pair is measured at most once (vs 423 measurements unmemoized).
+        measured.distinct().size shouldBe measured.size
+        measured.size shouldBeLessThanOrEqual 60
     }
 
     /**

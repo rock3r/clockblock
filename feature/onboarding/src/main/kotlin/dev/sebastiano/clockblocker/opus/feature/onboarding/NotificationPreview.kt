@@ -8,7 +8,6 @@ import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -25,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,12 +33,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
@@ -94,28 +95,32 @@ internal fun NotificationPreview(remote: RemoteViews?, now: Instant, onContentWi
                     )
                 }
             }
-            BoxWithConstraints(Modifier.weight(1f)) {
-                val widthDp = maxWidth.value.roundToInt()
-                LaunchedEffect(widthDp) { onContentWidth(widthDp) }
-                Column {
-                    Text(
-                        stringResource(
-                            R.string.reminders_preview_header,
-                            stringResource(R.string.reminders_preview_app_name),
-                            stringResource(NotificationsR.string.body_behind, stringResource(R.string.reminders_preview_body_offset)),
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
-                    )
-                    var failed by remember(remote) { mutableStateOf(false) }
-                    if (remote != null && !failed) {
-                        RemoteContent(remote, onFailure = { failed = true })
-                    } else {
-                        StandardContent(now)
-                    }
-                    Actions()
+            val density = LocalDensity.current
+            Column(
+                Modifier
+                    .weight(1f)
+                    .onSizeChanged { size ->
+                        val widthDp = with(density) { size.width.toDp().value.roundToInt() }
+                        if (widthDp > 0) onContentWidth(widthDp)
+                    },
+            ) {
+                Text(
+                    stringResource(
+                        R.string.reminders_preview_header,
+                        stringResource(R.string.reminders_preview_app_name),
+                        stringResource(NotificationsR.string.body_behind, stringResource(R.string.reminders_preview_body_offset)),
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+                )
+                var failed by remember(remote) { mutableStateOf(false) }
+                if (remote != null && !failed) {
+                    RemoteContent(remote, onFailure = { failed = true })
+                } else {
+                    StandardContent(now)
                 }
+                Actions()
             }
         }
     }
@@ -160,6 +165,12 @@ private fun Context.withNightMode(dark: Boolean): Context {
  * ripple), so a played notification document's tap actions can't fire.
  */
 internal class InertFrameLayout(context: Context) : FrameLayout(context) {
+    init {
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+        isFocusable = false
+    }
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
 
     @SuppressLint("ClickableViewAccessibility")
@@ -231,6 +242,32 @@ private fun Actions() {
 }
 
 private val IconColumn = 64.dp
+private val PreviewEndPadding = 16.dp
+private val RemindersCardPadding = 12.dp
+private val CompactStepHorizontalPadding = 24.dp
+private val WideStepHorizontalPadding = 24.dp
+private val MaxStepContentWidth = 1040.dp
+private val MaxWideControlsWidth = 560.dp
+private const val WideWordsPaneFraction = 0.42f
+
+/**
+ * The width (in dp) that [NotificationPreview]'s content column gets inside a window of [maxWidthPx], so
+ * [OnboardingContent] can pre-capture the Remote Compose preview before the Reminders step is reached.
+ */
+internal fun Density.remindersPreviewWidthDp(maxWidthPx: Int, wide: Boolean): Int {
+    val framePx = maxWidthPx.coerceAtMost(MaxStepContentWidth.roundToPx())
+    val controlsPx = if (wide) {
+        val frameDp = framePx.toDp()
+        val wordsPanePx = ((frameDp - WideStepHorizontalPadding * 2) * WideWordsPaneFraction).roundToPx()
+        val rightPanePx = framePx - WideStepHorizontalPadding.roundToPx() * 2 - wordsPanePx
+        rightPanePx.coerceAtMost(MaxWideControlsWidth.roundToPx())
+    } else {
+        framePx - CompactStepHorizontalPadding.roundToPx() * 2
+    }
+    val cardPx = controlsPx - RemindersCardPadding.roundToPx() * 2
+    val contentPx = (cardPx - PreviewEndPadding.roundToPx() - IconColumn.roundToPx()).coerceAtLeast(0)
+    return contentPx.toDp().value.roundToInt()
+}
 private val SampleUntil: LocalTime = LocalTime.of(18, 0)
 
 /** The sample block runs in Tokyo; the second time is Lisbon's (`reminders_preview_other_city`). */

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,6 +38,7 @@ import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockMotion
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.ClockblockTheme
 import dev.sebastiano.clockblocker.opus.core.designsystem.theme.pattern
 import dev.sebastiano.clockblocker.opus.core.model.AdviceType
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -46,6 +48,11 @@ import kotlin.math.sin
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 object AdviceShapes {
+    private val morphs = ConcurrentHashMap<AdviceType, ShapeMorph>()
+    private val marks = ConcurrentHashMap<AdviceType, ShapeMorph>()
+    private val pixelActiveMorphs = ConcurrentHashMap<AdviceType, ShapeMorph>()
+    private val pixelIdleMorphs = ConcurrentHashMap<AdviceType, ShapeMorph>()
+
     fun target(type: AdviceType): RoundedPolygon = when (type) {
         AdviceType.SeeBrightLight -> MaterialShapes.VerySunny
         AdviceType.SeeLight -> MaterialShapes.Sunny
@@ -62,6 +69,27 @@ object AdviceShapes {
     fun start(type: AdviceType): RoundedPolygon = when (type) {
         AdviceType.AvoidLight -> MaterialShapes.Sunny
         else -> MaterialShapes.Circle
+    }
+
+    /** Cached idle-to-active [ShapeMorph] (`start(type)` → `target(type)`). */
+    fun morph(type: AdviceType): ShapeMorph =
+        morphs.getOrPut(type) { ShapeMorph(start(type), target(type)) }
+
+    /** Cached static mark [ShapeMorph] (`target(type)` → `target(type)`). */
+    fun mark(type: AdviceType): ShapeMorph =
+        marks.getOrPut(type) { ShapeMorph(target(type), target(type)) }
+
+    /** Cached active-to-pixel [ShapeMorph] (`target(type)` → `pixel(type)`), built lazily when pixel mode is used. */
+    fun pixelFromActive(type: AdviceType): ShapeMorph =
+        pixelActiveMorphs.getOrPut(type) { ShapeMorph(target(type), pixel(type)) }
+
+    /** Cached idle-to-pixel [ShapeMorph] (`start(type)` → `pixel(type)`), built lazily when pixel mode is used. */
+    fun pixelFromIdle(type: AdviceType): ShapeMorph =
+        pixelIdleMorphs.getOrPut(type) { ShapeMorph(start(type), pixel(type)) }
+
+    /** Warms the standard [morph] for each [AdviceType] so first-time [AdviceGlyph] composition skips `Morph` construction. */
+    fun warmUp() {
+        AdviceType.entries.forEach { morph(it) }
     }
 
     /** Fully adapted: Circle → Flower bloom. */
@@ -118,11 +146,11 @@ fun AdviceGlyph(
     val role = ClockblockTheme.adviceColors[type]
     val motion = ClockblockTheme.motion
     val reduce = LocalReduceMotion.current
-    val morph = remember(type) { ShapeMorph(AdviceShapes.start(type), AdviceShapes.target(type)) }
-    val mark = remember(type) { ShapeMorph(AdviceShapes.target(type), AdviceShapes.target(type)) }
+    val morph = remember(type) { AdviceShapes.morph(type) }
     val progress = remember { Animatable(if (active) 1f else 0f) }
     LaunchedEffect(active, reduce) {
         val target = if (active) 1f else 0f
+        if (progress.value == target && !progress.isRunning) return@LaunchedEffect
         if (reduce) {
             progress.snapTo(target)
         } else if (active) {
@@ -157,12 +185,9 @@ fun AdviceGlyph(
     val pixel = remember { Animatable(if (pixelMode) 1f else 0f) }
     LaunchedEffect(pixelMode, reduce) {
         val target = if (pixelMode) 1f else 0f
+        if (pixel.value == target && !pixel.isRunning) return@LaunchedEffect
         if (reduce) pixel.snapTo(target) else pixel.animateTo(target, motion.glyphMorph())
     }
-    val pixelShape = AdviceShapes.pixel(type)
-    val pixelFromActive = remember(type) { ShapeMorph(AdviceShapes.target(type), pixelShape) }
-    val pixelFromIdle = remember(type) { ShapeMorph(AdviceShapes.start(type), pixelShape) }
-    val pixelMark = pixelFromActive
 
     Canvas(modifier.size(size)) {
         val p = progress.value
@@ -179,8 +204,8 @@ fun AdviceGlyph(
         }
         val shape = when {
             q <= 0f -> morph.toPath(p, this.size, rotation, scale, path)
-            p >= 0.5f -> pixelFromActive.toPath(q, this.size, rotation, scale, path)
-            else -> pixelFromIdle.toPath(q, this.size, rotation, scale, path)
+            p >= 0.5f -> AdviceShapes.pixelFromActive(type).toPath(q, this.size, rotation, scale, path)
+            else -> AdviceShapes.pixelFromIdle(type).toPath(q, this.size, rotation, scale, path)
         }
         drawPath(shape, fill)
         if (outlineOnly) {
@@ -229,9 +254,9 @@ fun AdviceGlyph(
                 val markColor = role.onContainer.copy(alpha = markAlpha)
                 val markRotation = baseRotation * (1f - q)
                 val m = if (q <= 0f) {
-                    mark.toPath(0f, this.size, markRotation, 0.5f, markPath)
+                    AdviceShapes.mark(type).toPath(0f, this.size, markRotation, 0.5f, markPath)
                 } else {
-                    pixelMark.toPath(q, this.size, markRotation, 0.5f, markPath)
+                    AdviceShapes.pixelFromActive(type).toPath(q, this.size, markRotation, 0.5f, markPath)
                 }
                 if (outlineOnly) {
                     drawPath(m, markColor, style = Stroke(width = 1.6.dp.toPx()))
@@ -259,13 +284,17 @@ fun MorphGlyph(
     val morph = remember(start, end) { ShapeMorph(start, end) }
     val progress = remember { Animatable(if (active) 1f else 0f) }
     LaunchedEffect(active, reduce) {
-        if (reduce) progress.snapTo(if (active) 1f else 0f) else progress.animateTo(if (active) 1f else 0f, motion.glyphMorph())
+        val target = if (active) 1f else 0f
+        if (progress.value == target && !progress.isRunning) return@LaunchedEffect
+        if (reduce) progress.snapTo(target) else progress.animateTo(target, motion.glyphMorph())
     }
     val path = remember { Path() }
     Canvas(modifier.size(size)) {
         drawPath(morph.toPath(progress.value, this.size, out = path), color)
     }
 }
+
+private val ZeroPhase: State<Float> = mutableFloatStateOf(0f)
 
 /**
  * One ambient cycle (VerySunny turns one 45° step, melatonin twinkles once, peak fatigue pulses once) when the
@@ -281,16 +310,17 @@ private fun rememberAmbientPhase(type: AdviceType, enabled: Boolean): State<Floa
         AdviceType.PeakFatigue -> ClockblockMotion.PulseMillis
         else -> 0
     }
+    if (period == 0) return ZeroPhase
     val motion = ClockblockTheme.motion
     val phase = remember { Animatable(0f) }
     var played by rememberSaveable(type) { mutableStateOf(false) }
     LaunchedEffect(enabled, period) {
         if (!enabled) {
             played = false
-            phase.snapTo(0f)
+            if (phase.value != 0f || phase.isRunning) phase.snapTo(0f)
             return@LaunchedEffect
         }
-        if (period == 0 || played) return@LaunchedEffect
+        if (played) return@LaunchedEffect
         played = true
         phase.snapTo(0f)
         phase.animateTo(1f, motion.ambientOnce(period))

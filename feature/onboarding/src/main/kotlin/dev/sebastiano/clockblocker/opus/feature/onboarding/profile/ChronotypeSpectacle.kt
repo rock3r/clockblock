@@ -43,20 +43,48 @@ internal enum class RevealStart { Spectacle, Entrance, Rest }
  * 3. [words]: the kicker, name, description, midpoint, plan and link stagger down into place (`revealWords()`).
  */
 @Stable
-internal class RevealEntrance(val start: RevealStart) {
-    private val spectacle = start == RevealStart.Spectacle
-    private val atRest = start == RevealStart.Rest
-    val spin = Animatable(if (spectacle) 0f else ClockblockMotion.SpectacleSpins.toFloat())
-    val rise = Animatable(if (spectacle) 0f else 1f)
-    val pop = Animatable(if (spectacle) 0f else 1f)
-    val art = Animatable(if (atRest) 1f else 0f)
-    val words = Animatable(if (atRest) 1f else 0f)
-
-    /** True while the spectacle plays; it ends at rest, or with a skip. */
-    var spectacleRunning: Boolean by mutableStateOf(spectacle)
+internal class RevealEntrance(start: RevealStart, spectacleFrom: Rect? = null) {
+    var start: RevealStart by mutableStateOf(start)
+        private set
+    var spectacleFrom: Rect = spectacleFrom ?: Rect.Zero
+        private set
+    var spin by mutableStateOf(Animatable(if (start == RevealStart.Spectacle) 0f else ClockblockMotion.SpectacleSpins.toFloat()))
+        private set
+    var rise by mutableStateOf(Animatable(if (start == RevealStart.Spectacle) 0f else 1f))
+        private set
+    var pop by mutableStateOf(Animatable(if (start == RevealStart.Spectacle) 0f else 1f))
+        private set
+    var art by mutableStateOf(Animatable(if (start == RevealStart.Rest) 1f else 0f))
+        private set
+    var words by mutableStateOf(Animatable(if (start == RevealStart.Rest) 1f else 0f))
         private set
 
-    private var popLanded: Boolean = !spectacle
+    /** True while the spectacle plays; it ends at rest, or with a skip. */
+    var spectacleRunning: Boolean by mutableStateOf(start == RevealStart.Spectacle)
+        private set
+
+    private var popLanded: Boolean = start != RevealStart.Spectacle
+
+    fun reset(nextStart: RevealStart, from: Rect? = null) {
+        if (start != nextStart) start = nextStart
+        val spectacle = nextStart == RevealStart.Spectacle
+        if (spectacle) {
+            spectacleFrom = from ?: Rect.Zero
+        }
+        val atRest = nextStart == RevealStart.Rest
+        val targetSpin = if (spectacle) 0f else ClockblockMotion.SpectacleSpins.toFloat()
+        val targetRise = if (spectacle) 0f else 1f
+        val targetPop = if (spectacle) 0f else 1f
+        val targetArt = if (atRest) 1f else 0f
+        val targetWords = if (atRest) 1f else 0f
+        if (spin.value != targetSpin || spin.isRunning) spin = Animatable(targetSpin)
+        if (rise.value != targetRise || rise.isRunning) rise = Animatable(targetRise)
+        if (pop.value != targetPop || pop.isRunning) pop = Animatable(targetPop)
+        if (art.value != targetArt || art.isRunning) art = Animatable(targetArt)
+        if (words.value != targetWords || words.isRunning) words = Animatable(targetWords)
+        popLanded = !spectacle
+        if (spectacleRunning != spectacle) spectacleRunning = spectacle
+    }
 
     /** The illustration's opacity: hidden behind the shape until the pop lands. */
     val artAlpha: Float

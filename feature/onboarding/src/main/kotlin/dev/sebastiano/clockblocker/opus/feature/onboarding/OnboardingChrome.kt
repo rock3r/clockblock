@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -21,29 +22,38 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
-import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.SemanticsModifierNode
+import androidx.compose.ui.node.invalidateSemantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -71,38 +81,66 @@ import kotlin.math.roundToInt
  *
  * The bars are drawn under the steps: a hidden bar sits behind the step that covers it and never takes a touch.
  */
+@Stable
+internal class OnboardingFrameRoom {
+    var topBarHeight: Int = 0
+    var disclaimerHeight: Int = 0
+    var bottomBarHeight: Int = 0
+}
+
 @Composable
 internal fun OnboardingFrame(
+    room: OnboardingFrameRoom,
     searchProgress: () -> Float,
     keyboard: Density.() -> Int,
     topBar: @Composable () -> Unit,
     disclaimer: @Composable () -> Unit,
     bottomBar: @Composable () -> Unit,
-    steps: @Composable (topBarHeight: Int, disclaimerHeight: Int) -> Unit,
+    steps: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     disclaimerOverlap: Dp = 0.dp,
 ) {
-    SubcomposeLayout(modifier.clipToBounds()) { constraints ->
+    Layout(
+        content = {
+            Box(Modifier.layoutId(FrameSlot.TopBar)) { topBar() }
+            Box(Modifier.layoutId(FrameSlot.Disclaimer)) { disclaimer() }
+            Box(Modifier.layoutId(FrameSlot.BottomBar)) { bottomBar() }
+            Box(Modifier.layoutId(FrameSlot.Steps)) { steps() }
+        },
+        modifier = modifier.clipToBounds(),
+    ) { measurables, constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val loose = Constraints(minWidth = 0, maxWidth = width, minHeight = 0, maxHeight = height)
         val full = loose.copy(minWidth = width)
-        val bar = subcompose(FrameSlot.TopBar, topBar).map { it.measure(full) }
-        val barHeight = bar.maxOfOrNull { it.height } ?: 0
-        val note = subcompose(FrameSlot.Disclaimer, disclaimer).map { it.measure(loose) }
+        var topBarPlaceable: Placeable? = null
+        var disclaimerPlaceable: Placeable? = null
+        var bottomBarPlaceable: Placeable? = null
+        var stepsMeasurable: Measurable? = null
+        for (i in measurables.indices) {
+            val m = measurables[i]
+            when (m.layoutId as FrameSlot) {
+                FrameSlot.TopBar -> topBarPlaceable = m.measure(full)
+                FrameSlot.Disclaimer -> disclaimerPlaceable = m.measure(loose)
+                FrameSlot.BottomBar -> bottomBarPlaceable = m.measure(full)
+                FrameSlot.Steps -> stepsMeasurable = m
+            }
+        }
+        val barHeight = topBarPlaceable?.height ?: 0
         val noteOverlap = disclaimerOverlap.roundToPx()
-        val noteHeight = ((note.maxOfOrNull { it.height } ?: 0) - noteOverlap).coerceAtLeast(0)
-        val bottom = subcompose(FrameSlot.BottomBar, bottomBar).map { it.measure(full) }
-        val bottomHeight = bottom.maxOfOrNull { it.height } ?: 0
-        val shownBottom = (bottomHeight * (1f - searchProgress().coerceIn(0f, 1f))).roundToInt()
-        val stepsHeight = (height - shownBottom).coerceAtLeast(0)
-        val content = subcompose(FrameSlot.Steps) { steps(barHeight, noteHeight) }
-            .map { it.measure(Constraints.fixed(width, stepsHeight)) }
+        val noteHeight = ((disclaimerPlaceable?.height ?: 0) - noteOverlap).coerceAtLeast(0)
+        val bottomHeight = bottomBarPlaceable?.height ?: 0
+        room.topBarHeight = barHeight
+        if (noteHeight > 0) room.disclaimerHeight = noteHeight
+        room.bottomBarHeight = bottomHeight
+        val stepsPlaceable = stepsMeasurable?.measure(Constraints.fixed(width, height))
         layout(width, height) {
-            bar.forEach { it.place(0, 0) }
-            note.forEach { it.place((width - it.width) / 2, stepsHeight - it.height + noteOverlap) }
-            content.forEach { it.place(0, 0) }
-            bottom.forEach { it.place(0, stepsHeight - keyboard()) }
+            val shownBottom = (bottomHeight * (1f - searchProgress().coerceIn(0f, 1f))).roundToInt()
+            val stepsHeight = (height - shownBottom).coerceAtLeast(0)
+            topBarPlaceable?.place(0, 0)
+            disclaimerPlaceable?.let { if (it.height > 0) it.place((width - it.width) / 2, stepsHeight - it.height + noteOverlap) }
+            stepsPlaceable?.place(0, 0)
+            bottomBarPlaceable?.place(0, stepsHeight - keyboard())
         }
     }
 }
@@ -135,7 +173,7 @@ internal fun topBarStep(step: OnboardingStep, current: OnboardingStep = step): O
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun OnboardingTopBar(
-    step: OnboardingStep,
+    stepState: State<OnboardingStep>,
     progress: () -> Float,
     visible: Boolean,
     slide: Boolean,
@@ -154,53 +192,140 @@ internal fun OnboardingTopBar(
     modifier: Modifier = Modifier,
 ) {
     val reduce = ClockblockTheme.reduceMotion
-    val label = stringResource(R.string.onboarding_progress, step.index + 1, OnboardingStep.Count)
-    Row(
+    val initialStep = remember { Snapshot.withoutReadObservation { stepState.value } }
+    val labels = Array(OnboardingStep.Count) { index ->
+        stringResource(R.string.onboarding_progress, index + 1, OnboardingStep.Count)
+    }
+    val progressSemantics = remember {
+        StepSemanticsHolder(
+            initialTag = OnboardingTags.Progress,
+            initialActive = true,
+            initialContentDescription = labels[initialStep.index],
+        )
+    }
+    val labelSemantics = remember {
+        Array(OnboardingStep.Count) { index ->
+            StepSemanticsHolder(initialActive = index == initialStep.index)
+        }
+    }
+    val skipSemantics = remember {
+        StepSemanticsHolder(
+            initialTag = OnboardingTags.Skip,
+            initialActive = initialStep != OnboardingStep.Reminders,
+            keepTagWhenInactive = true,
+        )
+    }
+    BindTopBarStepSemantics(
+        stepState = stepState,
+        labels = labels,
+        progressSemantics = progressSemantics,
+        labelSemantics = labelSemantics,
+        skipSemantics = skipSemantics,
+    )
+    val rowSemantics = remember { StepSemanticsHolder(initialActive = visible) }
+    SideEffect { rowSemantics.update(newActive = visible) }
+    val rowModifier = remember(modifier, rowSemantics) {
         modifier
             .fillMaxWidth()
-            .then(if (visible) Modifier else Modifier.clearAndSetSemantics { })
+            .then(StepSemanticsElement(rowSemantics))
             .padding(start = 24.dp, end = 8.dp, top = 8.dp)
-            .heightIn(min = 56.dp),
+            .heightIn(min = 56.dp)
+    }
+    val takeoff = LocalTakeoff.current
+    val labelBoxModifier = remember(labelAlpha, barAlpha, slide, labelDrop, takeoff) {
+        Modifier
+            .wrapContentWidth(Alignment.Start, unbounded = true)
+            .topBarItem(labelAlpha, barAlpha, slide, drop = labelDrop, takeoff = takeoff)
+    }
+    val progressBaseModifier = remember(progressAlpha, barAlpha, slide, progressDrop) {
+        Modifier
+            .fillMaxWidth()
+            .topBarItem(progressAlpha, barAlpha, slide, drop = progressDrop)
+    }
+    val progressWithPlane = if (plane != null) progressBaseModifier.runwayPlane(plane) else progressBaseModifier
+    val progressWithTakeoff = progressWithPlane.takeoffExit(Takeoff.TopBar)
+    val progressModifier = remember(progressWithTakeoff, progressSemantics) {
+        progressWithTakeoff.then(StepSemanticsElement(progressSemantics))
+    }
+    Row(
+        rowModifier,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.topBarItem(labelAlpha, barAlpha, slide, drop = labelDrop).takeoffExit(Takeoff.TopBar),
-            )
+            Box(labelBoxModifier) {
+                for (index in 0 until OnboardingStep.Count) {
+                    val itemAlpha = remember(stepState, index) {
+                        { if (stepState.value.index == index) 1f else 0f }
+                    }
+                    MorphLabel(
+                        text = labels[index],
+                        semanticsHolder = labelSemantics[index],
+                        alpha = itemAlpha,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Spacer(Modifier.size(6.dp))
             // "Wavy = jet-lagged, flat = adapted": the line calms down as setup completes.
             LinearWavyProgressIndicator(
                 progress = progress,
-                amplitude = { p -> (1f - p).coerceIn(0f, 1f) },
+                amplitude = WavyAmplitude,
                 wavelength = 28.dp,
                 waveSpeed = if (reduce || !waveMoving) 0.dp else 14.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .topBarItem(progressAlpha, barAlpha, slide, drop = progressDrop)
-                    .then(if (plane != null) Modifier.runwayPlane(plane) else Modifier)
-                    // Under the plane: the runway leaves with the step label while the plane climbs away.
-                    .takeoffExit(Takeoff.TopBar)
-                    .semantics { contentDescription = label }
-                    .testTag(OnboardingTags.Progress),
+                modifier = progressModifier,
             )
         }
-        val skippable = step != OnboardingStep.Reminders
+        val skipItemAlpha = remember(skipAlpha, skipLeaves) {
+            { skipAlpha() * (1f - skipLeaves().coerceIn(0f, 1f)) }
+        }
+        val skipModifier = remember(lastStep, skipItemAlpha, barAlpha, slide, skipDrop, stepState, skipSemantics) {
+            Modifier
+                .skipSlot(lastStep)
+                .heightIn(min = 48.dp)
+                .topBarItem(skipItemAlpha, barAlpha, slide, drop = skipDrop)
+                // Nothing to skip on the last step: still drawn while it leaves, but no longer a control.
+                .then(StepSemanticsElement(skipSemantics))
+                .focusProperties { canFocus = stepState.value != OnboardingStep.Reminders }
+                .pointerInput(stepState) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (stepState.value == OnboardingStep.Reminders) event.changes.forEach { it.consume() }
+                        }
+                    }
+                }
+        }
         TextButton(
             onClick = onSkip,
             enabled = visible,
-            modifier = Modifier
-                .skipSlot(lastStep)
-                .heightIn(min = 48.dp)
-                .testTag(OnboardingTags.Skip)
-                .topBarItem({ skipAlpha() * (1f - skipLeaves().coerceIn(0f, 1f)) }, barAlpha, slide, drop = skipDrop)
-                // Nothing to skip on the last step: still drawn while it leaves, but no longer a control.
-                .then(if (skippable) Modifier else Modifier.inertChrome()),
+            modifier = skipModifier,
         ) { Text(stringResource(R.string.onboarding_skip)) }
     }
 }
+
+@Composable
+private fun BindTopBarStepSemantics(
+    stepState: State<OnboardingStep>,
+    labels: Array<String>,
+    progressSemantics: StepSemanticsHolder,
+    labelSemantics: Array<StepSemanticsHolder>,
+    skipSemantics: StepSemanticsHolder,
+) {
+    val step = stepState.value
+    val activeIndex = step.index
+    val label = labels[activeIndex]
+    val skippable = step != OnboardingStep.Reminders
+    SideEffect {
+        progressSemantics.update(newTag = OnboardingTags.Progress, newActive = true, newContentDescription = label)
+        for (i in labelSemantics.indices) {
+            labelSemantics[i].setActive(i == activeIndex)
+        }
+        skipSemantics.update(newTag = OnboardingTags.Skip, newActive = skippable)
+    }
+}
+
+private val WavyAmplitude: (Float) -> Float = { p -> (1f - p).coerceIn(0f, 1f) }
 
 /**
  * Skip's room in the top bar: its own width plus the gap before it, shrinking as [leaving] goes 0 → 1 (read in
@@ -245,32 +370,35 @@ internal class RunwayPlanePose(val taxi: () -> Float, val alpha: () -> Float, va
 }
 
 /** The plane on the progress line, wheels on the line, taking off towards the end (mirrored in RTL). */
-private fun Modifier.runwayPlane(pose: RunwayPlanePose): Modifier = composed {
+@Composable
+private fun Modifier.runwayPlane(pose: RunwayPlanePose): Modifier {
     val color = MaterialTheme.colorScheme.primary
     val wing = MaterialTheme.colorScheme.tertiary
-    drawWithContent {
-        drawContent()
-        val alpha = pose.alpha().coerceIn(0f, 1f)
-        if (alpha <= 0f) {
-            pose.runwayWidth = 0f
-            return@drawWithContent
-        }
-        val length = RunwayPlaneLength.toPx()
-        val rtl = layoutDirection == LayoutDirection.Rtl
-        // The widest the runway has been since the plane appeared (a new window size makes a new pose).
-        pose.runwayWidth = maxOf(pose.runwayWidth, size.width)
-        // From the start of the line to its holding point: the plane's middle a third of the way along the runway.
-        val travel = pose.runwayWidth * HoldingPoint - length / 2f
-        // Then, on finishing, it takes off: rolls on past the end, rotates and climbs away.
-        val t = pose.takeoff().coerceIn(0f, 1f)
-        val fromStart = travel * pose.taxi().coerceIn(0f, 1f) + Takeoff.roll(t) * (pose.runwayWidth - length - travel)
-        val ground = size.height / 2f - RunwayStroke.toPx() / 2f + RunwayGroundNudge.toPx() - Takeoff.climb(t) * Takeoff.ClimbHeight.toPx()
-        val tailX = if (rtl) size.width - fromStart else fromStart
-        with(RunwayPlane) {
-            drawRunwayPlane(
-                Offset(tailX, ground), length, color, alpha * Takeoff.alpha(t),
-                pitchDegrees = Takeoff.pitch(t), mirrored = rtl, wingColor = wing,
-            )
+    return remember(this, pose, color, wing) {
+        this.drawWithContent {
+            drawContent()
+            val alpha = pose.alpha().coerceIn(0f, 1f)
+            if (alpha <= 0f) {
+                pose.runwayWidth = 0f
+                return@drawWithContent
+            }
+            val length = RunwayPlaneLength.toPx()
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            // The widest the runway has been since the plane appeared (a new window size makes a new pose).
+            pose.runwayWidth = maxOf(pose.runwayWidth, size.width)
+            // From the start of the line to its holding point: the plane's middle a third of the way along the runway.
+            val travel = pose.runwayWidth * HoldingPoint - length / 2f
+            // Then, on finishing, it takes off: rolls on past the end, rotates and climbs away.
+            val t = pose.takeoff().coerceIn(0f, 1f)
+            val fromStart = travel * pose.taxi().coerceIn(0f, 1f) + Takeoff.roll(t) * (pose.runwayWidth - length - travel)
+            val ground = size.height / 2f - RunwayStroke.toPx() / 2f + RunwayGroundNudge.toPx() - Takeoff.climb(t) * Takeoff.ClimbHeight.toPx()
+            val tailX = if (rtl) size.width - fromStart else fromStart
+            with(RunwayPlane) {
+                drawRunwayPlane(
+                    Offset(tailX, ground), length, color, alpha * Takeoff.alpha(t),
+                    pitchDegrees = Takeoff.pitch(t), mirrored = rtl, wingColor = wing,
+                )
+            }
         }
     }
 }
@@ -288,10 +416,14 @@ private fun Modifier.topBarItem(
     slide: Boolean,
     enabled: Boolean = true,
     drop: () -> Float = itemAlpha,
+    takeoff: (() -> Float)? = null,
 ): Modifier = graphicsLayer {
     val p = itemAlpha().coerceIn(0f, 1f)
-    alpha = if (enabled) p * barAlpha() else 0f
-    translationY = if (slide) -(1f - drop().coerceIn(0f, 1f)) * TopBarDrop.toPx() else 0f
+    val e = if (takeoff != null) Takeoff.exit(Takeoff.TopBar, takeoff()) else 0f
+    alpha = if (enabled) p * barAlpha() * (1f - e) else 0f
+    val dropY = if (slide) -(1f - drop().coerceIn(0f, 1f)) * TopBarDrop.toPx() else 0f
+    val takeoffY = if (e > 0f) -lerp(0f, Takeoff.Rise.toPx(), e) else 0f
+    translationY = dropY + takeoffY
 }
 
 private val TopBarDrop = 12.dp
@@ -310,7 +442,9 @@ private val TopBarDrop = 12.dp
  */
 @Composable
 internal fun OnboardingBottomBar(
-    state: OnboardingUiState,
+    onWelcome: Boolean,
+    onRemindersState: State<Boolean>,
+    remindersHandledState: State<Boolean>,
     actions: OnboardingActions,
     wide: Boolean,
     short: Boolean,
@@ -319,131 +453,328 @@ internal fun OnboardingBottomBar(
     chrome: () -> Float,
     modifier: Modifier = Modifier,
 ) {
-    val step = state.step
-    val onWelcome = step == OnboardingStep.Welcome
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.titleMedium
     val getStarted = stringResource(R.string.welcome_get_started)
     val next = stringResource(R.string.onboarding_next)
+    val nextMeasuredWidth = remember(measurer, next, labelStyle) { measurer.measure(next, labelStyle).size.width }
+    val getStartedMeasuredWidth = remember(measurer, getStarted, labelStyle) { measurer.measure(getStarted, labelStyle).size.width }
     val padding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight)
+    val initialOnReminders = remember { Snapshot.withoutReadObservation { onRemindersState.value } }
+    val initialHandled = remember { Snapshot.withoutReadObservation { remindersHandledState.value } }
+    val primaryTag = if (onWelcome) OnboardingTags.GetStarted else OnboardingTags.Next
+    val primarySemantics = remember { StepSemanticsHolder(initialTag = primaryTag, initialActive = !initialOnReminders) }
+    val finishSemantics = remember { StepSemanticsHolder(initialTag = OnboardingTags.Finish, initialActive = initialOnReminders && initialHandled) }
+    val maybeLaterSemantics = remember { StepSemanticsHolder(initialTag = OnboardingTags.MaybeLater, initialActive = initialOnReminders && !initialHandled) }
+    val getStartedSemantics = remember { StepSemanticsHolder(initialActive = onWelcome) }
+    val nextSemantics = remember { StepSemanticsHolder(initialActive = !onWelcome) }
+    BindBottomBarSemantics(
+        onWelcome = onWelcome,
+        onRemindersState = onRemindersState,
+        remindersHandledState = remindersHandledState,
+        primarySemantics = primarySemantics,
+        finishSemantics = finishSemantics,
+        maybeLaterSemantics = maybeLaterSemantics,
+        getStartedSemantics = getStartedSemantics,
+        nextSemantics = nextSemantics,
+    )
+    val backModifier = remember(chrome, onWelcome) {
+        Modifier
+            .layoutId(BarSlot.Back)
+            .graphicsLayer { alpha = chrome() }
+            .then(if (onWelcome) Modifier.semantics { hideFromAccessibility() } else Modifier)
+    }
+    val primaryModifier = remember(primarySemantics, onRemindersState) {
+        Modifier
+            .layoutId(BarSlot.Primary)
+            .heightIn(min = ButtonDefaults.MediumContainerHeight)
+            .focusProperties { canFocus = !onRemindersState.value }
+            .then(StepSemanticsElement(primarySemantics))
+    }
+    val finishModifier = remember(finishSemantics, onRemindersState, remindersHandledState) {
+        Modifier
+            .layoutId(BarSlot.Finish)
+            .heightIn(min = ButtonDefaults.MediumContainerHeight)
+            .widthIn(min = NextMinWidth)
+            .focusProperties { canFocus = onRemindersState.value && remindersHandledState.value }
+            .then(StepSemanticsElement(finishSemantics))
+    }
+    val maybeLaterModifier = remember(maybeLaterSemantics, onRemindersState, remindersHandledState) {
+        Modifier
+            .layoutId(BarSlot.MaybeLater)
+            .heightIn(min = 56.dp)
+            .focusProperties { canFocus = onRemindersState.value && !remindersHandledState.value }
+            .then(StepSemanticsElement(maybeLaterSemantics))
+    }
+    val barModifier = remember(modifier, short) {
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = bottomBarVerticalPadding(short))
+    }
     Layout(
         content = {
             OnboardingBackButton(
                 onBack = actions::back,
                 // Hidden behind Get started on Welcome: off for touch, keyboard focus and TalkBack.
                 enabled = !onWelcome,
-                modifier = Modifier
-                    .layoutId(BarSlot.Back)
-                    .graphicsLayer { alpha = chrome() }
-                    .then(if (onWelcome) Modifier.semantics { hideFromAccessibility() } else Modifier),
+                modifier = backModifier,
             )
-            if (step == OnboardingStep.Reminders) {
-                Box(Modifier.layoutId(BarSlot.Primary)) { RemindersPrimary(state, actions) }
-            } else {
-                Button(
-                    onClick = actions::next,
-                    contentPadding = padding,
-                    modifier = Modifier
-                        .layoutId(BarSlot.Primary)
-                        .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                        .testTag(if (onWelcome) OnboardingTags.GetStarted else OnboardingTags.Next),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        MorphLabel(getStarted, visible = onWelcome, alpha = welcomeChrome)
-                        MorphLabel(next, visible = !onWelcome, alpha = chrome)
-                    }
+            Button(
+                onClick = actions::next,
+                contentPadding = padding,
+                modifier = primaryModifier,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    MorphLabel(getStarted, semanticsHolder = getStartedSemantics, alpha = welcomeChrome)
+                    MorphLabel(next, semanticsHolder = nextSemantics, alpha = chrome)
                 }
             }
+            // The permission is asked from the card (one Allow, not two). Until it has been asked, the step's secondary
+            // action finishes without it; once handled, a normal Finish.
+            Button(
+                onClick = actions::finish,
+                contentPadding = padding,
+                modifier = finishModifier,
+            ) { Text(stringResource(R.string.onboarding_finish), style = labelStyle) }
+            TextButton(
+                onClick = actions::finish,
+                modifier = maybeLaterModifier,
+            ) { Text(stringResource(R.string.reminders_maybe_later), style = labelStyle) }
         },
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = bottomBarVerticalPadding(short)),
+        modifier = barModifier,
     ) { measurables, constraints ->
         val width = constraints.maxWidth
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val gap = BarGap.roundToPx()
-        val backMeasurable = measurables.first { it.layoutId == BarSlot.Back }
-        val backWidth = backMeasurable.maxIntrinsicWidth(constraints.maxHeight)
-        val primaryMeasurable = measurables.first { it.layoutId == BarSlot.Primary }
-        val primary: Placeable
+        var backMeasurable: Measurable? = null
+        var primaryMeasurable: Measurable? = null
+        var finishMeasurable: Measurable? = null
+        var maybeLaterMeasurable: Measurable? = null
+        for (i in measurables.indices) {
+            val m = measurables[i]
+            when (m.layoutId as BarSlot) {
+                BarSlot.Back -> backMeasurable = m
+                BarSlot.Primary -> primaryMeasurable = m
+                BarSlot.Finish -> finishMeasurable = m
+                BarSlot.MaybeLater -> maybeLaterMeasurable = m
+            }
+        }
+        val backM = requireNotNull(backMeasurable)
+        val primaryM = requireNotNull(primaryMeasurable)
+        val finishM = requireNotNull(finishMeasurable)
+        val maybeLaterM = requireNotNull(maybeLaterMeasurable)
+        val backWidth = backM.maxIntrinsicWidth(constraints.maxHeight)
+        val remindersConstraints = loose.copy(maxWidth = (width - backWidth - gap).coerceAtLeast(width / 2))
+        val finishPlaceable = finishM.measure(remindersConstraints)
+        val maybeLaterPlaceable = maybeLaterM.measure(remindersConstraints)
+        val f = welcome().coerceIn(0f, 1f)
+        val chromeWidth = (padding.horizontal(layoutDirection)).roundToPx()
+        val nextLabelWidth = nextMeasuredWidth + chromeWidth
+        // Next's minimum width is the first thing to give when Back needs the room.
+        val nextWidth = maxOf(NextMinWidth.roundToPx(), nextLabelWidth)
+            .coerceAtMost(maxOf(nextLabelWidth, width - backWidth - gap))
+            .coerceAtMost(width)
+        val startedWidth = if (wide) {
+            maxOf(GetStartedMinWideWidth.roundToPx(), getStartedMeasuredWidth + chromeWidth).coerceAtMost(width)
+        } else {
+            width
+        }
+        val primaryWidth = lerp(nextWidth.toFloat(), startedWidth.toFloat(), f).roundToInt()
+        val nextPlaceable = primaryM.measure(
+            Constraints(minWidth = primaryWidth, maxWidth = primaryWidth, minHeight = 0, maxHeight = constraints.maxHeight),
+        )
+        val isReminders = onRemindersState.value
+        val isHandled = remindersHandledState.value
+        val activePrimary: Placeable
         val primaryX: Int
         // The width the primary ends up with at rest: Back gets the rest of the row.
         val primarySlot: Int
-        val f = welcome().coerceIn(0f, 1f)
-        if (step == OnboardingStep.Reminders) {
-            primary = primaryMeasurable.measure(loose.copy(maxWidth = (width - backWidth - gap).coerceAtLeast(width / 2)))
-            primaryX = width - primary.width
-            primarySlot = primary.width
+        if (isReminders) {
+            activePrimary = if (isHandled) finishPlaceable else maybeLaterPlaceable
+            primaryX = width - activePrimary.width
+            primarySlot = activePrimary.width
         } else {
-            val chromeWidth = (padding.horizontal(layoutDirection)).roundToPx()
-            val nextLabelWidth = measurer.measure(next, labelStyle).size.width + chromeWidth
-            // Next's minimum width is the first thing to give when Back needs the room.
-            val nextWidth = maxOf(NextMinWidth.roundToPx(), nextLabelWidth)
-                .coerceAtMost(maxOf(nextLabelWidth, width - backWidth - gap))
-                .coerceAtMost(width)
-            val startedWidth = if (wide) {
-                maxOf(GetStartedMinWideWidth.roundToPx(), measurer.measure(getStarted, labelStyle).size.width + chromeWidth).coerceAtMost(width)
-            } else {
-                width
-            }
-            val primaryWidth = lerp(nextWidth.toFloat(), startedWidth.toFloat(), f).roundToInt()
-            primary = primaryMeasurable.measure(
-                Constraints(minWidth = primaryWidth, maxWidth = primaryWidth, minHeight = 0, maxHeight = constraints.maxHeight),
-            )
+            activePrimary = nextPlaceable
             primaryX = lerp((width - nextWidth).toFloat(), ((width - startedWidth) / 2).toFloat(), f).roundToInt()
             primarySlot = nextWidth
         }
         // Back gets what Next leaves. The same height on every step: Back is always measured, even while it hides
         // behind Get started.
-        val back = backMeasurable.measure(loose.copy(maxWidth = (width - primarySlot - gap).coerceAtLeast(0)))
-        val height = maxOf(back.height, primary.height)
-        val backX = if (step == OnboardingStep.Reminders) 0 else lerp(0f, (-gap - back.width).toFloat(), f).roundToInt()
+        val backMaxWidth = minOf(backWidth, (width - primarySlot - gap).coerceAtLeast(0))
+        val back = backM.measure(loose.copy(maxWidth = backMaxWidth))
+        val height = maxOf(back.height, activePrimary.height)
+        val backX = if (isReminders) 0 else lerp(0f, (-gap - back.width).toFloat(), f).roundToInt()
+        val offscreenX = width * 2
         layout(width, height) {
             back.placeRelative(backX, (height - back.height) / 2)
-            primary.placeRelative(primaryX, (height - primary.height) / 2)
+            if (!isReminders) {
+                nextPlaceable.placeRelativeWithLayer(primaryX, (height - nextPlaceable.height) / 2) { alpha = 1f }
+            } else {
+                nextPlaceable.placeWithLayer(offscreenX, 0, zIndex = -1f) { alpha = 0f }
+            }
+            if (isReminders && isHandled) {
+                finishPlaceable.placeRelativeWithLayer(primaryX, (height - finishPlaceable.height) / 2) { alpha = 1f }
+            } else {
+                finishPlaceable.placeWithLayer(offscreenX, 0, zIndex = -1f) { alpha = 0f }
+            }
+            if (isReminders && !isHandled) {
+                maybeLaterPlaceable.placeRelativeWithLayer(primaryX, (height - maybeLaterPlaceable.height) / 2) { alpha = 1f }
+            } else {
+                maybeLaterPlaceable.placeWithLayer(offscreenX, 0, zIndex = -1f) { alpha = 0f }
+            }
         }
     }
 }
 
-private enum class BarSlot { Back, Primary }
+@Composable
+private fun BindBottomBarSemantics(
+    onWelcome: Boolean,
+    onRemindersState: State<Boolean>,
+    remindersHandledState: State<Boolean>,
+    primarySemantics: StepSemanticsHolder,
+    finishSemantics: StepSemanticsHolder,
+    maybeLaterSemantics: StepSemanticsHolder,
+    getStartedSemantics: StepSemanticsHolder,
+    nextSemantics: StepSemanticsHolder,
+) {
+    val onReminders = onRemindersState.value
+    val remindersHandled = remindersHandledState.value
+    val primaryTag = if (onWelcome) OnboardingTags.GetStarted else OnboardingTags.Next
+    SideEffect {
+        primarySemantics.update(newTag = primaryTag, newActive = !onReminders)
+        finishSemantics.update(newTag = OnboardingTags.Finish, newActive = onReminders && remindersHandled)
+        maybeLaterSemantics.update(newTag = OnboardingTags.MaybeLater, newActive = onReminders && !remindersHandled)
+        getStartedSemantics.setActive(onWelcome)
+        nextSemantics.setActive(!onWelcome)
+    }
+}
+
+private enum class BarSlot { Back, Primary, Finish, MaybeLater }
 
 private fun PaddingValues.horizontal(layoutDirection: LayoutDirection) =
     calculateLeftPadding(layoutDirection) + calculateRightPadding(layoutDirection)
 
 /** One of the morphing button's two labels; the one not in use is silent for TalkBack. */
 @Composable
-private fun MorphLabel(text: String, visible: Boolean, alpha: () -> Float) {
+private fun MorphLabel(
+    text: String,
+    semanticsHolder: StepSemanticsHolder,
+    alpha: () -> Float,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+    color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified,
+) {
+    val modifier = remember(alpha, semanticsHolder) {
+        Modifier
+            .graphicsLayer { this.alpha = alpha() }
+            .then(StepSemanticsElement(semanticsHolder))
+    }
     Text(
         text,
-        style = MaterialTheme.typography.titleMedium,
+        style = style,
+        color = color,
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Clip,
-        modifier = Modifier
-            .graphicsLayer { this.alpha = alpha() }
-            .then(if (visible) Modifier else Modifier.clearAndSetSemantics { }),
+        modifier = modifier,
     )
 }
 
-/** The Reminders step's primary: Maybe later until notifications have been asked, then Finish. */
 @Composable
-private fun RemindersPrimary(state: OnboardingUiState, actions: OnboardingActions) {
-    // The permission is asked from the card (one Allow, not two). Until it has been asked, the step's secondary
-    // action finishes without it; once handled, a normal Finish.
-    if (state.remindersHandled) {
-        Button(
-            onClick = actions::finish,
-            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
-            modifier = Modifier
-                .heightIn(min = ButtonDefaults.MediumContainerHeight)
-                .widthIn(min = NextMinWidth)
-                .testTag(OnboardingTags.Finish),
-        ) { Text(stringResource(R.string.onboarding_finish), style = MaterialTheme.typography.titleMedium) }
-    } else {
-        TextButton(
-            onClick = actions::finish,
-            modifier = Modifier.heightIn(min = 56.dp).testTag(OnboardingTags.MaybeLater),
-        ) { Text(stringResource(R.string.reminders_maybe_later), style = MaterialTheme.typography.titleMedium) }
+internal fun SyncStepSemantics(activeState: State<Boolean>, holder: StepSemanticsHolder) {
+    val active = activeState.value
+    SideEffect { holder.setActive(active) }
+}
+
+/**
+ * When [inert] is true, clears descendant semantics (via [semanticsHolder], whose `active` is `!inert()`), disables
+ * focus, and consumes pointer events in the initial pass. Stays attached so toggling never attaches/detaches nodes.
+ */
+internal fun Modifier.inertWhen(
+    semanticsHolder: StepSemanticsHolder,
+    inert: () -> Boolean,
+): Modifier = this
+    .then(StepSemanticsElement(semanticsHolder))
+    .focusProperties { if (inert()) canFocus = false }
+    .pointerInput(inert) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (inert()) event.changes.forEach { it.consume() }
+            }
+        }
+    }
+
+@Stable
+internal class StepSemanticsHolder(
+    initialTag: String = "",
+    initialActive: Boolean = true,
+    initialContentDescription: String? = null,
+    val keepTagWhenInactive: Boolean = false,
+) {
+    var tag: String = initialTag
+        private set
+    var active: Boolean = initialActive
+        private set
+    var contentDescription: String? = initialContentDescription
+        private set
+    var node: StepSemanticsNode? = null
+
+    fun setActive(value: Boolean) {
+        if (active != value) {
+            active = value
+            node?.invalidateSemantics()
+        }
+    }
+
+    fun update(
+        newTag: String = tag,
+        newActive: Boolean = active,
+        newContentDescription: String? = contentDescription,
+    ) {
+        if (tag != newTag || active != newActive || contentDescription != newContentDescription) {
+            tag = newTag
+            active = newActive
+            contentDescription = newContentDescription
+            node?.invalidateSemantics()
+        }
+    }
+}
+
+internal data class StepSemanticsElement(
+    val holder: StepSemanticsHolder,
+) : ModifierNodeElement<StepSemanticsNode>() {
+    override fun create(): StepSemanticsNode = StepSemanticsNode(holder)
+    override fun update(node: StepSemanticsNode) {
+        node.holder = holder
+        holder.node = node
+    }
+}
+
+internal class StepSemanticsNode(
+    var holder: StepSemanticsHolder,
+) : Modifier.Node(), SemanticsModifierNode {
+    override val shouldClearDescendantSemantics: Boolean
+        get() = !holder.active
+
+    override fun onAttach() {
+        holder.node = this
+    }
+
+    override fun onDetach() {
+        if (holder.node === this) holder.node = null
+    }
+
+    override fun SemanticsPropertyReceiver.applySemantics() {
+        if (holder.active || holder.keepTagWhenInactive) {
+            if (holder.tag.isNotEmpty()) {
+                testTag = holder.tag
+            }
+        }
+        if (holder.active) {
+            holder.contentDescription?.let {
+                contentDescription = it
+            }
+        }
     }
 }
 

@@ -501,6 +501,26 @@ class OnboardingSpectacleTest : ClockblockScreenshotTest() {
         (withPrewarm contentEquals withoutPrewarm) shouldBe true
     }
 
+    @Test
+    fun `starting on welcome prewarms once and does not re-run prewarm when entering sleep`() {
+        hostStep = OnboardingStep.Welcome
+        setContent(reduceMotion = false) {
+            OnboardingContent(onboardingState(hostStep, profile = SampleSleepProfile), host, Modifier.fillMaxSize())
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(ChronotypeRevealTags.Prewarm).assertDoesNotExist()
+        compose.mainClock.autoAdvance = false
+
+        hostStep = OnboardingStep.HomeZone
+        compose.mainClock.advanceTimeByFrame()
+        settle()
+
+        hostStep = OnboardingStep.Sleep
+        compose.mainClock.advanceTimeByFrame()
+        // Prewarm already ran on Welcome, so entering Sleep never re-arms it on the transition frame.
+        compose.onNodeWithTag(ChronotypeRevealTags.Prewarm).assertDoesNotExist()
+    }
+
     private fun rootPixels(): IntArray {
         compose.invalidateAllViews()
         return compose.onRoot().captureToImage().toPixelMap().let { map ->

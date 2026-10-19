@@ -5,7 +5,9 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.Transition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -15,18 +17,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationBackHandler
@@ -60,6 +68,7 @@ import kotlinx.coroutines.launch
 internal class OnboardingStepTransition(
     private val state: SeekableTransitionState<OnboardingStep>,
     val transition: Transition<OnboardingStep>,
+    private val stepState: State<OnboardingStep>,
     private val motion: ClockblockMotion,
     private val axisOffsetPx: Int,
     private val layoutDirection: LayoutDirection,
@@ -67,7 +76,12 @@ internal class OnboardingStepTransition(
     /** The steps whose content is composed and laid out (see [contentLaidOut]). */
     private val laidOut = mutableStateSetOf<OnboardingStep>()
 
+    /** The latest target step requested by the caller. */
+    val currentStep: OnboardingStep
+        get() = stepState.value
+
     private var seekJob: Job? = null
+    private var settleJob: Job? = null
 
     /**
      * Reports [step]'s content as laid out, on the step's root, and forgets it when the content leaves. [settleOn]
@@ -79,6 +93,24 @@ internal class OnboardingStepTransition(
         // own set, the one its onPlaced fills.
         DisposableEffect(this@OnboardingStepTransition, step) { onDispose { laidOut -= step } }
         return onPlaced { if (step !in laidOut) laidOut += step }
+    }
+
+    /** Records [step] as measured and placed in the step deck. */
+    internal fun recordPlaced(step: OnboardingStep) {
+        if (step !in laidOut) laidOut += step
+    }
+
+    /**
+     * Layer poses (alpha, translationX, scale) for the placed steps on [transition], read only inside `placeWithLayer`
+     * so step transitions never recompose or relayout their children during animation frames.
+     */
+    @Composable
+    internal fun rememberStepPoses(spectacleFrom: () -> Rect?): StepDeckPoses {
+        val poses = remember(this) {
+            StepDeckPoses(transition, forwardSign, axisOffsetPx)
+        }
+        poses.Bind(transition, motion, spectacleFrom)
+        return poses
     }
 
     private val forwardSign: Int get() = if (layoutDirection == LayoutDirection.Ltr) 1 else -1
@@ -120,18 +152,23 @@ internal class OnboardingStepTransition(
     }
 
     internal suspend fun settleOn(step: OnboardingStep) {
+        settleJob?.cancelAndJoin()
         seekJob?.cancelAndJoin()
-        if (state.targetState != step || step !in laidOut) {
-            // Compose and lay out the incoming step at the transition's start (it is still invisible there) before
-            // anything moves. Its first composition can take several frames on a phone (the home step on first run),
-            // and an animation already running would jump over its opening during them.
-            state.seekTo(0f, targetState = step)
-            snapshotFlow { step in laidOut }.first { it }
+        coroutineScope {
+            settleJob = coroutineContext[Job]
+            if (state.targetState != step || step !in laidOut) {
+                // Compose and lay out the incoming step at the transition's start (it is still invisible there) before
+                // anything moves. Its first composition can take several frames on a phone (the home step on first run),
+                // and an animation already running would jump over its opening during them.
+                state.seekTo(0f, targetState = step)
+                snapshotFlow { step in laidOut }.first { it }
+            }
+            state.animateTo(step)
         }
-        state.animateTo(step)
     }
 
     internal suspend fun seekBack(previous: OnboardingStep, fraction: Float) = coroutineScope {
+        settleJob?.cancelAndJoin()
         seekJob = coroutineContext[Job]
         if (state.targetState != previous || previous !in laidOut) {
             // Establish the target and lay out the incoming step at playTime 0 before seeking to fraction: otherwise
@@ -145,6 +182,7 @@ internal class OnboardingStepTransition(
 
     /** Runs the seek back to 0 (where the gesture started) and settles on the current step again. */
     internal suspend fun cancelBack() {
+        settleJob?.cancelAndJoin()
         seekJob?.cancelAndJoin()
         val current = state.currentState
         val fraction = Animatable(state.fraction)
@@ -161,6 +199,201 @@ internal class OnboardingStepTransition(
     }
 }
 
+@Stable
+internal class StepDeckPoses(
+    private val transition: Transition<OnboardingStep>,
+    private val forwardSign: Int,
+    private val axisOffsetPx: Int,
+) {
+    private val activeStates: Array<State<Boolean>> = Array(OnboardingStep.entries.size) { i ->
+        val step = OnboardingStep.entries[i]
+        derivedStateOf {
+            transition.currentState == step || transition.targetState == step
+        }
+    }
+    private var lastFrom: OnboardingStep = Snapshot.withoutReadObservation { transition.currentState }
+    private var currentStepTarget: Float = 0f
+    private var spectacleFrom: () -> Rect? = { null }
+    private var spatial: State<Float>? = null
+    private var enterAlpha: State<Float>? = null
+    private var exitAlpha: State<Float>? = null
+    private var enterScale: State<Float>? = null
+    private var crossFade: State<Float>? = null
+
+    fun activeState(step: OnboardingStep): State<Boolean> = activeStates[step.ordinal]
+
+    fun isActive(step: OnboardingStep): Boolean = activeStates[step.ordinal].value
+
+    @Composable
+    fun Bind(transition: Transition<OnboardingStep>, motion: ClockblockMotion, spectacleFrom: () -> Rect?) {
+        val from = transition.currentState
+        if (from != lastFrom) {
+            lastFrom = from
+            currentStepTarget = 1f - currentStepTarget
+        }
+        val base = currentStepTarget
+        this.spectacleFrom = spectacleFrom
+        spatial = transition.animateFloat(
+            transitionSpec = { motion.stepSpatial() },
+            label = "stepSpatial",
+        ) { if (it == from) base else 1f - base }
+        enterAlpha = transition.animateFloat(
+            transitionSpec = {
+                if (initialState == OnboardingStep.Sleep && targetState == OnboardingStep.Chronotype && spectacleFrom() != null) snap() else motion.stepFadeIn()
+            },
+            label = "stepEnterAlpha",
+        ) { if (it == from) base else 1f - base }
+        exitAlpha = transition.animateFloat(
+            transitionSpec = {
+                if (initialState == OnboardingStep.Sleep && targetState == OnboardingStep.Chronotype && spectacleFrom() != null) motion.colour() else motion.stepFadeOut()
+            },
+            label = "stepExitAlpha",
+        ) { if (it == from) base else 1f - base }
+        enterScale = transition.animateFloat(
+            transitionSpec = {
+                if (initialState == OnboardingStep.Sleep && targetState == OnboardingStep.Chronotype && spectacleFrom() == null) motion.containerSpatial() else snap()
+            },
+            label = "stepEnterScale",
+        ) { if (it == from) base else 1f - base }
+        crossFade = transition.animateFloat(
+            transitionSpec = {
+                if (initialState == OnboardingStep.Reminders || targetState == OnboardingStep.Reminders) motion.stepCrossFade() else snap()
+            },
+            label = "stepCrossFade",
+        ) { if (it == from) base else 1f - base }
+    }
+
+    private fun progress(state: State<Float>?): Float {
+        val v = state?.value ?: currentStepTarget
+        return (if (currentStepTarget == 0f) v else 1f - v).coerceIn(0f, 1f)
+    }
+
+    fun welcome(): Float {
+        if (!isActive(OnboardingStep.Welcome)) return 0f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 1f
+            from == OnboardingStep.Welcome -> 1f - progress(spatial)
+            else -> progress(spatial)
+        }
+    }
+
+    fun welcomeChrome(): Float {
+        if (!isActive(OnboardingStep.Welcome)) return 0f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 1f
+            from == OnboardingStep.Welcome -> 1f - progress(exitAlpha)
+            else -> progress(enterAlpha)
+        }
+    }
+
+    fun chrome(): Float {
+        if (!isActive(OnboardingStep.Welcome)) return 1f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 0f
+            from == OnboardingStep.Welcome -> progress(enterAlpha)
+            else -> 1f - progress(exitAlpha)
+        }
+    }
+
+    fun topBarExit(): Float {
+        if (!isActive(OnboardingStep.Welcome)) return 1f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 0f
+            to == OnboardingStep.Welcome -> 1f - progress(exitAlpha)
+            else -> 1f
+        }
+    }
+
+    fun lastStep(): Float {
+        if (!isActive(OnboardingStep.Reminders)) return 0f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 1f
+            from == OnboardingStep.Reminders -> 1f - progress(spatial)
+            else -> progress(spatial)
+        }
+    }
+
+    fun lastStepFade(): Float {
+        if (!isActive(OnboardingStep.Reminders)) return 0f
+        val from = transition.currentState
+        val to = transition.targetState
+        return when {
+            from == to -> 1f
+            from == OnboardingStep.Reminders -> 1f - progress(crossFade)
+            else -> progress(crossFade)
+        }
+    }
+
+    fun progress(): Float {
+        val cur = transition.currentState
+        val tgt = transition.targetState
+        val curVal = progressFor(topBarStep(cur))
+        return if (cur == tgt) {
+            curVal
+        } else {
+            val tgtVal = progressFor(topBarStep(tgt))
+            curVal + (tgtVal - curVal) * progress(spatial)
+        }
+    }
+
+    fun GraphicsLayerScope.applyTo(step: OnboardingStep, warming: OnboardingStep? = null) {
+        if (!isActive(step)) {
+            if (step == warming) {
+                alpha = PrewarmStepAlpha
+                translationX = 0f
+            } else {
+                alpha = 0f
+                translationX = size.width + 1f
+            }
+            scaleX = 1f
+            scaleY = 1f
+            return
+        }
+        val from = transition.currentState
+        val to = transition.targetState
+        if (from == to) {
+            alpha = 1f
+            translationX = 0f
+            scaleX = 1f
+            scaleY = 1f
+            return
+        }
+        val sleepToChronotype = from == OnboardingStep.Sleep && to == OnboardingStep.Chronotype
+        val spectacle = sleepToChronotype && spectacleFrom() != null
+        val sign = if (to.ordinal > from.ordinal) forwardSign else -forwardSign
+        val spatialProgress = progress(spatial)
+        if (step == from) {
+            alpha = 1f - progress(exitAlpha)
+            translationX = if (sleepToChronotype) 0f else ((-sign * axisOffsetPx) * spatialProgress).roundToInt().toFloat()
+            scaleX = 1f
+            scaleY = 1f
+        } else {
+            alpha = if (spectacle) 1f else progress(enterAlpha)
+            translationX = if (sleepToChronotype) 0f else ((sign * axisOffsetPx) * (1f - spatialProgress)).roundToInt().toFloat()
+            val s = if (sleepToChronotype && !spectacle) RevealScale + (1f - RevealScale) * progress(enterScale) else 1f
+            scaleX = s
+            scaleY = s
+        }
+    }
+
+    private companion object {
+        const val RevealScale = 0.92f
+        const val PrewarmStepAlpha = 0.5f
+
+        fun progressFor(step: OnboardingStep): Float = (step.index + 1f) / OnboardingStep.Count
+    }
+}
+
 /**
  * Drives [OnboardingStepTransition] from [step] (the ViewModel's source of truth) and registers the back
  * handler: enabled after the first step, it calls [onBack] on commit. While not [backEnabled] (onboarding is leaving),
@@ -172,14 +405,51 @@ internal fun rememberOnboardingStepTransition(
     onBack: () -> Unit,
     backEnabled: Boolean = true,
 ): OnboardingStepTransition {
+    val stepState = rememberUpdatedState(step)
+    return rememberOnboardingStepTransition(stepState, onBack, backEnabled)
+}
+
+@Composable
+internal fun rememberOnboardingStepTransition(
+    stepState: State<OnboardingStep>,
+    onBack: () -> Unit,
+    backEnabled: Boolean = true,
+): OnboardingStepTransition {
     val motion = ClockblockTheme.motion
     val layoutDirection = LocalLayoutDirection.current
     val axisOffsetPx = with(LocalDensity.current) { SharedAxisOffset.roundToPx() }
-    val seekable = remember { SeekableTransitionState(step) }
-    val transition = rememberTransition(seekable, label = "onboardingStep")
-    val steps = remember(seekable, transition, motion, axisOffsetPx, layoutDirection) {
-        OnboardingStepTransition(seekable, transition, motion, axisOffsetPx, layoutDirection)
+    val seekable = remember { SeekableTransitionState(Snapshot.withoutReadObservation { stepState.value }) }
+    val holder = remember { TransitionHolder() }
+    BindSeekableTransition(seekable, holder)
+    val transition = holder.transition!!
+    val steps = remember(seekable, transition, stepState, motion, axisOffsetPx, layoutDirection) {
+        OnboardingStepTransition(seekable, transition, stepState, motion, axisOffsetPx, layoutDirection)
     }
+    BindOnboardingStepTransition(steps, stepState, onBack, backEnabled)
+    return steps
+}
+
+@Stable
+private class TransitionHolder {
+    var transition: Transition<OnboardingStep>? = null
+}
+
+@Composable
+private fun BindSeekableTransition(
+    seekable: SeekableTransitionState<OnboardingStep>,
+    holder: TransitionHolder,
+) {
+    holder.transition = rememberTransition(seekable, label = "onboardingStep")
+}
+
+@Composable
+private fun BindOnboardingStepTransition(
+    steps: OnboardingStepTransition,
+    stepState: State<OnboardingStep>,
+    onBack: () -> Unit,
+    backEnabled: Boolean,
+) {
+    val step = stepState.value
     // Every step change animates (a committed gesture continues from its current fraction).
     LaunchedEffect(steps, step) { steps.settleOn(step) }
 
@@ -207,7 +477,6 @@ internal fun rememberOnboardingStepTransition(
         isBackEnabled = !backEnabled,
         onBackCompleted = {},
     )
-    return steps
 }
 
 /** Material shared-axis travel distance, as in the app shell. */

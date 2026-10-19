@@ -1,6 +1,7 @@
 package dev.sebastiano.clockblocker.opus.widget
 
 import android.app.Application
+import android.widget.FrameLayout
 import android.widget.RemoteViews
 import androidx.compose.remote.creation.compose.capture.CapturedDocument
 import androidx.compose.remote.creation.compose.layout.RemoteComposable
@@ -74,9 +75,11 @@ class RemoteNowNotificationContent(
     override suspend fun preview(now: Instant, widthDp: Int): RemoteViews? {
         val profile = profileProvider() ?: return null
         val model = previewModel(now) ?: return null
-        val slots = NotificationSlots(collapsedWidthDp = widthDp, expandedWidthDp = widthDp)
-        val documents = NowNotificationDocuments.capture(application, model, slots) { size, content -> capturer(profile, size, content) }
-        return RemoteComposeRenderer.remoteViews(documents.expanded)
+        val expanded = NowNotificationDocuments.captureExpanded(application, model, widthDp) { size, content -> capturer(profile, size, content) }
+        return RemoteComposeRenderer.remoteViews(expanded).also { views ->
+            // Warm the platform player's Operations.<clinit> (~150 framework classes) off the Reminders transition frame.
+            runCatching { views.apply(application, FrameLayout(application)) }
+        }
     }
 
     /** The preview's document model: the sample plan at [previewMoment], its live parts counting on from [now]. */

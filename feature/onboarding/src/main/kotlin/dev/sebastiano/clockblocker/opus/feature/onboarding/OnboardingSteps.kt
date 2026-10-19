@@ -3,11 +3,9 @@ package dev.sebastiano.clockblocker.opus.feature.onboarding
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -45,15 +43,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -64,6 +68,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,24 +120,30 @@ internal fun OnboardingStepBody(
     state: OnboardingUiState,
     actions: OnboardingActions,
     wide: Boolean,
+    activeState: State<Boolean>,
     homeSearch: HomeSearchState = rememberHomeSearchState(),
-    spectacleFrom: Rect? = null,
+    spectacleFrom: () -> Rect? = { null },
     onSpectacleFinished: () -> Unit = {},
     onSpectacleName: () -> Unit = {},
 ) {
-    val animated = !ClockblockTheme.reduceMotion
     when (step) {
         OnboardingStep.Welcome -> WelcomeStep(wide)
-        OnboardingStep.HomeZone -> StepLayout(
+        OnboardingStep.HomeZone -> HomeZoneStepLayout(
             wide = wide,
-            art = { GreatCircleArt(it, progress = 0.62f, animated = animated) },
+            art = {
+                var homeVisited by rememberSaveable { mutableStateOf(false) }
+                val active = homeVisited || activeState.value
+                if (active && !homeVisited) SideEffect { homeVisited = true }
+                val animated = !ClockblockTheme.reduceMotion && active
+                GreatCircleArt(it, progress = if (active) 0.62f else 0f, animated = animated)
+            },
             headline = stringResource(R.string.home_headline),
             body = stringResource(R.string.home_body),
             collapsed = homeSearch.fullHeight,
-        ) { availableHeight -> HomeZoneControls(state, actions, homeSearch, availableHeight, wide) }
+        ) { roomPx -> HomeZoneControls(state, actions, homeSearch, roomPx, wide) }
         OnboardingStep.Sleep -> StepLayout(
             wide = wide,
-            art = { PillowMoonArt(it, animated = animated) },
+            art = { PillowMoonArt(it, animated = !ClockblockTheme.reduceMotion && activeState.value) },
             headline = stringResource(R.string.sleep_headline),
             body = stringResource(R.string.sleep_body),
         ) { availableHeight ->
@@ -155,14 +166,15 @@ internal fun OnboardingStepBody(
             midSleep = state.inferred.midSleep,
             onPick = actions::chronotypeChange,
             wide = wide,
+            activeState = activeState,
             daysOffLinked = state.profile.daysOffSleep == null,
-            spectacleFrom = spectacleFrom,
+            spectacleFromProvider = spectacleFrom,
             onSpectacleFinished = onSpectacleFinished,
             onSpectacleName = onSpectacleName,
         )
-        OnboardingStep.Tools -> StepLayout(
+        OnboardingStep.Tools -> ScrollingStepLayout(
             wide = wide,
-            art = { LittleAndOftenArt(it, animated = animated) },
+            art = { LittleAndOftenArt(it, animated = !ClockblockTheme.reduceMotion && activeState.value) },
             headline = stringResource(R.string.tools_headline),
             body = stringResource(R.string.tools_body),
         ) {
@@ -183,12 +195,48 @@ internal fun OnboardingStepBody(
             Spacer(Modifier.size(12.dp))
             EffortSelector(state.profile.intensity, actions::intensityChange)
         }
-        OnboardingStep.Reminders -> StepLayout(
+        OnboardingStep.Reminders -> ScrollingStepLayout(
             wide = wide,
-            art = { SuitcaseOClockArt(it, animated = animated, contentDescription = null) },
+            art = { SuitcaseOClockArt(it, animated = !ClockblockTheme.reduceMotion && activeState.value, contentDescription = null) },
             headline = stringResource(R.string.reminders_headline),
             body = stringResource(R.string.reminders_body),
         ) { RemindersControls(state, actions) }
+    }
+}
+
+/**
+ * Step layout for steps whose controls simply scroll beneath the header (`Tools`, `Reminders`) and do not depend on
+ * `availableHeight` or header collapse. In compact mode this uses a plain [Column] instead of nested
+ * `BoxWithConstraints` + [HeaderThenControls] subcompositions.
+ */
+@Composable
+private fun ScrollingStepLayout(
+    wide: Boolean,
+    art: @Composable (Modifier) -> Unit,
+    headline: String,
+    body: String,
+    controls: @Composable ColumnScope.() -> Unit,
+) {
+    if (wide) {
+        StepLayout(wide = true, art = art, headline = headline, body = body, collapsed = false) { controls() }
+    } else {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.ime)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = CompactVerticalPadding),
+        ) {
+            Row(verticalAlignment = Alignment.Top) {
+                art(Modifier.takeoffExit(Takeoff.Art).size(CompactSideArtSize))
+                Spacer(Modifier.size(12.dp))
+                Box(Modifier.takeoffExit(Takeoff.Headline)) { StepHeadline(headline) }
+            }
+            Spacer(Modifier.size(8.dp))
+            Box(Modifier.takeoffExit(Takeoff.Body)) { StepBody(body) }
+            Spacer(Modifier.size(24.dp))
+            Column(Modifier.takeoffExit(Takeoff.Controls)) { controls() }
+        }
     }
 }
 
@@ -203,6 +251,136 @@ internal fun OnboardingStepBody(
  * width (where the home search lays its field beside the results). Both on `navigationSpatial()` (Standard, no
  * bounce; it snaps under reduced motion) with a `fade()`.
  */
+@Stable
+private class HomeZoneStepRoom {
+    var viewportHeightPx: Int = 0
+    var availableHeightPx: Int by mutableIntStateOf(0)
+}
+
+/**
+ * Step layout for [OnboardingStep.HomeZone] that computes available height in the layout phase via [HomeZoneStepRoom]
+ * rather than `BoxWithConstraints` + [HeaderThenControls] subcompositions, so folding the chrome and header during
+ * search open/close never recomposes [HomeSearch].
+ */
+@Composable
+private fun HomeZoneStepLayout(
+    wide: Boolean,
+    art: @Composable (Modifier) -> Unit,
+    headline: String,
+    body: String,
+    collapsed: Boolean,
+    controls: @Composable ColumnScope.(roomPx: Density.() -> Int) -> Unit,
+) {
+    val stepRoom = remember { HomeZoneStepRoom() }
+    val roomPx: Density.() -> Int = remember(stepRoom) { { stepRoom.availableHeightPx } }
+    if (wide) {
+        val config = LocalConfiguration.current
+        var short by remember { mutableStateOf(config.screenHeightDp.dp < ShortPaneHeight) }
+        val verticalPadding = if (short) 8.dp else 24.dp
+        val bottomPadding = if (collapsed) 0.dp else verticalPadding
+        Row(
+            Modifier
+                .fillMaxSize()
+                .layout { measurable, constraints ->
+                    val isShort = constraints.maxHeight < ShortPaneHeight.roundToPx()
+                    if (short != isShort) short = isShort
+                    val vPadPx = (if (isShort) 8.dp else 24.dp).roundToPx()
+                    val bPadPx = if (collapsed) 0 else vPadPx
+                    stepRoom.availableHeightPx = (constraints.maxHeight - vPadPx - bPadPx).coerceAtLeast(0)
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                }
+                .padding(horizontal = WidePadding),
+        ) {
+            FoldingSlot(
+                visible = !collapsed,
+                axis = FoldingAxis.Horizontal,
+            ) {
+                Column(
+                    Modifier
+                        .layout { measurable, constraints ->
+                            val w = (constraints.maxWidth.toDp() * WordsPaneFraction).roundToPx()
+                            val placeable = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
+                            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                        }
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(end = WidePadding, top = verticalPadding, bottom = verticalPadding),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    if (!short) {
+                        art(Modifier.takeoffExit(Takeoff.Art).size(200.dp))
+                        Spacer(Modifier.size(24.dp))
+                    }
+                    Box(Modifier.takeoffExit(Takeoff.Headline)) {
+                        StepHeadline(headline, if (short) ClockblockTheme.textStyles.editorialTitle else ClockblockTheme.textStyles.editorialHeadline)
+                    }
+                    Spacer(Modifier.size(12.dp))
+                    Box(Modifier.takeoffExit(Takeoff.Body)) { StepBody(body) }
+                }
+            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .windowInsetsPadding(WindowInsets.ime)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = verticalPadding, bottom = bottomPadding),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                // Collapsed, the controls take the whole width (the full-height search lays out side by side).
+                Column((if (collapsed) Modifier.fillMaxWidth() else Modifier.widthIn(max = 560.dp)).takeoffExit(Takeoff.Controls)) {
+                    controls(roomPx)
+                }
+            }
+        }
+    } else {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .layout { measurable, constraints ->
+                    stepRoom.viewportHeightPx = (constraints.maxHeight - CompactVerticalPadding.roundToPx() * 2).coerceAtLeast(0)
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                }
+                .windowInsetsPadding(WindowInsets.ime)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = CompactVerticalPadding),
+        ) {
+            Layout(
+                content = {
+                    FoldingSlot(visible = !collapsed) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                art(Modifier.takeoffExit(Takeoff.Art).size(CompactSideArtSize))
+                                Spacer(Modifier.size(12.dp))
+                                Box(Modifier.takeoffExit(Takeoff.Headline)) { StepHeadline(headline) }
+                            }
+                            Spacer(Modifier.size(8.dp))
+                            Box(Modifier.takeoffExit(Takeoff.Body)) { StepBody(body) }
+                            Spacer(Modifier.size(24.dp))
+                        }
+                    }
+                    Column(Modifier.fillMaxWidth().takeoffExit(Takeoff.Controls)) {
+                        controls(roomPx)
+                    }
+                },
+            ) { measurables, constraints ->
+                val loose = constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)
+                val headerPlaceable = measurables[0].measure(loose)
+                val topHeight = headerPlaceable.height
+                stepRoom.availableHeightPx = (stepRoom.viewportHeightPx - topHeight).coerceAtLeast(0)
+                val controlsPlaceable = measurables[1].measure(loose)
+                val width = maxOf(headerPlaceable.width, controlsPlaceable.width, constraints.minWidth)
+                layout(width, topHeight + controlsPlaceable.height) {
+                    headerPlaceable.place(0, 0)
+                    controlsPlaceable.place(0, topHeight)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun StepLayout(
     wide: Boolean,
@@ -212,7 +390,6 @@ private fun StepLayout(
     collapsed: Boolean = false,
     controls: @Composable ColumnScope.(availableHeight: Dp) -> Unit,
 ) {
-    val motion = ClockblockTheme.motion
     if (wide) BoxWithConstraints(Modifier.fillMaxSize()) {
         // Phones in landscape: no art, a smaller headline and tighter padding, so the controls get the height.
         val short = maxHeight < ShortPaneHeight
@@ -222,10 +399,9 @@ private fun StepLayout(
         val controlsHeight = maxHeight - verticalPadding - bottomPadding
         val paneWidth = (maxWidth - WidePadding * 2) * WordsPaneFraction
         Row(Modifier.fillMaxSize().padding(horizontal = WidePadding)) {
-            AnimatedVisibility(
+            FoldingSlot(
                 visible = !collapsed,
-                enter = expandHorizontally(motion.navigationSpatial()) + fadeIn(motion.fade()),
-                exit = shrinkHorizontally(motion.navigationSpatial()) + fadeOut(motion.fade()),
+                axis = FoldingAxis.Horizontal,
             ) {
                 Column(
                     Modifier.width(paneWidth).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = WidePadding, top = verticalPadding, bottom = verticalPadding),
@@ -264,11 +440,7 @@ private fun StepLayout(
             HeaderThenControls(
                 viewportHeight = viewport,
                 header = {
-                    AnimatedVisibility(
-                        visible = !collapsed,
-                        enter = expandVertically(motion.navigationSpatial()) + fadeIn(motion.fade()),
-                        exit = shrinkVertically(motion.navigationSpatial()) + fadeOut(motion.fade()),
-                    ) {
+                    FoldingSlot(visible = !collapsed) {
                         Column {
                             // The art sits beside the headline, not above it: the controls (the sleep dial most of all) need
                             // the height.
@@ -424,14 +596,21 @@ private fun Badge(text: String) {
  * down to the keyboard), so it can fold the step's header and the bars too.
  */
 @Composable
-private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingActions, search: HomeSearchState, availableHeight: Dp, wide: Boolean) {
+private fun HomeZoneControls(
+    state: OnboardingUiState,
+    actions: OnboardingActions,
+    search: HomeSearchState,
+    roomPx: Density.() -> Int,
+    wide: Boolean,
+) {
     HomeSearch(
         state = search,
         query = state.query,
         results = state.results,
         resultsQuery = state.searchMatchingQuery,
         now = state.now,
-        room = availableHeight,
+        room = 0.dp,
+        roomPx = roomPx,
         onQueryChange = actions::queryChange,
         onPick = actions::selectPlace,
         wide = wide,
@@ -447,7 +626,7 @@ private fun HomeZoneControls(state: OnboardingUiState, actions: OnboardingAction
 @Composable
 private fun CurrentZoneCard(state: OnboardingUiState, actions: OnboardingActions) {
     val formatter = rememberTimeFormatter()
-    val zone = ZoneId.of(state.profile.homeZoneId)
+    val zone = remember(state.profile.homeZoneId) { ZoneId.of(state.profile.homeZoneId) }
     val colors = MaterialTheme.colorScheme
     Surface(shape = MaterialTheme.shapes.extraLarge, color = colors.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().testTag(HomeZoneTags.Current)) {
         Column(Modifier.padding(20.dp)) {
