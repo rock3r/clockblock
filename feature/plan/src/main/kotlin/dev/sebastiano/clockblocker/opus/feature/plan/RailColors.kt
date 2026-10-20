@@ -131,13 +131,33 @@ internal class RailColors(
     }
 }
 
-/** The rail's colours for the current theme. */
+/**
+ * The rail's colours for the current theme. Every rail row asks for them, and a row's `remember` only lasts as long as
+ * the row: shared across rows (and rows scrolled back in), so they are worked out once per theme rather than once per
+ * row coming into view, which made scrolling the rail drop frames.
+ */
 @Composable
 internal fun rememberRailColors(): RailColors {
     val scheme = MaterialTheme.colorScheme
     val advice = ClockblockTheme.adviceColors
     val sky = ClockblockTheme.sky
-    return remember(scheme, advice, sky) { RailColors.of(scheme, advice, sky) }
+    return remember(scheme, advice, sky) { RailColorsCache.of(scheme, advice, sky) }
+}
+
+/** The last theme's [RailColors]: themes change a few times a day at most, rows come and go all the time. */
+private object RailColorsCache {
+    private var key: Triple<ColorScheme, AdviceColors, SkyPalette>? = null
+    private var value: RailColors? = null
+
+    @Synchronized
+    fun of(scheme: ColorScheme, advice: AdviceColors, sky: SkyPalette): RailColors {
+        val k = Triple(scheme, advice, sky)
+        value?.let { if (key == k) return it }
+        return RailColors.of(scheme, advice, sky).also {
+            key = k
+            value = it
+        }
+    }
 }
 
 /** Where a capsule's block is in time: past ones step back, the one happening now leads. */
