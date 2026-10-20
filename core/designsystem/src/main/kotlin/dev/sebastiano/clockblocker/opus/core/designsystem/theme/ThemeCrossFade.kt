@@ -2,19 +2,32 @@ package dev.sebastiano.clockblocker.opus.core.designsystem.theme
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import kotlinx.coroutines.CancellationException
 
 /**
- * Every colour the theme hands out, as one value so a theme switch (Night-safe on/off, light/dark, Opus mode) can
- * cross-fade all of it together instead of cutting from black to bright in one frame.
+ * Every colour the theme hands out, as one value so a theme switch (Night-safe on/off, light/dark, Opus mode)
+ * changes all of it together.
  */
 @Immutable
 internal data class ThemePalette(
@@ -22,99 +35,98 @@ internal data class ThemePalette(
     val adviceColors: AdviceColors,
     val sky: SkyPalette,
     val art: ArtColors,
-) {
-    fun lerp(to: ThemePalette, t: Float): ThemePalette = when {
-        t <= 0f -> this
-        t >= 1f -> to
-        else -> ThemePalette(
-            colorScheme = colorScheme.lerp(to.colorScheme, t),
-            adviceColors = adviceColors.lerp(to.adviceColors, t),
-            sky = sky.lerp(to.sky, t),
-            art = art.lerp(to.art, t),
-        )
-    }
-}
+)
 
 /**
- * Cross-fades between [ThemePalette]s whenever [target] changes identity. The first composition shows [target]
- * directly (nothing to fade from). Recomposes the themed subtree per frame while fading, which is acceptable
- * because it happens a few times a day at most (see MOTION.md, "Night-safe cross-fade").
+ * Cross-fades the themed [content] whenever [target] changes identity, without recomposing it per frame: the
+ * screen as it looks now is captured once, the new palette is applied in a single recomposition, and the capture
+ * fades out on top of it ([spec], read in its layer only). The first composition shows [target] directly (nothing
+ * to fade from); a capture that can't be taken (not attached, zero size) just switches.
+ *
+ * Lerping the palette instead recomposed the whole app on every frame of the fade (23–29 dropped frames per switch on
+ * a Pixel 7 Pro). The capture costs two frames of latency before the switch starts.
  */
 @Composable
-internal fun animateThemePalette(target: ThemePalette, spec: AnimationSpec<Float>): ThemePalette {
-    val progress = remember { Animatable(1f) }
-    var from by remember { mutableStateOf(target) }
-    var to by remember { mutableStateOf(target) }
+internal fun ThemeCrossFade(target: ThemePalette, spec: AnimationSpec<Float>, content: @Composable (ThemePalette) -> Unit) {
+    val state = remember { ThemeCrossFadeState(target) }
+    val layer = rememberGraphicsLayer()
     LaunchedEffect(target) {
-        if (target === to) return@LaunchedEffect
-        // Interrupted mid-fade: continue from what is on screen right now.
-        from = from.lerp(to, progress.value)
-        to = target
-        progress.snapTo(0f)
-        progress.animateTo(1f, spec)
+        if (target === state.shown) return@LaunchedEffect
+        val capture = state.capture(layer)
+        state.shown = target
+        if (capture == null) return@LaunchedEffect
+        state.snapshot = capture
+        try {
+            state.alpha.snapTo(1f)
+            state.alpha.animateTo(0f, spec)
+        } finally {
+            // Interrupted by a newer switch: that one captured this fade as it stood (overlay included).
+            if (state.snapshot === capture) state.snapshot = null
+        }
     }
-    val t = progress.value
-    return if (t >= 1f) to else from.lerp(to, t)
+    Box(
+        Modifier.drawWithContent {
+            // Read so a capture request redraws this node (and only this one: content and overlay have layers).
+            state.captureRequests
+            if (state.captureWanted) {
+                layer.record { this@drawWithContent.drawContent() }
+                state.captureWanted = false
+                state.captured = true
+                drawLayer(layer)
+            } else {
+                drawContent()
+            }
+        },
+        propagateMinConstraints = true,
+    ) {
+        Box(Modifier.graphicsLayer(), propagateMinConstraints = true) { content(state.shown) }
+        CrossFadeOverlay(state, Modifier.matchParentSize())
+    }
 }
 
-internal fun ColorScheme.lerp(to: ColorScheme, t: Float): ColorScheme = to.copy(
-    primary = lerp(primary, to.primary, t),
-    onPrimary = lerp(onPrimary, to.onPrimary, t),
-    primaryContainer = lerp(primaryContainer, to.primaryContainer, t),
-    onPrimaryContainer = lerp(onPrimaryContainer, to.onPrimaryContainer, t),
-    inversePrimary = lerp(inversePrimary, to.inversePrimary, t),
-    secondary = lerp(secondary, to.secondary, t),
-    onSecondary = lerp(onSecondary, to.onSecondary, t),
-    secondaryContainer = lerp(secondaryContainer, to.secondaryContainer, t),
-    onSecondaryContainer = lerp(onSecondaryContainer, to.onSecondaryContainer, t),
-    tertiary = lerp(tertiary, to.tertiary, t),
-    onTertiary = lerp(onTertiary, to.onTertiary, t),
-    tertiaryContainer = lerp(tertiaryContainer, to.tertiaryContainer, t),
-    onTertiaryContainer = lerp(onTertiaryContainer, to.onTertiaryContainer, t),
-    background = lerp(background, to.background, t),
-    onBackground = lerp(onBackground, to.onBackground, t),
-    surface = lerp(surface, to.surface, t),
-    onSurface = lerp(onSurface, to.onSurface, t),
-    surfaceVariant = lerp(surfaceVariant, to.surfaceVariant, t),
-    onSurfaceVariant = lerp(onSurfaceVariant, to.onSurfaceVariant, t),
-    surfaceTint = lerp(surfaceTint, to.surfaceTint, t),
-    inverseSurface = lerp(inverseSurface, to.inverseSurface, t),
-    inverseOnSurface = lerp(inverseOnSurface, to.inverseOnSurface, t),
-    error = lerp(error, to.error, t),
-    onError = lerp(onError, to.onError, t),
-    errorContainer = lerp(errorContainer, to.errorContainer, t),
-    onErrorContainer = lerp(onErrorContainer, to.onErrorContainer, t),
-    outline = lerp(outline, to.outline, t),
-    outlineVariant = lerp(outlineVariant, to.outlineVariant, t),
-    scrim = lerp(scrim, to.scrim, t),
-    surfaceBright = lerp(surfaceBright, to.surfaceBright, t),
-    surfaceContainer = lerp(surfaceContainer, to.surfaceContainer, t),
-    surfaceContainerHigh = lerp(surfaceContainerHigh, to.surfaceContainerHigh, t),
-    surfaceContainerHighest = lerp(surfaceContainerHighest, to.surfaceContainerHighest, t),
-    surfaceContainerLow = lerp(surfaceContainerLow, to.surfaceContainerLow, t),
-    surfaceContainerLowest = lerp(surfaceContainerLowest, to.surfaceContainerLowest, t),
-    surfaceDim = lerp(surfaceDim, to.surfaceDim, t),
-)
+@Composable
+private fun CrossFadeOverlay(state: ThemeCrossFadeState, modifier: Modifier) {
+    val snapshot = state.snapshot ?: return
+    Spacer(modifier.graphicsLayer { alpha = state.alpha.value }.drawBehind { drawImage(snapshot) })
+}
 
-internal fun ArtColors.lerp(to: ArtColors, t: Float): ArtColors = ArtColors(
-    primary = lerp(primary, to.primary, t),
-    primaryContainer = lerp(primaryContainer, to.primaryContainer, t),
-    secondaryContainer = lerp(secondaryContainer, to.secondaryContainer, t),
-    tertiary = lerp(tertiary, to.tertiary, t),
-    tertiaryContainer = lerp(tertiaryContainer, to.tertiaryContainer, t),
-    surface = lerp(surface, to.surface, t),
-    surfaceHighest = lerp(surfaceHighest, to.surfaceHighest, t),
-    inverse = lerp(inverse, to.inverse, t),
-    onInverse = lerp(onInverse, to.onInverse, t),
-    ink = lerp(ink, to.ink, t),
-    shadow = lerp(shadow, to.shadow, t),
-    highlight = lerp(highlight, to.highlight, t),
-)
+@Stable
+private class ThemeCrossFadeState(initial: ThemePalette) {
+    /** The palette the tree is themed with. */
+    var shown: ThemePalette by mutableStateOf(initial)
 
-internal fun AdviceColorRole.lerp(to: AdviceColorRole, t: Float): AdviceColorRole = AdviceColorRole(
-    color = lerp(color, to.color, t),
-    onColor = lerp(onColor, to.onColor, t),
-    container = lerp(container, to.container, t),
-    onContainer = lerp(onContainer, to.onContainer, t),
-    outline = lerp(outline, to.outline, t),
-)
+    /** The look before the latest switch, fading out over [shown]. */
+    var snapshot: ImageBitmap? by mutableStateOf(null)
+    val alpha = Animatable(0f)
+
+    /** Bumped to redraw the host when a capture is wanted. */
+    var captureRequests by mutableIntStateOf(0)
+
+    /** Plain flags, handed between the effect and the draw pass. */
+    var captureWanted = false
+    var captured = false
+
+    /** The host's current look (the previous palette, and any fade still running), or null when it can't be taken. */
+    suspend fun capture(layer: GraphicsLayer): ImageBitmap? {
+        captured = false
+        captureWanted = true
+        captureRequests++
+        // The draw that records runs after the frame callbacks: wait for it (a host that isn't drawn gives up).
+        repeat(MaxCaptureFrames) {
+            withFrameNanos { }
+            if (captured) {
+                return try {
+                    layer.toImageBitmap()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        }
+        captureWanted = false
+        return null
+    }
+}
+
+private const val MaxCaptureFrames = 3

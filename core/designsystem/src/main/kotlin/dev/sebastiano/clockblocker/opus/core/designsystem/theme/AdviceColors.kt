@@ -101,10 +101,6 @@ class AdviceColors internal constructor(private val roles: Map<AdviceType, Advic
         },
     )
 
-    /** Per-role blend towards [to] (theme cross-fade). */
-    internal fun lerp(to: AdviceColors, t: Float): AdviceColors =
-        AdviceColors(roles.mapValues { (type, r) -> r.lerp(to[type], t) })
-
     override fun equals(other: Any?): Boolean = other is AdviceColors && other.roles == roles
     override fun hashCode(): Int = roles.hashCode()
 

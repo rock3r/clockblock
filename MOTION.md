@@ -30,7 +30,7 @@ For unlisted colour or alpha changes, use `colour()`.
 | Dial scrub settle / "back to now" | `dataSpatial()` (Standard); every frame reported so cards follow the hand | DECIDED |
 | Dial body sky (inner ring) on day change | `dialDayRotation()` = Standard slowSpatial, no overshoot; its ring labels turn with it | DECIDED |
 | Rewind easter egg springing home | `rewindReturn()`: raw −1440 → 0 with the release velocity; Expressive slowSpatial by day, Calm slowSpatial (no bounce) under Calm | DECIDED |
-| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects palette cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`) | DECIDED |
+| Night-safe / light–dark / Opus-mode switch | `themeCrossFade()` = Calm slowEffects cross-fade inside `ClockblockTheme` (stable call shape via `NightSafeTheme`): the old look is captured once and fades out over the new palette, applied in one recomposition (never a per-frame palette lerp, which recomposed the whole app every frame) | DECIDED |
 | Illustration entrance / `progress` | `artEntrance()` = scheme slowSpatial, once per instance (saveable); bouncy arts use `glyphMorph()` | DECIDED |
 | Two Clocks discs sliding on adaptation | `containerSpatial()` via `rememberArtValue` | DECIDED |
 | Illustration ambient loops (rare surfaces only) | `ambientLoop(ClockblockMotion.*Millis)` (sun 9 s, twinkle 1.8 s, drift 7.2 s, steam 3.2 s, sway 4.2 s, pulse 2.4 s); ×1.5 under Calm | DECIDED |
