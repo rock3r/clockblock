@@ -100,14 +100,6 @@ class SkyPalette internal constructor(private val skies: Map<SkyPhase, SkyGradie
         return ColorMath.withLightness(this, DarkKnee + (l - DarkKnee) * DarkRatio, chromaFactor = 0.85f)
     }
 
-    /** Per-sky blend towards [to] (theme cross-fade). */
-    internal fun lerp(to: SkyPalette, t: Float): SkyPalette = SkyPalette(
-        skies.mapValues { (phase, g) ->
-            val o = to[phase]
-            SkyGradient(androidx.compose.ui.graphics.lerp(g.top, o.top, t), androidx.compose.ui.graphics.lerp(g.bottom, o.bottom, t))
-        },
-    )
-
     override fun equals(other: Any?): Boolean = other is SkyPalette && other.skies == skies
     override fun hashCode(): Int = skies.hashCode()
 

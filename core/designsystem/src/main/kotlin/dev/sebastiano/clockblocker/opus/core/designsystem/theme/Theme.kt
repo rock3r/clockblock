@@ -186,34 +186,38 @@ fun ClockblockTheme(
             dark -> SkyPalette.Default.forDarkTheme()
             else -> SkyPalette.Default
         }
-        ThemePalette(colorScheme, advice, sky, artColorsFor(colorScheme, variant, dark))
+        ThemePalette(colorScheme, advice, sky, artColorsFor(colorScheme, variant, dark), variant, dark)
     }
     val motion = remember(motionScheme, reduce) { ClockblockMotion(motionScheme, reduce) }
-    val palette = animateThemePalette(targetPalette, motion.themeCrossFade())
-    val extras = remember(variant, dark, palette, motion) {
-        ClockblockExtras(
-            variant = variant,
-            dark = dark,
-            adviceColors = palette.adviceColors,
-            sky = palette.sky,
-            text = if (variant == ClockblockThemeVariant.Opus) OpusConcertTextStyles else DefaultClockblockTextStyles,
-            motion = motion,
-            art = palette.art,
-        )
-    }
     val params = ClockblockThemeParams(darkTheme, dynamicColor, opusMode, reduceMotion, calmMotion)
-    CompositionLocalProvider(
-        LocalClockblockExtras provides extras,
-        LocalReduceMotion provides reduce,
-        LocalClockblockThemeParams provides params,
-    ) {
-        MaterialExpressiveTheme(
-            colorScheme = palette.colorScheme,
-            motionScheme = motionScheme,
-            shapes = ClockblockShapes,
-            typography = if (variant == ClockblockThemeVariant.Opus) OpusConcertTypography else ClockblockTypography,
-            content = content,
-        )
+    ThemeCrossFade(targetPalette, motion.themeCrossFade()) { palette ->
+        // The shown palette's variant and mode, not this composition's: until the old look is captured, the whole
+        // look (fonts, dial and sky styling included) stays the old one.
+        val shownVariant = palette.variant
+        val extras = remember(palette, motion) {
+            ClockblockExtras(
+                variant = shownVariant,
+                dark = palette.dark,
+                adviceColors = palette.adviceColors,
+                sky = palette.sky,
+                text = if (shownVariant == ClockblockThemeVariant.Opus) OpusConcertTextStyles else DefaultClockblockTextStyles,
+                motion = motion,
+                art = palette.art,
+            )
+        }
+        CompositionLocalProvider(
+            LocalClockblockExtras provides extras,
+            LocalReduceMotion provides reduce,
+            LocalClockblockThemeParams provides params,
+        ) {
+            MaterialExpressiveTheme(
+                colorScheme = palette.colorScheme,
+                motionScheme = motionScheme,
+                shapes = ClockblockShapes,
+                typography = if (shownVariant == ClockblockThemeVariant.Opus) OpusConcertTypography else ClockblockTypography,
+                content = content,
+            )
+        }
     }
 }
 
