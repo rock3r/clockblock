@@ -26,8 +26,9 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import kotlinx.coroutines.CancellationException
 
 /**
- * Every colour the theme hands out, as one value so a theme switch (Night-safe on/off, light/dark, Opus mode)
- * changes all of it together.
+ * Every colour the theme hands out, with the [variant] and [dark] mode they belong to (they pick fonts, dial and sky
+ * styling), as one value so a theme switch (Night-safe on/off, light/dark, Opus mode) changes all of it together,
+ * and only once the old look has been captured.
  */
 @Immutable
 internal data class ThemePalette(
@@ -35,6 +36,8 @@ internal data class ThemePalette(
     val adviceColors: AdviceColors,
     val sky: SkyPalette,
     val art: ArtColors,
+    val variant: ClockblockThemeVariant,
+    val dark: Boolean,
 )
 
 /**
@@ -52,17 +55,15 @@ internal fun ThemeCrossFade(target: ThemePalette, spec: AnimationSpec<Float>, co
     val layer = rememberGraphicsLayer()
     LaunchedEffect(target) {
         if (target === state.shown) return@LaunchedEffect
+        // An interrupted fade keeps its overlay, frozen where it stood, until this capture has recorded it (the capture
+        // includes the overlay), so rapid switches continue from what is on screen rather than jumping.
         val capture = state.capture(layer)
         state.shown = target
-        if (capture == null) return@LaunchedEffect
         state.snapshot = capture
-        try {
-            state.alpha.snapTo(1f)
-            state.alpha.animateTo(0f, spec)
-        } finally {
-            // Interrupted by a newer switch: that one captured this fade as it stood (overlay included).
-            if (state.snapshot === capture) state.snapshot = null
-        }
+        if (capture == null) return@LaunchedEffect
+        state.alpha.snapTo(1f)
+        state.alpha.animateTo(0f, spec)
+        state.snapshot = null
     }
     Box(
         Modifier.drawWithContent {
